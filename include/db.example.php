@@ -1,12 +1,12 @@
 <?php
 // include/db.php — Connexion PDO (singleton)
-// Chargé en premier dans chaque page contrôleur
+// Copier ce fichier en db.php et renseigner les valeurs réelles
 
 define('BASE_URL', '/donjon');
 
-$dsn  = 'mysql:host=localhost;dbname=maikasteiymaika;charset=utf8mb4';
-$user = 'blabla';
-$pass = 'blabla';
+$dsn  = 'mysql:host=localhost;dbname=NOM_BASE;charset=utf8mb4';
+$user = 'UTILISATEUR_MYSQL';
+$pass = 'MOT_DE_PASSE';
 
 $options = [
   PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -17,7 +17,6 @@ $options = [
 try {
   $db = new PDO($dsn, $user, $pass, $options);
 } catch (PDOException $e) {
-  // En production : logguer l'erreur sans l'exposer
   error_log('DB connexion échouée : ' . $e->getMessage());
   http_response_code(503);
   exit('Service temporairement indisponible.');

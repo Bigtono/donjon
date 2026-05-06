@@ -1,0 +1,24 @@
+# --- Credentials et config locale ---
+include/db.php
+.env
+
+# --- Outils temporaires ---
+tools/
+
+# --- Logs ---
+*.log
+php_errors.log
+
+# --- OS ---
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# --- Éditeurs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- XAMPP / uploads locaux ---
+uploads/
