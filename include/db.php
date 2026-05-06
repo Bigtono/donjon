@@ -5,8 +5,8 @@
 define('BASE_URL', '/donjon');
 
 $dsn  = 'mysql:host=localhost;dbname=maikasteiymaika;charset=utf8mb4';
-$user = 'maikasteiymaika';
-$pass = 'Don150222!25';
+$user = 'blabla';
+$pass = 'blabla';
 
 $options = [
   PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
