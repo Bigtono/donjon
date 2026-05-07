@@ -11,6 +11,7 @@ endif;
 
 $message  = '';
 $is_error = false;
+$dev_lien = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST'):
   verifyCsrf();
@@ -24,9 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
     $stmt = $db->prepare('SELECT j_id, j_pseudo FROM dd_joueurs WHERE j_email = ? AND j_visible = 1');
     $stmt->execute([$email]);
     $joueur = $stmt->fetch();
-
-    // Réponse identique dans tous les cas (anti-énumération)
-    $message = 'Si cette adresse correspond à un compte, vous allez recevoir un email avec un lien de réinitialisation.';
 
     if ($joueur):
       $token   = bin2hex(random_bytes(32));
@@ -42,18 +40,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
       $lien  = 'http' . (isset($_SERVER['HTTPS']) ? 's' : '') . '://' . $_SERVER['HTTP_HOST'];
       $lien .= BASE_URL . '/profil/reinitialisation.php?token=' . urlencode($token);
 
-      $sujet  = '[Codex DD] Réinitialisation de votre mot de passe';
-      $corps  = "Bonjour " . $joueur['j_pseudo'] . ",\n\n";
-      $corps .= "Vous avez demandé la réinitialisation de votre mot de passe.\n\n";
-      $corps .= "Cliquez sur ce lien (valable 1 heure) :\n" . $lien . "\n\n";
-      $corps .= "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\n";
-      $corps .= "— Codex DD";
+      if (defined('DEV_MODE') && DEV_MODE):
+        // En dev : affiche le lien directement, pas d'email
+        $dev_lien = $lien;
+        $message  = 'Mode développement — cliquez sur le lien ci-dessous pour réinitialiser le mot de passe :';
+      else:
+        $sujet  = '[Codex DD] Réinitialisation de votre mot de passe';
+        $corps  = "Bonjour " . $joueur['j_pseudo'] . ",\n\n";
+        $corps .= "Vous avez demandé la réinitialisation de votre mot de passe.\n\n";
+        $corps .= "Cliquez sur ce lien (valable 1 heure) :\n" . $lien . "\n\n";
+        $corps .= "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\n";
+        $corps .= "— Codex DD";
+        $headers = 'From: noreply@' . $_SERVER['HTTP_HOST'] . "\r\n" .
+          'Content-Type: text/plain; charset=UTF-8';
+        mail($email, $sujet, $corps, $headers);
+        // Réponse identique dans tous les cas (anti-énumération)
+        $message = 'Si cette adresse correspond à un compte, vous allez recevoir un email avec un lien de réinitialisation.';
+      endif;
 
-      $headers = 'From: noreply@' . $_SERVER['HTTP_HOST'] . "\r\n" .
-                 'Content-Type: text/plain; charset=UTF-8';
-
-      mail($email, $sujet, $corps, $headers);
+    else:
+      // Réponse identique même si l'email n'existe pas (anti-énumération)
+      $message = 'Si cette adresse correspond à un compte, vous allez recevoir un email avec un lien de réinitialisation.';
     endif;
+
   endif;
 endif;
 
@@ -69,6 +78,9 @@ require_once '../include/header.php';
     <? if ($message): ?>
       <div class="flash-message flash-message--<?= $is_error ? 'error' : 'info' ?>">
         <?= h($message) ?>
+        <? if ($dev_lien): ?>
+          <br><a href="<?= h($dev_lien) ?>" style="word-break:break-all;"><?= h($dev_lien) ?></a>
+        <? endif ?>
       </div>
     <? endif ?>
 
@@ -78,8 +90,8 @@ require_once '../include/header.php';
         <div class="form-group">
           <label for="email">Adresse email</label>
           <input type="email" id="email" name="email"
-                 value="<?= h($_POST['email'] ?? '') ?>"
-                 required autocomplete="email">
+            value="<?= h($_POST['email'] ?? '') ?>"
+            required autocomplete="email">
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary" style="width:100%">
