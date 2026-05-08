@@ -78,7 +78,7 @@ if (!empty($_SESSION['j_id'])) {
       <i class="fa fa-user"></i>
       <span>Mes personnages</span>
     </a>
-    <a href="<?= BASE_URL ?>/compendium/classes.php" class="dashboard-card">
+    <a href="<?= BASE_URL ?>/compendium/index.php" class="dashboard-card">
       <i class="fa fa-book"></i>
       <span>Compendium</span>
     </a>

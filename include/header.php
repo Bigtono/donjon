@@ -31,7 +31,7 @@ $body_class = isset($body_class) ? h($body_class) : '';
 
   <nav class="site-header__nav">
     <? if (!empty($_SESSION['j_id'])): ?>
-      <a href="<?= BASE_URL ?>/compendium/classes.php">Compendium</a>
+      <a href="<?= BASE_URL ?>/compendium/index.php">Compendium</a>
       <a href="<?= BASE_URL ?>/personnages/fiche.php">Personnages</a>
       <? if (!empty($_SESSION['j_mode_campagne'])): ?>
         <a href="<?= BASE_URL ?>/campagnes/campagne.php">Campagnes</a>
