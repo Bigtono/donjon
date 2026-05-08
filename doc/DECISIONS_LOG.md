@@ -44,10 +44,9 @@ Délégation en v1 : globale sur l'univers entier (dd_univers_droits).
 Granularité par article prévue en v2.
 → Simplicité en v1 tout en posant les bases de la v2.
 
-**[2025] Balises PHP**
-Balises courtes (< ? et ? >), syntaxe alternative sans accolades sauf function().
-Indentation 2 espaces.
-→ Convention maintenue depuis la v1 pour cohérence.
+~~**[2025] Balises PHP** — SUPERSÉDÉ~~
+~~Balises courtes `<?` et `?>`, syntaxe alternative sans accolades sauf function().~~
+~~→ Convention maintenue depuis la v1 — incompatible avec certaines configs XAMPP, voir correction ci-dessous.~~
 
 ---
 
@@ -55,28 +54,19 @@ Indentation 2 espaces.
 
 **[2025] CSRF**
 Token en session, field généré par csrfField(), vérifié par verifyCsrf() sur tout POST.
-Meta tag dans header.php pour accès JS côté fetchPanel().
+Token accessible en JS via getCsrfToken() dans main.js (injecté dans fetchPanel()).
 
 **[2025] Remember me**
-Token aléatoire (random_bytes(32)) stocké hashé en base, cookie sécurisé 30j.
-Vérification automatique dans auth.php au chargement.
+Token aléatoire (random_bytes(32)) stocké en base, cookie sécurisé 30j.
+Vérification automatique dans auth.php au chargement de chaque page.
 
 **[2025] getActiveResIds()**
 Encapsulé dans helpers.php. Retourne un array de res_id selon la chaîne de priorité.
 À appeler en début de toute page compendium/personnage nécessitant le filtrage sources.
 
----
-
-## À décider
-
-- [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
-- [ ] Gestion des mots de passe oubliés (email reset ?)
-- [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
-- [ ] Ordre d'affichage par défaut des listes (alphabétique partout ?)
-
 **[2025] Préfixe tables — retour à dd_**
 Développement en local sur base XAMPP dédiée v2 → préfixe `dd_` conservé (pas de cohabitation v1 en local).
-Le renommage en `dd2_` pour OVH sera géré par un script RENAME TABLE au moment du déploiement en production.
+Le renommage en `dd2_` pour OVH sera géré par un script RENAME TABLE au moment du déploiement.
 → Code plus lisible, pas de friction en développement.
 
 **[2025] BASE_URL — URLs relatives au sous-répertoire**
@@ -87,4 +77,38 @@ Toutes les URLs passent par `BASE_URL` — aucune URL absolue codée en dur.
 
 **[2025] Balises PHP — correction convention**
 `<?php` pour les blocs logiques, `<?=` pour l'affichage inline.
-(Correction de la convention initiale qui mentionnait `<?` court — incompatible avec certaines configs XAMPP.)
+(Correction de la convention initiale `<?` court — incompatible avec certaines configs XAMPP.)
+→ Compatible tous environnements sans configuration supplémentaire.
+
+**[2025] DEV_MODE — mail en développement local**
+`define('DEV_MODE', true)` dans `include/db.php`.
+En DEV_MODE : le lien de réinitialisation de mot de passe s'affiche directement dans la page.
+En production : `DEV_MODE = false`, envoi par mail via mail().
+→ Évite la configuration SMTP sous XAMPP en développement.
+
+**[2025] Responsive — exception module Campagnes**
+Modules responsives (seuil 992px) : Compendium, Personnages, Wiki/Univers, Profil, Auth.
+Module NON responsive : Campagnes — usage desktop exclusif (MJ en partie sur ordinateur).
+→ Complexité réduite sur un module à usage contexte desktop uniquement.
+
+**[2025] Module Profil utilisateur**
+Trois sections indépendantes (formulaires séparés via champ hidden `section`) :
+- Identité : prénom, nom, pseudo, email (avec contrôle d'unicité)
+- Mot de passe : vérification ancien mdp, token reset 1h, DEV_MODE pour affichage lien
+- Paramètres : liste évolutive (ruleset par défaut, mode campagne, affichage ruleset, items/page)
+→ Extensible : chaque nouveau paramètre s'ajoute sans refonte de la page.
+
+**[2025] Ordre de développement des modules — modification**
+Ordre initial : Compendium > Personnages > Campagnes > Wiki.
+(Modification de l'ordre : Compendium placé en premier pour permettre l'alimentation
+en données dès le début du développement, avant même le module Personnages.)
+→ Les données du compendium sont nécessaires à tous les autres modules.
+
+---
+
+## À décider
+
+- [x] ~~Gestion des mots de passe oubliés~~ → implémenté (token 1h + DEV_MODE)
+- [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
+- [ ] Ordre d'affichage par défaut des listes (alphabétique partout ?)
+- [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
