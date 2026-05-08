@@ -104,8 +104,14 @@ endif;
 foreach ($listConfig['filtres'] as $f):
   $val = strParam($_GET[$f['name']] ?? '');
   if ($val === '' || $val === '0') continue;
-  $where_parts[] = $f['champ'] . ' = ?';
-  $params[]      = $val;
+  if ($f['type'] === 'exists'):
+    // Filtre via sous-requête EXISTS — évite les doublons liés aux JOINs
+    $where_parts[] = $f['sql'];
+    $params[]      = $val;
+  else:
+    $where_parts[] = $f['champ'] . ' = ?';
+    $params[]      = $val;
+  endif;
 endforeach;
 
 $where_sql = $where_parts ? 'WHERE ' . implode(' AND ', $where_parts) : '';
