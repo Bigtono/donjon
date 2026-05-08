@@ -1,112 +1,65 @@
-# Codex DD — Document de référence architecture v2
+# Codex DD v2 — Cahier des charges complet
 
-> Ce document est la source de vérité pour tous les développements.
-> À ouvrir dans VS Code à chaque session pour contextualiser Claude.
-> Dernière mise à jour : phase 1
+> Synthèse de toutes les décisions prises en phase de conception.
+> Dernière mise à jour : fin Phase 1
 
 ---
 
-## 1. Philosophie technique
+## 1. Présentation du projet
 
-- PHP classique sans framework (pages contrôleurs + includes)
-- JS vanilla, CSS maison
-- PDO exclusivement — `prepare/execute` sur toutes les requêtes
-- `htmlspecialchars` systématique sur toute sortie HTML via `h()`
-- Token CSRF sur tous les formulaires POST et endpoints AJAX sensibles
-- Balises PHP : `<?php` pour les blocs logiques, `<?=` pour l'affichage inline
-- Syntaxe alternative sans accolades sauf pour `function()` et `class`
-- Indentation : 2 espaces
+Application web d'aide au jeu de rôle Donjons & Dragons, destinée à faciliter le travail du maître de jeu et des joueurs pendant les parties. L'application remplace entièrement une v1 développée au fil des années pour un usage personnel.
 
-### URL de base — règle absolue
+**Objectif principal de la v2** : ouvrir l'application à plusieurs utilisateurs indépendants, chacun gérant ses propres données (personnages, campagnes, univers), tout en partageant un compendium de règles commun.
 
-La constante `BASE_URL` est définie dans `include/db.php` :
+---
 
-```php
-define('BASE_URL', '/donjon');
-```
+## 2. Contexte technique
 
-**Toutes les URLs du projet passent par `BASE_URL` — aucune URL absolue codée en dur.**
-
-| Contexte | Syntaxe |
+| Élément | Choix |
 |---|---|
-| Lien HTML | `href="<?= BASE_URL ?>/chemin/page.php"` |
-| Attribut `action` | `action="<?= BASE_URL ?>/chemin/page.php"` |
-| Redirection PHP | `header('Location: ' . BASE_URL . '/chemin/page.php');` |
-| Asset CSS/JS | `href="<?= BASE_URL ?>/css/main.css"` |
-| Lien dans un email | `BASE_URL . '/profil/reinitialisation.php?token=...'` |
+| Langage serveur | PHP classique sans framework |
+| Base de données | MySQL — PDO exclusivement |
+| Front-end | JS vanilla, CSS maison |
+| Hébergement prod | OVH — `http://maikastel.fr/donjon/` |
+| Développement local | XAMPP — `http://localhost/donjon/` |
+| Versioning | GitHub — repo `Bigtono/donjon` |
+| Éditeur | VS Code + plugin Claude Code |
 
-Cette constante vaut `/donjon` en local (XAMPP) et en production (maikastel.fr/donjon/) — zéro changement au déploiement.
+### Conventions de code
 
----
+- Balises PHP : `<?php` pour les blocs logiques, `<?=` pour l'affichage inline
+- Syntaxe alternative PHP sans accolades sauf pour `function()` et `class`
+- Indentation : 2 espaces
+- `htmlspecialchars` systématique via `h()` sur toute sortie HTML
+- `prepare/execute` PDO sur toutes les requêtes SQL
+- Token CSRF sur tous les formulaires POST et endpoints AJAX sensibles
+- `BASE_URL = '/donjon'` défini dans `include/db.php` — aucune URL absolue codée en dur
 
-## 2. Arborescence
+### Conventions base de données
 
-```
-codex-dd/
-├── index.php                   ← dashboard
-├── .htaccess
-├── personnages/
-│   ├── fiche.php
-│   ├── modifier.php
-│   └── enregistrement.php
-├── compendium/
-│   ├── classes.php
-│   ├── sorts.php
-│   ├── dons.php
-│   └── races.php
-├── campagnes/
-│   ├── campagne.php
-│   ├── scenario.php
-│   └── rencontres.php
-├── wiki/
-│   ├── univers.php
-│   └── articles.php
-├── admin/
-│   ├── utilisateurs.php
-│   └── ressources.php
-├── js/
-│   ├── main.js                 ← togglePlus, actualiserPage, CSRF global
-│   ├── personnage.js
-│   ├── compendium.js
-│   ├── campagne.js
-│   └── wiki.js
-├── css/
-│   ├── main.css                ← variables CSS, layout, composants
-│   └── modules.css             ← scopes .perso-*, .comp-*, etc.
-├── include/
-│   ├── db.php                  ← connexion PDO singleton
-│   ├── auth.php                ← session, vérification droits
-│   ├── helpers.php             ← fonctions transverses
-│   ├── header.php
-│   ├── footer.php
-│   ├── ajax/
-│   │   ├── detail-pp/          ← endpoints lecture (consultation)
-│   │   └── modifier/           ← endpoints formulaires édition
-│   └── insert/
-│       ├── DD3.5/              ← templates spécifiques ruleset DD3.5
-│       └── DD2024/             ← templates spécifiques ruleset DD2024
-├── sql/
-│   └── schema.sql              ← schéma complet de la base
-└── doc/
-    ├── ARCHITECTURE_REFERENCE.md   ← CE FICHIER
-    └── DECISIONS_LOG.md            ← journal des décisions
-```
+- Tables préfixées `dd_` (en local)
+- Au déploiement OVH : renommage en `dd2_` via script `RENAME TABLE` (cohabitation avec tables v1)
+- Champs préfixés par table (ex : `pe_` pour `dd_personnages`)
+- Premier champ = id index de la table
+- Tout champ contenant `_id` renvoie à une autre table
+- `_j_id` = propriétaire → `dd_joueurs`
+- `_camp_id` = campagne → `dd_campagnes`
+- `_res_id` = ressource/livre → `dd_ressources`
+- `_ruleset_var_id` = version de règles → `dd_variables`
 
 ---
 
-## 3. Conventions de nommage BDD
+## 3. Versions de règles (rulesets)
 
-- Toutes les tables préfixées `dd_`
-- **Local (XAMPP)** : préfixe `dd_` — base dédiée v2, pas de cohabitation avec la v1
-- **Production (OVH)** : renommage en `dd2_` au moment du déploiement (script RENAME TABLE à produire) pour cohabiter avec les tables v1
-- Chaque table a un préfixe de champ unique (ex: `pe` pour `dd_personnages`)
-- Premier champ = id index (ex: `pe_id`)
-- Tout champ contenant `_id` renvoie à l'index d'une autre table
-- Convention : `[préfixe_table_cible]_id` (ex: `pe_ra_id` → `dd_races.ra_id`)
-- `_j_id` = propriétaire (renvoie à `dd_joueurs.j_id`)
-- `_camp_id` = campagne (renvoie à `dd_campagnes.camp_id`)
-- `_ruleset_var_id` = version de règles (renvoie à `dd_variables`)
-- `_res_id` = ressource/livre source (renvoie à `dd_ressources`)
+Deux rulesets développés en parallèle dès le départ :
+
+| ID | Nom | Répertoire templates |
+|---|---|---|
+| 1 | DD3.5 | `include/insert/DD3.5/` |
+| 2 | DD2024 | `include/insert/DD2024/` |
+
+Sélection via `$_SESSION['rulesetRep']` — whitelist stricte.
+Les templates ruleset ne contiennent que du HTML, jamais de logique auth/session/redirection.
 
 ---
 
@@ -116,50 +69,204 @@ codex-dd/
 
 | Rôle | Condition | Droits |
 |---|---|---|
-| Admin | `j_admin = 1` | Tout le site, bypass filtres propriétaire |
-| Gestionnaire compendium | `j_compendium_manager = 1` | Édition compendium global (sans être admin) |
-| Utilisateur standard | par défaut | Ses données uniquement |
-| MJ | contextuel : `camp_j_id = session j_id` | Données de sa campagne + personnages invités |
+| **Admin** | `j_admin = 1` | Tout le site, bypass filtres propriétaire |
+| **Gestionnaire compendium** | `j_compendium_manager = 1` | Édition du compendium global sans être admin |
+| **Utilisateur standard** | par défaut | Ses propres données uniquement |
+| **MJ** | contextuel : `camp_j_id = session j_id` | Données de sa campagne + personnages invités |
 
-### Règle transverse de filtrage
+Le rôle MJ est **contextuel** — tout utilisateur devient MJ dès qu'il crée une campagne ou un univers. Il n'existe pas de rôle MJ structurel en base.
 
-Toute requête sur données utilisateur applique :
-```sql
-WHERE [prefix]_j_id = :user_id
--- ou, si admin :
--- pas de filtre propriétaire
-```
+### Règle de filtrage propriétaire
+
+Toute requête sur données utilisateur applique `WHERE [prefix]_j_id = :user_id`, sauf si admin.
 Encapsulé dans `ownerFilter()` dans `include/helpers.php`.
 
-### Visibilité par module
+### Visibilité des données par module
 
-| Module | Qui voit quoi |
+| Module | Règle |
 |---|---|
-| Compendium | Tous les utilisateurs connectés |
-| Personnages | Propriétaire (`pe_j_id`) + MJs des campagnes du personnage |
-| Campagnes | Propriétaire (`camp_j_id`) uniquement |
-| Wiki/Univers | Propriétaire + utilisateurs ayant accès si univers public |
-| Articles wiki | Propriétaire voit tout ; autres : `ua_visible = 1` uniquement |
-| Notes MJ (`cp_notes_mj`) | MJ uniquement (`camp_j_id`) |
+| Compendium officiel | Visible par tous les utilisateurs connectés |
+| Personnages | Propriétaire + MJs des campagnes auxquelles le personnage est rattaché |
+| Campagnes | Propriétaire uniquement |
+| Notes MJ (`cp_notes_mj`) | MJ de la campagne uniquement — le propriétaire du personnage ne les voit pas (sauf s'il est lui-même MJ) |
+| Univers privé | Propriétaire uniquement |
+| Univers public | Tous les utilisateurs (sélectionnable par d'autres MJs) |
+| Articles wiki visibles | Tous les ayants droit de l'univers |
+| Articles wiki cachés | Propriétaire de l'univers uniquement |
 
 ---
 
-## 5. Patterns d'interface
+## 5. Compendium des règles
+
+### Droits d'édition
+
+Deux niveaux :
+
+1. **Compendium global** : éditable par l'admin et les gestionnaires délégués (`j_compendium_manager = 1`). Visible par tous.
+2. **Contenu homebrew de campagne** : créé par le MJ, lié à une campagne via `_camp_id`. Visible uniquement par le MJ et les joueurs dont le personnage est rattaché à cette campagne.
+
+Le contenu homebrew utilise les **mêmes formulaires** que le compendium global, avec un champ caché `_camp_id` pour distinguer global (`null`) de homebrew (`camp_id`).
+
+Quand un MJ crée son premier contenu homebrew, une entrée `dd_ressources` est créée automatiquement avec `res_j_id = j_id` (son "recueil maison").
+
+### Mode de consultation
+
+Deux modes accessibles depuis l'interface :
+
+- **Compendium global** : règles officielles selon la sélection de sources active
+- **Vue campagne** : compendium global + ressources homebrew de la campagne
+
+### Sélection des sources — chaîne de priorité
+
+```
+1. Sélection de la campagne (dd_campagnes_sources)
+   └─ actif si : personnage mémorisé en session (last_pe_id)
+                 + rattaché à une campagne
+                 + cette campagne a sa propre sélection
+
+2. Sélection personnelle de l'utilisateur (dd_joueurs_sources, par ruleset)
+   └─ actif si : pas de campagne active ou campagne sans sélection propre
+
+3. Toutes les sources actives du ruleset (défaut absolu)
+```
+
+Le contexte est déterminé par `$_SESSION['last_pe_id']` (dernier personnage consulté, mis à jour automatiquement). L'utilisateur n'a pas à choisir manuellement son contexte.
+
+### Contenu du compendium
+
+- Classes (avec table de bonus de classe et capacités spéciales)
+- Sorts (par classe, par collège)
+- Dons
+- Races
+- Objets magiques (à spécifier)
+- Compétences
+
+---
+
+## 6. Module Personnages
+
+### Règles générales
+
+- Un personnage possède obligatoirement une race et au moins une classe
+- Un personnage appartient à un utilisateur (`pe_j_id`)
+
+### DD3.5 spécifique
+
+- Le personnage peut avoir une race de base + un archétype optionnel (`ra_rat_id = 2`)
+- Classes de prestige (`cla_clt_id = 2`) — nécessite au moins une classe de base
+- Gestion du NLS (Niveau de Lanceur de Sort) pour les classes de prestige — table `dd_personnages_nls`
+- Section NLS affichée uniquement si le personnage possède au moins une classe de base lanceur de sorts ET au moins une classe de prestige influant sur le NLS
+
+### DD2024 spécifique
+
+- Pas d'archétype, pas de classes de prestige
+- `pe_arc_id` toujours à 0
+
+### Notes MJ
+
+Les notes MJ ne sont plus stockées dans `dd_personnages` mais dans `dd_campagnes_personnages.cp_notes_mj`. Elles sont propres à chaque association personnage-campagne et perdues si le personnage quitte la campagne (archivage prévu v2).
+
+---
+
+## 7. Module Campagnes
+
+### Hiérarchie
+
+```
+Campagne (dd_campagnes)
+  └── Scénarios (dd_scenarios)
+        └── Chapitres (dd_scenarios_chapitres)
+              └── Rencontres (dd_rencontres)
+                    └── Monstres (dd_rencontres_monstres → dd_monstres)
+```
+
+### Personnages dans une campagne
+
+Liaison via `dd_campagnes_personnages` (cp_camp_id, cp_pe_id, cp_notes_mj, cp_actif).
+Le MJ voit la fiche complète du personnage + le champ `cp_notes_mj`.
+
+### Responsive
+
+Le module Campagnes n'est **pas responsive** — usage desktop exclusif (MJ en partie).
+
+---
+
+## 8. Module Wiki / Univers
+
+### Structure
+
+```
+Univers (dd_univers) — public ou privé
+  └── Catégories (dd_univers_categories) — géographie, histoire, organisations...
+        └── Articles (dd_univers_articles) — visible ou caché
+```
+
+### Règles de visibilité
+
+- Univers **privé** : propriétaire uniquement
+- Univers **public** : sélectionnable par d'autres MJs pour leurs campagnes (`dd_campagnes_univers`)
+- Article `ua_visible = 1` : visible par tous les ayants droit de l'univers
+- Article `ua_visible = 0` : propriétaire uniquement (ou délégataire)
+- Univers agnostique du ruleset
+
+### Délégation
+
+Le propriétaire peut déléguer les droits d'édition via `dd_univers_droits (ud_un_id, ud_j_id)`.
+En v1 : délégation globale sur l'univers entier. Granularité par article prévue en v2.
+
+---
+
+## 9. Responsive
+
+| Module | Responsive |
+|---|---|
+| Compendium | Oui |
+| Personnages | Oui |
+| Wiki / Univers | Oui |
+| Campagnes | Non (desktop MJ uniquement) |
+| Profil | Oui |
+| Connexion / Auth | Oui |
+
+Seuil : 992px (mode normal ≥ 992px, mode responsive ≤ 991px).
+
+---
+
+## 10. Profil utilisateur
+
+### Données personnelles
+Prénom, nom, pseudo (unique), email (unique).
+
+### Mot de passe
+Changement avec vérification de l'ancien mot de passe. Réinitialisation par email (token 1h).
+En mode `DEV_MODE = true` : le lien de réinitialisation s'affiche directement dans la page.
+
+### Paramètres personnalisables (liste évolutive)
+
+| Paramètre | Champ | Description |
+|---|---|---|
+| Ruleset par défaut | `j_default_ruleset_var_id` | Ruleset chargé à chaque connexion |
+| Mode campagne | `j_mode_campagne` | Active/désactive le menu Campagnes |
+| Affichage ruleset | `j_affichage_ruleset` | Affiche le ruleset actif dans le header |
+| Éléments par page | `j_items_par_page` | Taille des listes paginées (10/20/50/100) |
+
+---
+
+## 11. Patterns d'interface
 
 ### detail-pp / modification
 
-- `detail-pp` = consultation (lecture seule)
-- `modification` = formulaire d'édition superposé par-dessus `detail-pp`
-- Fermer `modification` (Annuler) ne ferme PAS `detail-pp`
-- Après sauvegarde : rafraîchir `detail-pp` + liste si impactée
+- `#detail-pp` : consultation en lecture seule
+- `#modification` : formulaire d'édition superposé par-dessus `#detail-pp`
+- Fermer `#modification` (Annuler) **ne ferme pas** `#detail-pp`
+- Après sauvegarde : rafraîchir `#detail-pp` + liste principale si impactée
 
 ### Commit global
 
-- `*-modifier.php` : édition locale JS/DOM uniquement, zéro écriture BDD
-- `*-enregistrement.php` : un seul POST applique tous les changements en transaction
-- Actions UI (ajout/suppression/modif ligne) → état JS → champs hidden sérialisés
-- Validation métier obligatoire côté serveur
-- Écriture en transaction PDO avec `commit()`/`rollback()`
+- `*-modifier.php` : édition locale JS/DOM uniquement — zéro écriture BDD
+- `*-enregistrement.php` : un seul POST applique tous les changements en transaction PDO
+- Actions UI → état JS local → champs hidden sérialisés au submit
+- Validation métier obligatoire côté serveur (jamais uniquement côté JS)
+- Écriture en transaction avec `commit()`/`rollback()`
 
 ### Blocs repliables (burger)
 
@@ -169,127 +276,221 @@ Encapsulé dans `ownerFilter()` dans `include/helpers.php`.
   <div class="box-data"><!-- contenu --></div>
 </div>
 ```
-Style validé : fond `#f3f3ef`, bordure `#e2e2dd`, rayon `0.35rem`, padding `10px`.
+
+Style : fond `#f3f3ef`, bordure `#e2e2dd`, rayon `0.35rem`, padding `10px`.
 
 ---
 
-## 6. Multi-ruleset
-
-- Rulesets actifs : `DD3.5`, `DD2024`
-- Sélection via `$_SESSION['rulesetRep']` (whitelist stricte)
-- Templates ruleset dans `include/insert/DD3.5/` et `include/insert/DD2024/`
-- Contrat template : HTML uniquement, pas d'auth/session/redirection
-- Variables fournies par le contrôleur : `$db`, `$_SESSION`, données métier
-
----
-
-## 7. Sélection des sources — chaîne de priorité
+## 12. Arborescence du projet
 
 ```
-1. Sélection de la campagne (dd_campagnes_sources)
-   └─ actif si : personnage en session + rattaché à une campagne
-                 + campagne possède une sélection propre
-2. Sélection personnelle (dd_joueurs_sources, par ruleset)
-   └─ actif si : pas de campagne active ou campagne sans sélection
-3. Toutes les sources actives du ruleset (défaut absolu)
+donjon/
+├── index.php                       ← dashboard / connexion
+├── .htaccess
+├── personnages/
+│   ├── fiche.php
+│   ├── modifier.php
+│   └── enregistrement.php
+├── compendium/
+│   ├── classes.php
+│   ├── races.php
+│   ├── origines.php (spécificité DD2024)
+│   ├── competences.php
+│   ├── dons.php
+│   ├── sorts.php
+│   └── objets_magiques.php
+├── campagnes/
+│   ├── campagne.php
+│   ├── scenario.php
+│   └── rencontres.php
+├── wiki/
+│   ├── univers.php
+│   └── articles.php
+├── profil/
+│   ├── index.php
+│   ├── mot-de-passe-oublie.php
+│   └── reinitialisation.php
+├── admin/
+│   ├── utilisateurs.php
+│   └── ressources.php
+├── js/
+│   ├── main.js                     ← togglePlus, actualiserPage, CSRF...
+│   ├── personnage.js
+│   ├── compendium.js
+│   ├── campagne.js
+│   ├── wiki.js
+│   └── profil.js
+├── css/
+│   ├── main.css                    ← variables, layout, composants
+│   └── modules.css                 ← scopes par module
+├── include/
+│   ├── db.php                      ← PDO + BASE_URL + DEV_MODE
+│   ├── auth.php                    ← session, droits, CSRF, remember me
+│   ├── helpers.php                 ← h(), ownerFilter(), getActiveResIds()...
+│   ├── header.php
+│   ├── footer.php
+│   ├── ajax/
+│   │   ├── detail-pp/
+│   │   └── modifier/
+│   └── insert/
+│       ├── DD3.5/
+│       └── DD2024/
+├── sql/
+│   ├── schema.sql
+│   └── patch_001_reset_password.sql
+└── doc/
+    ├── CAHIER_DES_CHARGES.md       ← CE FICHIER
+    ├── ARCHITECTURE_REFERENCE.md   ← référence technique pour VS Code
+    └── DECISIONS_LOG.md            ← journal des décisions
 ```
-
-Contexte actif déterminé par `$_SESSION['last_pe_id']` (dernier personnage consulté).
-Helper PHP `getActiveResIds($db, $session)` → retourne `array` d'ids.
 
 ---
 
-## 8. Tables de la base de données
+## 13. Plan de développement
 
-Voir `sql/schema.sql` pour le schéma complet.
+### Phase 1 — Socle technique ✅ TERMINÉ
 
-### Tables principales
+- Structure de fichiers et arborescence
+- Base de données (schema.sql)
+- Auth : connexion, session, remember me, CSRF, logout
+- Helpers : `h()`, `ownerFilter()`, `getActiveResIds()`, pagination
+- Header / footer communs avec `BASE_URL`
+- Dashboard
+- Profil utilisateur (identité, mot de passe, paramètres)
+- Réinitialisation mot de passe (avec mode DEV_MODE)
+- CSS design system + responsive
+
+### Phase 2 — Compendium 🔜 SUIVANT
+
+Priorité donnée au compendium pour permettre l'alimentation du site en données dès le début.
+
+- Page sélection des sources (`affichageSelectionSources.php`)
+- Classes : données principales + table de bonus de classe + capacités spéciales
+- Sorts : liste, détail, filtres par classe/collège/ressource
+- Dons : liste, détail, filtres
+- Races : liste, détail
+- Gestion homebrew de campagne (même formulaires + champ `_camp_id` caché)
+- Templates DD3.5 et DD2024 en parallèle
+
+### Phase 3 — Personnages
+
+- Création / édition fiche (race, archétype DD3.5, caractéristiques)
+- Classes et niveaux (commit global)
+- Sorts du personnage (accès, connus, préparés)
+- Compétences et dons
+- NLS classes de prestige (DD3.5 uniquement)
+
+### Phase 4 — Campagnes
+
+- Création campagne, scénarios, chapitres
+- Rencontres et affectation de monstres
+- Rattachement personnages à une campagne
+- Notes MJ (`cp_notes_mj`)
+- Sélection de sources propre à une campagne
+
+### Phase 5 — Wiki / Univers
+
+- Création d'univers (public / privé)
+- Catégories et articles (visible / caché)
+- Délégation de droits d'édition
+- Rattachement univers à une campagne
+
+---
+
+## 14. Tables de la base de données
+
+### Référentiels
+
+| Table | Préfixe | Rôle |
+|---|---|---|
+| `dd_variables` | `var` | Rulesets et valeurs paramétrables |
+| `dd_ressources` | `res` | Livres/suppléments de règles |
+| `dd_caracteristiques` | `car` | 6 caractéristiques DD |
+| `dd_modificateurs` | `mod` | Modificateurs de caractéristiques |
+
+### Utilisateurs
 
 | Table | Préfixe | Rôle |
 |---|---|---|
 | `dd_joueurs` | `j` | Utilisateurs du site |
-| `dd_variables` | `var` | Référentiel rulesets et autres valeurs |
-| `dd_ressources` | `res` | Livres/suppléments de règles |
 | `dd_joueurs_sources` | `js` | Sélection sources par utilisateur |
-| `dd_campagnes_sources` | `cs` | Sélection sources par campagne |
-| `dd_caracteristiques` | `car` | 6 caractéristiques DD |
+
+### Compendium
+
+| Table | Préfixe | Rôle |
+|---|---|---|
 | `dd_races` | `ra` | Races jouables |
 | `dd_race_type` | `rat` | Types de race (base / archétype) |
 | `dd_classes` | `cla` | Classes de personnage |
-| `dd_classe_niveau` | `cn` | Table de bonus par niveau de classe |
+| `dd_classe_niveau` | `cn` | Table de bonus par niveau |
 | `dd_capacites_speciales` | `cap` | Capacités spéciales |
 | `dd_classe_capacite` | `cc` | Affectation capacité → niveau de classe |
-| `dd_dons` | `do` | Dons |
+| `dd_typeMagie` | `mag` | Types de magie |
+| `dd_colleges` | `co` | Collèges de magie |
 | `dd_sorts` | `so` | Sorts |
 | `dd_sortclasse` | `sc` | Sorts par classe |
-| `dd_colleges` | `co` | Collèges de magie |
-| `dd_typeMagie` | `mag` | Types de magie (profane/divin) |
+| `dd_dons` | `do` | Dons |
+| `dd_data_don` | `dado` | Catégories de dons |
+| `dd_competences` | `comp` | Compétences |
+
+### Personnages
+
+| Table | Préfixe | Rôle |
+|---|---|---|
 | `dd_personnages` | `pe` | Fiches personnages |
 | `dd_personnages_classes` | `pc` | Classes du personnage |
 | `dd_personnages_nls` | `penl` | NLS classes de prestige (DD3.5) |
 | `dd_personnages_sorts` | `pes` | Sorts du personnage |
 | `dd_personnages_sorts_prepares` | `pesp` | Sorts préparés |
 | `dd_personnages_competences` | `pec` | Compétences du personnage |
+| `dd_personnages_dons` | `ped` | Dons du personnage |
+
+### Campagnes
+
+| Table | Préfixe | Rôle |
+|---|---|---|
 | `dd_campagnes` | `camp` | Campagnes |
 | `dd_campagnes_personnages` | `cp` | Lien personnage ↔ campagne + notes MJ |
 | `dd_campagnes_sources` | `cs` | Sources actives d'une campagne |
+| `dd_campagnes_univers` | `cu` | Lien campagne ↔ univers |
+| `dd_campagnes_notes` | `cpno` | Note rattachée à une campagne |
 | `dd_scenarios` | `sce` | Scénarios |
 | `dd_scenarios_chapitres` | `scc` | Chapitres |
 | `dd_rencontres` | `re` | Rencontres |
 | `dd_rencontres_monstres` | `rem` | Monstres d'une rencontre |
 | `dd_monstres` | `mo` | Monstres |
+
+### Wiki / Univers
+
+| Table | Préfixe | Rôle |
+|---|---|---|
 | `dd_univers` | `un` | Univers wiki |
-| `dd_univers_droits` | `ud` | Délégation édition univers |
+| `dd_univers_droits` | `ud` | Délégation droits édition univers |
 | `dd_univers_categories` | `uca` | Catégories d'articles |
 | `dd_univers_articles` | `ua` | Articles wiki |
-| `dd_campagnes_univers` | `cu` | Lien campagne ↔ univers |
+
+### Notes
+
+| Table | Préfixe | Rôle |
+|---|---|---|
 | `dd_notes` | `no` | Notes de jeu |
-| `dd_notes_contenus` | `noc` | Blocs de contenu d'une note |
+| `dd_notes_contenus` | `noc` | Blocs de contenu (avec degré de difficulté) |
 | `dd_personnages_notes` | `pno` | Note attribuée à un personnage |
-| `dd_campagnes_notes` | `cpno` | Note attribuée à une campagne |
 | `dd_tags` | `tag` | Tags libres |
 | `dd_notes_tags` | `notag` | Association notes ↔ tags |
-| `dd_modificateurs` | `mod` | Modificateurs de caractéristiques |
 
 ---
 
-## 9. Gestion des univers publics
-
-- `un_public = 1` → univers sélectionnable par d'autres MJs
-- Accès en lecture seule pour les campagnes qui le sélectionnent
-- Exception : propriétaire délègue via `dd_univers_droits (ud_un_id, ud_j_id)`
-- En v1 : délégation globale sur l'univers entier (pas par article)
-- Granularité par article prévue en v2
-
----
-
-## 10. Contenu homebrew de campagne
-
-- Même formulaire que le compendium global
-- Champ caché `_camp_id` distingue global (null) de homebrew (camp_id)
-- Le MJ crée une entrée `dd_ressources` (`res_j_id = j_id`) pour son recueil maison
-- Visibilité : `_camp_id = null` → tous ; `_camp_id = X` → MJ + joueurs de la campagne X
-
----
-
-## 11. Notes MJ sur les personnages
-
-- Stockées dans `dd_campagnes_personnages.cp_notes_mj`
-- Visibles uniquement par le propriétaire de la campagne (`camp_j_id`)
-- Supprimées quand le personnage quitte la campagne
-- Archivage prévu en v2
-
----
-
-## 12. Checklist avant chaque merge
+## 15. Checklist avant chaque merge
 
 - [ ] Aucun write AJAX dans `*-modifier.php`
 - [ ] Payload hidden complet et cohérent au submit
 - [ ] Validations serveur couvrent les cas invalides
 - [ ] Transaction PDO active sur `*-enregistrement.php`
 - [ ] `ownerFilter()` appliqué sur toutes les requêtes de liste
-- [ ] `htmlspecialchars` / `h()` sur toutes les sorties HTML
+- [ ] `h()` sur toutes les sorties HTML
 - [ ] CSRF token vérifié sur tous les POST
-- [ ] **Aucune URL absolue codée en dur — `BASE_URL` utilisé partout**
-- [ ] Templates ruleset ne contiennent pas de logique auth/session
+- [ ] Aucune URL absolue codée en dur — `BASE_URL` utilisé partout
+- [ ] Templates ruleset sans logique auth/session
 - [ ] `rulesetRep` validé via whitelist avant inclusion template
+- [ ] Responsive testé sur les modules concernés (hors Campagnes)
