@@ -54,7 +54,7 @@ Granularité par article prévue en v2.
 
 **[2025] CSRF**
 Token en session, field généré par csrfField(), vérifié par verifyCsrf() sur tout POST.
-Token accessible en JS via getCsrfToken() dans main.js (injecté dans fetchPanel()).
+Token accessible en JS via getCsrfToken() dans main.js.
 
 **[2025] Remember me**
 Token aléatoire (random_bytes(32)) stocké en base, cookie sécurisé 30j.
@@ -65,50 +65,120 @@ Encapsulé dans helpers.php. Retourne un array de res_id selon la chaîne de pri
 À appeler en début de toute page compendium/personnage nécessitant le filtrage sources.
 
 **[2025] Préfixe tables — retour à dd_**
-Développement en local sur base XAMPP dédiée v2 → préfixe `dd_` conservé (pas de cohabitation v1 en local).
-Le renommage en `dd2_` pour OVH sera géré par un script RENAME TABLE au moment du déploiement.
+Développement en local sur base XAMPP dédiée v2 → préfixe dd_ conservé.
+Le renommage en dd2_ pour OVH sera géré par un script RENAME TABLE au déploiement.
 → Code plus lisible, pas de friction en développement.
 
 **[2025] BASE_URL — URLs relatives au sous-répertoire**
-Site déployé sous `/donjon/` en local (XAMPP) et en production (maikastel.fr/donjon/).
-Constante `BASE_URL = '/donjon'` définie dans `include/db.php`.
-Toutes les URLs passent par `BASE_URL` — aucune URL absolue codée en dur.
+Site déployé sous /donjon/ en local et en production.
+Constante BASE_URL = '/donjon' définie dans include/db.php.
+Toutes les URLs passent par BASE_URL — aucune URL absolue codée en dur.
 → Zéro changement de code entre local et production.
 
 **[2025] Balises PHP — correction convention**
-`<?php` pour les blocs logiques, `<?=` pour l'affichage inline.
-(Correction de la convention initiale `<?` court — incompatible avec certaines configs XAMPP.)
+<?php pour les blocs logiques, <?= pour l'affichage inline.
+(Correction de la convention initiale <? court — incompatible avec certaines configs XAMPP.)
 → Compatible tous environnements sans configuration supplémentaire.
 
 **[2025] DEV_MODE — mail en développement local**
-`define('DEV_MODE', true)` dans `include/db.php`.
-En DEV_MODE : le lien de réinitialisation de mot de passe s'affiche directement dans la page.
-En production : `DEV_MODE = false`, envoi par mail via mail().
+define('DEV_MODE', true) dans include/db.php.
+En DEV_MODE : lien de réinitialisation affiché directement dans la page.
+En production : DEV_MODE = false, envoi par mail().
 → Évite la configuration SMTP sous XAMPP en développement.
 
 **[2025] Responsive — exception module Campagnes**
 Modules responsives (seuil 992px) : Compendium, Personnages, Wiki/Univers, Profil, Auth.
-Module NON responsive : Campagnes — usage desktop exclusif (MJ en partie sur ordinateur).
-→ Complexité réduite sur un module à usage contexte desktop uniquement.
+Module NON responsive : Campagnes — usage desktop exclusif (MJ en partie).
+→ Complexité réduite sur un module à usage desktop uniquement.
 
 **[2025] Module Profil utilisateur**
-Trois sections indépendantes (formulaires séparés via champ hidden `section`) :
-- Identité : prénom, nom, pseudo, email (avec contrôle d'unicité)
-- Mot de passe : vérification ancien mdp, token reset 1h, DEV_MODE pour affichage lien
-- Paramètres : liste évolutive (ruleset par défaut, mode campagne, affichage ruleset, items/page)
-→ Extensible : chaque nouveau paramètre s'ajoute sans refonte de la page.
+Trois sections indépendantes (champ hidden section) : identité, mot de passe, paramètres.
+Liste de paramètres évolutive — chaque nouveau paramètre s'ajoute sans refonte.
+→ Extensible sans refonte de la page.
 
-**[2025] Ordre de développement des modules — modification**
-Ordre initial : Compendium > Personnages > Campagnes > Wiki.
-(Modification de l'ordre : Compendium placé en premier pour permettre l'alimentation
-en données dès le début du développement, avant même le module Personnages.)
+**[2025] Ordre de développement des modules**
+Compendium en premier (alimentation données) → Personnages → Campagnes → Wiki.
 → Les données du compendium sont nécessaires à tous les autres modules.
+
+---
+
+## Phase 2 — Compendium
+
+**[2025] Moteur de liste commun — $listConfig**
+Toutes les pages du compendium utilisent un seul fichier include/compendium-liste.php.
+Chaque page déclare un tableau $listConfig (colonnes, filtres, URLs AJAX, bulk actions)
+puis inclut le moteur qui gère tout le rendu.
+→ Code commun maintenable en un seul endroit, cohérence visuelle garantie entre toutes les pages.
+
+**[2025] Tri et filtrage — rechargement GET côté serveur**
+Tri et filtrage déclenchent un rechargement de page via GET.
+Colonne de tri validée par whitelist (colonnes déclarées avec tri = true) avant injection SQL.
+→ Sécurité ORDER BY + URL bookmarkable avec filtres actifs.
+
+**[2025] Pagination — côté serveur**
+Pagination SQL (LIMIT/OFFSET). Taille de page = $_SESSION['j_items_par_page'] (profil utilisateur).
+→ Cohérent avec le paramètre profil déjà prévu. Adapté aux listes potentiellement longues.
+
+**[2025] Filtre sources dans les listes**
+Le SELECT sources affiche les sources de la sélection active (getActiveResIds()).
+L'utilisateur peut restreindre à un sous-ensemble. Intersection des deux contraintes en ET.
+→ L'utilisateur ne sort jamais de sa sélection de base.
+
+**[2025] Filtres spécifiques par ruleset**
+Les critères de filtre intermédiaires peuvent varier selon le ruleset.
+La page gère le conditionnel avant de construire $listConfig['filtres'].
+→ Le moteur compendium-liste.php reste générique.
+
+**[2025] Actions groupées (bulk)**
+Supprimer est la seule action bulk commune à toutes les listes.
+Les autres actions bulk sont déclarées dans $listConfig['bulk_actions'], spécifiques à chaque liste.
+→ Flexibilité par liste sans complexifier le moteur commun.
+
+**[2025] Confirmation de suppression — div inline**
+La confirmation remplace temporairement la ligne dans le tableau.
+Pas de window.confirm() natif (non stylable).
+→ Cohérence visuelle avec le reste du site.
+
+**[2025] enregistrement.php — mode AJAX**
+compendium/enregistrement.php détecte $_GET['ajax'] et retourne JSON {ok, id, url_detail}
+pour les saves individuels (depuis detail-pp/modification).
+Mode normal (bulk) : redirect + flash message.
+→ Permet à apresModification() de piloter les rafraîchissements côté JS.
+
+**[2025] Responsive listes compendium**
+Classes CSS définies une fois dans modules.css :
+- .col-primary : toujours visible — ligne principale sur mobile
+- .col-secondary : sous-ligne sur mobile (font 0.8rem, style distinctif)
+- .col-action : masqué sur mobile (boutons modifier/supprimer)
+- .bulk-check : masqué sur mobile (cases à cocher)
+→ Responsive géré uniquement par CSS, sans JS.
+
+**[2025] Bouton Modifier dans detail-pp**
+Le HTML de detail-pp contient le bouton Modifier si canEditCompendium() — vérification serveur.
+Il appelle ouvrirModifier(url, id). Le contexte est déjà mémorisé dans _detailPpContext.
+Ce pattern s'applique à toute ouverture de detail-pp depuis n'importe quelle page du site.
+→ Droits vérifiés serveur, pas exposés au JS.
+
+**[2025] Pattern detail-pp — contexte d'ouverture**
+actualiserPage(url, params, context) mémorise le contexte dans _detailPpContext :
+- 'liste' : ouverture depuis une liste compendium
+- 'externe' : ouverture depuis toute autre page (défaut)
+
+apresModification() exploite ce contexte :
+- Toujours : rafraîchit #detail-pp
+- Si 'liste' : appelle aussi rafraichirListe() = window.location.reload()
+  (le reload préserve les GET params de tri et filtrage)
+- Si 'externe' : ne touche pas à la page appelante
+
+Ce pattern est transversal — il s'applique aussi aux modules Personnages et Campagnes
+quand ils ouvrent des éléments du compendium depuis leurs propres pages.
+→ Un seul mécanisme pour tous les contextes d'ouverture de detail-pp dans tout le site.
 
 ---
 
 ## À décider
 
 - [x] ~~Gestion des mots de passe oubliés~~ → implémenté (token 1h + DEV_MODE)
+- [x] ~~Ordre d'affichage par défaut des listes~~ → alphabétique sur col-primary (tri GET modifiable)
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
-- [ ] Ordre d'affichage par défaut des listes (alphabétique partout ?)
 - [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
