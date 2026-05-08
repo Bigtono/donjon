@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(php -r \"echo password_hash\\('MonMotDePasse', PASSWORD_DEFAULT\\);\")"
-    ]
-  }
-}
