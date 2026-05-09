@@ -1,12 +1,16 @@
 <?php
 // include/db.php — Connexion PDO (singleton)
-// Copier ce fichier en db.php et renseigner les valeurs réelles
+// Les credentials sont dans config/db.config.php (exclu du dépôt git).
 
-define('BASE_URL', '/donjon');
+$configFile = __DIR__ . '/../config/db.config.php';
 
-$dsn  = 'mysql:host=localhost;dbname=NOM_BASE;charset=utf8mb4';
-$user = 'UTILISATEUR_MYSQL';
-$pass = 'MOT_DE_PASSE';
+if (!file_exists($configFile)) {
+  error_log('Fichier de configuration introuvable : ' . $configFile);
+  http_response_code(503);
+  exit('Service temporairement indisponible.');
+}
+
+require_once $configFile;
 
 $options = [
   PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -15,7 +19,7 @@ $options = [
 ];
 
 try {
-  $db = new PDO($dsn, $user, $pass, $options);
+  $db = new PDO(DB_DSN, DB_USER, DB_PASS, $options);
 } catch (PDOException $e) {
   error_log('DB connexion échouée : ' . $e->getMessage());
   http_response_code(503);

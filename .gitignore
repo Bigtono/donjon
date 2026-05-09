@@ -1,5 +1,5 @@
 # --- Credentials et config locale ---
-include/db.php
+config/db.config.php
 .env
 
 # --- Outils temporaires ---

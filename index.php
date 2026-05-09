@@ -1,4 +1,10 @@
 <?
+// DEBUG CSRF — À SUPPRIMER APRÈS
+error_log('HOST: ' . ($_SERVER['HTTP_HOST'] ?? 'n/a'));
+error_log('SESSION ID: ' . session_id());
+error_log('SESSION CSRF: ' . ($_SESSION['csrf_token'] ?? 'VIDE'));
+error_log('POST CSRF: ' . ($_POST['csrf_token'] ?? 'ABSENT'));
+
 // index.php — Accueil : connexion ou dashboard
 require_once 'include/db.php';
 require_once 'include/auth.php';
@@ -21,8 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   if (!$email || !$pass) {
     $errors[] = 'Email et mot de passe requis.';
-  }
-  else {
+  } else {
     $stmt = $db->prepare('
       SELECT j_id, j_pseudo, j_password_hash, j_admin, j_compendium_manager,
              j_default_ruleset_var_id, j_remember_token, j_affichage_ruleset,
@@ -35,8 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$row || !password_verify($pass, $row['j_password_hash'])) {
       $errors[] = 'Identifiants incorrects.';
-    }
-    else {
+    } else {
       startUserSession($row);
 
       // Mise à jour dernière connexion
@@ -83,20 +87,20 @@ if (!empty($_SESSION['j_id'])) {
       <span>Compendium</span>
     </a>
     <? if (!empty($_SESSION['j_mode_campagne'])): ?>
-    <a href="<?= BASE_URL ?>/campagnes/campagne.php" class="dashboard-card">
-      <i class="fa fa-map"></i>
-      <span>Mes campagnes</span>
-    </a>
+      <a href="<?= BASE_URL ?>/campagnes/campagne.php" class="dashboard-card">
+        <i class="fa fa-map"></i>
+        <span>Mes campagnes</span>
+      </a>
     <? endif ?>
     <a href="<?= BASE_URL ?>/wiki/univers.php" class="dashboard-card">
       <i class="fa fa-globe"></i>
       <span>Mes univers</span>
     </a>
     <? if (!empty($_SESSION['j_admin'])): ?>
-    <a href="<?= BASE_URL ?>/admin/utilisateurs.php" class="dashboard-card dashboard-card--admin">
-      <i class="fa fa-cog"></i>
-      <span>Administration</span>
-    </a>
+      <a href="<?= BASE_URL ?>/admin/utilisateurs.php" class="dashboard-card dashboard-card--admin">
+        <i class="fa fa-cog"></i>
+        <span>Administration</span>
+      </a>
     <? endif ?>
   </div>
 
@@ -127,14 +131,14 @@ require_once 'include/header.php';
       <div class="form-group">
         <label for="email">Email</label>
         <input type="email" id="email" name="email"
-               value="<?= h($_POST['email'] ?? '') ?>"
-               required autocomplete="email">
+          value="<?= h($_POST['email'] ?? '') ?>"
+          required autocomplete="email">
       </div>
 
       <div class="form-group">
         <label for="password">Mot de passe</label>
         <input type="password" id="password" name="password"
-               required autocomplete="current-password">
+          required autocomplete="current-password">
       </div>
 
       <div class="form-group form-group--inline">

@@ -2,12 +2,17 @@
 // include/auth.php — Gestion de session et contrôle d'accès
 // À inclure après db.php dans chaque page contrôleur
 
+// --- Détection HTTPS (valide aussi derrière un reverse proxy) ---
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+  || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+  || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+
 // --- Démarrage sécurisé de la session ---
 if (session_status() === PHP_SESSION_NONE) {
   session_set_cookie_params([
     'lifetime' => 0,
     'path'     => '/',
-    'secure'   => true,
+    'secure'   => $isHttps,
     'httponly' => true,
     'samesite' => 'Lax',
   ]);
@@ -15,7 +20,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // --- Remember me ---
-function checkRememberMe($db) {
+function checkRememberMe($db)
+{
   if (isset($_SESSION['j_id'])) return;
   if (!isset($_COOKIE['remember_token'])) return;
 
@@ -36,7 +42,8 @@ function checkRememberMe($db) {
   setRememberCookie($token, strtotime('+30 days'));
 }
 
-function startUserSession(array $row) {
+function startUserSession(array $row)
+{
   session_regenerate_id(true);
   $_SESSION['j_id']                  = (int)$row['j_id'];
   $_SESSION['j_pseudo']              = $row['j_pseudo'];
@@ -46,11 +53,13 @@ function startUserSession(array $row) {
   $_SESSION['rulesetRep']            = getRulesetRep($_SESSION['ruleset_var_id']);
 }
 
-function setRememberCookie(string $token, int $expires) {
+function setRememberCookie(string $token, int $expires)
+{
+  global $isHttps;
   setcookie('remember_token', $token, [
     'expires'  => $expires,
     'path'     => '/',
-    'secure'   => true,
+    'secure'   => $isHttps,
     'httponly' => true,
     'samesite' => 'Lax',
   ]);
@@ -59,7 +68,8 @@ function setRememberCookie(string $token, int $expires) {
 // --- Vérifications d'accès ---
 
 // Redirige vers login si non connecté
-function requireAuth(string $redirect = '/index.php') {
+function requireAuth(string $redirect = '/index.php')
+{
   if (empty($_SESSION['j_id'])) {
     header('Location: ' . $redirect);
     exit;
@@ -67,7 +77,8 @@ function requireAuth(string $redirect = '/index.php') {
 }
 
 // Redirige si non admin
-function requireAdmin(string $redirect = '/index.php') {
+function requireAdmin(string $redirect = '/index.php')
+{
   requireAuth($redirect);
   if (empty($_SESSION['j_admin'])) {
     header('Location: ' . $redirect);
@@ -76,22 +87,26 @@ function requireAdmin(string $redirect = '/index.php') {
 }
 
 // Vrai si l'utilisateur courant est admin
-function isAdmin(): bool {
+function isAdmin(): bool
+{
   return !empty($_SESSION['j_admin']);
 }
 
 // Vrai si l'utilisateur peut éditer le compendium global
-function canEditCompendium(): bool {
+function canEditCompendium(): bool
+{
   return isAdmin() || !empty($_SESSION['j_compendium_manager']);
 }
 
 // Vrai si l'utilisateur est propriétaire d'une ressource ($owner_j_id)
-function isOwner(int $owner_j_id): bool {
+function isOwner(int $owner_j_id): bool
+{
   return isset($_SESSION['j_id']) && ((int)$_SESSION['j_id'] === $owner_j_id || isAdmin());
 }
 
 // Vrai si l'utilisateur est MJ de la campagne donnée
-function isMJ($db, int $camp_id): bool {
+function isMJ($db, int $camp_id): bool
+{
   if (isAdmin()) return true;
   $stmt = $db->prepare('SELECT camp_j_id FROM dd_campagnes WHERE camp_id = ?');
   $stmt->execute([$camp_id]);
@@ -102,7 +117,8 @@ function isMJ($db, int $camp_id): bool {
 // --- Ruleset ---
 
 // Whitelist stricte des rulesets autorisés
-function getRulesetRep(int $ruleset_var_id): string {
+function getRulesetRep(int $ruleset_var_id): string
+{
   $map = [
     1 => 'DD3.5',
     2 => 'DD2024',
@@ -111,7 +127,8 @@ function getRulesetRep(int $ruleset_var_id): string {
 }
 
 // Inclut le template ruleset approprié (lecture seule, pas d'auth dedans)
-function includeRulesetTemplate(string $template) {
+function includeRulesetTemplate(string $template)
+{
   $rep  = $_SESSION['rulesetRep'] ?? 'DD3.5';
   $safe = ['DD3.5', 'DD2024'];
   if (!in_array($rep, $safe, true)) {
@@ -128,18 +145,21 @@ function includeRulesetTemplate(string $template) {
 
 // --- CSRF ---
 
-function csrfToken(): string {
+function csrfToken(): string
+{
   if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
   }
   return $_SESSION['csrf_token'];
 }
 
-function csrfField(): string {
+function csrfField(): string
+{
   return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') . '">';
 }
 
-function verifyCsrf() {
+function verifyCsrf()
+{
   $token = $_POST['csrf_token'] ?? '';
   if (!hash_equals(csrfToken(), $token)) {
     http_response_code(403);
@@ -149,7 +169,8 @@ function verifyCsrf() {
 
 // --- Logout ---
 
-function logout() {
+function logout()
+{
   if (isset($_COOKIE['remember_token'])) {
     setRememberCookie('', time() - 3600);
   }
