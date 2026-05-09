@@ -2,7 +2,7 @@
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Phase 2 — conception compendium
+> Dernière mise à jour : Phase 2 — compendium sorts + TinyMCE
 
 ---
 
@@ -368,9 +368,15 @@ donjon/
   sql/
     schema.sql
     patch_001_reset_password.sql
+  img/
+    uploads/               dépôt fichiers uploadés via TinyMCE (755)
   doc/
-    ARCHITECTURE_REFERENCE.md
+    ARCHITECTURE_0_REFERENCE.md
     DECISIONS_LOG.md
+    SCHEMA_SQL.md
+    ARCHITECTURE_2_SORTS.md
+    METIER_Gestion_des_classes.md
+    METIER_Gestion__des_personnages.md
 ```
 
 ---
@@ -477,6 +483,84 @@ Univers, catégories, articles, délégation, lien univers <-> campagne.
 
 ---
 
+---
+
+## 16. Éditeur de texte enrichi — TinyMCE
+
+### Choix retenu
+
+TinyMCE via CDN tiny.cloud. Clé API gratuite (inscription tiny.cloud requise, aucune contrainte commerciale pour usage personnel/non-commercial). Éditeur unique dans toute l'application — deux configurations selon le contexte.
+
+### Intégration CDN
+
+La clé API est stockée dans include/db.php :
+
+```php
+define('TINYMCE_API_KEY', 'votre_cle_api');
+```
+
+Chargement dans les pages qui en ont besoin (pas dans header.php — uniquement sur les pages avec formulaire) :
+
+```html
+<script src="https://cdn.tiny.cloud/1/<?= TINYMCE_API_KEY ?>/tinymce/7/tinymce.min.js"
+        referrerpolicy="origin"></script>
+```
+
+### Configuration minimale — sans images
+
+Pour : sorts, dons, classes, races, compétences.
+
+```javascript
+tinymce.init({
+  selector: '.tinymce-basic',
+  language: 'fr_FR',
+  menubar: false,
+  plugins: 'lists link',
+  toolbar: 'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
+  height: 300,
+  skin: 'oxide-dark',
+});
+```
+
+### Configuration complète — avec images
+
+Pour : wiki/univers (articles), personnages (background, notes).
+
+```javascript
+tinymce.init({
+  selector: '.tinymce-full',
+  language: 'fr_FR',
+  menubar: false,
+  plugins: 'lists link image table',
+  toolbar: 'bold italic underline | bullist numlist | h2 h3 | link image table | removeformat',
+  height: 400,
+  skin: 'oxide-dark',
+  images_upload_url: BASE_URL + '/include/ajax/upload-image.php',
+  images_upload_credentials: true,
+  automatic_uploads: true,
+});
+```
+
+### Endpoint upload images
+
+Fichier : include/ajax/upload-image.php
+Répertoire : img/uploads/ (permissions 755, dans .gitignore)
+Retourne : { "location": "URL_du_fichier" }
+Validation : type MIME (jpg/png/gif/webp), taille max 5Mo, renommage par hash.
+
+### Affichage du contenu TinyMCE
+
+Le HTML généré est stocké dans les champs TEXT/LONGTEXT et affiché tel quel.
+Ne pas passer par h() — utiliser directement la valeur.
+Sécurité : contenu produit uniquement par des utilisateurs authentifiés.
+
+### Soumission formulaire AJAX
+
+```javascript
+tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
+```
+
+
 ## 15. Checklist avant chaque merge
 
 - [ ] Aucun write AJAX dans *-modifier.php
@@ -493,3 +577,113 @@ Univers, catégories, articles, délégation, lien univers <-> campagne.
 - [ ] Compendium : colonne de tri validée par whitelist avant ORDER BY
 - [ ] Compendium : _detailPpContext correctement passé à actualiserPage()
 - [ ] Compendium : enregistrement.php?ajax=1 retourne JSON, mode normal retourne redirect
+- [ ] TinyMCE : triggerSave() appelé avant tout submit AJAX
+- [ ] TinyMCE : champs so_description/cap_description/ua_contenu affichés sans h()
+- [ ] img/uploads/ exclu du repo (.gitignore)
+
+---
+
+## 16. Éditeur de texte enrichi — TinyMCE
+
+### Choix retenu
+
+**TinyMCE** via CDN tiny.cloud. Clé API gratuite (tiny.cloud, inscription requise, aucune contrainte commerciale pour usage personnel). Éditeur unique dans toute l'application — deux configurations selon le contexte.
+
+### Intégration CDN
+
+```html
+<script src="https://cdn.tiny.cloud/1/VOTRE_CLE_API/tinymce/7/tinymce.min.js"
+        referrerpolicy="origin"></script>
+```
+
+La clé API est stockée dans `include/db.php` :
+
+```php
+define('TINYMCE_API_KEY', 'votre_cle_api');
+```
+
+Et injectée dans les pages via le header ou directement dans la page :
+
+```html
+<script src="https://cdn.tiny.cloud/1/<?= TINYMCE_API_KEY ?>/tinymce/7/tinymce.min.js"
+        referrerpolicy="origin"></script>
+```
+
+### Configuration minimale (sans images)
+
+Pour : sorts, dons, classes, races, compétences — descriptions sans images.
+
+```javascript
+tinymce.init({
+  selector: '.tinymce-basic',
+  language: 'fr_FR',
+  menubar: false,
+  plugins: 'lists link',
+  toolbar: 'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
+  height: 300,
+  content_css: false,
+  skin: 'oxide-dark',       // cohérent avec le thème sombre du site
+});
+```
+
+### Configuration complète (avec images)
+
+Pour : wiki/univers articles, personnages (notes, background) — descriptions avec images.
+
+```javascript
+tinymce.init({
+  selector: '.tinymce-full',
+  language: 'fr_FR',
+  menubar: false,
+  plugins: 'lists link image table',
+  toolbar: 'bold italic underline | bullist numlist | h2 h3 | link image table | removeformat',
+  height: 400,
+  content_css: false,
+  skin: 'oxide-dark',
+  images_upload_url: BASE_URL + '/include/ajax/upload-image.php',
+  images_upload_credentials: true,
+  automatic_uploads: true,
+});
+```
+
+### Endpoint d'upload images
+
+Fichier : `include/ajax/upload-image.php`
+Répertoire de stockage : `img/uploads/` (à créer avec permissions 755)
+
+L'endpoint :
+- Vérifie la session et les droits
+- Valide le type MIME (jpg, png, gif, webp uniquement)
+- Limite la taille (5Mo max)
+- Renomme le fichier (hash unique) pour éviter les collisions
+- Retourne le JSON attendu par TinyMCE : `{ "location": "URL_du_fichier" }`
+
+### Lecture du contenu dans les pages
+
+Le HTML généré par TinyMCE est stocké tel quel dans les champs `TEXT`/`LONGTEXT`.
+Affichage : ne jamais passer par `h()` — utiliser directement la valeur (elle est déjà du HTML).
+Sécurité : le contenu est produit par des utilisateurs authentifiés uniquement — pas d'entrée publique.
+
+### Pré-remplissage en modification
+
+```javascript
+// Dans le formulaire de modification, après init TinyMCE :
+tinymce.get('id_textarea').setContent(valeur_depuis_php);
+```
+
+Ou plus simplement via la valeur du textarea (TinyMCE lit le contenu initial automatiquement) :
+
+```html
+<textarea class="tinymce-basic" name="so_description">
+  <?= htmlspecialchars_decode(h($so['so_description'] ?? '')) ?>
+</textarea>
+```
+
+### Soumission du formulaire
+
+TinyMCE synchronise automatiquement le contenu vers le textarea à la soumission.
+Pour un submit AJAX, forcer la synchronisation avant :
+
+```javascript
+tinymce.triggerSave(); // synchronise tous les éditeurs actifs
+```

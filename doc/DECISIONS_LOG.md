@@ -182,3 +182,39 @@ quand ils ouvrent des éléments du compendium depuis leurs propres pages.
 - [x] ~~Ordre d'affichage par défaut des listes~~ → alphabétique sur col-primary (tri GET modifiable)
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
 - [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
+
+**[2025] so_composante — champ texte libre (correction)**
+so_composante n'est pas un champ calculé depuis les booléens so_vocal/so_gestuel/so_materiel.
+C'est un champ texte libre contenant le détail des composantes matérielles nécessaires au lancement.
+Le script de migration migration_sorts_v1_v2.sql doit être corrigé en conséquence
+(copie directe depuis v1 plutôt que construction par CONCAT).
+→ Cohérence avec le schéma réel dd_sorts.
+
+**[2025] dd_domaines et dd_sortdomaine — conservés en v2**
+Les tables dd_domaines et dd_sortdomaine sont maintenues en v2 pour le ruleset DD3.5.
+Importées manuellement depuis la v1.
+Nota : les deux tables sont en MyISAM/charset non-utf8mb4 (héritage v1).
+Conversion InnoDB + utf8mb4 à planifier lors d'une prochaine migration.
+→ Les domaines divins DD3.5 restent fonctionnels (affichage sort, formulaire).
+
+**[2025] so_resume — réintégré dans dd_sorts**
+Champ so_resume (TEXT, null) réintégré après suppression initiale lors de la conception du schéma.
+Affiché dans le formulaire modifier DD3.5 uniquement.
+Prévu pour affichage dans la liste sorts.php dans une version ultérieure.
+→ Cohérence avec l'architecture DD3.5 de la v1.
+
+**[2025] Niveaux sorts/domaines dans formulaire — liste 0 à 9**
+La liste déroulante des niveaux pour les classes et domaines va de 0 à 9 (pas 20).
+La valeur 0 signifie "non attribué" et s'affiche comme option vide
+(<option value="0"></option> puis <option value="1">1</option>...).
+Les entrées avec niveau=0 ne sont pas enregistrées dans dd_sortclasse/dd_sortdomaine.
+→ Clarté formulaire + correspondance avec les niveaux réels des sorts DD.
+
+**[2025] Éditeur texte enrichi — TinyMCE retenu**
+Besoin d'images dans wiki/univers et personnages → Quill.js écarté (gestion images native absente,
+workaround base64 inacceptable). TinyMCE via CDN tiny.cloud, clé API gratuite.
+Deux configurations : minimale (sans images) pour sorts/dons/classes/races,
+complète (avec images) pour wiki/univers et personnages.
+Clé API : constante TINYMCE_API_KEY dans include/db.php.
+Upload images : include/ajax/upload-image.php → img/uploads/ (hors .gitignore).
+→ Un seul éditeur cohérent dans toute l'application.
