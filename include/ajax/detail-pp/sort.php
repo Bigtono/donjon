@@ -12,7 +12,7 @@ require_once __DIR__ . '/../../helpers.php';
 
 requireAuth();
 
-$id         = intParam($_GET['id'] ?? 0);
+$id = intParam($_GET['id'] ?? $_POST['id'] ?? 0);
 $ruleset    = $_SESSION['rulesetRep'] ?? 'DD3.5';
 
 if (!$id):
@@ -78,7 +78,8 @@ endif;
 // ============================================================
 
 // {liste des composantes}
-function buildComposantes(array $so, string $ruleset): string {
+function buildComposantes(array $so, string $ruleset): string
+{
   $parts = [];
   if ($so['so_vocal'])    $parts[] = 'V';
   if ($so['so_gestuel'])  $parts[] = ($ruleset === 'DD2024') ? 'S' : 'G';
@@ -92,7 +93,8 @@ function buildComposantes(array $so, string $ruleset): string {
 
 // {liste des classes} pour DD3.5 : "Nom niv / Nom niv"
 // {liste des classes} pour DD2024 : "Nom / Nom" (pas de niveau)
-function buildClassesList(array $classes, string $ruleset): string {
+function buildClassesList(array $classes, string $ruleset): string
+{
   if (empty($classes)) return '<em class="text-muted">—</em>';
   $parts = [];
   foreach ($classes as $c):
@@ -104,7 +106,8 @@ function buildClassesList(array $classes, string $ruleset): string {
 }
 
 // {liste des domaines} pour DD3.5 : "Nom niv / Nom niv"
-function buildDomainesList(array $domaines): string {
+function buildDomainesList(array $domaines): string
+{
   if (empty($domaines)) return '';
   $parts = [];
   foreach ($domaines as $d):
@@ -126,12 +129,14 @@ endif;
 
 <div class="sort-detail">
 
-  <?php // ---- En-tête + bouton Modifier ---- ?>
+  <?php // ---- En-tête + bouton Modifier ---- 
+  ?>
   <div class="sort-detail__header flex-between">
     <div>
       <h2 class="sort-detail__nom"><?= h($so['so_nom']) ?></h2>
 
-      <?php // Collège + branche ?>
+      <?php // Collège + branche 
+      ?>
       <?php if ($so['co_nom']): ?>
         <p class="sort-detail__college">
           <?= h($so['co_nom']) ?>
@@ -144,22 +149,25 @@ endif;
 
     <?php if (canEditCompendium()): ?>
       <button class="btn btn-secondary btn-sm"
-              onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/sort.php', <?= $id ?>)">
+        onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/sort.php', <?= $id ?>)">
         <i class="fa fa-edit"></i> Modifier
       </button>
     <?php endif ?>
   </div>
 
-  <?php // ---- Corps de la fiche ---- ?>
+  <?php // ---- Corps de la fiche ---- 
+  ?>
   <dl class="sort-detail__body">
 
-    <?php // ---- Niveau (classes + domaines DD3.5) ---- ?>
+    <?php // ---- Niveau (classes + domaines DD3.5) ---- 
+    ?>
     <div class="sort-detail__row">
       <dt>Niveau</dt>
       <dd><?= $niveau_str ?></dd>
     </div>
 
-    <?php // ---- DD2024 : niveau du sort ---- ?>
+    <?php // ---- DD2024 : niveau du sort ---- 
+    ?>
     <?php if ($ruleset === 'DD2024' && $so['so_niveau'] !== null): ?>
       <div class="sort-detail__row">
         <dt>Niveau du sort</dt>
@@ -167,7 +175,8 @@ endif;
       </div>
     <?php endif ?>
 
-    <?php // ---- Composantes ---- ?>
+    <?php // ---- Composantes ---- 
+    ?>
     <?php if ($composantes_str): ?>
       <div class="sort-detail__row">
         <dt>Composantes</dt>
@@ -180,7 +189,8 @@ endif;
       </div>
     <?php endif ?>
 
-    <?php // ---- Temps d'incantation ---- ?>
+    <?php // ---- Temps d'incantation ---- 
+    ?>
     <?php if ($so['so_duree_incantation']): ?>
       <div class="sort-detail__row">
         <dt>Temps d'incantation</dt>
@@ -188,7 +198,8 @@ endif;
       </div>
     <?php endif ?>
 
-    <?php // ---- Portée ---- ?>
+    <?php // ---- Portée ---- 
+    ?>
     <?php if ($so['so_portee']): ?>
       <div class="sort-detail__row">
         <dt>Portée</dt>
@@ -196,7 +207,8 @@ endif;
       </div>
     <?php endif ?>
 
-    <?php // ---- Cible [DD3.5] ---- ?>
+    <?php // ---- Cible [DD3.5] ---- 
+    ?>
     <?php if ($ruleset === 'DD3.5' && $so['so_cible']): ?>
       <div class="sort-detail__row">
         <dt>Cible</dt>
@@ -204,7 +216,8 @@ endif;
       </div>
     <?php endif ?>
 
-    <?php // ---- Zone d'effet [DD3.5] ---- ?>
+    <?php // ---- Zone d'effet [DD3.5] ---- 
+    ?>
     <?php if ($ruleset === 'DD3.5' && $so['so_zone_effet']): ?>
       <div class="sort-detail__row">
         <dt>Zone d'effet</dt>
@@ -212,7 +225,8 @@ endif;
       </div>
     <?php endif ?>
 
-    <?php // ---- Durée ---- ?>
+    <?php // ---- Durée ---- 
+    ?>
     <?php if ($so['so_duree_sort']): ?>
       <div class="sort-detail__row">
         <dt>Durée</dt>
@@ -220,7 +234,8 @@ endif;
       </div>
     <?php endif ?>
 
-    <?php // ---- Jet de sauvegarde [DD3.5] ---- ?>
+    <?php // ---- Jet de sauvegarde [DD3.5] ---- 
+    ?>
     <?php if ($ruleset === 'DD3.5' && $so['so_jet_sauvegarde']): ?>
       <div class="sort-detail__row">
         <dt>Jet de sauvegarde</dt>
@@ -228,7 +243,8 @@ endif;
       </div>
     <?php endif ?>
 
-    <?php // ---- Résistance à la magie [DD3.5] ---- ?>
+    <?php // ---- Résistance à la magie [DD3.5] ---- 
+    ?>
     <?php if ($ruleset === 'DD3.5' && $so['so_resistance']): ?>
       <div class="sort-detail__row">
         <dt>Résistance à la magie</dt>
@@ -238,14 +254,16 @@ endif;
 
   </dl>
 
-  <?php // ---- Description ---- ?>
+  <?php // ---- Description ---- 
+  ?>
   <?php if ($so['so_description']): ?>
     <div class="sort-detail__description">
       <?= $so['so_description'] ?>
     </div>
   <?php endif ?>
 
-  <?php // ---- Pied de fiche : source, campagne, ruleset ---- ?>
+  <?php // ---- Pied de fiche : source, campagne, ruleset ---- 
+  ?>
   <div class="sort-detail__footer">
     <span class="sort-detail__source">
       <i class="fa fa-book"></i> <?= h($so['res_nom']) ?>
