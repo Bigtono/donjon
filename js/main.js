@@ -4,8 +4,7 @@
 'use strict';
 
 // ============================================================
-// CSRF — récupère le token depuis le cookie de session
-// (le token est injecté dans chaque page via un meta tag)
+// CSRF
 // ============================================================
 
 function getCsrfToken() {
@@ -17,7 +16,6 @@ function getCsrfToken() {
 // BLOCS REPLIABLES (burger)
 // ============================================================
 
-// togglePlus(id) — affiche/masque un bloc accordion
 function togglePlus(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -26,22 +24,44 @@ function togglePlus(id) {
 
 // ============================================================
 // PATTERN DETAIL-PP / MODIFICATION
+// Contexte d'ouverture de detail-pp :
+//   'liste'   — ouvert depuis une liste compendium
+//   'externe' — ouvert depuis toute autre page (défaut)
+// Détermine ce qui est rafraîchi après une modification.
 // ============================================================
 
-// Charge du contenu HTML dans #detail-pp via AJAX
-function actualiserPage(url, params = {}) {
+let _detailPpContext = 'externe';
+let _detailPpUrl = '';
+let _detailPpParams = {};
+
+// Charge du contenu HTML dans #detail-pp via GET
+// Les endpoints detail-pp sont des lectures — params passés dans l'URL
+function actualiserPage(url, params = {}, context = 'externe') {
+  _detailPpContext = context;
+  _detailPpUrl = url;
+  _detailPpParams = params;
+
   const panel = document.getElementById('detail-pp');
   if (!panel) return;
 
   panel.classList.remove('noDisplay');
   panel.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
 
-  fetchPanel(url, params)
+  // GET — params ajoutés dans l'URL
+  const fullUrl = Object.keys(params).length > 0
+    ? url + '?' + new URLSearchParams(params).toString()
+    : url;
+
+  fetch(fullUrl)
+    .then(r => {
+      if (!r.ok) throw new Error('Erreur ' + r.status);
+      return r.text();
+    })
     .then(html => { panel.innerHTML = html; })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
 }
 
-// Charge du contenu HTML dans #modification via AJAX
+// Charge du contenu HTML dans #modification via GET
 // N'affecte PAS #detail-pp
 function actualiserPageModif(url, params = {}) {
   const panel = document.getElementById('modification');
@@ -50,9 +70,23 @@ function actualiserPageModif(url, params = {}) {
   panel.classList.remove('noDisplay');
   panel.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
 
-  fetchPanel(url, params)
+  // GET — le formulaire de modification est aussi une lecture initiale
+  const fullUrl = Object.keys(params).length > 0
+    ? url + '?' + new URLSearchParams(params).toString()
+    : url;
+
+  fetch(fullUrl)
+    .then(r => {
+      if (!r.ok) throw new Error('Erreur ' + r.status);
+      return r.text();
+    })
     .then(html => { panel.innerHTML = html; })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
+}
+
+// Ouvre le formulaire de modification depuis un bouton dans detail-pp
+function ouvrirModifier(url, id) {
+  actualiserPageModif(url, { id: id });
 }
 
 // Ferme #modification sans toucher à #detail-pp
@@ -73,26 +107,42 @@ function fermerDetailPP() {
   }
 }
 
-// Requête AJAX commune (GET ou POST selon params)
-async function fetchPanel(url, params = {}) {
-  const isPost = Object.keys(params).length > 0;
-  let response;
+// ============================================================
+// APRÈS MODIFICATION — appelé par enregistrement.php (mode AJAX)
+// data = { ok, id, url_detail }
+// ============================================================
 
-  if (isPost) {
-    const body = new URLSearchParams(params);
-    body.append('csrf_token', getCsrfToken());
-    response = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body:    body.toString(),
-    });
+function apresModification(data) {
+  fermerModification();
+  // Rafraîchit toujours detail-pp
+  actualiserPage(data.url_detail, { id: data.id }, _detailPpContext);
+  // Rafraîchit la liste si ouvert depuis une liste compendium
+  if (_detailPpContext === 'liste') {
+    rafraichirListe();
   }
-  else {
-    response = await fetch(url);
-  }
+}
+
+function rafraichirListe() {
+  window.location.reload();
+}
+
+// ============================================================
+// REQUÊTE POST AJAX (pour enregistrement.php)
+// Utilisé uniquement pour les soumissions de formulaires (écriture)
+// ============================================================
+
+async function postAjax(url, data = {}) {
+  const body = new URLSearchParams(data);
+  body.append('csrf_token', getCsrfToken());
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
 
   if (!response.ok) throw new Error('Erreur ' + response.status);
-  return response.text();
+  return response.json();
 }
 
 // ============================================================
