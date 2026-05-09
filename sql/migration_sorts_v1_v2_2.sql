@@ -72,6 +72,7 @@ INSERT INTO dd_sorts (
   so_resistance,
   so_jet_sauvegarde,
   so_description,
+  so_resume,
   so_res_id,
   so_camp_id,
   so_ruleset_var_id
@@ -118,6 +119,8 @@ SELECT
 
   -- so_texte → so_description
   so_texte,
+
+  so_resume,
 
   so_res_id,
 

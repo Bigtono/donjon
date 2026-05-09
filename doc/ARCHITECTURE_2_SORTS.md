@@ -30,9 +30,10 @@ Résistance à la magie : [so_resistance]
 {liste des classes} : issu de la table dd_sortclasse. Pour chaque entrée dans cette table pour ce sort, on affiche le nom de la classe ([cla_nom] dans dd_classes) suivi de [sc_niveau]
 {liste des domaines} : issu de la table dd_sortdomaine. Pour chaque entrée dans cette table pour ce sort, on affiche le nom du domaine ([do_nom] dans dd_domaines) suivi de [sd_niveau]
 {liste des composante de sorts -> champs so_vocal, so_gestuel, so_materiel} : si so_vocal=1, on affiche V, si so_gestuel=1, on affiche G, si so_materiel=1, on affiche M
-{source du document} : champ res_nom dans dd_ressources
-{nom de la campagne} : champ camp_nom  dans dd_campagnes
+{source du document} : champ res_nom dans dd_ressources. La ressource dont est tiré le sort doit toujours être affiché
+{nom de la campagne} : champ camp_nom  dans dd_campagnes. Le champ n'apparaît que si so_camp_id n'est pas null — c'est un sort homebrew.
 {ruleset} : champ var_valeur dans dd_variables
+
 
 # Fiche du ruleset DD2024
 [so_nom]
@@ -84,10 +85,15 @@ Source : Manuel du Joueur
 * le champ so_description autorise une saisie enrichie avec un plugin du type ckeditor
 
 ## Ruleset DD3.5
-* la liste des classes de lanceurs de sort est encapsulé dans un bloc repliable. Les classes sont affichées par ordre alphabétique, en commençant par les classes de base puis par les clases de prestige. La liste propose pour chaque classe de choisir un niveau dans une liste déroulante (0 à 20, 0 par défaut à la création).
+* la liste des classes de lanceurs de sort est encapsulé dans un bloc repliable. Les classes sont affichées par ordre alphabétique, en commençant par les classes de base puis par les clases de prestige. La liste propose pour chaque classe de choisir un niveau dans une liste déroulante (0 à 9, 0 par défaut à la création).
 * la liste des domaines est encapsulé dans un bloc repliable. Les domaines sont affichées par ordre alphabétique. La liste propose pour chaque domainee de choisir un niveau dans une liste déroulante (0 à 9, 0 par défaut à la création).
 * le ruleset propose deux nouvelles composantes de sorts (so_focalisateur et so_focalisateur_divin) gérés comme so_vocal, so_gestuel et so_materiel
 * le ruleset propose un champ supplémentaire so_resume (résumé du sort) qui n'est pas affiché avec le sort mais pourra être inclus ultérieurement dans la liste des sorts (sorts.php)
 
 ## Ruleset DD2024
 * la liste des classes de lanceurs de sort est encapsulé dans un bloc repliable. Les classes sont affichées par ordre alphabétique, en commençant par les classes de base puis par les clases de prestige. La liste propose pour chaque classe de choisir un niveau dans une liste déroulante (0 à 20, 0 par défaut à la création).
+
+# Enregistreement des données
+
+## Enregistrement des associations
+ * Lors de la sauvegarde d'un sort, il faut gérer simultanément trois tables : dd_sorts, dd_sortclasse (toutes les lignes existantes supprimées puis recréées pour les niveaux > 0) et dd_sortdomaine (idem) 

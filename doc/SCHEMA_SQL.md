@@ -186,6 +186,7 @@ Sorts du compendium.
 | so_resistance | varchar(100) | null | *[DD3.5]* Résistance à la magie. Ex : Oui, Non |
 | so_jet_sauvegarde | varchar(50) | null | *[DD3.5]* Ex : Vigueur annule |
 | so_description | text | null | Description complète du sort |
+| so_resume | text | null | Résumé en quelques mots du sort |
 | so_res_id | int unsigned | nn | Source -> dd_ressources |
 | so_camp_id | int unsigned | null | null = compendium global ; sinon homebrew -> dd_campagnes |
 | so_ruleset_var_id | int unsigned | nn | -> dd_variables |
