@@ -16,6 +16,7 @@
 - Balises PHP : <?php pour les blocs logiques, <?= pour l'affichage inline
 - Syntaxe alternative PHP sans accolades sauf pour function() et class
 - Indentation : 2 espaces
+- CSS par module : `$css_module` charge conditionnellement `[module]-modules.css` (même pattern que `$js_module`)
 
 ### URL de base — règle absolue
 
@@ -178,7 +179,7 @@ Barre bulk en bas : Action [SELECT] [Appliquer]
 
 ### Responsive des listes compendium
 
-Classes CSS définies une fois dans modules.css :
+Classes CSS définies dans compendium-modules.css :
 
 | Classe | Desktop | Mobile (<=991px) |
 |---|---|---|
@@ -350,13 +351,17 @@ donjon/
     wiki.js
     profil.js
   css/
-    main.css         variables, layout, composants
-    modules.css      .col-primary, .col-secondary, .col-action, .bulk-check
+    main.css                  variables, layout, composants transverses
+    modules.css               styles globaux (login, dashboard, profil, header)
+    compendium-modules.css    styles compendium — chargé si $css_module = 'compendium'
+    personnages-modules.css   (Phase 3) — chargé si $css_module = 'personnages'
+    campagnes-modules.css     (Phase 4) — chargé si $css_module = 'campagnes'
+    wiki-modules.css          (Phase 5) — chargé si $css_module = 'wiki'
   include/
     db.php           PDO + BASE_URL + DEV_MODE
     auth.php
     helpers.php
-    header.php
+    header.php       charge $css_module-modules.css et $js_module.js conditionnellement
     footer.php
     compendium-liste.php    moteur de liste commun (lit $listConfig)
     ajax/
@@ -390,7 +395,7 @@ Auth, session, helpers, header/footer, dashboard, profil, reset MDP, CSS design 
 - include/compendium-liste.php — moteur commun
 - compendium/enregistrement.php — POST commun + mode AJAX
 - js/compendium.js — tri, filtre, bulk, confirmation inline
-- CSS responsive listes (.col-primary, .col-secondary, .col-action)
+- css/compendium-modules.css — styles listes, detail-pp sort, responsive compendium
 - Pages : sorts, classes, dons, races, competences
 - AJAX detail-pp et modifier pour chaque entité
 - Templates DD3.5 et DD2024 en parallèle
@@ -574,6 +579,7 @@ tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
 - [ ] Templates ruleset sans logique auth/session
 - [ ] rulesetRep validé via whitelist avant inclusion template
 - [ ] Responsive testé sur les modules concernés (hors Campagnes)
+- [ ] $css_module défini dans chaque contrôleur de module (compendium, personnages, wiki)
 - [ ] Compendium : colonne de tri validée par whitelist avant ORDER BY
 - [ ] Compendium : _detailPpContext correctement passé à actualiserPage()
 - [ ] Compendium : enregistrement.php?ajax=1 retourne JSON, mode normal retourne redirect

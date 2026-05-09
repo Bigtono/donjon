@@ -3,10 +3,12 @@
 // Variables attendues du contrôleur :
 //   $page_title  (string) — titre affiché dans <title>
 //   $js_module   (string, optionnel) — nom du fichier JS module à charger (sans .js)
+//   $css_module  (string, optionnel) — nom du fichier CSS module à charger (sans -modules.css)
 //   $body_class  (string, optionnel) — classe CSS supplémentaire sur <body>
 
 $page_title = isset($page_title) ? h($page_title) . ' — Codex DD' : 'Codex DD';
 $js_module  = isset($js_module) ? h($js_module) : '';
+$css_module = isset($css_module) ? h($css_module) : '';
 $body_class = isset($body_class) ? h($body_class) : '';
 ?>
 <!DOCTYPE html>
@@ -17,6 +19,9 @@ $body_class = isset($body_class) ? h($body_class) : '';
   <title><?= $page_title ?></title>
   <link rel="stylesheet" href="<?= BASE_URL ?>/css/main.css">
   <link rel="stylesheet" href="<?= BASE_URL ?>/css/modules.css">
+  <? if (!empty($css_module)): ?>
+  <link rel="stylesheet" href="<?= BASE_URL ?>/css/<?= $css_module ?>-modules.css">
+  <? endif ?>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body class="<?= $body_class ?>">

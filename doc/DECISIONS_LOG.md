@@ -218,3 +218,14 @@ complète (avec images) pour wiki/univers et personnages.
 Clé API : constante TINYMCE_API_KEY dans include/db.php.
 Upload images : include/ajax/upload-image.php → img/uploads/ (hors .gitignore).
 → Un seul éditeur cohérent dans toute l'application.
+
+**[2025] Organisation CSS — fichiers par module**
+modules.css conserve uniquement les styles globaux (login, dashboard, profil, header).
+Chaque module fonctionnel a son propre fichier CSS chargé conditionnellement :
+- compendium-modules.css (Phase 2, existant)
+- personnages-modules.css (Phase 3, à créer)
+- campagnes-modules.css (Phase 4, à créer)
+- wiki-modules.css (Phase 5, à créer)
+Chargement via $css_module dans header.php — même pattern que $js_module.
+Les stubs .perso-*, .camp-*, .wiki-* restent dans modules.css jusqu'au dev de leur phase.
+→ Poids réduit par page, maintenabilité améliorée, cohérence avec le pattern JS existant.

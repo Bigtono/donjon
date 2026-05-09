@@ -1,20 +1,23 @@
+# Règles métiers générales sur les classes
 
-## Règles métiers générales sur les classes
+## Tronc commun
 
-Par défaut, une classe de de personnage est une classe de base (cla_clt_id=1). Certains ruleset introduisent d'autres types de classe de personnage (cla_clt_id>1).
-
-Une classe de base est considérée comme une classe de base de lanceur de sort si cla_mag_id >0. Si cla_mag_id=1, le lanceur de sort manipule la magie profane. Si clas_mag_id=2, le lanceur de sort manipule la magie divine. Si cla_mage_id > 0 alors les champs cla_connu, cla_compris et cla_prepare sont égaux à 0 ou 1 selon les règles spécifiques à la classe (voir Gestion de la magie)
-
-Une classe de base compte 20 niveaux (cla_niveauMax=20). Chaque classe possède un enregistrement par niveau dans la table dd_classe_niveau. 
-
-Un personnage est considéré comme un lanceur de sort s'il possède au moins un niveau dans une classe de base de lanceur de sort. La table  dd_personnages_classes stocke les classes du personnage. Le champ pc_pe_id contient l'id du personnage (pe_id). Le champ pc_cla_id contient l'id de la classe (cla_id). Le champ pc_niveau précise le niveau exact du personnage dans cette classe.
+* Par défaut, une classe de de personnage est une classe de base (cla_clt_id=1). Certains ruleset introduisent d'autres types de classe de personnage (cla_clt_id>1).
+* une classe est découpées en niveaux (selon le ruleset de 3 à 20).
+* Une classe de base est considérée comme une classe de base de lanceur de sort si cla_mag_id >0. Si cla_mag_id=1, le lanceur de sort manipule la magie profane. Si clas_mag_id=2, le lanceur de sort manipule la magie divine. Si cla_mage_id > 0 alors les champs cla_connu, cla_compris et cla_prepare sont égaux à 0 ou 1 selon les règles spécifiques à la classe (voir Gestion de la magie)
+* Une classe de base compte 20 niveaux (cla_niveauMax=20). Chaque classe possède un enregistrement par niveau dans la table dd_classe_niveau. 
 
 
-## règles métiers spécifiques au ruleset dd3.5
 
-- le ruleset introduit un nouveau type de classe, la classe de prestige (cla_clt_id=2). Une classe de prestige n'est pas une classe de personnage en tant que telle. Un personnage doit obligatoirement posséder des niveaux dans au moins une classe de base pour pouvoir posséder des niveaux dans au moins une classe de prestige.
-- une classe de prestige compte 3, 5 ou 10 niveaux (cla_niveauMax=3 ou 5 ou 10)
+## Ruleset dd3.5
 
+* le ruleset introduit un nouveau type de classe, la classe de prestige (cla_clt_id=2). Une classe de prestige n'est pas une classe de personnage en tant que telle. Un personnage doit obligatoirement posséder des niveaux dans au moins une classe de base pour pouvoir posséder des niveaux dans au moins une classe de prestige.
+* une classe de prestige compte 3, 5, 7 ou 10 niveaux (cla_niveauMax = 3 ou 5 ou 7 ou 10)
+
+## Ruleset DD2024
+
+* le ruleset introduit le concept de sous-classe. une sous-classe est rattachée à une classe. Un personnage doit choisir sa sous-classe quand il atteint le niveau 3 dans sa classe
+* la sous-classe diffère de la classe de base ou même de la classe de prestige de DD3.5 dans le sens où elle n'accorde pas des bonus similaires à une classe de base comme le fait la classe de prestige. La sous-classe n'influe pas sur les valeurs chiffrés des niveaux de classe mais accorde de nouvelles aptitudes de classes selon les niveaux de classe  
 
 ## Types de données d'une classe
 
