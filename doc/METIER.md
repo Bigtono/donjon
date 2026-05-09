@@ -1,1 +1,0 @@
-# Catalogue des règles métiers
