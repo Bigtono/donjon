@@ -431,27 +431,4 @@ if (typeof tinymce !== 'undefined') {
   });
 }
 
-function soumettreSort() {
-  if (typeof tinymce !== 'undefined') tinymce.triggerSave();
-
-  const form    = document.getElementById('form-sort');
-  const data    = new FormData(form);
-  const params  = new URLSearchParams(data);
-  params.append('csrf_token', getCsrfToken());
-
-  fetch('<?= BASE_URL ?>/compendium/enregistrement.php?ajax=1', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    params.toString(),
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.ok) {
-      apresModification(data);
-    } else {
-      alert(data.erreur || 'Erreur lors de l\'enregistrement.');
-    }
-  })
-  .catch(err => alert('Erreur réseau : ' + err));
-}
 </script>
