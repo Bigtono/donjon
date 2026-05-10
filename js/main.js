@@ -30,6 +30,23 @@ function togglePlus(id) {
   el.classList.toggle('noDisplay');
 }
 
+// Accordion exclusif : ferme tous les autres dans le même groupe avant d'ouvrir
+function togglePlusExclusif(id, groupSelector) {
+  const target  = document.getElementById(id);
+  if (!target) return;
+  const isOpen  = !target.classList.contains('noDisplay');
+
+  // Ferme tous les accordions du groupe
+  const parent = groupSelector ? document.querySelector(groupSelector) : document.body;
+  if (parent) {
+    parent.querySelectorAll('.accordion-content').forEach(el => {
+      el.classList.add('noDisplay');
+    });
+  }
+  // Ouvre uniquement si l'élément était fermé
+  if (!isOpen) target.classList.remove('noDisplay');
+}
+
 // ============================================================
 // PATTERN DETAIL-PP / MODIFICATION
 // ============================================================

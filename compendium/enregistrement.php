@@ -24,7 +24,8 @@ $action  = strParam($_POST['action'] ?? '');
 // Helpers de réponse
 // ============================================================
 
-function repondreOk(bool $is_ajax, int $id, string $entite, string $redirect_url): void {
+function repondreOk(bool $is_ajax, int $id, string $entite, string $redirect_url): void
+{
   $url_detail = BASE_URL . '/include/ajax/detail-pp/' . $entite . '.php';
   if ($is_ajax):
     header('Content-Type: application/json');
@@ -36,7 +37,8 @@ function repondreOk(bool $is_ajax, int $id, string $entite, string $redirect_url
   exit;
 }
 
-function repondreErreur(bool $is_ajax, string $message, string $redirect_url): void {
+function repondreErreur(bool $is_ajax, string $message, string $redirect_url): void
+{
   if ($is_ajax):
     header('Content-Type: application/json');
     echo json_encode(['ok' => false, 'erreur' => $message]);
@@ -61,10 +63,17 @@ switch ($entite):
 
   case 'sort':
     switch ($action):
-      case 'sauvegarder': enregistrerSort($db, $is_ajax, $redirect); break;
-      case 'supprimer':   supprimerSort($db, $is_ajax, $redirect);   break;
-      case 'bulk_supprimer': bulkSupprimerSorts($db, $redirect);     break;
-      default: repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+      case 'sauvegarder':
+        enregistrerSort($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+        supprimerSort($db, $is_ajax, $redirect);
+        break;
+      case 'bulk_supprimer':
+        bulkSupprimerSorts($db, $redirect);
+        break;
+      default:
+        repondreErreur($is_ajax, 'Action inconnue.', $redirect);
     endswitch;
     break;
 
@@ -77,7 +86,8 @@ endswitch;
 // SORT — Enregistrement
 // ============================================================
 
-function enregistrerSort($db, bool $is_ajax, string $redirect): void {
+function enregistrerSort($db, bool $is_ajax, string $redirect): void
+{
   $so_id      = intParam($_POST['so_id'] ?? 0);
   $nom        = strParam($_POST['so_nom']               ?? '');
   $ruleset_id = intParam($_POST['so_ruleset_var_id']    ?? 1);
@@ -97,7 +107,7 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void {
   $portee    = strParam($_POST['so_portee']            ?? '');
   $dur_inc   = strParam($_POST['so_duree_incantation'] ?? '');
   $dur_sort  = strParam($_POST['so_duree_sort']        ?? '');
-  $composante= strParam($_POST['so_composante']        ?? '');
+  $composante = strParam($_POST['so_composante']        ?? '');
   $description = $_POST['so_description'] ?? ''; // HTML TinyMCE — pas de h()
 
   // Booléens composantes
@@ -110,7 +120,7 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void {
   $cible     = strParam($_POST['so_cible']            ?? '');
   $zone      = strParam($_POST['so_zone_effet']       ?? '');
   $jet_save  = strParam($_POST['so_jet_sauvegarde']   ?? '');
-  $resistance= strParam($_POST['so_resistance']       ?? '');
+  $resistance = strParam($_POST['so_resistance']       ?? '');
   $resume    = strParam($_POST['so_resume']           ?? '');
   $focalis   = isset($_POST['so_focalisateur'])       ? 1 : 0;
   $focalis_d = isset($_POST['so_focalisateur_divin']) ? 1 : 0;
@@ -122,7 +132,7 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void {
   $niveaux_classes  = $_POST['niveaux_classes']  ?? [];
   $niveaux_domaines = $_POST['niveaux_domaines'] ?? [];
 
-  try:
+  try {
     $db->beginTransaction();
 
     if ($so_id === 0):
@@ -138,11 +148,28 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void {
           (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
-        $nom, $co_id, $branche, $vocal, $gestuel, $materiel,
-        $focalis, $focalis_d, $composante, $portee,
-        $cible, $zone, $dur_inc, $dur_sort,
-        $jet_save, $resistance, $niveau, $resume,
-        $description, $res_id, $camp_id, $ruleset_id,
+        $nom,
+        $co_id,
+        $branche,
+        $vocal,
+        $gestuel,
+        $materiel,
+        $focalis,
+        $focalis_d,
+        $composante,
+        $portee,
+        $cible,
+        $zone,
+        $dur_inc,
+        $dur_sort,
+        $jet_save,
+        $resistance,
+        $niveau,
+        $resume,
+        $description,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
       ]);
       $so_id = (int)$db->lastInsertId();
 
@@ -175,11 +202,28 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void {
         WHERE so_id = ?
       ');
       $stmt->execute([
-        $nom, $co_id, $branche, $vocal, $gestuel, $materiel,
-        $focalis, $focalis_d, $composante, $portee,
-        $cible, $zone, $dur_inc, $dur_sort,
-        $jet_save, $resistance, $niveau, $resume,
-        $description, $res_id, $camp_id, $ruleset_id,
+        $nom,
+        $co_id,
+        $branche,
+        $vocal,
+        $gestuel,
+        $materiel,
+        $focalis,
+        $focalis_d,
+        $composante,
+        $portee,
+        $cible,
+        $zone,
+        $dur_inc,
+        $dur_sort,
+        $jet_save,
+        $resistance,
+        $niveau,
+        $resume,
+        $description,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
         $so_id,
       ]);
     endif;
@@ -210,19 +254,19 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void {
 
     $db->commit();
     repondreOk($is_ajax, $so_id, 'sort', $redirect);
-
-  catch (Exception $e):
+  } catch (Exception $e) {
     $db->rollBack();
     error_log('enregistrerSort : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
-  endtry;
+  }
 }
 
 // ============================================================
 // SORT — Suppression individuelle
 // ============================================================
 
-function supprimerSort($db, bool $is_ajax, string $redirect): void {
+function supprimerSort($db, bool $is_ajax, string $redirect): void
+{
   $ids = $_POST['ids'] ?? [];
   if (!empty($_POST['id'])) $ids[] = $_POST['id'];
   $ids = array_map('intval', (array)$ids);
@@ -232,7 +276,7 @@ function supprimerSort($db, bool $is_ajax, string $redirect): void {
     repondreErreur($is_ajax, 'Aucun sort à supprimer.', $redirect);
   endif;
 
-  try:
+  try {
     $db->beginTransaction();
     foreach ($ids as $so_id):
       $db->prepare('DELETE FROM dd_sortclasse  WHERE sc_so_id = ?')->execute([$so_id]);
@@ -249,19 +293,19 @@ function supprimerSort($db, bool $is_ajax, string $redirect): void {
     $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Sort(s) supprimé(s).'];
     header('Location: ' . $redirect);
     exit;
-
-  catch (Exception $e):
+  } catch (Exception $e) {
     $db->rollBack();
     error_log('supprimerSort : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
-  endtry;
+  }
 }
 
 // ============================================================
 // SORT — Suppression groupée (bulk)
 // ============================================================
 
-function bulkSupprimerSorts($db, string $redirect): void {
+function bulkSupprimerSorts($db, string $redirect): void
+{
   // Réutilise la suppression individuelle en mode non-AJAX
   supprimerSort($db, false, $redirect);
 }

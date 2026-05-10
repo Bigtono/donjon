@@ -308,7 +308,7 @@ $niveaux_dd2024 = range(0, 20);
     <div class="modif-section">
       <div class="modif-section__header">
         <span class="modif-section__label">Classes</span>
-        <button type="button" class="accordion-trigger" onclick="togglePlus('bloc-classes')">
+        <button type="button" class="accordion-trigger" onclick="togglePlusExclusif('bloc-classes', '#form-sort')">
           <i class="fa fa-bars"></i>
         </button>
       </div>
@@ -344,7 +344,7 @@ $niveaux_dd2024 = range(0, 20);
     <div class="modif-section">
       <div class="modif-section__header">
         <span class="modif-section__label">Domaines</span>
-        <button type="button" class="accordion-trigger" onclick="togglePlus('bloc-domaines')">
+        <button type="button" class="accordion-trigger" onclick="togglePlusExclusif('bloc-domaines', '#form-sort')">
           <i class="fa fa-bars"></i>
         </button>
       </div>
@@ -374,19 +374,6 @@ $niveaux_dd2024 = range(0, 20);
     <?php endif ?>
 
     <!-- ====================================================
-         RÉSUMÉ [DD3.5]
-         ==================================================== -->
-    <?php if ($ruleset === 'DD3.5'): ?>
-    <div class="modif-section">
-      <div class="form-group">
-        <label for="so_resume">Résumé</label>
-        <textarea id="so_resume" name="so_resume" rows="3"
-                  placeholder="Résumé court du sort (non affiché dans la fiche, usage futur dans les listes)"><?= h($so['so_resume'] ?? '') ?></textarea>
-      </div>
-    </div>
-    <?php endif ?>
-
-    <!-- ====================================================
          DESCRIPTION — TinyMCE
          ==================================================== -->
     <div class="modif-section">
@@ -396,6 +383,18 @@ $niveaux_dd2024 = range(0, 20);
                   class="tinymce-basic"><?= $so['so_description'] ?? '' ?></textarea>
       </div>
     </div>
+
+    <!-- ====================================================
+         RÉSUMÉ [DD3.5]
+         ==================================================== -->
+    <?php if ($ruleset === 'DD3.5'): ?>
+    <div class="modif-section">
+      <div class="form-group">
+        <label for="so_resume">Résumé <span class="form-hint" style="font-weight:normal;">(non affiché dans la fiche — usage futur dans les listes)</span></label>
+        <textarea id="so_resume" name="so_resume" rows="3"><?= h($so['so_resume'] ?? '') ?></textarea>
+      </div>
+    </div>
+    <?php endif ?>
 
     <!-- ====================================================
          BOUTONS
@@ -412,23 +411,25 @@ $niveaux_dd2024 = range(0, 20);
   </form>
 </div>
 
-<!-- TinyMCE — chargé une fois, initialisé après injection dans le DOM -->
-<script src="https://cdn.tiny.cloud/1/<?= defined('TINYMCE_API_KEY') ? TINYMCE_API_KEY : 'no-api-key' ?>/tinymce/7/tinymce.min.js"
-        referrerpolicy="origin"></script>
+<!-- TinyMCE via jsDelivr (sans clé API requise) -->
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
 <script>
-// Détruit toute instance existante avant de réinitialiser
-if (typeof tinymce !== 'undefined') {
+(function initTMCE() {
+  if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
   tinymce.remove('#so_description');
   tinymce.init({
-    selector: '#so_description',
-    language: 'fr_FR',
-    menubar: false,
-    plugins: 'lists link',
-    toolbar: 'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
-    height: 250,
-    skin: 'oxide-dark',
+    selector:    '#so_description',
+    language:    'fr_FR',
+    menubar:     false,
+    plugins:     'lists link',
+    toolbar:     'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
+    height:      400,
+    skin:        'oxide-dark',
     content_css: 'dark',
+    promotion:   false,
+    branding:    false,
+    base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
+    suffix:      '.min',
   });
-}
-
+})();
 </script>
