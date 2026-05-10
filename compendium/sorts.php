@@ -20,7 +20,27 @@ $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
 // Filtre classe lanceur de sort — commun aux deux rulesets
 // Utilise EXISTS pour éviter les doublons (un sort peut appartenir
 // à plusieurs classes)
+// Filtre niveau — DD3.5 : via EXISTS sur dd_sortclasse ; DD2024 : so_niveau direct
+if ($ruleset_rep === 'DD3.5'):
+  $filtre_niveau = [
+    'type'  => 'exists_range',
+    'name'  => 'f_niveau',
+    'label' => 'Niveau',
+    'sql'   => 'EXISTS (SELECT 1 FROM dd_sortclasse WHERE sc_so_id = so.so_id AND sc_niveau = ?)',
+    'valeurs' => range(1, 9),  // select_range simple pour l'affichage du select
+  ];
+else:
+  $filtre_niveau = [
+    'type'    => 'select_range',
+    'name'    => 'f_niveau',
+    'label'   => 'Niveau',
+    'champ'   => 'so.so_niveau',
+    'valeurs' => range(0, 9),
+  ];
+endif;
+
 $filtres = [
+  $filtre_niveau,
   [
     'type'         => 'exists',
     'name'         => 'f_cla_id',

@@ -58,6 +58,7 @@ Référentiel de valeurs paramétrables (rulesets, catégories de capacités, et
 | var_cat | varchar(50) | nn | Catégorie. Ex : `ruleset`, `tcap` |
 | var_valeur | varchar(100) | nn | Libellé de la valeur |
 | var_ordre | tinyint unsigned | nn, défaut 0 | Ordre d'affichage dans les selects |
+| var_commentaire | varchar(255) | null | commentaire sur l'usage de la variable |
 
 ---
 

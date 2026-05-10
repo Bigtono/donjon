@@ -104,7 +104,7 @@ endif;
 foreach ($listConfig['filtres'] as $f):
   $val = strParam($_GET[$f['name']] ?? '');
   if ($val === '' || $val === '0') continue;
-  if ($f['type'] === 'exists'):
+  if ($f['type'] === 'exists' || $f['type'] === 'exists_range'):
     // Filtre via sous-requête EXISTS — évite les doublons liés aux JOINs
     $where_parts[] = $f['sql'];
     $params[]      = $val;
@@ -195,91 +195,141 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
   </script>
 
   <?php // ---- ZONE FILTRE ---- ?>
-  <form class="comp-filtre-form" method="GET" action="">
-    <div class="comp-filtre-row">
+  <?php
+    // Compte les filtres actifs (hors texte libre) pour badge mobile
+    $filtres_actifs = 0;
+    if ($q !== '') $filtres_actifs++;
+    foreach ($listConfig['filtres'] as $f):
+      $v = strParam($_GET[$f['name']] ?? '');
+      if ($v !== '' && $v !== '0') $filtres_actifs++;
+    endforeach;
+    $sources_actives = count($res_get);
+    if ($sources_actives > 0) $filtres_actifs++;
+  ?>
 
-      <?php // INPUT texte — toujours premier ?>
-      <div class="comp-filtre-group comp-filtre-group--text">
-        <input type="text" name="q" value="<?= h($q) ?>"
-               placeholder="Rechercher..." class="comp-filtre-input"
-               autocomplete="off">
-      </div>
+  <div class="comp-filtre-bar">
 
-      <?php // Filtres métier intermédiaires ?>
-      <?php foreach ($listConfig['filtres'] as $f): ?>
-        <div class="comp-filtre-group">
-          <?php if ($f['type'] === 'select'): ?>
-            <?php
-              $val_actuelle = strParam($_GET[$f['name']] ?? '');
-              $opts_stmt = $db->prepare($f['query']);
-              $opts_stmt->execute($f['query_params'] ?? []);
-              $opts = $opts_stmt->fetchAll();
-            ?>
-            <select name="<?= h($f['name']) ?>" class="comp-filtre-select">
-              <option value="">— <?= h($f['label']) ?> —</option>
-              <?php foreach ($opts as $opt): ?>
-                <option value="<?= h($opt['val']) ?>"
-                  <?= $opt['val'] == $val_actuelle ? 'selected' : '' ?>>
-                  <?= h($opt['lab']) ?>
-                </option>
+    <?php // Bouton toggle mobile — masqué en desktop ?>
+    <button type="button" class="comp-filtre-toggle"
+            onclick="toggleFiltresMobile()"
+            aria-expanded="false" id="filtre-toggle-btn">
+      <i class="fa fa-filter"></i>
+      Filtres
+      <?php if ($filtres_actifs > 0): ?>
+        <span class="comp-filtre-badge"><?= $filtres_actifs ?></span>
+      <?php endif ?>
+      <i class="fa fa-chevron-down comp-filtre-chevron"></i>
+    </button>
+
+    <div class="comp-filtre-content" id="comp-filtre-content">
+      <form class="comp-filtre-form" method="GET" action="" id="form-filtre-<?= h($entite) ?>">
+
+        <?php // ── Texte libre (toujours premier, largeur réduite) ?>
+        <div class="comp-filtre-item comp-filtre-item--text">
+          <input type="text" name="q" value="<?= h($q) ?>"
+                 placeholder="Rechercher…" class="comp-filtre-input"
+                 autocomplete="off">
+        </div>
+
+        <?php // ── Critères métier (depuis $listConfig['filtres']) ?>
+        <?php foreach ($listConfig['filtres'] as $f): ?>
+          <div class="comp-filtre-item">
+
+            <?php if ($f['type'] === 'select' || $f['type'] === 'exists'): ?>
+              <?php
+                $val_actuelle = strParam($_GET[$f['name']] ?? '');
+                $opts_stmt    = $db->prepare($f['query']);
+                $opts_stmt->execute($f['query_params'] ?? []);
+                $opts = $opts_stmt->fetchAll();
+              ?>
+              <select name="<?= h($f['name']) ?>" class="comp-filtre-select"
+                      title="<?= h($f['label']) ?>">
+                <option value="">— <?= h($f['label']) ?> —</option>
+                <?php foreach ($opts as $opt): ?>
+                  <option value="<?= h($opt['val']) ?>"
+                    <?= $opt['val'] == $val_actuelle ? 'selected' : '' ?>>
+                    <?= h($opt['lab']) ?>
+                  </option>
+                <?php endforeach ?>
+              </select>
+
+            <?php elseif ($f['type'] === 'select_range' || $f['type'] === 'exists_range'): ?>
+              <?php $val_actuelle = strParam($_GET[$f['name']] ?? '') ?>
+              <select name="<?= h($f['name']) ?>" class="comp-filtre-select"
+                      title="<?= h($f['label']) ?>">
+                <option value="">— <?= h($f['label']) ?> —</option>
+                <?php foreach ($f['valeurs'] as $v): ?>
+                  <option value="<?= h($v) ?>"
+                    <?= (string)$v === (string)$val_actuelle ? 'selected' : '' ?>>
+                    <?= h($v) ?>
+                  </option>
+                <?php endforeach ?>
+              </select>
+
+            <?php endif ?>
+          </div>
+        <?php endforeach ?>
+
+        <?php // ── Sources : bouton + menu déroulant avec checkboxes ?>
+        <?php if (!empty($sources_dispo)): ?>
+          <div class="comp-filtre-item comp-filtre-item--sources">
+            <button type="button"
+                    class="comp-filtre-sources-btn"
+                    onclick="toggleSources('<?= h($entite) ?>')"
+                    id="sources-btn-<?= h($entite) ?>">
+              <i class="fa fa-books"></i>
+              Sources
+              <?php if ($sources_actives > 0): ?>
+                <span class="comp-filtre-badge" id="sources-badge-<?= h($entite) ?>">
+                  <?= $sources_actives ?>
+                </span>
+              <?php else: ?>
+                <span class="comp-filtre-badge comp-filtre-badge--empty"
+                      id="sources-badge-<?= h($entite) ?>"
+                      style="display:none;">0</span>
+              <?php endif ?>
+              <i class="fa fa-chevron-down comp-filtre-chevron" id="sources-chevron-<?= h($entite) ?>"></i>
+            </button>
+
+            <div class="comp-filtre-sources-menu noDisplay"
+                 id="sources-menu-<?= h($entite) ?>">
+              <?php foreach ($sources_dispo as $src): ?>
+                <?php $chk = in_array((int)$src['res_id'], $res_get) ? 'checked' : '' ?>
+                <label class="comp-filtre-source-item">
+                  <input type="checkbox" name="f_res[]"
+                         value="<?= (int)$src['res_id'] ?>"
+                         <?= $chk ?>
+                         onchange="majSourcesBadge('<?= h($entite) ?>')">
+                  <span title="<?= h($src['res_nom']) ?>"><?= h($src['res_abreviation']) ?></span>
+                </label>
               <?php endforeach ?>
-            </select>
+            </div>
+          </div>
+        <?php endif ?>
 
-          <?php elseif ($f['type'] === 'select_range'): ?>
-            <?php $val_actuelle = strParam($_GET[$f['name']] ?? '') ?>
-            <select name="<?= h($f['name']) ?>" class="comp-filtre-select">
-              <option value="">— <?= h($f['label']) ?> —</option>
-              <?php foreach ($f['valeurs'] as $v): ?>
-                <option value="<?= h($v) ?>"
-                  <?= (string)$v === $val_actuelle ? 'selected' : '' ?>>
-                  <?= h($v) ?>
-                </option>
-              <?php endforeach ?>
-            </select>
+        <?php // ── Actions ?>
+        <div class="comp-filtre-item comp-filtre-item--actions">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fa fa-search"></i>
+            <span class="comp-filtre-label-desktop">Filtrer</span>
+          </button>
+          <a href="?" class="btn btn-secondary btn-sm" title="Réinitialiser">
+            <i class="fa fa-times"></i>
+          </a>
+          <?php if (canEditCompendium()): ?>
+            <button type="button" class="btn btn-primary btn-sm"
+                    onclick="ouvrirModifier(compUrlModifier, 0)"
+                    title="Ajouter">
+              <i class="fa fa-plus"></i>
+            </button>
           <?php endif ?>
         </div>
-      <?php endforeach ?>
 
-      <?php // SELECT sources — toujours dernier ?>
-      <?php if (!empty($sources_dispo)): ?>
-        <div class="comp-filtre-group comp-filtre-group--sources">
-          <select name="f_res[]" multiple class="comp-filtre-select comp-filtre-select--multi"
-                  title="Filtrer par source">
-            <?php foreach ($sources_dispo as $src): ?>
-              <?php $sel = in_array((int)$src['res_id'], $res_get) ? 'selected' : '' ?>
-              <option value="<?= (int)$src['res_id'] ?>" <?= $sel ?>
-                      title="<?= h($src['res_nom']) ?>">
-                <?= h($src['res_abreviation']) ?>
-              </option>
-            <?php endforeach ?>
-          </select>
-        </div>
-      <?php endif ?>
+      </form>
+    </div><!-- .comp-filtre-content -->
+  </div><!-- .comp-filtre-bar -->
 
-      <?php // Boutons filtre ?>
-      <div class="comp-filtre-group comp-filtre-group--actions">
-        <button type="submit" class="btn btn-primary btn-sm">
-          <i class="fa fa-search"></i> Filtrer
-        </button>
-        <a href="?" class="btn btn-secondary btn-sm" title="Réinitialiser les filtres">
-          <i class="fa fa-times"></i>
-        </a>
-      </div>
-
-      <?php // Bouton Ajouter (droits compendium) ?>
-      <?php if (canEditCompendium()): ?>
-        <div class="comp-filtre-group comp-filtre-group--add">
-          <button type="button" class="btn btn-primary btn-sm"
-                  onclick="ouvrirModifier(compUrlModifier, 0)">
-            <i class="fa fa-plus"></i> Ajouter
-          </button>
-        </div>
-      <?php endif ?>
-
-    </div>
-  </form>
-
-  <?php // ---- COMPTEUR ---- ?>
+<?php // ---- COMPTEUR ---- ?>
   <div class="comp-liste-info">
     <?php if ($total === 0): ?>
       <span class="text-muted">Aucun résultat.</span>

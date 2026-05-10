@@ -1,3 +1,82 @@
+// ============================================================
+// FILTRE MOBILE — toggle repliable
+// ============================================================
+
+function toggleFiltresMobile() {
+  const content = document.getElementById('comp-filtre-content');
+  const btn     = document.getElementById('filtre-toggle-btn');
+  if (!content || !btn) return;
+
+  const isOpen = !content.classList.contains('is-closed');
+  if (isOpen) {
+    content.classList.add('is-closed');
+    btn.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+  } else {
+    content.classList.remove('is-closed');
+    btn.classList.add('is-open');
+    btn.setAttribute('aria-expanded', 'true');
+  }
+}
+
+// Initialisation : masqué en mobile par défaut
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.innerWidth <= 991) {
+    const content = document.getElementById('comp-filtre-content');
+    if (content) content.classList.add('is-closed');
+  }
+
+  // Ferme le menu sources si clic extérieur
+  document.addEventListener('click', e => {
+    document.querySelectorAll('.comp-filtre-sources-menu').forEach(menu => {
+      if (!menu.classList.contains('noDisplay') &&
+          !menu.parentElement.contains(e.target)) {
+        const entite = menu.id.replace('sources-menu-', '');
+        fermerSources(entite);
+      }
+    });
+  });
+});
+
+// ============================================================
+// SOURCES — menu contextuel + badge
+// ============================================================
+
+function toggleSources(entite) {
+  const menu    = document.getElementById('sources-menu-' + entite);
+  const btn     = document.getElementById('sources-btn-'  + entite);
+  const chevron = document.getElementById('sources-chevron-' + entite);
+  if (!menu) return;
+
+  const isOpen = !menu.classList.contains('noDisplay');
+  if (isOpen) {
+    fermerSources(entite);
+  } else {
+    menu.classList.remove('noDisplay');
+    if (btn)     btn.classList.add('is-open');
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+  }
+}
+
+function fermerSources(entite) {
+  const menu    = document.getElementById('sources-menu-' + entite);
+  const btn     = document.getElementById('sources-btn-'  + entite);
+  const chevron = document.getElementById('sources-chevron-' + entite);
+  if (menu)    menu.classList.add('noDisplay');
+  if (btn)     btn.classList.remove('is-open');
+  if (chevron) chevron.style.transform = '';
+}
+
+function majSourcesBadge(entite) {
+  const menu    = document.getElementById('sources-menu-' + entite);
+  const badge   = document.getElementById('sources-badge-' + entite);
+  if (!menu || !badge) return;
+
+  const checked = menu.querySelectorAll('input[type="checkbox"]:checked').length;
+  badge.textContent = checked;
+  badge.style.display = checked > 0 ? 'inline-flex' : 'none';
+}
+
 // js/compendium.js — Fonctions communes aux listes du compendium
 'use strict';
 

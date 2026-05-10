@@ -2,58 +2,182 @@
 /* Chargé uniquement sur les pages du compendium via $css_module = 'compendium' */
 
 /* ============================================================
-   LISTES — Zone filtre
+   LISTES — Barre de filtrage
    ============================================================ */
-.comp-liste-container {
-  margin-top: var(--sp-md);
-}
 
-.comp-filtre-form {
+/* Conteneur principal */
+.comp-filtre-bar {
   margin-bottom: var(--sp-md);
+  position:      relative;
 }
 
-.comp-filtre-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-sm);
+/* Bouton toggle — visible uniquement en mobile */
+.comp-filtre-toggle {
+  display:       none;
+  align-items:   center;
+  gap:           var(--sp-sm);
+  width:         100%;
+  padding:       var(--sp-sm) var(--sp-md);
+  background:    var(--clr-surface-2);
+  border:        1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color:         var(--clr-text);
+  font:          inherit;
+  font-size:     0.9rem;
+  cursor:        pointer;
+  text-align:    left;
+}
+.comp-filtre-chevron { margin-left: auto; font-size: 0.75rem; transition: transform 0.2s; }
+.comp-filtre-toggle.is-open .comp-filtre-chevron { transform: rotate(180deg); }
+
+/* Badge compteur de filtres actifs */
+.comp-filtre-badge {
+  display:        inline-flex;
+  align-items:    center;
+  justify-content: center;
+  min-width:      18px;
+  height:         18px;
+  padding:        0 5px;
+  background:     var(--clr-accent);
+  color:          #fff;
+  border-radius:  9px;
+  font-size:      0.7rem;
+  font-weight:    700;
+}
+.comp-filtre-badge--empty { display: none !important; }
+
+/* Contenu de la barre (toujours visible en desktop) */
+.comp-filtre-content { display: block; }
+
+/* Formulaire — flex wrap desktop */
+.comp-filtre-form {
+  display:     flex;
+  flex-wrap:   wrap;
+  gap:         var(--sp-sm);
   align-items: center;
 }
 
-.comp-filtre-group          { display: flex; align-items: center; }
-.comp-filtre-group--text    { flex: 1 1 200px; }
-.comp-filtre-group--sources { flex: 0 0 auto; }
-.comp-filtre-group--actions { gap: var(--sp-xs); }
-.comp-filtre-group--add     { margin-left: auto; }
+/* Chaque item de filtre */
+.comp-filtre-item { display: flex; align-items: center; }
+.comp-filtre-item--text    { flex: 0 1 180px; }  /* largeur réduite */
+.comp-filtre-item--actions { gap: var(--sp-xs); margin-left: auto; }
+.comp-filtre-item--sources { position: relative; }
 
+/* Input texte */
 .comp-filtre-input {
-  width: 100%;
-  padding: 6px 10px;
-  background: var(--clr-surface-2);
-  border: 1px solid var(--clr-border);
+  width:         100%;
+  padding:       5px 9px;
+  background:    var(--clr-surface-2);
+  border:        1px solid var(--clr-border);
   border-radius: var(--radius-sm);
-  color: var(--clr-text);
-  font: inherit;
-  font-size: 0.875rem;
+  color:         var(--clr-text);
+  font:          inherit;
+  font-size:     0.85rem;
 }
+.comp-filtre-input:focus { outline: none; border-color: var(--clr-accent-2); }
 
-.comp-filtre-input:focus {
-  outline: none;
-  border-color: var(--clr-accent-2);
-}
-
+/* Selects critères */
 .comp-filtre-select {
-  padding: 5px 8px;
-  background: var(--clr-surface-2);
-  border: 1px solid var(--clr-border);
+  padding:       5px 7px;
+  background:    var(--clr-surface-2);
+  border:        1px solid var(--clr-border);
   border-radius: var(--radius-sm);
-  color: var(--clr-text);
-  font-size: 0.875rem;
-  max-width: 180px;
+  color:         var(--clr-text);
+  font-size:     0.85rem;
+  max-width:     160px;
 }
 
-.comp-filtre-select--multi {
-  min-height: 32px;
-  max-height: 80px;
+/* Bouton Sources */
+.comp-filtre-sources-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           var(--sp-xs);
+  padding:       5px 10px;
+  background:    var(--clr-surface-2);
+  border:        1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color:         var(--clr-text);
+  font-size:     0.85rem;
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    border-color 0.15s;
+}
+.comp-filtre-sources-btn:hover { border-color: var(--clr-accent-2); }
+.comp-filtre-sources-btn .comp-filtre-chevron { margin-left: 2px; }
+.comp-filtre-sources-btn.is-open .comp-filtre-chevron { transform: rotate(180deg); }
+
+/* Menu déroulant sources */
+.comp-filtre-sources-menu {
+  position:      absolute;
+  top:           calc(100% + 4px);
+  left:          0;
+  z-index:       30;
+  background:    var(--clr-surface);
+  border:        1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding:       var(--sp-sm);
+  box-shadow:    0 4px 16px rgba(0,0,0,0.35);
+  min-width:     200px;
+  max-width:     280px;
+  display:       flex;
+  flex-direction: column;
+  gap:           4px;
+}
+.comp-filtre-source-item {
+  display:     flex;
+  align-items: center;
+  gap:         var(--sp-sm);
+  padding:     4px 6px;
+  border-radius: var(--radius-sm);
+  cursor:      pointer;
+  font-size:   0.85rem;
+  transition:  background 0.1s;
+}
+.comp-filtre-source-item:hover { background: var(--clr-surface-2); }
+.comp-filtre-source-item input[type="checkbox"] { width: auto; cursor: pointer; }
+
+/* Libellé texte masqué sur petits desktops */
+.comp-filtre-label-desktop { display: inline; }
+
+/* ============================================================
+   RESPONSIVE ≤ 991px — Filtre mobile
+   ============================================================ */
+@media (max-width: 991px) {
+
+  /* Bouton toggle visible */
+  .comp-filtre-toggle { display: flex; }
+
+  /* Contenu masqué par défaut */
+  .comp-filtre-content.is-closed { display: none; }
+
+  /* Formulaire en colonne */
+  .comp-filtre-form {
+    flex-direction: column;
+    align-items:    stretch;
+    padding:        var(--sp-sm);
+    background:     var(--clr-surface-2);
+    border:         1px solid var(--clr-border);
+    border-top:     none;
+    border-radius:  0 0 var(--radius-sm) var(--radius-sm);
+  }
+
+  .comp-filtre-item          { width: 100%; }
+  .comp-filtre-item--text    { flex: 1 1 auto; }
+  .comp-filtre-item--actions { margin-left: 0; justify-content: flex-start; }
+
+  .comp-filtre-input,
+  .comp-filtre-select,
+  .comp-filtre-sources-btn   { width: 100%; max-width: 100%; }
+
+  /* Menu sources : position statique en mobile */
+  .comp-filtre-sources-menu {
+    position:  static;
+    box-shadow: none;
+    border:    1px solid var(--clr-border);
+    max-width: 100%;
+  }
+
+  .comp-filtre-label-desktop { display: none; }
 }
 
 /* ============================================================
