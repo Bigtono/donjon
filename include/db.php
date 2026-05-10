@@ -7,7 +7,7 @@ $configFile = __DIR__ . '/../config/db.config.php';
 if (!file_exists($configFile)) {
   error_log('Fichier de configuration introuvable : ' . $configFile);
   http_response_code(503);
-  exit('Service temporairement indisponible.');
+  exit('Service temporairement indisponible Err0.');
 }
 
 require_once $configFile;
@@ -23,5 +23,5 @@ try {
 } catch (PDOException $e) {
   error_log('DB connexion échouée : ' . $e->getMessage());
   http_response_code(503);
-  exit('Service temporairement indisponible.');
+  exit('Service temporairement indisponible Err1.');
 }

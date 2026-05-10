@@ -78,7 +78,7 @@ if (!empty($_SESSION['j_id'])) {
   </div>
 
   <div class="dashboard-grid">
-    <a href="<?= BASE_URL ?>/personnages/fiche.php" class="dashboard-card">
+    <a href="<?= BASE_URL ?>/personnages/index.php" class="dashboard-card">
       <i class="fa fa-user"></i>
       <span>Mes personnages</span>
     </a>
@@ -87,7 +87,7 @@ if (!empty($_SESSION['j_id'])) {
       <span>Compendium</span>
     </a>
     <? if (!empty($_SESSION['j_mode_campagne'])): ?>
-      <a href="<?= BASE_URL ?>/campagnes/campagne.php" class="dashboard-card">
+      <a href="<?= BASE_URL ?>/campagnes/index.php" class="dashboard-card">
         <i class="fa fa-map"></i>
         <span>Mes campagnes</span>
       </a>
@@ -97,7 +97,7 @@ if (!empty($_SESSION['j_id'])) {
       <span>Mes univers</span>
     </a>
     <? if (!empty($_SESSION['j_admin'])): ?>
-      <a href="<?= BASE_URL ?>/admin/utilisateurs.php" class="dashboard-card dashboard-card--admin">
+      <a href="<?= BASE_URL ?>/admin/index.php" class="dashboard-card dashboard-card--admin">
         <i class="fa fa-cog"></i>
         <span>Administration</span>
       </a>
