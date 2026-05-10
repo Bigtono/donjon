@@ -87,7 +87,7 @@ En production : DEV_MODE = false, envoi par mail().
 → Évite la configuration SMTP sous XAMPP en développement.
 
 **[2025] Responsive — exception module Campagnes**
-Modules responsives (seuil 992px) : Compendium, Personnages, Wiki/Univers, Profil, Auth.
+Modules responsives (seuil 992px) : Compendium, Personnages, Wiki/Univers, Profil, Auth, Admin.
 Module NON responsive : Campagnes — usage desktop exclusif (MJ en partie).
 → Complexité réduite sur un module à usage desktop uniquement.
 
@@ -97,8 +97,8 @@ Liste de paramètres évolutive — chaque nouveau paramètre s'ajoute sans refo
 → Extensible sans refonte de la page.
 
 **[2025] Ordre de développement des modules**
-Compendium en premier (alimentation données) → Personnages → Campagnes → Wiki.
-→ Les données du compendium sont nécessaires à tous les autres modules.
+Compendium en premier (alimentation données) → Admin → Personnages → Campagnes → Wiki.
+→ Les données du compendium sont nécessaires à tous les autres modules. L'admin permet de gérer les ressources et utilisateurs avant d'accueillir des joueurs.
 
 ---
 
@@ -174,15 +174,6 @@ Ce pattern est transversal — il s'applique aussi aux modules Personnages et Ca
 quand ils ouvrent des éléments du compendium depuis leurs propres pages.
 → Un seul mécanisme pour tous les contextes d'ouverture de detail-pp dans tout le site.
 
----
-
-## À décider
-
-- [x] ~~Gestion des mots de passe oubliés~~ → implémenté (token 1h + DEV_MODE)
-- [x] ~~Ordre d'affichage par défaut des listes~~ → alphabétique sur col-primary (tri GET modifiable)
-- [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
-- [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
-
 **[2025] so_composante — champ texte libre (correction)**
 so_composante n'est pas un champ calculé depuis les booléens so_vocal/so_gestuel/so_materiel.
 C'est un champ texte libre contenant le détail des composantes matérielles nécessaires au lancement.
@@ -213,7 +204,7 @@ Les entrées avec niveau=0 ne sont pas enregistrées dans dd_sortclasse/dd_sortd
 **[2025] Éditeur texte enrichi — TinyMCE retenu**
 Besoin d'images dans wiki/univers et personnages → Quill.js écarté (gestion images native absente,
 workaround base64 inacceptable). TinyMCE via CDN tiny.cloud, clé API gratuite.
-Deux configurations : minimale (sans images) pour sorts/dons/classes/races,
+Deux configurations : minimale (sans images) pour sorts/dons/classes/races/historiques,
 complète (avec images) pour wiki/univers et personnages.
 Clé API : constante TINYMCE_API_KEY dans include/db.php.
 Upload images : include/ajax/upload-image.php → img/uploads/ (hors .gitignore).
@@ -226,6 +217,69 @@ Chaque module fonctionnel a son propre fichier CSS chargé conditionnellement :
 - personnages-modules.css (Phase 3, à créer)
 - campagnes-modules.css (Phase 4, à créer)
 - wiki-modules.css (Phase 5, à créer)
+- admin-modules.css (Phase Admin, à créer)
 Chargement via $css_module dans header.php — même pattern que $js_module.
-Les stubs .perso-*, .camp-*, .wiki-* restent dans modules.css jusqu'au dev de leur phase.
 → Poids réduit par page, maintenabilité améliorée, cohérence avec le pattern JS existant.
+
+**[2025] dd_historiques — entité compendium DD2024 uniquement**
+Les historiques de personnage sont une mécanique spécifique au ruleset DD2024, absente de DD3.5.
+La table dd_historiques (préfixe hi, champ hi_res_id) est intégrée au périmètre du compendium.
+La page compendium/historiques.php et ses endpoints AJAX ne sont accessibles et affichés
+dans la navigation que si $_SESSION['rulesetRep'] === 'DD2024'.
+→ Le moteur compendium-liste.php reste générique ; le conditionnel est géré dans le contrôleur.
+
+---
+
+## Phase Admin — Zone d'administration
+
+**[2025] Architecture admin — moteur distinct de compendium-liste.php**
+La zone admin utilise son propre moteur include/admin-liste.php, distinct de compendium-liste.php.
+Les contraintes sont structurellement différentes : pas de filtre sources, pas de filtre ruleset,
+pas d'inférence _camp_id IS NULL, accès conditionné par requireAdmin() et non requireAuth().
+→ Séparation des responsabilités : le moteur compendium reste simple et sans branchements admin.
+
+**[2025] Zone admin — 2 blocs fonctionnels (pas 3)**
+La zone admin comporte 2 blocs : A (Utilisateurs) et B (Ressources).
+Le bloc C (Variables / dd_variables) est abandonné : l'interface de suppression d'une variable
+ruleset serait trop préjudiciable en cas d'erreur. Les variables sont gérées via phpMyAdmin.
+→ Sécurité opérationnelle : les données de configuration critiques restent hors UI.
+
+**[2025] Suppression utilisateur — désactivation, jamais DELETE**
+La "suppression" d'un utilisateur via l'interface admin est une désactivation : j_visible = 0.
+Aucun DELETE physique sur dd_joueurs depuis l'UI, quelle que soit la demande.
+Les données de jeu (personnages, campagnes, univers, notes) sont conservées intactes.
+Les utilisateurs désactivés restent visibles dans la liste avec indicateur et action "Réactiver".
+→ Préservation de l'intégrité référentielle. Une fonctionnalité future permettra de
+  localiser et réaffecter les données orphelines.
+
+**[2025] Suppression ressource — vérification sur 7 tables**
+La suppression d'une ressource est conditionnée à l'absence de données dans l'ensemble
+du périmètre compendium : dd_classes, dd_races, dd_sorts, dd_dons, dd_competences,
+dd_historiques, dd_objets_magiques.
+Si des données existent, la suppression est refusée avec un message listant les compteurs
+par table. La confirmation inline affiche ces compteurs avant validation.
+→ Intégrité des données du compendium garantie sans dépendre des contraintes FK MySQL.
+
+**[2025] Périmètre compendium — 7 tables avec res_id**
+Le périmètre officiel des entités du compendium filtrées par ressource est :
+dd_classes (cla_res_id), dd_races (ra_res_id), dd_sorts (so_res_id), dd_dons (do_res_id),
+dd_competences (comp_res_id), dd_historiques (hi_res_id), dd_objets_magiques (om_res_id).
+Ce périmètre est la référence pour toute vérification de dépendances (admin ressources).
+→ Référence explicite pour éviter les oublis lors des vérifications de suppression.
+
+**[2025] Mot de passe utilisateur en mode ajout**
+Lors de la création d'un utilisateur via l'interface admin, l'admin saisit un mot de passe temporaire.
+Le champ mot de passe est absent du formulaire de modification (édition d'un utilisateur existant).
+La réinitialisation de mot de passe reste gérée par le flux profil/mot-de-passe-oublie.php.
+→ Séparation claire entre création et gestion — pas de régression sur le flux reset MDP existant.
+
+---
+
+## À décider
+
+- [x] ~~Gestion des mots de passe oubliés~~ → implémenté (token 1h + DEV_MODE)
+- [x] ~~Ordre d'affichage par défaut des listes~~ → alphabétique sur col-primary (tri GET modifiable)
+- [x] ~~Zone admin — nombre de blocs~~ → 2 blocs (Utilisateurs + Ressources) ; Variables via phpMyAdmin
+- [x] ~~Suppression utilisateur~~ → désactivation j_visible=0, jamais DELETE
+- [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
+- [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)

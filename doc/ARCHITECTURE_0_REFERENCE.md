@@ -2,7 +2,7 @@
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Phase 2 — compendium sorts + TinyMCE
+> Dernière mise à jour : Phase 2 — compendium sorts + TinyMCE + zone admin (analyse)
 
 ---
 
@@ -110,6 +110,24 @@ Encapsulé dans ownerFilter() dans include/helpers.php.
 1. Compendium global : admin + gestionnaires délégués (j_compendium_manager = 1). Visible par tous.
 2. Contenu homebrew : créé par le MJ via _camp_id. Mêmes formulaires + champ caché _camp_id. Visible MJ + joueurs de la campagne.
 
+### Périmètre des entités du compendium
+
+Les entités suivantes font partie du compendium et sont filtrées par ressource via leur champ `_res_id` :
+
+| Table | Préfixe | Ruleset | Champ ressource |
+|---|---|---|---|
+| dd_classes | cla | DD3.5 + DD2024 | cla_res_id |
+| dd_races | ra | DD3.5 + DD2024 | ra_res_id |
+| dd_sorts | so | DD3.5 + DD2024 | so_res_id |
+| dd_dons | do | DD3.5 + DD2024 | do_res_id |
+| dd_competences | comp | DD3.5 + DD2024 | comp_res_id |
+| dd_historiques | hi | **DD2024 uniquement** | hi_res_id |
+| dd_objets_magiques | om | DD3.5 + DD2024 | om_res_id |
+
+> ⚠️ `dd_historiques` est une entité exclusive au ruleset DD2024. Elle ne doit jamais apparaître dans les pages ou formulaires DD3.5.
+
+Cette liste est la référence pour toute vérification de dépendances (ex : suppression d'une ressource).
+
 ### Sélection des sources — chaîne de priorité
 
 ```
@@ -197,13 +215,17 @@ Div inline remplaçant temporairement la ligne dans le tableau. Pas de window.co
 ```
 compendium/
   sorts.php, classes.php, dons.php, races.php, competences.php, objets.php
+  historiques.php   (DD2024 uniquement — conditionné par ruleset en session)
   enregistrement.php  (POST commun + mode ?ajax=1)
 
 include/
   compendium-liste.php   (moteur commun)
-  ajax/detail-pp/        (sort.php, classe.php, don.php, race.php...)
-  ajax/modifier/         (sort.php, classe.php, don.php, race.php...)
+  ajax/detail-pp/        (sort.php, classe.php, don.php, race.php, historique.php...)
+  ajax/modifier/         (sort.php, classe.php, don.php, race.php, historique.php...)
 ```
+
+> ⚠️ La page `compendium/historiques.php` (et ses endpoints AJAX) ne doit être accessible
+> et affichée dans le menu que si `$_SESSION['rulesetRep'] === 'DD2024'`.
 
 ### enregistrement.php — mode AJAX
 
@@ -212,7 +234,135 @@ Mode normal (bulk) : redirect + flash message SESSION.
 
 ---
 
-## 6. Module Personnages
+## 6. Zone d'administration
+
+Accessible uniquement via `requireAdmin()`. Lien affiché dans le header si `$_SESSION['j_admin'] === true`.
+
+### Architecture — moteur admin-liste.php
+
+La zone admin suit le même principe que le compendium : chaque page déclare un `$adminListConfig`
+et délègue le rendu à `include/admin-liste.php`.
+
+`admin-liste.php` est un moteur **distinct** de `compendium-liste.php` car ses contraintes
+sont différentes : pas de filtre sources, pas de filtre ruleset, pas de champ `_camp_id`.
+
+Différences structurelles vs compendium-liste.php :
+
+| Aspect | compendium-liste.php | admin-liste.php |
+|---|---|---|
+| Auth | requireAuth() | requireAdmin() |
+| Filtre sources | Oui (getActiveResIds) | Non |
+| Filtre ruleset | Oui | Non |
+| Filtre _camp_id IS NULL | Oui (inféré) | Non |
+| Bouton Ajouter | canEditCompendium() | Toujours visible |
+| Suppression | Simple | Conditionnelle selon entité |
+
+### Blocs fonctionnels
+
+La zone admin comporte **2 blocs** accessibles depuis `admin/index.php` (dashboard-grid) :
+
+| Bloc | Page | Entité |
+|---|---|---|
+| A — Gestion des utilisateurs | admin/utilisateurs.php | dd_joueurs |
+| B — Gestion des ressources | admin/ressources.php | dd_ressources |
+
+> Les variables (`dd_variables`) sont gérées directement via phpMyAdmin —
+> aucune interface d'administration n'est prévue pour cette table.
+
+### A — Gestion des utilisateurs
+
+**Colonnes de la liste :**
+
+| # | Classe CSS | Contenu |
+|---|---|---|
+| 0 | bulk-check | Checkbox |
+| 1 | col-action | Menu ⋮ : Modifier / Réactiver / Désactiver |
+| 2 | col-primary | Prénom + Nom |
+| 3 | col-secondary | Pseudo |
+| 4 | col-secondary | Email |
+| 5 | col-secondary | Badges droits : Admin / Compendium |
+
+**Règle de suppression :** La suppression d'un utilisateur est une **désactivation** (`j_visible = 0`),
+jamais un DELETE physique. Les données de jeu (personnages, campagnes, univers) sont conservées.
+Une fonctionnalité future permettra de localiser et réaffecter les données orphelines.
+
+Message de confirmation inline : *"Cet utilisateur sera désactivé. Ses données de jeu sont conservées."*
+
+Les utilisateurs désactivés restent visibles dans la liste (indicateur visuel) avec une action "Réactiver".
+
+**Bulk actions :** Désactiver la sélection.
+
+**Formulaire modifier (overlay) :**
+- Prénom, Nom, Pseudo, Email
+- Droits : j_admin (checkbox), j_compendium_manager (checkbox)
+- Mot de passe : champ obligatoire en mode **ajout** uniquement ; absent en mode édition
+  (la réinitialisation se fait via le profil utilisateur)
+
+### B — Gestion des ressources
+
+**Colonnes de la liste** (les compteurs sont calculés par sous-requêtes SQL) :
+
+| # | Classe CSS | Contenu | Source SQL |
+|---|---|---|---|
+| 0 | bulk-check | Checkbox | — |
+| 1 | col-action | Menu ⋮ : Modifier / Supprimer | — |
+| 2 | col-primary | Nom | res_nom |
+| 3 | col-secondary | Abréviation | res_abreviation |
+| 4 | col-secondary | Ruleset | var_valeur via JOIN dd_variables |
+| 5 | col-secondary | Nb classes | COUNT dd_classes WHERE cla_res_id |
+| 6 | col-secondary | Nb races | COUNT dd_races WHERE ra_res_id |
+| 7 | col-secondary | Nb sorts | COUNT dd_sorts WHERE so_res_id |
+
+**Règle de suppression :** Une ressource ne peut être supprimée que si **aucune** des tables
+du compendium ne lui est rattachée. La vérification porte sur l'ensemble du périmètre :
+
+```
+dd_classes, dd_races, dd_sorts, dd_dons, dd_competences, dd_historiques, dd_objets_magiques
+```
+
+Si des données existent, la suppression est refusée avec un message explicite indiquant
+les compteurs par table. Exemple :
+*"Impossible de supprimer : 12 classes, 3 races, 48 sorts sont rattachés à cette ressource."*
+
+La confirmation inline affiche les compteurs **avant** validation pour éviter la surprise.
+
+**Pas de bulk delete** — suppression individuelle avec vérification uniquement.
+
+**Formulaire modifier (overlay) :**
+- res_nom, res_abreviation
+- res_ruleset_var_id : SELECT des rulesets (dd_variables WHERE var_cat = 'ruleset')
+- res_selection : checkbox "actif par défaut dans les sélections"
+- res_editeur, res_pages, res_description
+
+### Fichiers de la zone admin
+
+```
+admin/
+  index.php              ← dashboard (2 cartes)
+  utilisateurs.php       ← liste utilisateurs ($adminListConfig → admin-liste.php)
+  ressources.php         ← liste ressources ($adminListConfig → admin-liste.php)
+  enregistrement.php     ← POST commun admin (insert/update/désactivation)
+
+include/
+  admin-liste.php        ← moteur commun admin
+  ajax/
+    detail-pp/
+      utilisateur.php
+      ressource.php
+    modifier/
+      utilisateur.php
+      ressource.php
+
+css/
+  admin-modules.css      ← chargé si $css_module = 'admin'
+
+js/
+  admin.js               ← tri, bulk, confirmation inline (clone adapté de compendium.js)
+```
+
+---
+
+## 7. Module Personnages
 
 - Un personnage possède obligatoirement une race et au moins une classe
 - DD3.5 : race de base + archétype optionnel, classes de prestige, NLS (dd_personnages_nls)
@@ -221,7 +371,7 @@ Mode normal (bulk) : redirect + flash message SESSION.
 
 ---
 
-## 7. Module Campagnes
+## 8. Module Campagnes
 
 Hiérarchie : Campagne → Scénarios → Chapitres → Rencontres → Monstres
 Liaison personnages via dd_campagnes_personnages.
@@ -229,14 +379,14 @@ Module NON responsive — usage desktop exclusif.
 
 ---
 
-## 8. Module Wiki / Univers
+## 9. Module Wiki / Univers
 
 Univers (public/privé) → Catégories → Articles (visible/caché)
 Délégation droits via dd_univers_droits. En v1 : globale sur l'univers entier.
 
 ---
 
-## 9. Responsive
+## 10. Responsive
 
 | Module | Responsive | Notes |
 |---|---|---|
@@ -246,12 +396,13 @@ Délégation droits via dd_univers_droits. En v1 : globale sur l'univers entier.
 | Campagnes | Non | Desktop MJ uniquement |
 | Profil | Oui | |
 | Connexion / Auth | Oui | |
+| Admin | Oui | Même classes CSS que le compendium |
 
 Seuil : 992px.
 
 ---
 
-## 10. Profil utilisateur
+## 11. Profil utilisateur
 
 Trois sections indépendantes (champ hidden section) : identité, mot de passe, paramètres.
 DEV_MODE = true dans include/db.php → lien reset MDP affiché en page.
@@ -265,7 +416,7 @@ DEV_MODE = true dans include/db.php → lien reset MDP affiché en page.
 
 ---
 
-## 11. Patterns d'interface
+## 12. Patterns d'interface
 
 ### detail-pp — contexte d'ouverture
 
@@ -329,7 +480,7 @@ Style : fond #f3f3ef, bordure #e2e2dd, rayon 0.35rem, padding 10px.
 
 ---
 
-## 12. Arborescence du projet
+## 13. Arborescence du projet
 
 ```
 donjon/
@@ -337,11 +488,17 @@ donjon/
   .htaccess
   personnages/     fiche.php, modifier.php, enregistrement.php
   compendium/      sorts.php, classes.php, dons.php, races.php,
-                   competences.php, objets.php, enregistrement.php
+                   competences.php, objets.php,
+                   historiques.php   (DD2024 uniquement)
+                   enregistrement.php
   campagnes/       campagne.php, scenario.php, rencontres.php
   wiki/            univers.php, articles.php
   profil/          index.php, mot-de-passe-oublie.php, reinitialisation.php
-  admin/           utilisateurs.php, ressources.php
+  admin/
+    index.php            (dashboard admin — 2 cartes)
+    utilisateurs.php     (liste + $adminListConfig)
+    ressources.php       (liste + $adminListConfig)
+    enregistrement.php   (POST commun admin)
   js/
     main.js          togglePlus, actualiserPage, _detailPpContext,
                      apresModification, rafraichirListe, CSRF
@@ -350,6 +507,7 @@ donjon/
     campagne.js
     wiki.js
     profil.js
+    admin.js         (Phase admin — clone adapté de compendium.js)
   css/
     main.css                  variables, layout, composants transverses
     modules.css               styles globaux (login, dashboard, profil, header)
@@ -357,16 +515,20 @@ donjon/
     personnages-modules.css   (Phase 3) — chargé si $css_module = 'personnages'
     campagnes-modules.css     (Phase 4) — chargé si $css_module = 'campagnes'
     wiki-modules.css          (Phase 5) — chargé si $css_module = 'wiki'
+    admin-modules.css         chargé si $css_module = 'admin'
   include/
     db.php           PDO + BASE_URL + DEV_MODE
     auth.php
     helpers.php
     header.php       charge $css_module-modules.css et $js_module.js conditionnellement
     footer.php
-    compendium-liste.php    moteur de liste commun (lit $listConfig)
+    compendium-liste.php    moteur de liste commun compendium (lit $listConfig)
+    admin-liste.php         moteur de liste commun admin (lit $adminListConfig)
     ajax/
-      detail-pp/     sort.php, classe.php, don.php, race.php...
-      modifier/      sort.php, classe.php, don.php, race.php...
+      detail-pp/     sort.php, classe.php, don.php, race.php, historique.php...
+                     utilisateur.php, ressource.php   (admin)
+      modifier/      sort.php, classe.php, don.php, race.php, historique.php...
+                     utilisateur.php, ressource.php   (admin)
     insert/
       DD3.5/
       DD2024/
@@ -380,13 +542,12 @@ donjon/
     DECISIONS_LOG.md
     SCHEMA_SQL.md
     ARCHITECTURE_2_SORTS.md
-    METIER_Gestion_des_classes.md
-    METIER_Gestion__des_personnages.md
+    METIER_*.md
 ```
 
 ---
 
-## 13. Plan de développement
+## 14. Plan de développement
 
 ### Phase 1 — Socle technique TERMINE
 Auth, session, helpers, header/footer, dashboard, profil, reset MDP, CSS design system.
@@ -396,9 +557,18 @@ Auth, session, helpers, header/footer, dashboard, profil, reset MDP, CSS design 
 - compendium/enregistrement.php — POST commun + mode AJAX
 - js/compendium.js — tri, filtre, bulk, confirmation inline
 - css/compendium-modules.css — styles listes, detail-pp sort, responsive compendium
-- Pages : sorts, classes, dons, races, competences
+- Pages : sorts, classes, dons, races, competences, objets, historiques (DD2024)
 - AJAX detail-pp et modifier pour chaque entité
 - Templates DD3.5 et DD2024 en parallèle
+
+### Phase Admin — Zone d'administration
+- include/admin-liste.php — moteur commun admin
+- admin/enregistrement.php — POST commun admin
+- js/admin.js — tri, bulk, confirmation inline (adapté)
+- css/admin-modules.css — styles listes admin
+- admin/index.php — dashboard 2 cartes
+- admin/utilisateurs.php + AJAX detail-pp/modifier/utilisateur.php
+- admin/ressources.php + AJAX detail-pp/modifier/ressource.php
 
 ### Phase 3 — Personnages
 Fiche, classes/niveaux, sorts, compétences, dons, NLS (DD3.5).
@@ -411,38 +581,40 @@ Univers, catégories, articles, délégation, lien univers <-> campagne.
 
 ---
 
-## 14. Tables de la base de données
+## 15. Tables de la base de données
 
 ### Référentiels
 | Table | Préfixe | Rôle |
 |---|---|---|
-| dd_variables | var | Rulesets et valeurs paramétrables |
-| dd_ressources | res | Livres/suppléments |
+| dd_variables | var | Rulesets et valeurs paramétrables — gérées via phpMyAdmin uniquement |
+| dd_ressources | res | Livres/suppléments — gérés via zone admin |
 | dd_caracteristiques | car | 6 caractéristiques DD |
 | dd_modificateurs | mod | Modificateurs de caractéristiques |
 
 ### Utilisateurs
 | Table | Préfixe | Rôle |
 |---|---|---|
-| dd_joueurs | j | Utilisateurs |
+| dd_joueurs | j | Utilisateurs — gérés via zone admin |
 | dd_joueurs_sources | js | Sélection sources par utilisateur |
 
 ### Compendium
-| Table | Préfixe | Rôle |
-|---|---|---|
-| dd_races | ra | Races jouables |
-| dd_race_type | rat | Types de race |
-| dd_classes | cla | Classes de personnage |
-| dd_classe_niveau | cn | Table de bonus par niveau |
-| dd_capacites_speciales | cap | Capacités spéciales |
-| dd_classe_capacite | cc | Affectation capacité → niveau |
-| dd_typeMagie | mag | Types de magie |
-| dd_colleges | co | Collèges de magie |
-| dd_sorts | so | Sorts |
-| dd_sortclasse | sc | Sorts par classe |
-| dd_dons | do | Dons |
-| dd_data_don | dado | Catégories de dons |
-| dd_competences | comp | Compétences |
+| Table | Préfixe | Rôle | Ruleset |
+|---|---|---|---|
+| dd_races | ra | Races jouables | DD3.5 + DD2024 |
+| dd_race_type | rat | Types de race | DD3.5 + DD2024 |
+| dd_classes | cla | Classes de personnage | DD3.5 + DD2024 |
+| dd_classe_niveau | cn | Table de bonus par niveau | DD3.5 + DD2024 |
+| dd_capacites_speciales | cap | Capacités spéciales | DD3.5 + DD2024 |
+| dd_classe_capacite | cc | Affectation capacité → niveau | DD3.5 + DD2024 |
+| dd_typeMagie | mag | Types de magie | DD3.5 + DD2024 |
+| dd_colleges | co | Collèges de magie | DD3.5 + DD2024 |
+| dd_sorts | so | Sorts | DD3.5 + DD2024 |
+| dd_sortclasse | sc | Sorts par classe | DD3.5 + DD2024 |
+| dd_dons | do | Dons | DD3.5 + DD2024 |
+| dd_data_don | dado | Catégories de dons | DD3.5 + DD2024 |
+| dd_competences | comp | Compétences | DD3.5 + DD2024 |
+| dd_historiques | hi | Historiques de personnage | **DD2024 uniquement** |
+| dd_objets_magiques | om | Objets magiques | DD3.5 + DD2024 |
 
 ### Personnages
 | Table | Préfixe | Rôle |
@@ -488,8 +660,6 @@ Univers, catégories, articles, délégation, lien univers <-> campagne.
 
 ---
 
----
-
 ## 16. Éditeur de texte enrichi — TinyMCE
 
 ### Choix retenu
@@ -513,7 +683,7 @@ Chargement dans les pages qui en ont besoin (pas dans header.php — uniquement 
 
 ### Configuration minimale — sans images
 
-Pour : sorts, dons, classes, races, compétences.
+Pour : sorts, dons, classes, races, compétences, historiques.
 
 ```javascript
 tinymce.init({
@@ -565,8 +735,9 @@ Sécurité : contenu produit uniquement par des utilisateurs authentifiés.
 tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
 ```
 
+---
 
-## 15. Checklist avant chaque merge
+## 17. Checklist avant chaque merge
 
 - [ ] Aucun write AJAX dans *-modifier.php
 - [ ] Payload hidden complet et cohérent au submit
@@ -579,117 +750,14 @@ tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
 - [ ] Templates ruleset sans logique auth/session
 - [ ] rulesetRep validé via whitelist avant inclusion template
 - [ ] Responsive testé sur les modules concernés (hors Campagnes)
-- [ ] $css_module défini dans chaque contrôleur de module (compendium, personnages, wiki)
+- [ ] $css_module défini dans chaque contrôleur de module
 - [ ] Compendium : colonne de tri validée par whitelist avant ORDER BY
 - [ ] Compendium : _detailPpContext correctement passé à actualiserPage()
 - [ ] Compendium : enregistrement.php?ajax=1 retourne JSON, mode normal retourne redirect
+- [ ] Compendium : historiques.php et ses endpoints conditionnés au ruleset DD2024
+- [ ] Admin : requireAdmin() en tête de chaque page admin/
+- [ ] Admin : suppression utilisateur = désactivation j_visible=0, jamais DELETE
+- [ ] Admin : suppression ressource = vérification préalable sur les 7 tables compendium
 - [ ] TinyMCE : triggerSave() appelé avant tout submit AJAX
-- [ ] TinyMCE : champs so_description/cap_description/ua_contenu affichés sans h()
+- [ ] TinyMCE : champs description/contenu affichés sans h()
 - [ ] img/uploads/ exclu du repo (.gitignore)
-
----
-
-## 16. Éditeur de texte enrichi — TinyMCE
-
-### Choix retenu
-
-**TinyMCE** via CDN tiny.cloud. Clé API gratuite (tiny.cloud, inscription requise, aucune contrainte commerciale pour usage personnel). Éditeur unique dans toute l'application — deux configurations selon le contexte.
-
-### Intégration CDN
-
-```html
-<script src="https://cdn.tiny.cloud/1/VOTRE_CLE_API/tinymce/7/tinymce.min.js"
-        referrerpolicy="origin"></script>
-```
-
-La clé API est stockée dans `include/db.php` :
-
-```php
-define('TINYMCE_API_KEY', 'votre_cle_api');
-```
-
-Et injectée dans les pages via le header ou directement dans la page :
-
-```html
-<script src="https://cdn.tiny.cloud/1/<?= TINYMCE_API_KEY ?>/tinymce/7/tinymce.min.js"
-        referrerpolicy="origin"></script>
-```
-
-### Configuration minimale (sans images)
-
-Pour : sorts, dons, classes, races, compétences — descriptions sans images.
-
-```javascript
-tinymce.init({
-  selector: '.tinymce-basic',
-  language: 'fr_FR',
-  menubar: false,
-  plugins: 'lists link',
-  toolbar: 'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
-  height: 300,
-  content_css: false,
-  skin: 'oxide-dark',       // cohérent avec le thème sombre du site
-});
-```
-
-### Configuration complète (avec images)
-
-Pour : wiki/univers articles, personnages (notes, background) — descriptions avec images.
-
-```javascript
-tinymce.init({
-  selector: '.tinymce-full',
-  language: 'fr_FR',
-  menubar: false,
-  plugins: 'lists link image table',
-  toolbar: 'bold italic underline | bullist numlist | h2 h3 | link image table | removeformat',
-  height: 400,
-  content_css: false,
-  skin: 'oxide-dark',
-  images_upload_url: BASE_URL + '/include/ajax/upload-image.php',
-  images_upload_credentials: true,
-  automatic_uploads: true,
-});
-```
-
-### Endpoint d'upload images
-
-Fichier : `include/ajax/upload-image.php`
-Répertoire de stockage : `img/uploads/` (à créer avec permissions 755)
-
-L'endpoint :
-- Vérifie la session et les droits
-- Valide le type MIME (jpg, png, gif, webp uniquement)
-- Limite la taille (5Mo max)
-- Renomme le fichier (hash unique) pour éviter les collisions
-- Retourne le JSON attendu par TinyMCE : `{ "location": "URL_du_fichier" }`
-
-### Lecture du contenu dans les pages
-
-Le HTML généré par TinyMCE est stocké tel quel dans les champs `TEXT`/`LONGTEXT`.
-Affichage : ne jamais passer par `h()` — utiliser directement la valeur (elle est déjà du HTML).
-Sécurité : le contenu est produit par des utilisateurs authentifiés uniquement — pas d'entrée publique.
-
-### Pré-remplissage en modification
-
-```javascript
-// Dans le formulaire de modification, après init TinyMCE :
-tinymce.get('id_textarea').setContent(valeur_depuis_php);
-```
-
-Ou plus simplement via la valeur du textarea (TinyMCE lit le contenu initial automatiquement) :
-
-```html
-<textarea class="tinymce-basic" name="so_description">
-  <?= htmlspecialchars_decode(h($so['so_description'] ?? '')) ?>
-</textarea>
-```
-
-### Soumission du formulaire
-
-TinyMCE synchronise automatiquement le contenu vers le textarea à la soumission.
-Pour un submit AJAX, forcer la synchronisation avant :
-
-```javascript
-tinymce.triggerSave(); // synchronise tous les éditeurs actifs
-```
