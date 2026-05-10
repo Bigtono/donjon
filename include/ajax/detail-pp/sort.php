@@ -157,21 +157,21 @@ endif;
 
   <?php // ---- Corps de la fiche ---- 
   ?>
-  <dl class="sort-detail__body">
+  <div class="sort-detail__body">
 
     <?php // ---- Niveau (classes + domaines DD3.5) ---- 
     ?>
     <div class="sort-detail__row">
-      <dt>Niveau</dt>
-      <dd><?= $niveau_str ?></dd>
+      <span class="sort-detail__label">Niveau</span>
+      <span class="sort-detail__value"><?= $niveau_str ?></span>
     </div>
 
     <?php // ---- DD2024 : niveau du sort ---- 
     ?>
     <?php if ($ruleset === 'DD2024' && $so['so_niveau'] !== null): ?>
       <div class="sort-detail__row">
-        <dt>Niveau du sort</dt>
-        <dd><?= (int)$so['so_niveau'] ?></dd>
+        <span class="sort-detail__label">Niveau du sort</span>
+        <span class="sort-detail__value"><?= (int)$so['so_niveau'] ?></span>
       </div>
     <?php endif ?>
 
@@ -179,13 +179,8 @@ endif;
     ?>
     <?php if ($composantes_str): ?>
       <div class="sort-detail__row">
-        <dt>Composantes</dt>
-        <dd>
-          <?= $composantes_str ?>
-          <?php if ($so['so_composante']): ?>
-            (<?= h($so['so_composante']) ?>)
-          <?php endif ?>
-        </dd>
+        <span class="sort-detail__label">Composantes</span>
+        <span class="sort-detail__value"><?= $composantes_str ?><?php if ($so['so_composante']): ?> (<?= h($so['so_composante']) ?>)<?php endif ?></span>
       </div>
     <?php endif ?>
 
@@ -193,8 +188,8 @@ endif;
     ?>
     <?php if ($so['so_duree_incantation']): ?>
       <div class="sort-detail__row">
-        <dt>Temps d'incantation</dt>
-        <dd><?= h($so['so_duree_incantation']) ?></dd>
+        <span class="sort-detail__label">Temps d'incantation</span>
+        <span class="sort-detail__value"><?= h($so['so_duree_incantation']) ?></span>
       </div>
     <?php endif ?>
 
@@ -202,8 +197,8 @@ endif;
     ?>
     <?php if ($so['so_portee']): ?>
       <div class="sort-detail__row">
-        <dt>Portée</dt>
-        <dd><?= h($so['so_portee']) ?></dd>
+        <span class="sort-detail__label">Portée</span>
+        <span class="sort-detail__value"><?= h($so['so_portee']) ?></span>
       </div>
     <?php endif ?>
 
@@ -211,8 +206,8 @@ endif;
     ?>
     <?php if ($ruleset === 'DD3.5' && $so['so_cible']): ?>
       <div class="sort-detail__row">
-        <dt>Cible</dt>
-        <dd><?= h($so['so_cible']) ?></dd>
+        <span class="sort-detail__label">Cible</span>
+        <span class="sort-detail__value"><?= h($so['so_cible']) ?></span>
       </div>
     <?php endif ?>
 
@@ -220,8 +215,8 @@ endif;
     ?>
     <?php if ($ruleset === 'DD3.5' && $so['so_zone_effet']): ?>
       <div class="sort-detail__row">
-        <dt>Zone d'effet</dt>
-        <dd><?= h($so['so_zone_effet']) ?></dd>
+        <span class="sort-detail__label">Zone d'effet</span>
+        <span class="sort-detail__value"><?= h($so['so_zone_effet']) ?></span>
       </div>
     <?php endif ?>
 
@@ -229,8 +224,8 @@ endif;
     ?>
     <?php if ($so['so_duree_sort']): ?>
       <div class="sort-detail__row">
-        <dt>Durée</dt>
-        <dd><?= h($so['so_duree_sort']) ?></dd>
+        <span class="sort-detail__label">Durée</span>
+        <span class="sort-detail__value"><?= h($so['so_duree_sort']) ?></span>
       </div>
     <?php endif ?>
 
@@ -238,8 +233,8 @@ endif;
     ?>
     <?php if ($ruleset === 'DD3.5' && $so['so_jet_sauvegarde']): ?>
       <div class="sort-detail__row">
-        <dt>Jet de sauvegarde</dt>
-        <dd><?= h($so['so_jet_sauvegarde']) ?></dd>
+        <span class="sort-detail__label">Jet de sauvegarde</span>
+        <span class="sort-detail__value"><?= h($so['so_jet_sauvegarde']) ?></span>
       </div>
     <?php endif ?>
 
@@ -247,12 +242,12 @@ endif;
     ?>
     <?php if ($ruleset === 'DD3.5' && $so['so_resistance']): ?>
       <div class="sort-detail__row">
-        <dt>Résistance à la magie</dt>
-        <dd><?= h($so['so_resistance']) ?></dd>
+        <span class="sort-detail__label">Résistance à la magie</span>
+        <span class="sort-detail__value"><?= h($so['so_resistance']) ?></span>
       </div>
     <?php endif ?>
 
-  </dl>
+  </div>
 
   <?php // ---- Description ---- 
   ?>

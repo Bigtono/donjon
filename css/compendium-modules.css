@@ -273,72 +273,120 @@
   font-style: italic;
 }
 
+/* ============================================================
+   DETAIL-PP — SORT
+   ============================================================ */
+.sort-detail { padding: var(--sp-sm); }
+
+.sort-detail__header { margin-bottom: var(--sp-md); }
+
+.sort-detail__nom {
+  font-size:     1.3rem;
+  font-weight:   700;
+  color:         var(--clr-accent-2);
+  margin-bottom: var(--sp-xs);
+}
+
+/* Bouton modifier inline */
+.sort-detail__edit-btn {
+  display:        inline-flex;
+  align-items:    center;
+  margin-left:    3em;
+  background:     transparent;
+  border:         none;
+  color:          #fff;
+  font-size:      0.95rem;
+  cursor:         pointer;
+  padding:        2px 6px;
+  border-radius:  var(--radius-sm);
+  transition:     color 0.15s, background 0.15s;
+  vertical-align: middle;
+}
+.sort-detail__edit-btn:hover {
+  color:       var(--clr-accent-2);
+  background:  rgba(255, 255, 255, 0.08);
+}
+
+.sort-detail__college {
+  font-size:  0.9rem;
+  color:      var(--clr-text-muted);
+  font-style: italic;
+  margin-top: var(--sp-xs);
+}
+
+/* Corps de la fiche — lignes label : valeur */
 .sort-detail__body {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 0;
-  margin-bottom: var(--sp-md);
-  font-size: 0.9rem;
+  display:        flex;
+  flex-direction: column;
+  margin-bottom:  var(--sp-md);
+  font-size:      0.9rem;
 }
 
-.sort-detail__row { display: contents; }
+.sort-detail__row {
+  display:       flex;
+  align-items:   baseline;
+  gap:           0.5em;
+  padding:       5px 0;
+  border-bottom: 1px solid var(--clr-border);
+  flex-wrap:     wrap;
+}
 
-.sort-detail__body dt {
-  padding: 5px var(--sp-md) 5px 0;
-  color: var(--clr-text-muted);
-  font-weight: 500;
+.sort-detail__label {
+  font-weight: 700;
+  color:       var(--clr-text);
   white-space: nowrap;
-  border-bottom: 1px solid var(--clr-border);
+  flex-shrink: 0;
 }
 
-.sort-detail__body dd {
-  padding: 5px 0;
-  border-bottom: 1px solid var(--clr-border);
+.sort-detail__label::after {
+  content: ' :';
 }
 
-.sort-detail__description {
-  margin: var(--sp-md) 0;
-  font-size: 0.9rem;
-  line-height: 1.7;
+.sort-detail__value {
   color: var(--clr-text);
-  border-top: 1px solid var(--clr-border);
+  flex:  1;
+}
+
+/* Description */
+.sort-detail__description {
+  margin:      1rem 0;
+  font-size:   0.9rem;
+  line-height: 1.7;
+  color:       var(--clr-text);
+  border-top:  1px solid var(--clr-border);
   padding-top: var(--sp-md);
 }
-
 .sort-detail__description p  { margin-bottom: var(--sp-sm); }
 .sort-detail__description ul,
 .sort-detail__description ol { padding-left: var(--sp-lg); margin-bottom: var(--sp-sm); }
 
+/* Pied de fiche */
 .sort-detail__footer {
-  display: flex;
-  gap: var(--sp-md);
-  flex-wrap: wrap;
+  display:     flex;
+  gap:         var(--sp-md);
+  flex-wrap:   wrap;
   align-items: center;
   padding-top: var(--sp-sm);
-  border-top: 1px solid var(--clr-border);
-  font-size: 0.78rem;
-  color: var(--clr-text-muted);
+  border-top:  1px solid var(--clr-border);
+  font-size:   0.78rem;
+  color:       var(--clr-text-muted);
 }
 
 .sort-detail__homebrew {
-  color: var(--clr-accent);
+  color:       var(--clr-accent);
   font-weight: 500;
 }
 
 .sort-detail__ruleset {
-  margin-left: auto;
-  background: var(--clr-surface-2);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 0.7rem;
-  font-weight: 600;
+  margin-left:    auto;
+  background:     var(--clr-surface-2);
+  padding:        2px 8px;
+  border-radius:  var(--radius-sm);
+  font-size:      0.7rem;
+  font-weight:    600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-
-/* ============================================================
-   RESPONSIVE ≤ 991px
-   ============================================================ */
 @media (max-width: 991px) {
 
   .col-secondary { display: none; }
@@ -353,7 +401,7 @@
 
   .comp-bulk-bar { display: none !important; }
 
-  .sort-detail__body    { grid-template-columns: 1fr; }
+
   .sort-detail__body dt { padding-bottom: 0; border-bottom: none; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; margin-top: var(--sp-sm); }
   .sort-detail__body dd { padding-top: 2px; }
 }

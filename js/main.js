@@ -1,6 +1,4 @@
 // js/main.js — Fonctions transverses Codex DD
-// Chargé sur toutes les pages après le contenu
-
 'use strict';
 
 // ============================================================
@@ -11,6 +9,16 @@ function getCsrfToken() {
   const meta = document.querySelector('meta[name="csrf-token"]');
   return meta ? meta.getAttribute('content') : '';
 }
+
+// ============================================================
+// CONTEXTE DETAIL-PP
+// 'liste'   = ouvert depuis une liste compendium
+// 'externe' = ouvert depuis toute autre page (défaut)
+// ============================================================
+
+let _detailPpContext = 'externe';
+let _detailPpUrl     = '';
+let _detailPpParams  = {};
 
 // ============================================================
 // BLOCS REPLIABLES (burger)
@@ -24,125 +32,103 @@ function togglePlus(id) {
 
 // ============================================================
 // PATTERN DETAIL-PP / MODIFICATION
-// Contexte d'ouverture de detail-pp :
-//   'liste'   — ouvert depuis une liste compendium
-//   'externe' — ouvert depuis toute autre page (défaut)
-// Détermine ce qui est rafraîchi après une modification.
 // ============================================================
 
-let _detailPpContext = 'externe';
-let _detailPpUrl = '';
-let _detailPpParams = {};
-
-// Charge du contenu HTML dans #detail-pp via GET
-// Les endpoints detail-pp sont des lectures — params passés dans l'URL
+// Charge #detail-pp via GET — lecture seule
 function actualiserPage(url, params = {}, context = 'externe') {
   _detailPpContext = context;
-  _detailPpUrl = url;
-  _detailPpParams = params;
+  _detailPpUrl     = url;
+  _detailPpParams  = params;
 
-  const panel = document.getElementById('detail-pp');
+  const panel    = document.getElementById('detail-pp');
+  const backdrop = document.getElementById('detail-pp-backdrop');
   if (!panel) return;
 
+  if (backdrop) backdrop.classList.remove('noDisplay');
   panel.classList.remove('noDisplay');
   panel.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
 
-  // GET — params ajoutés dans l'URL
   const fullUrl = Object.keys(params).length > 0
     ? url + '?' + new URLSearchParams(params).toString()
     : url;
 
   fetch(fullUrl)
-    .then(r => {
-      if (!r.ok) throw new Error('Erreur ' + r.status);
-      return r.text();
+    .then(r => { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
+    .then(html => {
+      const closeBtn = '<button class="overlay-close" onclick="fermerDetailPP()" title="Fermer">'
+                     + '<i class="fa fa-times"></i></button>';
+      panel.innerHTML = closeBtn + html;
     })
-    .then(html => { panel.innerHTML = html; })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
 }
 
-// Charge du contenu HTML dans #modification via GET
-// N'affecte PAS #detail-pp
+// Charge #modification via GET — lecture initiale du formulaire
 function actualiserPageModif(url, params = {}) {
-  const panel = document.getElementById('modification');
+  const panel    = document.getElementById('modification');
+  const backdrop = document.getElementById('modification-backdrop');
   if (!panel) return;
 
+  if (backdrop) backdrop.classList.remove('noDisplay');
   panel.classList.remove('noDisplay');
   panel.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
 
-  // GET — le formulaire de modification est aussi une lecture initiale
   const fullUrl = Object.keys(params).length > 0
     ? url + '?' + new URLSearchParams(params).toString()
     : url;
 
   fetch(fullUrl)
-    .then(r => {
-      if (!r.ok) throw new Error('Erreur ' + r.status);
-      return r.text();
-    })
+    .then(r => { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
     .then(html => { panel.innerHTML = html; })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
 }
 
-// Ouvre le formulaire de modification depuis un bouton dans detail-pp
+// Ouvre le formulaire de modification depuis detail-pp
 function ouvrirModifier(url, id) {
   actualiserPageModif(url, { id: id });
 }
 
 // Ferme #modification sans toucher à #detail-pp
 function fermerModification() {
-  const panel = document.getElementById('modification');
-  if (panel) {
-    panel.classList.add('noDisplay');
-    panel.innerHTML = '';
-  }
+  const panel    = document.getElementById('modification');
+  const backdrop = document.getElementById('modification-backdrop');
+  if (panel)    { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+  if (backdrop)   backdrop.classList.add('noDisplay');
 }
 
-// Ferme #detail-pp
+// Ferme #detail-pp (et #modification si ouvert)
 function fermerDetailPP() {
-  const panel = document.getElementById('detail-pp');
-  if (panel) {
-    panel.classList.add('noDisplay');
-    panel.innerHTML = '';
-  }
-}
-
-// ============================================================
-// APRÈS MODIFICATION — appelé par enregistrement.php (mode AJAX)
-// data = { ok, id, url_detail }
-// ============================================================
-
-function apresModification(data) {
+  const panel    = document.getElementById('detail-pp');
+  const backdrop = document.getElementById('detail-pp-backdrop');
+  if (panel)    { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+  if (backdrop)   backdrop.classList.add('noDisplay');
   fermerModification();
-  // Rafraîchit toujours detail-pp
-  actualiserPage(data.url_detail, { id: data.id }, _detailPpContext);
-  // Rafraîchit la liste si ouvert depuis une liste compendium
-  if (_detailPpContext === 'liste') {
-    rafraichirListe();
-  }
-}
-
-function rafraichirListe() {
-  window.location.reload();
 }
 
 // ============================================================
-// REQUÊTE POST AJAX (pour enregistrement.php)
-// Utilisé uniquement pour les soumissions de formulaires (écriture)
+// POST AJAX — écriture vers enregistrement.php
 // ============================================================
 
 async function postAjax(url, data = {}) {
   const body = new URLSearchParams(data);
   body.append('csrf_token', getCsrfToken());
-
   const response = await fetch(url, {
-    method: 'POST',
+    method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
+    body:    body.toString(),
   });
-
   if (!response.ok) throw new Error('Erreur ' + response.status);
   return response.json();
+}
+
+// Appelé après enregistrement AJAX — data = { ok, id, url_detail }
+function apresModification(data) {
+  fermerModification();
+  actualiserPage(data.url_detail, { id: data.id }, _detailPpContext);
+  if (_detailPpContext === 'liste') rafraichirListe();
+}
+
+function rafraichirListe() {
+  window.location.reload();
 }
 
 // ============================================================

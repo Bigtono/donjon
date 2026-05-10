@@ -128,16 +128,56 @@ button { cursor: pointer; font: inherit; }
 /* ============================================================
    OVERLAYS detail-pp / modification
    ============================================================ */
+/* Backdrop semi-transparent */
+.overlay-backdrop {
+  position:   fixed;
+  inset:      0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index:    199;
+  cursor:     pointer;
+}
+
+/* Panel modal centré */
 .overlay-panel {
+  position:      fixed;
+  top:           50%;
+  left:          50%;
+  transform:     translate(-50%, -50%);
+  z-index:       200;
+  width:         90%;
+  max-width:     720px;
+  max-height:    85vh;
+  overflow-y:    auto;
   background:    var(--clr-surface);
   border:        1px solid var(--clr-border);
   border-radius: var(--radius-lg);
   padding:       var(--sp-lg);
-  margin-bottom: var(--sp-md);
+  box-shadow:    0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .overlay-panel--edit {
   border-color: var(--clr-accent);
+  max-width:    860px;
+}
+
+/* Bouton fermer */
+.overlay-close {
+  position:      absolute;
+  top:           var(--sp-sm);
+  right:         var(--sp-sm);
+  background:    transparent;
+  border:        none;
+  color:         var(--clr-text-muted);
+  font-size:     1.2rem;
+  cursor:        pointer;
+  padding:       4px 8px;
+  border-radius: var(--radius-sm);
+  line-height:   1;
+  transition:    color 0.15s, background 0.15s;
+}
+.overlay-close:hover {
+  color:       var(--clr-danger);
+  background:  rgba(231, 76, 60, 0.1);
 }
 
 /* ============================================================
@@ -291,8 +331,8 @@ textarea { resize: vertical; min-height: 80px; }
   /* Tableaux : scroll horizontal sur mobile */
   .table-std { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-  /* Overlay panels pleine largeur */
-  .overlay-panel { padding: var(--sp-md); border-radius: var(--radius-sm); }
+  /* Overlay panels : légèrement réduits sur mobile */
+  .overlay-panel { width: 96%; padding: var(--sp-md); max-height: 90vh; }
 
   /* Boutons : pleine largeur dans form-actions sur mobile */
   .form-actions { flex-direction: column; }
