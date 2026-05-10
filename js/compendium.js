@@ -34,7 +34,7 @@ function compToggleMenu(id) {
 
 function compDemanderSuppression(id) {
   // Masque la ligne normale, affiche la confirmation
-  const row     = document.getElementById('row-' + id);
+  const row = document.getElementById('row-' + id);
   const confirm = document.getElementById('comp-confirm-' + id);
   if (!row || !confirm) return;
 
@@ -70,7 +70,7 @@ function compConfirmerSuppression(id) {
 
 document.addEventListener('DOMContentLoaded', () => {
   const selectAll = document.getElementById('comp-select-all');
-  const bulkBar   = document.getElementById('comp-bulk-bar');
+  const bulkBar = document.getElementById('comp-bulk-bar');
 
   if (selectAll) {
     selectAll.addEventListener('change', () => {
@@ -97,8 +97,8 @@ function compMajBulkBar() {
   if (counter) counter.textContent = checked.length;
 
   // Sync select-all
-  const total   = document.querySelectorAll('.comp-check').length;
-  const selAll  = document.getElementById('comp-select-all');
+  const total = document.querySelectorAll('.comp-check').length;
+  const selAll = document.getElementById('comp-select-all');
   if (selAll) selAll.checked = checked.length === total && total > 0;
 }
 
@@ -133,8 +133,8 @@ function compSoumettreAction() {
   container.innerHTML = '';
   checked.forEach(cb => {
     const input = document.createElement('input');
-    input.type  = 'hidden';
-    input.name  = 'ids[]';
+    input.type = 'hidden';
+    input.name = 'ids[]';
     input.value = cb.dataset.id;
     container.appendChild(input);
   });
@@ -156,28 +156,34 @@ function rafraichirListe() {
 // ============================================================
 
 function soumettreSort() {
-  if (typeof tinymce !== 'undefined') tinymce.triggerSave();
-
   const form = document.getElementById('form-sort');
   if (!form) return;
 
-  const data   = new FormData(form);
-  const params = new URLSearchParams(data);
-  // Le token CSRF est déjà dans le formulaire via csrfField()
-  // Ne pas l'ajouter une seconde fois (PHP prendrait la dernière valeur)
+  // Récupère le contenu TinyMCE explicitement avant de construire FormData
+  // (triggerSave seul peut manquer de temps pour synchroniser)
+  if (typeof tinymce !== 'undefined') {
+    const editor = tinymce.get('so_description');
+    if (editor) {
+      document.getElementById('so_description').value = editor.getContent();
+    }
+  }
+
+  // FormData directement — pas de conversion URLSearchParams
+  // qui corromprait le HTML (<, >, & encodés différemment)
+  const formData = new FormData(form);
 
   fetch(form.getAttribute('action'), {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    params.toString(),
+    method: 'POST',
+    body: formData,
+    // Pas de Content-Type manuel — le navigateur gère multipart + boundary
   })
-  .then(r => r.json())
-  .then(data => {
-    if (data.ok) {
-      apresModification(data);
-    } else {
-      alert(data.erreur || "Erreur lors de l'enregistrement.");
-    }
-  })
-  .catch(err => alert("Erreur : " + err));
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        apresModification(data);
+      } else {
+        alert(data.erreur || "Erreur lors de l'enregistrement.");
+      }
+    })
+    .catch(err => alert("Erreur : " + err));
 }

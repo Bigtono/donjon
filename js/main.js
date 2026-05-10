@@ -19,6 +19,7 @@ function getCsrfToken() {
 let _detailPpContext = 'externe';
 let _detailPpUrl = '';
 let _detailPpParams = {};
+let _pendingListRefresh = false;
 
 // ============================================================
 // BLOCS REPLIABLES (burger)
@@ -128,6 +129,10 @@ function fermerDetailPP() {
   if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
   if (backdrop) backdrop.classList.add('noDisplay');
   fermerModification();
+  if (_pendingListRefresh) {
+    _pendingListRefresh = false;
+    rafraichirListe();
+  }
 }
 
 // ============================================================
@@ -149,8 +154,12 @@ async function postAjax(url, data = {}) {
 // Appelé après enregistrement AJAX — data = { ok, id, url_detail }
 function apresModification(data) {
   fermerModification();
-  actualiserPage(data.url_detail, { id: data.id }, _detailPpContext);
-  if (_detailPpContext === 'liste') rafraichirListe();
+  if (data.url_detail) {
+    actualiserPage(data.url_detail, { id: data.id }, _detailPpContext);
+    // Ne pas recharger la liste tout de suite : l'utilisateur doit d'abord
+    // voir le detail-pp mis à jour. Le reload se fait à la fermeture.
+    if (_detailPpContext === 'liste') _pendingListRefresh = true;
+  }
 }
 
 function rafraichirListe() {
