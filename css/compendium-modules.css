@@ -378,3 +378,103 @@
 
 
 }
+
+/* ============================================================
+   FORMULAIRE MODIFICATION (modifier/sort.php et futurs)
+   ============================================================ */
+.modif-form { padding: var(--sp-sm); }
+
+.modif-form__title {
+  font-size:     1.1rem;
+  font-weight:   600;
+  color:         var(--clr-accent-2);
+  margin-bottom: var(--sp-md);
+  padding-bottom: var(--sp-sm);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.modif-section {
+  margin-bottom: var(--sp-md);
+  padding-bottom: var(--sp-md);
+  border-bottom: 1px solid var(--clr-border);
+}
+.modif-section:last-of-type { border-bottom: none; }
+
+.modif-section__header {
+  display:     flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-sm);
+}
+.modif-section__label {
+  font-weight: 600;
+  font-size:   0.9rem;
+}
+
+/* Grille 2 colonnes pour les champs du formulaire */
+.modif-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-md) var(--sp-lg);
+}
+.modif-grid__full { grid-column: 1 / -1; }
+
+@media (max-width: 991px) {
+  .modif-grid { grid-template-columns: 1fr; }
+}
+
+/* Checkboxes composantes */
+.modif-checks {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       var(--sp-md);
+  padding:   var(--sp-sm) 0;
+}
+.modif-check {
+  display:     flex;
+  align-items: center;
+  gap:         var(--sp-xs);
+  font-size:   0.875rem;
+  cursor:      pointer;
+}
+.modif-check input[type="checkbox"] { width: auto; cursor: pointer; }
+
+/* Grille niveaux classes/domaines */
+.modif-niveau-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap:                   var(--sp-sm);
+}
+.modif-niveau-row {
+  display:     flex;
+  align-items: center;
+  justify-content: space-between;
+  gap:         var(--sp-sm);
+  padding:     4px 0;
+  border-bottom: 1px solid var(--clr-border);
+  font-size:   0.85rem;
+}
+.modif-niveau-row--prestige .modif-niveau-nom {
+  color:       var(--clr-text-muted);
+  font-style:  italic;
+}
+.modif-niveau-nom { flex: 1; }
+.modif-niveau-select {
+  width:         64px;
+  flex-shrink:   0;
+  padding:       3px 4px;
+  font-size:     0.85rem;
+  background:    var(--clr-surface);
+  border:        1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color:         var(--clr-text);
+}
+
+/* Boutons du formulaire */
+.modif-actions {
+  display:    flex;
+  gap:        var(--sp-sm);
+  padding-top: var(--sp-md);
+  border-top: 1px solid var(--clr-border);
+  margin-top: var(--sp-md);
+}
