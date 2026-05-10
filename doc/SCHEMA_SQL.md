@@ -383,6 +383,7 @@ Catégories de dons (Combat, Métamagie, Création d'objets...).
 | ra_rat_id | int unsigned | nn | Type de race -> dd_race_type (1=base, 2=archétype) |
 | ra_description | text | null | |
 | ra_traits | text | null | Traits raciaux |
+| ra_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | ra_res_id | int unsigned | nn | Source -> dd_ressources |
 | ra_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
@@ -396,6 +397,20 @@ Types de race (base, archétype *[DD3.5]*).
 | rat_id | int unsigned | PK | |
 | rat_nom | varchar(50) | nn | |
 | rat_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+---
+
+### dd_historiques
+historiques de personnages (*[DD2024]*).
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| his_id | int unsigned | PK | |
+| his_nom | varchar(150) | nn | |
+| his_description | text | nn | |
+| his_res_id | int unsigned | nn | Source -> dd_ressources |
+| his_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
+| his_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
 ---
 
