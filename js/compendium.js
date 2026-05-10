@@ -163,7 +163,8 @@ function soumettreSort() {
 
   const data = new FormData(form);
   const params = new URLSearchParams(data);
-  params.append('csrf_token', getCsrfToken());
+  // Le token CSRF est déjà dans le formulaire via csrfField()
+  // Ne pas l'ajouter une seconde fois (PHP prendrait la dernière valeur)
 
   fetch(form.getAttribute('action'), {
     method: 'POST',
