@@ -17,8 +17,8 @@ function getCsrfToken() {
 // ============================================================
 
 let _detailPpContext = 'externe';
-let _detailPpUrl     = '';
-let _detailPpParams  = {};
+let _detailPpUrl = '';
+let _detailPpParams = {};
 
 // ============================================================
 // BLOCS REPLIABLES (burger)
@@ -32,9 +32,9 @@ function togglePlus(id) {
 
 // Accordion exclusif : ferme tous les autres dans le même groupe avant d'ouvrir
 function togglePlusExclusif(id, groupSelector) {
-  const target  = document.getElementById(id);
+  const target = document.getElementById(id);
   if (!target) return;
-  const isOpen  = !target.classList.contains('noDisplay');
+  const isOpen = !target.classList.contains('noDisplay');
 
   // Ferme tous les accordions du groupe
   const parent = groupSelector ? document.querySelector(groupSelector) : document.body;
@@ -54,10 +54,10 @@ function togglePlusExclusif(id, groupSelector) {
 // Charge #detail-pp via GET — lecture seule
 function actualiserPage(url, params = {}, context = 'externe') {
   _detailPpContext = context;
-  _detailPpUrl     = url;
-  _detailPpParams  = params;
+  _detailPpUrl = url;
+  _detailPpParams = params;
 
-  const panel    = document.getElementById('detail-pp');
+  const panel = document.getElementById('detail-pp');
   const backdrop = document.getElementById('detail-pp-backdrop');
   if (!panel) return;
 
@@ -73,7 +73,7 @@ function actualiserPage(url, params = {}, context = 'externe') {
     .then(r => { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
     .then(html => {
       const closeBtn = '<button class="overlay-close" onclick="fermerDetailPP()" title="Fermer">'
-                     + '<i class="fa fa-times"></i></button>';
+        + '<i class="fa fa-times"></i></button>';
       panel.innerHTML = closeBtn + html;
     })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
@@ -81,7 +81,7 @@ function actualiserPage(url, params = {}, context = 'externe') {
 
 // Charge #modification via GET — lecture initiale du formulaire
 function actualiserPageModif(url, params = {}) {
-  const panel    = document.getElementById('modification');
+  const panel = document.getElementById('modification');
   const backdrop = document.getElementById('modification-backdrop');
   if (!panel) return;
 
@@ -95,7 +95,16 @@ function actualiserPageModif(url, params = {}) {
 
   fetch(fullUrl)
     .then(r => { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
-    .then(html => { panel.innerHTML = html; })
+    .then(html => {
+      panel.innerHTML = html;
+      // Les <script> injectés via innerHTML ne s'exécutent pas — on les recrée
+      panel.querySelectorAll('script').forEach(ancien => {
+        const nouveau = document.createElement('script');
+        Array.from(ancien.attributes).forEach(a => nouveau.setAttribute(a.name, a.value));
+        nouveau.textContent = ancien.textContent;
+        ancien.parentNode.replaceChild(nouveau, ancien);
+      });
+    })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
 }
 
@@ -106,18 +115,18 @@ function ouvrirModifier(url, id) {
 
 // Ferme #modification sans toucher à #detail-pp
 function fermerModification() {
-  const panel    = document.getElementById('modification');
+  const panel = document.getElementById('modification');
   const backdrop = document.getElementById('modification-backdrop');
-  if (panel)    { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
-  if (backdrop)   backdrop.classList.add('noDisplay');
+  if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+  if (backdrop) backdrop.classList.add('noDisplay');
 }
 
 // Ferme #detail-pp (et #modification si ouvert)
 function fermerDetailPP() {
-  const panel    = document.getElementById('detail-pp');
+  const panel = document.getElementById('detail-pp');
   const backdrop = document.getElementById('detail-pp-backdrop');
-  if (panel)    { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
-  if (backdrop)   backdrop.classList.add('noDisplay');
+  if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+  if (backdrop) backdrop.classList.add('noDisplay');
   fermerModification();
 }
 
@@ -129,9 +138,9 @@ async function postAjax(url, data = {}) {
   const body = new URLSearchParams(data);
   body.append('csrf_token', getCsrfToken());
   const response = await fetch(url, {
-    method:  'POST',
+    method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    body.toString(),
+    body: body.toString(),
   });
   if (!response.ok) throw new Error('Erreur ' + response.status);
   return response.json();
