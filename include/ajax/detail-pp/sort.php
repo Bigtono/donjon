@@ -131,27 +131,24 @@ endif;
 
   <?php // ---- En-tête + bouton Modifier ---- 
   ?>
-  <div class="sort-detail__header flex-between">
-    <div>
-      <h2 class="sort-detail__nom"><?= h($so['so_nom']) ?></h2>
-
-      <?php // Collège + branche 
-      ?>
-      <?php if ($so['co_nom']): ?>
-        <p class="sort-detail__college">
-          <?= h($so['co_nom']) ?>
-          <?php if ($ruleset === 'DD3.5' && $so['so_branche']): ?>
-            (<?= h($so['so_branche']) ?>)
-          <?php endif ?>
-        </p>
+  <div class="sort-detail__header">
+    <h2 class="sort-detail__nom">
+      <?= h($so['so_nom']) ?>
+      <?php if (canEditCompendium()): ?>
+        <button class="sort-detail__edit-btn"
+                onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/sort.php', <?= $id ?>)"
+                title="Modifier ce sort">
+          <i class="fa fa-edit"></i>
+        </button>
       <?php endif ?>
-    </div>
-
-    <?php if (canEditCompendium()): ?>
-      <button class="btn btn-secondary btn-sm"
-        onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/sort.php', <?= $id ?>)">
-        <i class="fa fa-edit"></i> Modifier
-      </button>
+    </h2>
+    <?php if ($so['co_nom']): ?>
+      <p class="sort-detail__college">
+        <?= h($so['co_nom']) ?>
+        <?php if ($ruleset === 'DD3.5' && $so['so_branche']): ?>
+          (<?= h($so['so_branche']) ?>)
+        <?php endif ?>
+      </p>
     <?php endif ?>
   </div>
 
@@ -252,14 +249,14 @@ endif;
   <?php // ---- Description ---- 
   ?>
   <?php if ($so['so_description']): ?>
-    <div class="sort-detail__description">
+    <div class="sort-detail__description" style="margin: 1rem 0;">
       <?= $so['so_description'] ?>
     </div>
   <?php endif ?>
 
   <?php // ---- Pied de fiche : source, campagne, ruleset ---- 
   ?>
-  <div class="sort-detail__footer">
+  <div class="sort-detail__footer" style="margin-top: 1rem;">
     <span class="sort-detail__source">
       <i class="fa fa-book"></i> <?= h($so['res_nom']) ?>
     </span>

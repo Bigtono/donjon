@@ -8,6 +8,7 @@ requireAuth();
 
 $page_title = 'Sorts';
 $js_module  = 'compendium';
+$css_module = 'compendium';
 
 $ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
 $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';

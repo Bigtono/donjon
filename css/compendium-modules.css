@@ -250,29 +250,6 @@
 }
 
 /* ============================================================
-   DETAIL-PP — SORT
-   ============================================================ */
-.sort-detail { padding: var(--sp-sm); }
-
-.sort-detail__header {
-  align-items: flex-start;
-  margin-bottom: var(--sp-md);
-  gap: var(--sp-md);
-}
-
-.sort-detail__nom {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--clr-accent-2);
-  margin-bottom: var(--sp-xs);
-}
-
-.sort-detail__college {
-  font-size: 0.9rem;
-  color: var(--clr-text-muted);
-  font-style: italic;
-}
-
 /* ============================================================
    DETAIL-PP — SORT
    ============================================================ */
@@ -287,7 +264,6 @@
   margin-bottom: var(--sp-xs);
 }
 
-/* Bouton modifier inline */
 .sort-detail__edit-btn {
   display:        inline-flex;
   align-items:    center;
@@ -303,8 +279,8 @@
   vertical-align: middle;
 }
 .sort-detail__edit-btn:hover {
-  color:       var(--clr-accent-2);
-  background:  rgba(255, 255, 255, 0.08);
+  color:      var(--clr-accent-2);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sort-detail__college {
@@ -314,7 +290,6 @@
   margin-top: var(--sp-xs);
 }
 
-/* Corps de la fiche — lignes label : valeur */
 .sort-detail__body {
   display:        flex;
   flex-direction: column;
@@ -347,7 +322,6 @@
   flex:  1;
 }
 
-/* Description */
 .sort-detail__description {
   margin:      1rem 0;
   font-size:   0.9rem;
@@ -360,12 +334,12 @@
 .sort-detail__description ul,
 .sort-detail__description ol { padding-left: var(--sp-lg); margin-bottom: var(--sp-sm); }
 
-/* Pied de fiche */
 .sort-detail__footer {
   display:     flex;
   gap:         var(--sp-md);
   flex-wrap:   wrap;
   align-items: center;
+  margin-top:  1rem;
   padding-top: var(--sp-sm);
   border-top:  1px solid var(--clr-border);
   font-size:   0.78rem;
@@ -387,6 +361,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+
 @media (max-width: 991px) {
 
   .col-secondary { display: none; }
@@ -402,6 +377,4 @@
   .comp-bulk-bar { display: none !important; }
 
 
-  .sort-detail__body dt { padding-bottom: 0; border-bottom: none; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; margin-top: var(--sp-sm); }
-  .sort-detail__body dd { padding-top: 2px; }
 }
