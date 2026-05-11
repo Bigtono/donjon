@@ -343,7 +343,7 @@ Affectation d'une capacité spéciale à un niveau de classe.
 | do_id | int unsigned | PK | |
 | do_nom | varchar(150) | nn | |
 | do_dado_id | int unsigned | null | Catégorie de don -> dd_data_don |
-| do_conditions | text | null | *[DD3.5]* Conditions préalables |
+| do_conditions | text | null | prérequis d'accès au don |
 | do_texte | text | null | Description complète |
 | do_resume | text | null | Résumé court |
 | do_res_id | int unsigned | nn | Source -> dd_ressources |
@@ -359,6 +359,7 @@ Catégories de dons (Combat, Métamagie, Création d'objets...).
 |---|---|---|---|
 | dado_id | int unsigned | PK | |
 | dado_nom | varchar(80) | nn | |
+| dado_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
 ---
 
