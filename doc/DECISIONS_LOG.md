@@ -275,6 +275,12 @@ La réinitialisation de mot de passe reste gérée par le flux profil/mot-de-pas
 
 ---
 
+## Bugs connus — à traiter
+
+- **Admin / liste utilisateurs** : le menu ⋮ (dropdown) ne fonctionne pas correctement sur les lignes `admin-ligne--inactif`. La piste CSS (stacking context créé par `opacity` sur `<td>`) a été explorée sans succès. À investiguer en session dédiée.
+
+---
+
 ## À décider
 
 - [x] ~~Gestion des mots de passe oubliés~~ → implémenté (token 1h + DEV_MODE)
