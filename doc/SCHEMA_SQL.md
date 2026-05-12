@@ -372,6 +372,9 @@ Catégories de dons (Combat, Métamagie, Création d'objets...).
 | comp_id | int unsigned | PK | |
 | comp_nom | varchar(100) | nn | |
 | comp_car_id | int unsigned | nn | Caractéristique associée -> dd_caracteristiques |
+| comp_malusArmure | int | nn | |
+| comp_formation | int | nn | |
+| comp_description | text | nn | |
 | comp_res_id | int unsigned | nn | Source -> dd_ressources |
 | comp_ruleset_var_id | int unsigned | nn | -> dd_variables |
 

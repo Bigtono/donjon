@@ -156,9 +156,11 @@ function apresModification(data) {
   fermerModification();
   if (data.url_detail) {
     actualiserPage(data.url_detail, { id: data.id }, _detailPpContext);
-    // Ne pas recharger la liste tout de suite : l'utilisateur doit d'abord
-    // voir le detail-pp mis à jour. Le reload se fait à la fermeture.
-    if (_detailPpContext === 'liste') _pendingListRefresh = true;
+    // Pose le flag : liste à recharger à la fermeture de detail-pp
+    // On l'active dès qu'il existe une liste sur la page courante
+    if (document.getElementById('comp-liste-' + (typeof compEntite !== 'undefined' ? compEntite : ''))) {
+      _pendingListRefresh = true;
+    }
   }
 }
 
