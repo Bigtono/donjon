@@ -165,13 +165,15 @@ endif;
 // 5. CONSTRUCTION URL DE BASE (sans page, pour pagination et tri)
 // ============================================================
 
-function compListeUrlBase(array $config): string {
+function compListeUrlBase(array $config): string
+{
   $params = $_GET;
   unset($params['page']);
   return '?' . http_build_query($params);
 }
 
-function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuelle): string {
+function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuelle): string
+{
   $params = $_GET;
   $params['sort_col'] = $champ;
   $params['sort_dir'] = ($col_actuelle === $champ && $dir_actuelle === 'ASC') ? 'desc' : 'asc';
@@ -186,33 +188,36 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
 
 <div class="comp-liste-container" id="comp-liste-<?= h($entite) ?>">
 
-  <?php // ---- VARIABLES JS injectées ---- ?>
+  <?php // ---- VARIABLES JS injectées ---- 
+  ?>
   <script>
-    var compUrlDetail   = <?= json_encode($listConfig['url_detail']) ?>;
+    var compUrlDetail = <?= json_encode($listConfig['url_detail']) ?>;
     var compUrlModifier = <?= json_encode($listConfig['url_modifier'] ?? '') ?>;
-    var compUrlEnreg    = <?= json_encode($listConfig['url_enreg']) ?>;
-    var compEntite      = <?= json_encode($entite) ?>;
+    var compUrlEnreg = <?= json_encode($listConfig['url_enreg']) ?>;
+    var compEntite = <?= json_encode($entite) ?>;
   </script>
 
-  <?php // ---- ZONE FILTRE ---- ?>
+  <?php // ---- ZONE FILTRE ---- 
+  ?>
   <?php
-    // Compte les filtres actifs (hors texte libre) pour badge mobile
-    $filtres_actifs = 0;
-    if ($q !== '') $filtres_actifs++;
-    foreach ($listConfig['filtres'] as $f):
-      $v = strParam($_GET[$f['name']] ?? '');
-      if ($v !== '' && $v !== '0') $filtres_actifs++;
-    endforeach;
-    $sources_actives = count($res_get);
-    if ($sources_actives > 0) $filtres_actifs++;
+  // Compte les filtres actifs (hors texte libre) pour badge mobile
+  $filtres_actifs = 0;
+  if ($q !== '') $filtres_actifs++;
+  foreach ($listConfig['filtres'] as $f):
+    $v = strParam($_GET[$f['name']] ?? '');
+    if ($v !== '' && $v !== '0') $filtres_actifs++;
+  endforeach;
+  $sources_actives = count($res_get);
+  if ($sources_actives > 0) $filtres_actifs++;
   ?>
 
   <div class="comp-filtre-bar">
 
-    <?php // Bouton toggle mobile — masqué en desktop ?>
+    <?php // Bouton toggle mobile — masqué en desktop 
+    ?>
     <button type="button" class="comp-filtre-toggle"
-            onclick="toggleFiltresMobile()"
-            aria-expanded="false" id="filtre-toggle-btn">
+      onclick="toggleFiltresMobile()"
+      aria-expanded="false" id="filtre-toggle-btn">
       <i class="fa fa-filter"></i>
       Filtres
       <?php if ($filtres_actifs > 0): ?>
@@ -224,26 +229,28 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
     <div class="comp-filtre-content" id="comp-filtre-content">
       <form class="comp-filtre-form" method="GET" action="" id="form-filtre-<?= h($entite) ?>">
 
-        <?php // ── Texte libre (toujours premier, largeur réduite) ?>
+        <?php // ── Texte libre (toujours premier, largeur réduite) 
+        ?>
         <div class="comp-filtre-item comp-filtre-item--text">
           <input type="text" name="q" value="<?= h($q) ?>"
-                 placeholder="Rechercher…" class="comp-filtre-input"
-                 autocomplete="off">
+            placeholder="Rechercher…" class="comp-filtre-input"
+            autocomplete="off">
         </div>
 
-        <?php // ── Critères métier (depuis $listConfig['filtres']) ?>
+        <?php // ── Critères métier (depuis $listConfig['filtres']) 
+        ?>
         <?php foreach ($listConfig['filtres'] as $f): ?>
           <div class="comp-filtre-item">
 
             <?php if ($f['type'] === 'select' || $f['type'] === 'exists'): ?>
               <?php
-                $val_actuelle = strParam($_GET[$f['name']] ?? '');
-                $opts_stmt    = $db->prepare($f['query']);
-                $opts_stmt->execute($f['query_params'] ?? []);
-                $opts = $opts_stmt->fetchAll();
+              $val_actuelle = strParam($_GET[$f['name']] ?? '');
+              $opts_stmt    = $db->prepare($f['query']);
+              $opts_stmt->execute($f['query_params'] ?? []);
+              $opts = $opts_stmt->fetchAll();
               ?>
               <select name="<?= h($f['name']) ?>" class="comp-filtre-select"
-                      title="<?= h($f['label']) ?>">
+                title="<?= h($f['label']) ?>">
                 <option value="">— <?= h($f['label']) ?> —</option>
                 <?php foreach ($opts as $opt): ?>
                   <option value="<?= h($opt['val']) ?>"
@@ -256,7 +263,7 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
             <?php elseif ($f['type'] === 'select_range' || $f['type'] === 'exists_range'): ?>
               <?php $val_actuelle = strParam($_GET[$f['name']] ?? '') ?>
               <select name="<?= h($f['name']) ?>" class="comp-filtre-select"
-                      title="<?= h($f['label']) ?>">
+                title="<?= h($f['label']) ?>">
                 <option value="">— <?= h($f['label']) ?> —</option>
                 <?php foreach ($f['valeurs'] as $v): ?>
                   <option value="<?= h($v) ?>"
@@ -270,13 +277,14 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
           </div>
         <?php endforeach ?>
 
-        <?php // ── Sources : bouton + menu déroulant avec checkboxes ?>
+        <?php // ── Sources : bouton + menu déroulant avec checkboxes 
+        ?>
         <?php if (!empty($sources_dispo)): ?>
           <div class="comp-filtre-item comp-filtre-item--sources">
             <button type="button"
-                    class="comp-filtre-sources-btn"
-                    onclick="toggleSources('<?= h($entite) ?>')"
-                    id="sources-btn-<?= h($entite) ?>">
+              class="comp-filtre-sources-btn"
+              onclick="toggleSources('<?= h($entite) ?>')"
+              id="sources-btn-<?= h($entite) ?>">
               <i class="fa fa-books"></i>
               Sources
               <?php if ($sources_actives > 0): ?>
@@ -285,29 +293,30 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
                 </span>
               <?php else: ?>
                 <span class="comp-filtre-badge comp-filtre-badge--empty"
-                      id="sources-badge-<?= h($entite) ?>"
-                      style="display:none;">0</span>
+                  id="sources-badge-<?= h($entite) ?>"
+                  style="display:none;">0</span>
               <?php endif ?>
               <i class="fa fa-chevron-down comp-filtre-chevron" id="sources-chevron-<?= h($entite) ?>"></i>
             </button>
 
             <div class="comp-filtre-sources-menu noDisplay"
-                 id="sources-menu-<?= h($entite) ?>">
+              id="sources-menu-<?= h($entite) ?>">
               <?php foreach ($sources_dispo as $src): ?>
                 <?php $chk = in_array((int)$src['res_id'], $res_get) ? 'checked' : '' ?>
                 <label class="comp-filtre-source-item">
                   <input type="checkbox" name="f_res[]"
-                         value="<?= (int)$src['res_id'] ?>"
-                         <?= $chk ?>
-                         onchange="majSourcesBadge('<?= h($entite) ?>')">
-                  <span title="<?= h($src['res_nom']) ?>"><?= h($src['res_abreviation']) ?></span>
+                    value="<?= (int)$src['res_id'] ?>"
+                    <?= $chk ?>
+                    onchange="majSourcesBadge('<?= h($entite) ?>')">
+                  <span><?= h($src['res_nom']) ?></span>
                 </label>
               <?php endforeach ?>
             </div>
           </div>
         <?php endif ?>
 
-        <?php // ── Actions ?>
+        <?php // ── Actions 
+        ?>
         <div class="comp-filtre-item comp-filtre-item--actions">
           <button type="submit" class="btn btn-primary btn-sm">
             <i class="fa fa-search"></i>
@@ -318,8 +327,8 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
           </a>
           <?php if (canEditCompendium()): ?>
             <button type="button" class="btn btn-primary btn-sm"
-                    onclick="ouvrirModifier(compUrlModifier, 0)"
-                    title="Ajouter">
+              onclick="ouvrirModifier(compUrlModifier, 0)"
+              title="Ajouter">
               <i class="fa fa-plus"></i>
             </button>
           <?php endif ?>
@@ -329,7 +338,8 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
     </div><!-- .comp-filtre-content -->
   </div><!-- .comp-filtre-bar -->
 
-<?php // ---- COMPTEUR ---- ?>
+  <?php // ---- COMPTEUR ---- 
+  ?>
   <div class="comp-liste-info">
     <?php if ($total === 0): ?>
       <span class="text-muted">Aucun résultat.</span>
@@ -341,32 +351,36 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
     <?php endif ?>
   </div>
 
-  <?php // ---- TABLEAU ---- ?>
+  <?php // ---- TABLEAU ---- 
+  ?>
   <div class="comp-liste-wrapper">
     <table class="table-std comp-liste" id="table-<?= h($entite) ?>">
       <thead>
         <tr>
-          <?php // Checkbox select-all — masqué sur mobile ?>
+          <?php // Checkbox select-all — masqué sur mobile 
+          ?>
           <th class="bulk-check">
             <input type="checkbox" id="comp-select-all" title="Tout sélectionner">
           </th>
 
-          <?php // Menu ligne — masqué sur mobile ?>
+          <?php // Menu ligne — masqué sur mobile 
+          ?>
           <th class="col-action"></th>
 
-          <?php // Colonnes ?>
+          <?php // Colonnes 
+          ?>
           <?php foreach ($listConfig['colonnes'] as $col): ?>
             <?php
-              $cls     = $col['mobile'] ? 'col-primary' : 'col-secondary';
-              $url_tri = compListeUrlTri($col['champ'], $sort_dir, $sort_col);
-              $icone   = '';
-              if ($sort_col === $col['champ']):
-                $icone = $sort_dir === 'ASC'
-                  ? ' <i class="fa fa-sort-up"></i>'
-                  : ' <i class="fa fa-sort-down"></i>';
-              else:
-                $icone = ' <i class="fa fa-sort text-muted"></i>';
-              endif;
+            $cls     = $col['mobile'] ? 'col-primary' : 'col-secondary';
+            $url_tri = compListeUrlTri($col['champ'], $sort_dir, $sort_col);
+            $icone   = '';
+            if ($sort_col === $col['champ']):
+              $icone = $sort_dir === 'ASC'
+                ? ' <i class="fa fa-sort-up"></i>'
+                : ' <i class="fa fa-sort-down"></i>';
+            else:
+              $icone = ' <i class="fa fa-sort text-muted"></i>';
+            endif;
             ?>
             <th class="<?= $cls ?><?= $col['tri'] ? ' sortable' : '' ?>">
               <?php if ($col['tri']): ?>
@@ -385,7 +399,7 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
         <?php if (empty($lignes)): ?>
           <tr>
             <td colspan="<?= 2 + count($listConfig['colonnes']) ?>"
-                class="text-muted" style="text-align:center; padding: 2rem;">
+              class="text-muted" style="text-align:center; padding: 2rem;">
               Aucune donnée à afficher.
             </td>
           </tr>
@@ -395,67 +409,73 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
             <?php $id = (int)$ligne['_id'] ?>
             <tr id="row-<?= $id ?>" class="comp-ligne">
 
-              <?php // Checkbox ?>
+              <?php // Checkbox 
+              ?>
               <td class="bulk-check">
                 <input type="checkbox" class="comp-check" data-id="<?= $id ?>">
               </td>
 
-              <?php // Menu ligne (⋮) ?>
+              <?php // Menu ligne (⋮) 
+              ?>
               <td class="col-action">
                 <?php if (canEditCompendium()): ?>
                   <div class="comp-menu-ligne">
                     <button class="btn btn-icon btn-sm comp-menu-btn"
-                            onclick="compToggleMenu(<?= $id ?>)"
-                            title="Actions">⋮</button>
+                      onclick="compToggleMenu(<?= $id ?>)"
+                      title="Actions">⋮</button>
                     <div id="comp-menu-<?= $id ?>" class="comp-menu-dropdown noDisplay">
                       <button class="comp-menu-item"
-                              onclick="compToggleMenu(<?= $id ?>); ouvrirModifier(compUrlModifier, <?= $id ?>)">
+                        onclick="compToggleMenu(<?= $id ?>); ouvrirModifier(compUrlModifier, <?= $id ?>)">
                         <i class="fa fa-edit"></i> Modifier
                       </button>
                       <button class="comp-menu-item comp-menu-item--danger"
-                              onclick="compToggleMenu(<?= $id ?>); compDemanderSuppression(<?= $id ?>)">
+                        onclick="compToggleMenu(<?= $id ?>); compDemanderSuppression(<?= $id ?>)">
                         <i class="fa fa-trash"></i> Supprimer
                       </button>
                     </div>
                   </div>
                 <?php endif ?>
 
-                <?php // Confirmation suppression inline ?>
+                <?php // Confirmation suppression inline 
+                ?>
                 <div id="comp-confirm-<?= $id ?>" class="comp-confirm-suppr noDisplay">
                   <span>Supprimer ?</span>
                   <button class="btn btn-danger btn-sm"
-                          onclick="compConfirmerSuppression(<?= $id ?>)">Oui</button>
+                    onclick="compConfirmerSuppression(<?= $id ?>)">Oui</button>
                   <button class="btn btn-secondary btn-sm"
-                          onclick="compAnnulerSuppression(<?= $id ?>)">Non</button>
+                    onclick="compAnnulerSuppression(<?= $id ?>)">Non</button>
                 </div>
               </td>
 
               <?php
-                // Colonnes — col-primary contient aussi la sous-ligne mobile
-                $cols_secondary = array_filter($listConfig['colonnes'],
-                  fn($c) => !$c['mobile']);
-                $first = true;
+              // Colonnes — col-primary contient aussi la sous-ligne mobile
+              $cols_secondary = array_filter(
+                $listConfig['colonnes'],
+                fn($c) => !$c['mobile']
+              );
+              $first = true;
               ?>
               <?php foreach ($listConfig['colonnes'] as $col): ?>
                 <?php
-                  $cls_col = $col['mobile'] ? 'col-primary' : 'col-secondary';
-                  $val     = $ligne[$col['champ']] ?? '';
+                $cls_col = $col['mobile'] ? 'col-primary' : 'col-secondary';
+                $val     = $ligne[$col['champ']] ?? '';
                 ?>
                 <td class="<?= $cls_col ?>"
-                    onclick="actualiserPage(compUrlDetail, {id: <?= $id ?>}, 'liste')">
+                  onclick="actualiserPage(compUrlDetail, {id: <?= $id ?>}, 'liste')">
                   <?= h((string)$val) ?>
 
-                  <?php // Sous-ligne mobile : injectée dans col-primary uniquement ?>
+                  <?php // Sous-ligne mobile : injectée dans col-primary uniquement 
+                  ?>
                   <?php if ($col['mobile'] && !empty($cols_secondary)): ?>
                     <div class="comp-subrow">
                       <?php
-                        $parts = [];
-                        foreach ($cols_secondary as $sc):
-                          $sv = $ligne[$sc['champ']] ?? '';
-                          if ($sv !== '' && $sv !== null)
-                            $parts[] = h((string)$sv);
-                        endforeach;
-                        echo implode(' · ', $parts);
+                      $parts = [];
+                      foreach ($cols_secondary as $sc):
+                        $sv = $ligne[$sc['champ']] ?? '';
+                        if ($sv !== '' && $sv !== null)
+                          $parts[] = h((string)$sv);
+                      endforeach;
+                      echo implode(' · ', $parts);
                       ?>
                     </div>
                   <?php endif ?>
@@ -469,16 +489,18 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
     </table>
   </div>
 
-  <?php // ---- PAGINATION ---- ?>
+  <?php // ---- PAGINATION ---- 
+  ?>
   <?php if ($pag['total_pages'] > 1): ?>
     <nav class="comp-pagination">
       <?php
-        $base_url = compListeUrlBase($listConfig);
-        $params_pag = $_GET;
-        unset($params_pag['page']);
+      $base_url = compListeUrlBase($listConfig);
+      $params_pag = $_GET;
+      unset($params_pag['page']);
       ?>
 
-      <?php // Précédent ?>
+      <?php // Précédent 
+      ?>
       <?php if ($pag['current_page'] > 1): ?>
         <?php $params_pag['page'] = $pag['current_page'] - 1 ?>
         <a href="?<?= http_build_query($params_pag) ?>" class="comp-pag-btn">
@@ -490,10 +512,11 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
         </span>
       <?php endif ?>
 
-      <?php // Pages ?>
+      <?php // Pages 
+      ?>
       <?php
-        $debut = max(1, $pag['current_page'] - 2);
-        $fin   = min($pag['total_pages'], $pag['current_page'] + 2);
+      $debut = max(1, $pag['current_page'] - 2);
+      $fin   = min($pag['total_pages'], $pag['current_page'] + 2);
       ?>
       <?php if ($debut > 1): ?>
         <?php $params_pag['page'] = 1 ?>
@@ -522,7 +545,8 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
         </a>
       <?php endif ?>
 
-      <?php // Suivant ?>
+      <?php // Suivant 
+      ?>
       <?php if ($pag['current_page'] < $pag['total_pages']): ?>
         <?php $params_pag['page'] = $pag['current_page'] + 1 ?>
         <a href="?<?= http_build_query($params_pag) ?>" class="comp-pag-btn">
@@ -536,7 +560,8 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
     </nav>
   <?php endif ?>
 
-  <?php // ---- BARRE BULK ---- ?>
+  <?php // ---- BARRE BULK ---- 
+  ?>
   <?php if (canEditCompendium() && !empty($listConfig['bulk_actions'])): ?>
     <div class="comp-bulk-bar" id="comp-bulk-bar" style="display:none;">
       <span class="comp-bulk-info">
@@ -556,7 +581,8 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
       </button>
     </div>
 
-    <?php // Formulaire caché pour le submit bulk ?>
+    <?php // Formulaire caché pour le submit bulk 
+    ?>
     <form id="comp-bulk-form" method="POST" action="<?= h($listConfig['url_enreg']) ?>">
       <?= csrfField() ?>
       <input type="hidden" name="entite" value="<?= h($entite) ?>">
