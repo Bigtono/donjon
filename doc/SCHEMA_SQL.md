@@ -359,7 +359,9 @@ Catégories de dons (Combat, Métamagie, Création d'objets...).
 |---|---|---|---|
 | dado_id | int unsigned | PK | |
 | dado_nom | varchar(80) | nn | |
+| dado_abreviation | varchar(5) | null | |
 | dado_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
 
 ---
 

@@ -61,6 +61,15 @@ endif;
 
 switch ($entite):
 
+  case 'don':
+    switch ($action):
+      case 'sauvegarder': enregistrerDon($db, $is_ajax, $redirect);  break;
+      case 'supprimer':   supprimerEntite($db, 'dd_dons', 'do_id', $is_ajax, $redirect); break;
+      case 'bulk_supprimer': supprimerEntite($db, 'dd_dons', 'do_id', $is_ajax, $redirect); break;
+      default: repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+    endswitch;
+    break;
+
   case 'sort':
     switch ($action):
       case 'sauvegarder':
@@ -81,6 +90,107 @@ switch ($entite):
     repondreErreur($is_ajax, 'Entité inconnue : ' . h($entite), $redirect);
 
 endswitch;
+
+
+// ============================================================
+// DON — Enregistrement
+// ============================================================
+
+function enregistrerDon($db, bool $is_ajax, string $redirect): void {
+  $do_id      = intParam($_POST['do_id']             ?? 0);
+  $nom        = strParam($_POST['do_nom']            ?? '');
+  $ruleset_id = intParam($_POST['do_ruleset_var_id'] ?? 1);
+
+  if (!$nom):
+    repondreErreur($is_ajax, 'Le nom du don est obligatoire.', $redirect);
+  endif;
+
+  $res_id = intParam($_POST['do_res_id'] ?? 0);
+  if (!$res_id):
+    repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
+  endif;
+
+  $dado_id    = intParam($_POST['do_dado_id']  ?? 0) ?: null;
+  $camp_id    = intParam($_POST['do_camp_id']  ?? 0) ?: null;
+  $conditions = strParam($_POST['do_conditions'] ?? '');
+  $resume     = strParam($_POST['do_resume']   ?? '');
+  $texte      = $_POST['do_texte'] ?? '';   // HTML TinyMCE
+
+  try {
+    $db->beginTransaction();
+
+    if ($do_id === 0):
+      $stmt = $db->prepare('
+        INSERT INTO dd_dons
+          (do_nom, do_dado_id, do_conditions, do_texte, do_resume,
+           do_res_id, do_camp_id, do_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?,?)
+      ');
+      $stmt->execute([$nom, $dado_id, $conditions, $texte, $resume,
+                      $res_id, $camp_id, $ruleset_id]);
+      $do_id = (int)$db->lastInsertId();
+    else:
+      $stmt = $db->prepare('
+        UPDATE dd_dons SET
+          do_nom            = ?,
+          do_dado_id        = ?,
+          do_conditions     = ?,
+          do_texte          = ?,
+          do_resume         = ?,
+          do_res_id         = ?,
+          do_camp_id        = ?,
+          do_ruleset_var_id = ?
+        WHERE do_id = ?
+      ');
+      $stmt->execute([$nom, $dado_id, $conditions, $texte, $resume,
+                      $res_id, $camp_id, $ruleset_id, $do_id]);
+    endif;
+
+    $db->commit();
+    repondreOk($is_ajax, $do_id, 'don', $redirect);
+
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('enregistrerDon : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// ============================================================
+// ENTITÉ GÉNÉRIQUE — Suppression (sorts, dons, et futurs)
+// ============================================================
+
+function supprimerEntite($db, string $table, string $champ_id, bool $is_ajax, string $redirect): void {
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_filter(array_map('intval', (array)$ids));
+
+  if (empty($ids)):
+    repondreErreur($is_ajax, 'Aucun élément à supprimer.', $redirect);
+  endif;
+
+  try {
+    $db->beginTransaction();
+    $ph   = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $db->prepare("DELETE FROM $table WHERE $champ_id IN ($ph)");
+    $stmt->execute($ids);
+    $db->commit();
+
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Élément(s) supprimé(s).'];
+    header('Location: ' . $redirect);
+    exit;
+
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('supprimerEntite : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
+  }
+}
 
 // ============================================================
 // SORT — Enregistrement

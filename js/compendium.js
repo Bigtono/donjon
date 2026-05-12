@@ -266,3 +266,31 @@ function soumettreSort() {
     })
     .catch(err => alert("Erreur : " + err));
 }
+
+// ============================================================
+// SOUMISSION FORMULAIRE DON (appelé depuis modifier/don.php)
+// ============================================================
+
+function soumettreDon() {
+  const form = document.getElementById('form-don');
+  if (!form) return;
+
+  if (typeof tinymce !== 'undefined') {
+    const editor = tinymce.get('do_texte');
+    if (editor) document.getElementById('do_texte').value = editor.getContent();
+  }
+
+  fetch(form.getAttribute('action'), {
+    method: 'POST',
+    body:   new FormData(form),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      apresModification(data);
+    } else {
+      alert(data.erreur || "Erreur lors de l'enregistrement.");
+    }
+  })
+  .catch(err => alert('Erreur : ' + err));
+}
