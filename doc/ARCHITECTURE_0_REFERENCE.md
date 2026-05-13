@@ -2,7 +2,7 @@
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Phase 2 — compendium sorts + TinyMCE + zone admin + compétences
+> Dernière mise à jour : Phase 2 — compendium sorts + TinyMCE + zone admin + compétences + sélection sources profil
 
 ---
 
@@ -109,6 +109,10 @@ Encapsulé dans ownerFilter() dans include/helpers.php.
 
 1. Compendium global : admin + gestionnaires délégués (j_compendium_manager = 1). Visible par tous.
 2. Contenu homebrew : créé par le MJ via _camp_id. Mêmes formulaires + champ caché _camp_id. Visible MJ + joueurs de la campagne.
+
+> **Réserve d'architecture :** La combinaison `res_j_id NOT NULL AND res_camp_id IS NULL` est réservée
+> pour un futur homebrew "profil" (recueil maison transversal, non campagne-spécifique).
+> Elle ne doit pas être utilisée à d'autres fins. Voir DECISIONS_LOG — Homebrew campagne vs homebrew profil.
 
 ### Périmètre des entités du compendium
 
@@ -404,8 +408,10 @@ Seuil : 992px.
 
 ## 11. Profil utilisateur
 
-Trois sections indépendantes (champ hidden section) : identité, mot de passe, paramètres.
+Quatre sections indépendantes (champ hidden section) : identité, mot de passe, paramètres, sources.
 DEV_MODE = true dans include/db.php → lien reset MDP affiché en page.
+
+### Paramètres utilisateur
 
 | Paramètre | Champ | Description |
 |---|---|---|
@@ -413,6 +419,26 @@ DEV_MODE = true dans include/db.php → lien reset MDP affiché en page.
 | Mode campagne | j_mode_campagne | Active/désactive le menu Campagnes |
 | Affichage ruleset | j_affichage_ruleset | Affiche le ruleset dans le header |
 | Éléments par page | j_items_par_page | Taille des listes (10/20/50/100) |
+
+### Section "Mes sources" — sélection personnelle des ressources
+
+L'utilisateur peut choisir, pour le ruleset actif, quelles ressources globales alimentent son compendium.
+Cette sélection correspond à la priorité 2 de getActiveResIds().
+
+**Périmètre affiché :** ressources globales uniquement (`res_j_id IS NULL`) du ruleset actif.
+Le ruleset est lu depuis `$_SESSION['ruleset_var_id']` côté serveur.
+
+**Comportement zéro sélection :** autorisé. Supprimer toutes les lignes `dd_joueurs_sources`
+pour ce joueur/ruleset équivaut à réinitialiser — getActiveResIds() retombe sur la priorité 3
+(res_selection = 1). Un message explicite informe l'utilisateur.
+
+**Sauvegarde :** DELETE + INSERT en bloc dans `dd_joueurs_sources`.
+Chaque res_id reçu en POST est revalidé côté serveur contre la liste autorisée.
+
+**Table de liaison :** `dd_joueurs_sources (js_j_id, js_res_id, js_ruleset_var_id)`
+
+> Les ressources homebrew (`res_j_id IS NOT NULL`) ne sont pas gérées depuis le profil.
+> Voir §5 Compendium — Contenu homebrew.
 
 ---
 

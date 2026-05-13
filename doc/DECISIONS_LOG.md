@@ -230,7 +230,6 @@ dans la navigation que si $_SESSION['rulesetRep'] === 'DD2024'.
 
 ---
 
-
 ## Phase 2 — Compétences
 
 **[2025] dd_competences — Schéma existant, pas de table de liaison**
@@ -265,6 +264,8 @@ Le moteur compendium-liste.php ignore les valeurs '0' dans les filtres métier
 (condition `$val === '0'`). Seul "Formation requise" (= 1) est donc filtrable.
 Filtrer sur "Sans formation" (= 0) n'est pas possible sans modifier le moteur.
 → Limitation documentée et acceptée. Cas d'usage principal couvert.
+
+---
 
 ## Phase Admin — Zone d'administration
 
@@ -311,6 +312,51 @@ La réinitialisation de mot de passe reste gérée par le flux profil/mot-de-pas
 
 ---
 
+## Phase 2 — Profil utilisateur / Sélection des sources
+
+**[2025-05] Sélection des sources — section profil**
+Ajout d'une quatrième section "Mes sources" dans profil/index.php (pattern section hidden existant).
+L'utilisateur choisit, pour le ruleset actif, quelles ressources globales alimentent son compendium.
+La sélection est stockée dans dd_joueurs_sources (js_j_id, js_res_id, js_ruleset_var_id).
+Sauvegarde par DELETE + INSERT en bloc (stratégie replace-all) — volume faible, pas de diff ligne.
+→ Cohérent avec la chaîne de priorité existante dans getActiveResIds() (priorité 2).
+
+**[2025-05] Sélection des sources — périmètre affiché**
+Seules les ressources globales du ruleset actif sont proposées :
+  WHERE res_ruleset_var_id = :ruleset_var_id AND res_j_id IS NULL
+Le ruleset est lu depuis $_SESSION['ruleset_var_id'] côté serveur (pas depuis le formulaire).
+→ Isolation par ruleset conforme à la structure de dd_joueurs_sources (js_ruleset_var_id).
+→ Les ressources homebrew (res_j_id IS NOT NULL) ne sont pas gérées depuis le profil.
+
+**[2025-05] Sélection des sources — zéro sélection autorisé**
+Si l'utilisateur décoche toutes les ressources, les lignes dd_joueurs_sources sont supprimées.
+getActiveResIds() retombe alors sur la priorité 3 (res_selection = 1 — défaut absolu).
+Un message explicite informe l'utilisateur de ce comportement lors de la sauvegarde.
+→ Pas de contrainte min=1 — permet à l'utilisateur de "réinitialiser" sa sélection proprement.
+
+**[2025-05] Sélection des sources — validation serveur des res_id reçus**
+Chaque res_id reçu en POST est revalidé contre la liste des ressources globales du ruleset actif.
+Aucun res_id étranger (autre ruleset, homebrew) ne peut être inséré via manipulation du formulaire.
+→ Sécurité : pas de confiance implicite dans les valeurs POST.
+
+**[2025-05] Homebrew campagne vs homebrew profil — décision d'architecture**
+Le contenu homebrew reste exclusivement rattaché à une campagne (res_j_id NOT NULL, res_camp_id NOT NULL).
+Aucun homebrew "profil" (res_j_id NOT NULL, res_camp_id IS NULL) n'est implémenté à ce stade.
+
+Le combinaison res_j_id NOT NULL AND res_camp_id IS NULL est **réservée** pour un futur homebrew profil.
+Elle ne doit pas être utilisée à d'autres fins.
+
+Si ce besoin est implémenté ultérieurement, les impacts seront :
+- getActiveResIds() : merge additionnel du homebrew profil (res_j_id = j_id AND res_camp_id IS NULL)
+  dans le résultat, en complément des sources globales actives, quelle que soit la priorité.
+- compendium-liste.php : assouplissement du filtre champ_camp IS NULL pour inclure
+  les ressources homebrew profil du joueur connecté.
+- UI profil : nouvelle section de gestion du recueil personnel (création / suppression).
+- UI création : point d'entrée sans campagne associée (res_camp_id = NULL).
+→ Schéma BDD déjà compatible. Effort estimé : modéré, risque principal sur compendium-liste.php.
+
+---
+
 ## Bugs connus — à traiter
 
 - **Admin / liste utilisateurs** : le menu ⋮ (dropdown) ne fonctionne pas correctement sur les lignes `admin-ligne--inactif`. La piste CSS (stacking context créé par `opacity` sur `<td>`) a été explorée sans succès. À investiguer en session dédiée.
@@ -323,5 +369,8 @@ La réinitialisation de mot de passe reste gérée par le flux profil/mot-de-pas
 - [x] ~~Ordre d'affichage par défaut des listes~~ → alphabétique sur col-primary (tri GET modifiable)
 - [x] ~~Zone admin — nombre de blocs~~ → 2 blocs (Utilisateurs + Ressources) ; Variables via phpMyAdmin
 - [x] ~~Suppression utilisateur~~ → désactivation j_visible=0, jamais DELETE
+- [x] ~~Sélection sources profil — zéro sélection~~ → autorisé, retour au défaut, message explicatif
+- [x] ~~Homebrew profil vs campagne~~ → homebrew reste campagne uniquement ; res_camp_id IS NULL réservé
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
 - [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
+- [ ] Homebrew profil (recueil maison transversal) — implémentation future si besoin confirmé
