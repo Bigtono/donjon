@@ -1,15 +1,15 @@
+# -------------------------------------------------------------------------
 # Architecture Compétences DD3.5 / DD2024
+# -------------------------------------------------------------------------
 
 # Objectif
 Afficher le détail d'une compétence, créer/modifier une compétence
 
-
 # Gestion de la liste
-Structur identique à la liste des sorts
+Structure de liste identique à la liste des sorts
 Le menu de filtrage propose
 1. (inpout) Mots-clés
 2. (select) Ressources
-
 
 # Gestion de la fiche
 Chaque ruleset présente les sorts de manière spécifique
@@ -35,8 +35,9 @@ Entre accolades : champ composé construit depuis plusieurs tables et champs
 {source du document} : champ res_nom dans dd_ressources
 {ruleset} : champ var_valeur dans dd_variables
 
-
+# -------------------------------------------------------------------------
 # Gestion des formulaires de création/modification d'un sort
+# -------------------------------------------------------------------------
 
 ## champs communs
 * Nom : [comp_nom]

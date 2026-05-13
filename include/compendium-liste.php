@@ -71,18 +71,21 @@ if (!empty($listConfig['champ_ruleset'])):
 endif;
 
 // Filtre homebrew : compendium global uniquement (camp_id IS NULL)
-// sauf si le config déclare explicitement un champ camp
-if (empty($listConfig['champ_camp'])):
-  // Cherche si la table a un champ camp — convention : so_camp_id, cla_camp_id...
-  // On l'infère du préfixe de champ_id
+// Trois comportements selon champ_camp :
+//   non déclaré → auto-inférer depuis champ_id (convention <prefix>_camp_id)
+//   string      → utiliser cette colonne directement
+//   false       → pas de filtre camp (entité sans champ camp, ex : dd_competences)
+if (!array_key_exists('champ_camp', $listConfig)):
+  // Auto-inférence : so_camp_id, cla_camp_id, do_camp_id...
   preg_match('/(\w+)\.(\w+)_id/', $listConfig['champ_id'], $m);
   if (!empty($m[2])):
     $prefix_table = $m[1];
     $where_parts[] = $prefix_table . '.' . $m[2] . '_camp_id IS NULL';
   endif;
-else:
+elseif ($listConfig['champ_camp'] !== false):
   $where_parts[] = $listConfig['champ_camp'] . ' IS NULL';
 endif;
+// champ_camp === false → filtre omis
 
 // Filtre sources
 if (!empty($res_ids)):

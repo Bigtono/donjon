@@ -2,7 +2,7 @@
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Phase 2 — compendium sorts + TinyMCE + zone admin (analyse)
+> Dernière mise à jour : Phase 2 — compendium sorts + TinyMCE + zone admin + compétences
 
 ---
 
@@ -220,8 +220,8 @@ compendium/
 
 include/
   compendium-liste.php   (moteur commun)
-  ajax/detail-pp/        (sort.php, classe.php, don.php, race.php, historique.php...)
-  ajax/modifier/         (sort.php, classe.php, don.php, race.php, historique.php...)
+  ajax/detail-pp/        (sort.php, classe.php, don.php, race.php, competence.php, historique.php...)
+  ajax/modifier/         (sort.php, classe.php, don.php, race.php, competence.php, historique.php...)
 ```
 
 > ⚠️ La page `compendium/historiques.php` (et ses endpoints AJAX) ne doit être accessible
@@ -552,7 +552,7 @@ donjon/
 ### Phase 1 — Socle technique TERMINE
 Auth, session, helpers, header/footer, dashboard, profil, reset MDP, CSS design system.
 
-### Phase 2 — Compendium EN COURS
+### Phase 2 — Compendium EN COURS (sorts, dons, compétences implémentés)
 - include/compendium-liste.php — moteur commun
 - compendium/enregistrement.php — POST commun + mode AJAX
 - js/compendium.js — tri, filtre, bulk, confirmation inline

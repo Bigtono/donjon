@@ -294,3 +294,31 @@ function soumettreDon() {
   })
   .catch(err => alert('Erreur : ' + err));
 }
+
+// ============================================================
+// SOUMISSION FORMULAIRE COMPÉTENCE (appelé depuis modifier/competence.php)
+// ============================================================
+
+function soumettreCompetence() {
+  const form = document.getElementById('form-competence');
+  if (!form) return;
+
+  if (typeof tinymce !== 'undefined') {
+    const editor = tinymce.get('comp_description');
+    if (editor) document.getElementById('comp_description').value = editor.getContent();
+  }
+
+  fetch(form.getAttribute('action'), {
+    method: 'POST',
+    body:   new FormData(form),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      apresModification(data);
+    } else {
+      alert(data.erreur || "Erreur lors de l'enregistrement.");
+    }
+  })
+  .catch(err => alert('Erreur : ' + err));
+}

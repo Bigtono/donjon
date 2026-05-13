@@ -230,6 +230,42 @@ dans la navigation que si $_SESSION['rulesetRep'] === 'DD2024'.
 
 ---
 
+
+## Phase 2 — Compétences
+
+**[2025] dd_competences — Schéma existant, pas de table de liaison**
+La table dd_competences existait déjà avec le schéma :
+comp_id, comp_nom, comp_car_id (FK dd_caracteristiques), comp_malusArmure (INT),
+comp_formation (INT), comp_description (TEXT), comp_res_id, comp_ruleset_var_id.
+Pas de comp_camp_id (pas de homebrew pour les compétences).
+→ Aucune migration nécessaire. Les champs DD3.5 (malusArmure, formation) sont présents
+  pour les deux rulesets : les compétences DD2024 ont aussi une caractéristique associée.
+
+**[2025] champ_camp => false — extension du moteur compendium-liste.php**
+Le moteur inférait systématiquement <alias>_camp_id IS NULL depuis champ_id,
+causant une erreur SQL pour dd_competences qui n'a pas comp_camp_id.
+Solution : support de champ_camp => false dans $listConfig pour désactiver le filtre camp.
+Logique révisée : !array_key_exists → auto-inférer | string → filtre direct | false → omis.
+Rétro-compatible : les pages existantes (sorts, dons, classes, races) ne déclarent pas
+champ_camp, donc elles continuent d'utiliser l'auto-inférence.
+→ Moteur plus robuste, extensible pour toute entité sans homebrew.
+
+**[2025] comp_car_id — FK dd_caracteristiques, filtre via query directe**
+Le filtre Caractéristique utilise une query sur dd_caracteristiques (car_id, car_nom),
+comme les filtres sur dd_data_don pour les dons. Pas de UNION SELECT statique.
+→ Cohérent avec le pattern query/query_params du moteur.
+
+**[2025] comp_malusArmure — input number, pas checkbox**
+Le champ est de type INT dans le schéma. Rendu comme <input type="number" min="0">
+pour permettre des valeurs > 1 si nécessaire, tout en restant utilisable comme booléen (0/1).
+→ Fidélité au schéma existant sans hypothèse sur les valeurs possibles.
+
+**[2025] Filtre formation — valeur 1 uniquement (limitation moteur)**
+Le moteur compendium-liste.php ignore les valeurs '0' dans les filtres métier
+(condition `$val === '0'`). Seul "Formation requise" (= 1) est donc filtrable.
+Filtrer sur "Sans formation" (= 0) n'est pas possible sans modifier le moteur.
+→ Limitation documentée et acceptée. Cas d'usage principal couvert.
+
 ## Phase Admin — Zone d'administration
 
 **[2025] Architecture admin — moteur distinct de compendium-liste.php**

@@ -61,6 +61,15 @@ endif;
 
 switch ($entite):
 
+  case 'competence':
+    switch ($action):
+      case 'sauvegarder':    enregistrerCompetence($db, $is_ajax, $redirect); break;
+      case 'supprimer':      supprimerEntite($db, 'dd_competences', 'comp_id', $is_ajax, $redirect); break;
+      case 'bulk_supprimer': supprimerEntite($db, 'dd_competences', 'comp_id', $is_ajax, $redirect); break;
+      default: repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+    endswitch;
+    break;
+
   case 'don':
     switch ($action):
       case 'sauvegarder': enregistrerDon($db, $is_ajax, $redirect);  break;
@@ -418,4 +427,76 @@ function bulkSupprimerSorts($db, string $redirect): void
 {
   // Réutilise la suppression individuelle en mode non-AJAX
   supprimerSort($db, false, $redirect);
+}
+
+
+// ============================================================
+// COMPÉTENCE — Enregistrement
+// ============================================================
+
+function enregistrerCompetence($db, bool $is_ajax, string $redirect): void {
+  $comp_id    = intParam($_POST['comp_id']             ?? 0);
+  $nom        = strParam($_POST['comp_nom']            ?? '');
+  $ruleset_id = intParam($_POST['comp_ruleset_var_id'] ?? 1);
+
+  if (!$nom):
+    repondreErreur($is_ajax, 'Le nom de la compétence est obligatoire.', $redirect);
+  endif;
+
+  $res_id = intParam($_POST['comp_res_id'] ?? 0);
+  if (!$res_id):
+    repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
+  endif;
+
+  $car_id      = intParam($_POST['comp_car_id']      ?? 0);
+  if (!$car_id):
+    repondreErreur($is_ajax, 'La caractéristique est obligatoire.', $redirect);
+  endif;
+
+  $formation   = isset($_POST['comp_formation'])  ? 1 : 0;
+  $malusArmure = intParam($_POST['comp_malusArmure'] ?? 0);
+  $description = $_POST['comp_description'] ?? '';   // HTML TinyMCE — pas de h()
+
+  try {
+    $db->beginTransaction();
+
+    if ($comp_id === 0):
+      $stmt = $db->prepare('
+        INSERT INTO dd_competences
+          (comp_nom, comp_car_id, comp_formation, comp_malusArmure,
+           comp_description, comp_res_id, comp_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?)
+      ');
+      $stmt->execute([
+        $nom, $car_id, $formation, $malusArmure,
+        $description, $res_id, $ruleset_id,
+      ]);
+      $comp_id = (int)$db->lastInsertId();
+    else:
+      $stmt = $db->prepare('
+        UPDATE dd_competences SET
+          comp_nom            = ?,
+          comp_car_id         = ?,
+          comp_formation      = ?,
+          comp_malusArmure    = ?,
+          comp_description    = ?,
+          comp_res_id         = ?,
+          comp_ruleset_var_id = ?
+        WHERE comp_id = ?
+      ');
+      $stmt->execute([
+        $nom, $car_id, $formation, $malusArmure,
+        $description, $res_id, $ruleset_id,
+        $comp_id,
+      ]);
+    endif;
+
+    $db->commit();
+    repondreOk($is_ajax, $comp_id, 'competence', $redirect);
+
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('enregistrerCompetence : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
 }

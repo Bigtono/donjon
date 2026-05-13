@@ -47,11 +47,11 @@ Liste des objets magiques possédés par le personnage sus la forme d'un tableau
 
 ## Grimoire
 
-
+Du fait de la complexité de cette page, son développement est reporté à une session ultérieure
 
 ## Notes
 
-Liste des notes coonnues par le personnage sus la forme d'un tableau reprenant :
+Liste des notes coonues par le personnage sus la forme d'un tableau reprenant :
 - icone de suppression (avec confirmation)
 - icone de modification
 - nom de la note
@@ -63,7 +63,30 @@ Liste des notes coonnues par le personnage sus la forme d'un tableau reprenant :
 # Architecture des formulaires de la fiche de personnage
 # ---------------------------------------------------------------------
 
+Toutes les modifications sont commités au moment de la validation du formulaire.
+
 ## Fiche de personnage
+
+* nom : input [pe_nom]
+* joueur : select [pe_j_id] -> table dd_joueurs (visible uniquement si l'utilisateur est un admin, sinon le champ est caché et sa valeur est la variable de session j_id)
+* une race de base : select [pe_ra_id] -> table dd_races ( champ ra_rat_id : 1=base, 2=archétype)
+* (DD3.5) un archetype : select [pe_arc_id] -> table dd_races ( champ ra_rat_id : 2=archétype).
+* un niveau global : champ calculé
+
+Gestion des classes
+* le bloc Classes affiche toutes les classes du personnage, à raison d'une classe par ligne.
+* à chaque ligne, on retrouve :
+   - un bouton pour supprimer la classe (procédure classique avec écran de validation). 
+   - nom de la classe 
+   - niveau : un select permet de modifier le niveau de la classe
+
+*  un bloc de caractérstiques : les 6 caractéristiques sont présentées sous la forme d'un tableau avec en entête les abréviations des caractéristiques et en 1ère et unique ligne des champps input  contenant les valeurs de caractéristiques
+
+* un bloc reprenant les compétences maitrisées par le personnage (selon les règles métiers de chaque ruleset) : les informations sont présentées sous la forme d'un tableau à raison d'une ligne par compétence (toutes les compétences du ruleset sont représentées). La 1ère colonne contient le nom de la compétence, la 2ème colonne contient :
+   - (DD3.5) un input avec la valeur numérique représentant le nombre de rangs dans la compétence
+   - (DD2024) un case à cocher. Si la compétence est maitrisée, la case est coché 
+
+- un bloc reprenant les dons  : les informations sont présentées en ligne par ordre alphabétique
 
 ### gestion des classes de prestige de lanceur de sort
 La page personnage.php doit proposer une section contenant l'affectation des niveaux de classes de prestiges influant sur le NLS de classes de base de lanceur de sort. Les données sont stockées dans la table dd_personnages_nls
@@ -97,9 +120,7 @@ La section est à positionner juste après le bloc de caractéristiques. Si plus
 
 # Formulaire de saisie
 
-* le bloc Classes affiche toutes les classes du personnage, à raison d'une classe par ligne.
-* à chaque ligne, un Select permet de modifier le niveau de la classe
-* un bouton permet de supprimer la classe (procédure classique avec écran de validation). Si la suppression est validée, la liste des  classes est actualisée en AJAX.
+
 
 
 
