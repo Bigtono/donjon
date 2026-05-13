@@ -8,16 +8,25 @@
 * Une classe de base compte 20 niveaux (cla_niveauMax=20). Chaque classe possède un enregistrement par niveau dans la table dd_classe_niveau. 
 
 
-
 ## Ruleset dd3.5
 
 * le ruleset introduit un nouveau type de classe, la classe de prestige (cla_clt_id=2). Une classe de prestige n'est pas une classe de personnage en tant que telle. Un personnage doit obligatoirement posséder des niveaux dans au moins une classe de base pour pouvoir posséder des niveaux dans au moins une classe de prestige.
 * une classe de prestige compte 3, 5, 7 ou 10 niveaux (cla_niveauMax = 3 ou 5 ou 7 ou 10)
+* chaque classe possède une liste de compétences privilégées appelée "liste des compétences de classe". 
+* à chaque niveau, une classe accorde les bonus suivants :
+  - bonus de base à l'attaque (bba)
+  - bonus au jet de sauvegarde de réflexe 
+  - bonus au jet de sauvegarde de vigueur
+  - bonus au jet de sauvegarde de volonté
+* les classes accordent aux personnages des apititudes spécifiques à certains niveaux obtenus dans la classe 
+* à chaque niveau, une classe de lanceur de sort accorde au personnage un nouveau total de sort par jour et par niveau de sort
+* à chaque niveau, certaines classes accordent des bonus spécifiques (exemple : pouvoir Ki du moine)
 
 ## Ruleset DD2024
 
 * le ruleset introduit le concept de sous-classe. une sous-classe est rattachée à une classe. Un personnage doit choisir sa sous-classe quand il atteint le niveau 3 dans sa classe
-* la sous-classe diffère de la classe de base ou même de la classe de prestige de DD3.5 dans le sens où elle n'accorde pas des bonus similaires à une classe de base comme le fait la classe de prestige. La sous-classe n'influe pas sur les valeurs chiffrés des niveaux de classe mais accorde de nouvelles aptitudes de classes selon les niveaux de classe  
+* la sous-classe diffère de la classe de base ou même de la classe de prestige de DD3.5 dans le sens où elle n'accorde pas des bonus similaires à une classe de base comme le fait la classe de prestige. La sous-classe n'influe pas sur les valeurs chiffrés des niveaux de classe mais accorde de nouvelles aptitudes de classes selon les niveaux de classe
+ 
 
 ## Types de données d'une classe
 

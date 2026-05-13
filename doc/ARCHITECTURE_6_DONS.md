@@ -18,7 +18,7 @@ Entre crochets : champ issu de la table dd_sorts
 Entre accolades : champ composé construit depuis plusieurs tables et champs
 
 ## Fiche du ruleset DD3.5
-[do_don]
+[do_nom]
 {catégorie}
 [do_texte]
 {source du document} : champ res_nom dans dd_ressources. La ressource dont est tiré le don doit toujours être affiché
@@ -26,7 +26,7 @@ Entre accolades : champ composé construit depuis plusieurs tables et champs
 {ruleset} : champ var_valeur dans dd_variables
 
 ## Fiche du ruleset DD2024
-[do_don]
+[do_nom]
 {catégorie} [do_conditions]
 [do_texte]
 {source du document} : champ res_nom dans dd_ressources. La ressource dont est tiré le don doit toujours être affiché
