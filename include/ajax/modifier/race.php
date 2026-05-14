@@ -606,11 +606,13 @@ function soumettreRace() {
   .catch(err => alert('Erreur : ' + err));
 }
 
+
 // ============================================================
 // Initialisation
 // ============================================================
+// Le formulaire est injecté via innerHTML (actualiserPageModif dans main.js).
+// DOMContentLoaded ne se redéclenche pas — appel direct.
+// Le DOM est déjà présent quand ce script s'exécute.
 
-document.addEventListener('DOMContentLoaded', function() {
-  if (RACE_ID > 0) raceRendreTableau();
-});
+if (RACE_ID > 0) raceRendreTableau();
 </script>
