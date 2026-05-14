@@ -16,6 +16,12 @@ function showSection(id, btn) {
   if (btn) btn.classList.add('active');
 }
 
+// Sélectionne ou désélectionne toutes les sources
+function sourcesSelectAll(checked) {
+  document.querySelectorAll('#section-sources input[type="checkbox"]')
+    .forEach(cb => cb.checked = checked);
+}
+
 // À l'init : si erreur PHP sur une section précise, afficher la bonne section
 document.addEventListener('DOMContentLoaded', () => {
   const flash = document.querySelector('.flash-message--error');

@@ -29,6 +29,35 @@ $rulesets = $db->query('
   ORDER  BY var_ordre
 ')->fetchAll();
 
+// Ruleset actif en session
+$ruleset_var_id_actif = (int)($_SESSION['ruleset_var_id'] ?? 1);
+$ruleset_nom_actif    = '';
+foreach ($rulesets as $r):
+  if ((int)$r['var_id'] === $ruleset_var_id_actif):
+    $ruleset_nom_actif = $r['var_valeur'];
+  endif;
+endforeach;
+
+// Chargement des ressources globales du ruleset actif
+$stmt_res = $db->prepare('
+  SELECT res_id, res_nom, res_abreviation, res_selection
+  FROM   dd_ressources
+  WHERE  res_ruleset_var_id = ?
+    AND  res_j_id IS NULL
+  ORDER  BY res_nom
+');
+$stmt_res->execute([$ruleset_var_id_actif]);
+$ressources_dispo = $stmt_res->fetchAll();
+
+// Chargement de la sélection personnelle actuelle (pour ce ruleset)
+$stmt_sel = $db->prepare('
+  SELECT js_res_id
+  FROM   dd_joueurs_sources
+  WHERE  js_j_id = ? AND js_ruleset_var_id = ?
+');
+$stmt_sel->execute([$j_id, $ruleset_var_id_actif]);
+$res_selectionnes = $stmt_sel->fetchAll(PDO::FETCH_COLUMN);
+
 // Traitement du formulaire
 if ($_SERVER['REQUEST_METHOD'] === 'POST'):
   verifyCsrf();
@@ -119,6 +148,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
       $joueur = $stmt->fetch();
     endif;
 
+  // --- Section sources ---
+  elseif ($section === 'sources'):
+    // Recharger la liste autorisée côté serveur (ruleset actif, global uniquement)
+    $stmt_autorises = $db->prepare('
+      SELECT res_id
+      FROM   dd_ressources
+      WHERE  res_ruleset_var_id = ? AND res_j_id IS NULL
+    ');
+    $stmt_autorises->execute([$ruleset_var_id_actif]);
+    $ids_autorises = $stmt_autorises->fetchAll(PDO::FETCH_COLUMN);
+
+    // Validation : ne conserver que les res_id appartenant à la liste autorisée
+    $ids_post    = isset($_POST['res_ids']) && is_array($_POST['res_ids'])
+                   ? $_POST['res_ids']
+                   : [];
+    $ids_valides = [];
+    foreach ($ids_post as $rid):
+      $rid = (int)$rid;
+      if (in_array($rid, $ids_autorises)) $ids_valides[] = $rid;
+    endforeach;
+
+    // DELETE + INSERT en bloc
+    $del = $db->prepare('
+      DELETE FROM dd_joueurs_sources
+      WHERE  js_j_id = ? AND js_ruleset_var_id = ?
+    ');
+    $del->execute([$j_id, $ruleset_var_id_actif]);
+
+    if (!empty($ids_valides)):
+      $ins = $db->prepare('
+        INSERT INTO dd_joueurs_sources (js_j_id, js_res_id, js_ruleset_var_id)
+        VALUES (?, ?, ?)
+      ');
+      foreach ($ids_valides as $rid):
+        $ins->execute([$j_id, $rid, $ruleset_var_id_actif]);
+      endforeach;
+    endif;
+
+    // Recharger la sélection pour l'affichage
+    $stmt_sel->execute([$j_id, $ruleset_var_id_actif]);
+    $res_selectionnes = $stmt_sel->fetchAll(PDO::FETCH_COLUMN);
+
+    $ok = true;
+
   endif;
 endif;
 
@@ -148,6 +221,9 @@ require_once '../include/header.php';
     </button>
     <button class="profil-nav__btn" onclick="showSection('parametres', this)">
       <i class="fa fa-sliders-h"></i> Paramètres
+    </button>
+    <button class="profil-nav__btn" onclick="showSection('sources', this)">
+      <i class="fa fa-book"></i> Mes sources
     </button>
   </nav>
 
@@ -282,6 +358,58 @@ require_once '../include/header.php';
         </button>
       </div>
     </form>
+  </section>
+
+  <!-- Section Sources -->
+  <section class="profil-section noDisplay" id="section-sources">
+    <h2>Mes sources — <?= h($ruleset_nom_actif) ?></h2>
+
+    <? if (empty($ressources_dispo)): ?>
+      <p class="text-muted">Aucune ressource disponible pour ce ruleset.</p>
+    <? else: ?>
+
+      <p class="form-hint mb-md">
+        Sélectionnez les ressources à utiliser dans le compendium pour le ruleset
+        <strong><?= h($ruleset_nom_actif) ?></strong>.
+        Si aucune ressource n'est sélectionnée, le compendium affichera les sources actives par défaut.
+      </p>
+
+      <form method="POST" action="<?= BASE_URL ?>/profil/index.php">
+        <?= csrfField() ?>
+        <input type="hidden" name="section" value="sources">
+
+        <div class="sources-liste">
+          <? foreach ($ressources_dispo as $res): ?>
+            <label class="sources-item">
+              <input type="checkbox"
+                     name="res_ids[]"
+                     value="<?= (int)$res['res_id'] ?>"
+                     <?= in_array((int)$res['res_id'], array_map('intval', $res_selectionnes)) ? 'checked' : '' ?>>
+              <span class="sources-item__nom"><?= h($res['res_nom']) ?></span>
+              <? if ($res['res_abreviation']): ?>
+                <span class="sources-item__abrev"><?= h($res['res_abreviation']) ?></span>
+              <? endif ?>
+              <? if ($res['res_selection']): ?>
+                <span class="sources-item__defaut" title="Sélection par défaut">★</span>
+              <? endif ?>
+            </label>
+          <? endforeach ?>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <i class="fa fa-save"></i> Enregistrer mes sources
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="sourcesSelectAll(true)">
+            Tout sélectionner
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="sourcesSelectAll(false)">
+            Tout désélectionner
+          </button>
+        </div>
+      </form>
+
+    <? endif ?>
   </section>
 
 </div>
