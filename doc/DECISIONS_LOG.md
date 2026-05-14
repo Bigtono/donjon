@@ -357,6 +357,55 @@ Si ce besoin est implémenté ultérieurement, les impacts seront :
 
 ---
 
+## Phase 2 — Races
+
+**[2025-05] dd_races — suppressions des modificateurs de caractéristiques**
+Les champs `ra_modifFor`, `ra_modifCon`, `ra_modifDex`, `ra_modifInt`, `ra_modifSag`, `ra_modifCha`
+et `ra_origine` présents en v1 sont supprimés du schéma v2.
+Les modificateurs de caractéristiques deviennent des **capacités spéciales** parmi les autres,
+stockées dans `dd_capacites_speciales` et liées via `dd_race_capacite`.
+→ Uniformisation du modèle de données. Flexibilité accrue (pas de limite à 6 attributs nommés en dur).
+
+**[2025-05] dd_race_capacite — pas de cr_niveau, ajout de cr_ordre**
+Pas de champ `cr_niveau` dans `dd_race_capacite` : une race confère immédiatement l'ensemble
+de ses capacités raciales, sans notion de niveau d'acquisition (contrairement à `dd_classe_capacite`).
+Ajout de `cr_ordre` (tinyint, défaut 0) pour l'ordre d'affichage.
+`cr_ordre` est géré par **drag & drop** dans le formulaire — aucune saisie manuelle.
+La valeur est calculée depuis l'ordre effectif des lignes dans le DOM au moment du submit.
+→ UX cohérente avec les attentes d'un outil de gestion de compendium.
+
+**[2025-05] cap_type — usage limité à l'affichage, DD3.5 uniquement**
+Le champ `cap_type` de `dd_capacites_speciales` est conservé tel quel (valeurs libres : Ext, Mag, Sur…).
+En DD3.5 : affiché entre parenthèses après le nom de la capacité dans le detail-pp.
+En DD2024 : non affiché.
+Le détournement v1 des valeurs `origine`, `vitesse`, `taille` est abandonné.
+→ La v2 n'impose pas de valeurs spéciales à cap_type pour les races.
+
+**[2025-05] dd_race_type — sélecteur toujours affiché dans la liste**
+Le filtre par type de race est présent dans la liste `races.php` pour DD3.5 et DD2024.
+Rationale : de futurs rulesets pourraient introduire de nouveaux types de race.
+→ Le moteur de liste reste pertinent sans modification future si de nouveaux types sont ajoutés.
+
+**[2025-05] Suppression race — vérification dépendances dd_personnages**
+Avant toute suppression d'une race, vérification que `dd_personnages.pe_ra_id` et `pe_arc_id`
+ne référencent pas la race ciblée.
+Si des personnages dépendants existent, la suppression est refusée avec un message explicite.
+Suppression des lignes `dd_race_capacite` en cascade. Les entrées `dd_capacites_speciales`
+ne sont pas supprimées (table partagée avec les classes).
+→ Intégrité référentielle garantie côté applicatif (cohérent avec le pattern admin/ressources).
+
+**[2025-05] Formulaire race — section 3 masquée en mode création**
+La section Capacités raciales (Section 3) n'est disponible qu'après la première sauvegarde de la race.
+En mode création, un message invite à enregistrer d'abord la race (Section 1 + optionnellement Section 2).
+→ Pattern identique à la Section 3 du formulaire classe (classe-modifier.php).
+
+**[2025-05] Payload capacités races — pattern identique aux classes**
+Les capacités raciales sont transmises via un champ caché `capacites_payload` (JSON).
+Le JSON est construit au moment du submit depuis l'état du DOM (ordre drag & drop inclus).
+Actions possibles par entrée : `existing` (mise à jour ordre), `new` (création cap + lien), `delete` (suppression lien).
+La suppression d'un lien (action=delete) ne supprime pas l'entrée `dd_capacites_speciales`.
+→ Réutilisation du pattern éprouvé sur les classes — cohérence technique et UX.
+
 ## Bugs connus — à traiter
 
 - **Admin / liste utilisateurs** : le menu ⋮ (dropdown) ne fonctionne pas correctement sur les lignes `admin-ligne--inactif`. La piste CSS (stacking context créé par `opacity` sur `<td>`) a été explorée sans succès. À investiguer en session dédiée.

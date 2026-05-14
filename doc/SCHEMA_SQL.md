@@ -407,6 +407,21 @@ Types de race (base, archétype *[DD3.5]*).
 
 ---
 
+### dd_race_capacite
+Affectation des capacités spéciales à une race (capacités raciales).
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| cr_id | int unsigned | PK | |
+| cr_ra_id | int unsigned | nn, UK(cr_ra_id, cr_cap_id) | -> dd_races |
+| cr_cap_id | int unsigned | nn | -> dd_capacites_speciales |
+| cr_ordre | tinyint unsigned | nn, défaut 0 | Ordre d'affichage — géré par drag & drop dans le formulaire |
+
+> Pas de `cr_niveau` : une race confère l'ensemble de ses capacités spéciales dès la sélection,
+> sans notion de niveau d'acquisition (contrairement à `dd_classe_capacite.cc_niveau`).
+
+---
+
 ### dd_historiques
 historiques de personnages (*[DD2024]*).
 
