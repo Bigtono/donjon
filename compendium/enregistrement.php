@@ -63,19 +63,33 @@ switch ($entite):
 
   case 'competence':
     switch ($action):
-      case 'sauvegarder':    enregistrerCompetence($db, $is_ajax, $redirect); break;
-      case 'supprimer':      supprimerEntite($db, 'dd_competences', 'comp_id', $is_ajax, $redirect); break;
-      case 'bulk_supprimer': supprimerEntite($db, 'dd_competences', 'comp_id', $is_ajax, $redirect); break;
-      default: repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+      case 'sauvegarder':
+        enregistrerCompetence($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+        supprimerEntite($db, 'dd_competences', 'comp_id', $is_ajax, $redirect);
+        break;
+      case 'bulk_supprimer':
+        supprimerEntite($db, 'dd_competences', 'comp_id', $is_ajax, $redirect);
+        break;
+      default:
+        repondreErreur($is_ajax, 'Action inconnue.', $redirect);
     endswitch;
     break;
 
   case 'don':
     switch ($action):
-      case 'sauvegarder': enregistrerDon($db, $is_ajax, $redirect);  break;
-      case 'supprimer':   supprimerEntite($db, 'dd_dons', 'do_id', $is_ajax, $redirect); break;
-      case 'bulk_supprimer': supprimerEntite($db, 'dd_dons', 'do_id', $is_ajax, $redirect); break;
-      default: repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+      case 'sauvegarder':
+        enregistrerDon($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+        supprimerEntite($db, 'dd_dons', 'do_id', $is_ajax, $redirect);
+        break;
+      case 'bulk_supprimer':
+        supprimerEntite($db, 'dd_dons', 'do_id', $is_ajax, $redirect);
+        break;
+      default:
+        repondreErreur($is_ajax, 'Action inconnue.', $redirect);
     endswitch;
     break;
 
@@ -95,6 +109,22 @@ switch ($entite):
     endswitch;
     break;
 
+  case 'race':
+    switch ($action):
+      case 'sauvegarder':
+        enregistrerRace($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+        supprimerRace($db, $is_ajax, $redirect);
+        break;
+      case 'bulk_supprimer':
+        bulkSupprimerRaces($db, $is_ajax, $redirect);
+        break;
+      default:
+        repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+    endswitch;
+    break;
+
   default:
     repondreErreur($is_ajax, 'Entité inconnue : ' . h($entite), $redirect);
 
@@ -105,7 +135,8 @@ endswitch;
 // DON — Enregistrement
 // ============================================================
 
-function enregistrerDon($db, bool $is_ajax, string $redirect): void {
+function enregistrerDon($db, bool $is_ajax, string $redirect): void
+{
   $do_id      = intParam($_POST['do_id']             ?? 0);
   $nom        = strParam($_POST['do_nom']            ?? '');
   $ruleset_id = intParam($_POST['do_ruleset_var_id'] ?? 1);
@@ -135,8 +166,16 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void {
            do_res_id, do_camp_id, do_ruleset_var_id)
         VALUES (?,?,?,?,?,?,?,?)
       ');
-      $stmt->execute([$nom, $dado_id, $conditions, $texte, $resume,
-                      $res_id, $camp_id, $ruleset_id]);
+      $stmt->execute([
+        $nom,
+        $dado_id,
+        $conditions,
+        $texte,
+        $resume,
+        $res_id,
+        $camp_id,
+        $ruleset_id
+      ]);
       $do_id = (int)$db->lastInsertId();
     else:
       $stmt = $db->prepare('
@@ -151,13 +190,21 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void {
           do_ruleset_var_id = ?
         WHERE do_id = ?
       ');
-      $stmt->execute([$nom, $dado_id, $conditions, $texte, $resume,
-                      $res_id, $camp_id, $ruleset_id, $do_id]);
+      $stmt->execute([
+        $nom,
+        $dado_id,
+        $conditions,
+        $texte,
+        $resume,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
+        $do_id
+      ]);
     endif;
 
     $db->commit();
     repondreOk($is_ajax, $do_id, 'don', $redirect);
-
   } catch (Exception $e) {
     $db->rollBack();
     error_log('enregistrerDon : ' . $e->getMessage());
@@ -169,7 +216,8 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void {
 // ENTITÉ GÉNÉRIQUE — Suppression (sorts, dons, et futurs)
 // ============================================================
 
-function supprimerEntite($db, string $table, string $champ_id, bool $is_ajax, string $redirect): void {
+function supprimerEntite($db, string $table, string $champ_id, bool $is_ajax, string $redirect): void
+{
   $ids = $_POST['ids'] ?? [];
   if (!empty($_POST['id'])) $ids[] = $_POST['id'];
   $ids = array_filter(array_map('intval', (array)$ids));
@@ -193,7 +241,6 @@ function supprimerEntite($db, string $table, string $champ_id, bool $is_ajax, st
     $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Élément(s) supprimé(s).'];
     header('Location: ' . $redirect);
     exit;
-
   } catch (Exception $e) {
     $db->rollBack();
     error_log('supprimerEntite : ' . $e->getMessage());
@@ -434,7 +481,8 @@ function bulkSupprimerSorts($db, string $redirect): void
 // COMPÉTENCE — Enregistrement
 // ============================================================
 
-function enregistrerCompetence($db, bool $is_ajax, string $redirect): void {
+function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
+{
   $comp_id    = intParam($_POST['comp_id']             ?? 0);
   $nom        = strParam($_POST['comp_nom']            ?? '');
   $ruleset_id = intParam($_POST['comp_ruleset_var_id'] ?? 1);
@@ -468,8 +516,13 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void {
         VALUES (?,?,?,?,?,?,?)
       ');
       $stmt->execute([
-        $nom, $car_id, $formation, $malusArmure,
-        $description, $res_id, $ruleset_id,
+        $nom,
+        $car_id,
+        $formation,
+        $malusArmure,
+        $description,
+        $res_id,
+        $ruleset_id,
       ]);
       $comp_id = (int)$db->lastInsertId();
     else:
@@ -485,18 +538,238 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void {
         WHERE comp_id = ?
       ');
       $stmt->execute([
-        $nom, $car_id, $formation, $malusArmure,
-        $description, $res_id, $ruleset_id,
+        $nom,
+        $car_id,
+        $formation,
+        $malusArmure,
+        $description,
+        $res_id,
+        $ruleset_id,
         $comp_id,
       ]);
     endif;
 
     $db->commit();
     repondreOk($is_ajax, $comp_id, 'competence', $redirect);
-
   } catch (Exception $e) {
     $db->rollBack();
     error_log('enregistrerCompetence : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
   }
+}
+
+// ============================================================
+// RACE — Enregistrement (création + modification)
+// ============================================================
+
+function enregistrerRace($db, bool $is_ajax, string $redirect): void
+{
+  $ra_id      = intParam($_POST['ra_id']             ?? 0);
+  $nom        = strParam($_POST['ra_nom']            ?? '');
+  $ruleset_id = intParam($_POST['ra_ruleset_var_id'] ?? 1);
+
+  if (!$nom):
+    repondreErreur($is_ajax, 'Le nom de la race est obligatoire.', $redirect);
+  endif;
+
+  $res_id = intParam($_POST['ra_res_id'] ?? 0);
+  if (!$res_id):
+    repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
+  endif;
+
+  $rat_id      = intParam($_POST['ra_rat_id']      ?? 0) ?: null;
+  $mod_niveau  = intParam($_POST['ra_mod_niveau']   ?? 0);
+  $camp_id     = intParam($_POST['ra_camp_id']      ?? 0) ?: null;
+  $description = $_POST['ra_description'] ?? '';   // HTML TinyMCE — pas de h()
+
+  // Payload capacités
+  $payload_raw = $_POST['capacites_payload'] ?? '[]';
+  $payload     = json_decode($payload_raw, true);
+  if (!is_array($payload)) $payload = [];
+
+  try {
+    $db->beginTransaction();
+
+    // ---- INSERT ou UPDATE dd_races ----
+    if ($ra_id === 0):
+      $stmt = $db->prepare('
+        INSERT INTO dd_races
+          (ra_nom, ra_rat_id, ra_description, ra_mod_niveau,
+           ra_res_id, ra_camp_id, ra_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?)
+      ');
+      $stmt->execute([
+        $nom,
+        $rat_id,
+        $description,
+        $mod_niveau,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
+      ]);
+      $ra_id = (int)$db->lastInsertId();
+    else:
+      $stmt = $db->prepare('
+        UPDATE dd_races SET
+          ra_nom            = ?,
+          ra_rat_id         = ?,
+          ra_description    = ?,
+          ra_mod_niveau     = ?,
+          ra_res_id         = ?,
+          ra_camp_id        = ?,
+          ra_ruleset_var_id = ?
+        WHERE ra_id = ?
+      ');
+      $stmt->execute([
+        $nom,
+        $rat_id,
+        $description,
+        $mod_niveau,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
+        $ra_id,
+      ]);
+    endif;
+
+    // ---- Traitement du payload capacités ----
+    $stmt_ins_cap = $db->prepare('
+      INSERT INTO dd_capacites_speciales (cap_nom, cap_description, cap_type)
+      VALUES (?,?,?)
+    ');
+    $stmt_ins_lien = $db->prepare('
+      INSERT INTO dd_race_capacite (cr_ra_id, cr_cap_id, cr_ordre)
+      VALUES (?,?,?)
+    ');
+    $stmt_upd_ordre = $db->prepare('
+      UPDATE dd_race_capacite
+      SET    cr_ordre = ?
+      WHERE  cr_ra_id = ? AND cr_cap_id = ?
+    ');
+    $stmt_del_lien = $db->prepare('
+      DELETE FROM dd_race_capacite
+      WHERE  cr_ra_id = ? AND cr_cap_id = ?
+    ');
+
+    foreach ($payload as $item):
+      $action = $item['action'] ?? '';
+
+      if ($action === 'new'):
+        $cap_nom  = strParam($item['cap_nom']         ?? '');
+        $cap_desc = $item['cap_description']           ?? '';
+        $cap_type = strParam($item['cap_type']         ?? '');
+        $cr_ordre = intParam($item['cr_ordre']         ?? 0);
+
+        if (!$cap_nom) continue;
+
+        $stmt_ins_cap->execute([$cap_nom, $cap_desc, $cap_type]);
+        $new_cap_id = (int)$db->lastInsertId();
+        $stmt_ins_lien->execute([$ra_id, $new_cap_id, $cr_ordre]);
+
+      elseif ($action === 'existing'):
+        $cap_id   = intParam($item['cap_id']  ?? 0);
+        $cr_ordre = intParam($item['cr_ordre'] ?? 0);
+        if (!$cap_id) continue;
+        $stmt_upd_ordre->execute([$cr_ordre, $ra_id, $cap_id]);
+
+      elseif ($action === 'delete'):
+        $cap_id = intParam($item['cap_id'] ?? 0);
+        if (!$cap_id) continue;
+        $stmt_del_lien->execute([$ra_id, $cap_id]);
+
+      endif;
+    endforeach;
+
+    $db->commit();
+    repondreOk($is_ajax, $ra_id, 'race', $redirect);
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('enregistrerRace : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+
+// ============================================================
+// RACE — Suppression individuelle (avec vérification dépendances)
+// ============================================================
+
+function supprimerRace($db, bool $is_ajax, string $redirect): void
+{
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_filter(array_map('intval', (array)$ids));
+
+  if (empty($ids)):
+    repondreErreur($is_ajax, 'Aucune race à supprimer.', $redirect);
+  endif;
+
+  $refus   = [];
+  $ok_ids  = [];
+
+  foreach ($ids as $ra_id):
+    // Vérification dépendances personnages (race de base ET archétype)
+    $stmt = $db->prepare('
+      SELECT COUNT(*) FROM dd_personnages
+      WHERE pe_ra_id = ? OR pe_arc_id = ?
+    ');
+    $stmt->execute([$ra_id, $ra_id]);
+    $nb_perso = (int)$stmt->fetchColumn();
+
+    if ($nb_perso > 0):
+      // Récupérer le nom pour le message
+      $stmt_nom = $db->prepare('SELECT ra_nom FROM dd_races WHERE ra_id = ?');
+      $stmt_nom->execute([$ra_id]);
+      $ra_nom = $stmt_nom->fetchColumn() ?: "race #$ra_id";
+      $refus[] = "« $ra_nom » : $nb_perso personnage(s) associé(s)";
+    else:
+      $ok_ids[] = $ra_id;
+    endif;
+  endforeach;
+
+  // Suppression des races sans dépendances
+  if (!empty($ok_ids)):
+    try {
+      $db->beginTransaction();
+      foreach ($ok_ids as $ra_id):
+        $db->prepare('DELETE FROM dd_race_capacite WHERE cr_ra_id = ?')->execute([$ra_id]);
+        $db->prepare('DELETE FROM dd_races          WHERE ra_id   = ?')->execute([$ra_id]);
+      endforeach;
+      $db->commit();
+    } catch (Exception $e) {
+      $db->rollBack();
+      error_log('supprimerRace : ' . $e->getMessage());
+      repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
+    }
+  endif;
+
+  // Construction du message de retour
+  if (empty($refus)):
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Race(s) supprimée(s).'];
+    header('Location: ' . $redirect);
+    exit;
+  endif;
+
+  // Refus partiel ou total
+  $msg_refus = 'Suppression impossible pour : ' . implode(' ; ', $refus) . '.';
+  if (!empty($ok_ids)):
+    $msg_refus = count($ok_ids) . ' race(s) supprimée(s). ' . $msg_refus;
+  endif;
+
+  repondreErreur($is_ajax, $msg_refus, $redirect);
+}
+
+
+// ============================================================
+// RACE — Suppression groupée (bulk)
+// ============================================================
+
+function bulkSupprimerRaces($db, bool $is_ajax, string $redirect): void
+{
+  supprimerRace($db, $is_ajax, $redirect);
 }
