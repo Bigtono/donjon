@@ -308,19 +308,6 @@ Table de bonus de classe par niveau.
 
 ---
 
-### dd_capacites_speciales
-Capacités spéciales attribuables aux classes.
-
-| Champ | Type | Null | Commentaire |
-|---|---|---|---|
-| cap_id | int unsigned | PK | |
-| cap_nom | varchar(150) | nn | |
-| cap_description | text | null | Description complète |
-| cap_type | varchar(50) | null | Ex : Ext, Mag, Sur |
-| cap_categorie_var_id | int unsigned | null | Catégorie -> dd_variables (cat=tcap) |
-
----
-
 ### dd_classe_capacite
 Affectation d'une capacité spéciale à un niveau de classe.
 
@@ -331,6 +318,30 @@ Affectation d'une capacité spéciale à un niveau de classe.
 | cc_cap_id | int unsigned | nn | -> dd_capacites_speciales |
 | cc_niveau | tinyint unsigned | nn | Niveau auquel la capacité est acquise |
 | cc_precision | varchar(255) | null | Précision contextuelle affichée entre parenthèses. Ex : 3/jour, humanoïdes uniquement |
+
+---
+
+### dd_classe_competence
+Affectation d'une compétence à une classe. Pour DD3.5 : il s'agit des compétences de classe. Pour DD2024 : il s'agit des compétences maitrisées
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| ccomp_id | int unsigned | PK | |
+| ccomp_cla_id | int unsigned | nn, UK(cc_cla_id, cc_cap_id, cc_niveau) | -> dd_classes |
+| ccomp_cap_id | int unsigned | nn | -> dd_capacites_speciales |
+| ccomp_precision | varchar(255) | null | Précision pour les compétences d'artisanat, connaissance... Ex : Géographie, tailleur de pierre |
+
+---
+
+### dd_capacites_speciales
+Capacités spéciales attribuables aux classes.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| cap_id | int unsigned | PK | |
+| cap_nom | varchar(150) | nn | |
+| cap_description | text | null | Description complète |
+| cap_type | varchar(50) | null | Ex : Ext, Mag, Sur |
+| cap_categorie_var_id | int unsigned | null | Catégorie -> dd_variables (cat=tcap) |
 
 ---
 
