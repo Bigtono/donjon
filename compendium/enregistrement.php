@@ -109,6 +109,7 @@ switch ($entite):
     endswitch;
     break;
 
+
   case 'race':
     switch ($action):
       case 'sauvegarder':
@@ -646,6 +647,13 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
       SET    cr_ordre = ?
       WHERE  cr_ra_id = ? AND cr_cap_id = ?
     ');
+    $stmt_upd_cap = $db->prepare('
+      UPDATE dd_capacites_speciales SET
+        cap_nom         = ?,
+        cap_description = ?,
+        cap_type        = ?
+      WHERE cap_id = ?
+    ');
     $stmt_del_lien = $db->prepare('
       DELETE FROM dd_race_capacite
       WHERE  cr_ra_id = ? AND cr_cap_id = ?
@@ -670,6 +678,18 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
         $cap_id   = intParam($item['cap_id']  ?? 0);
         $cr_ordre = intParam($item['cr_ordre'] ?? 0);
         if (!$cap_id) continue;
+        $stmt_upd_ordre->execute([$cr_ordre, $ra_id, $cap_id]);
+
+      elseif ($action === 'update'):
+        // Modification du contenu d'une capacité existante (nom, description, type)
+        // + mise à jour de cr_ordre
+        $cap_id   = intParam($item['cap_id']           ?? 0);
+        $cap_nom  = strParam($item['cap_nom']           ?? '');
+        $cap_desc = $item['cap_description']             ?? '';
+        $cap_type = strParam($item['cap_type']           ?? '');
+        $cr_ordre = intParam($item['cr_ordre']           ?? 0);
+        if (!$cap_id || !$cap_nom) continue;
+        $stmt_upd_cap->execute([$cap_nom, $cap_desc, $cap_type, $cap_id]);
         $stmt_upd_ordre->execute([$cr_ordre, $ra_id, $cap_id]);
 
       elseif ($action === 'delete'):

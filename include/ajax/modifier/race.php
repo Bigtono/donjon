@@ -27,13 +27,13 @@ $res_ids    = getActiveResIds($db);
 // ============================================================
 
 $ra = [
-  'ra_id'            => 0,
-  'ra_nom'           => '',
-  'ra_rat_id'        => 0,
-  'ra_description'   => '',
-  'ra_mod_niveau'    => 0,
-  'ra_res_id'        => 0,
-  'ra_camp_id'       => 0,
+  'ra_id'          => 0,
+  'ra_nom'         => '',
+  'ra_rat_id'      => 0,
+  'ra_description' => '',
+  'ra_mod_niveau'  => 0,
+  'ra_res_id'      => 0,
+  'ra_camp_id'     => 0,
 ];
 
 if ($id > 0):
@@ -65,7 +65,6 @@ endif;
 // Listes de référence
 // ============================================================
 
-// Types de race du ruleset courant
 $stmt_rat = $db->prepare('
   SELECT rat_id, rat_nom
   FROM   dd_race_type
@@ -75,7 +74,6 @@ $stmt_rat = $db->prepare('
 $stmt_rat->execute([$ruleset_id]);
 $types_race = $stmt_rat->fetchAll();
 
-// Sources actives
 $sources = [];
 if (!empty($res_ids)):
   $ph   = resIdsPlaceholders($res_ids);
@@ -84,7 +82,6 @@ if (!empty($res_ids)):
   $sources = $stmt->fetchAll();
 endif;
 
-// Campagnes de l'utilisateur (homebrew)
 $campagnes = [];
 if (!empty($_SESSION['j_mode_campagne'])):
   [$owWhere, $owParams] = ownerFilter('camp');
@@ -95,7 +92,7 @@ endif;
 
 $titre = $id > 0 ? 'Modifier ' . h($ra['ra_nom']) : 'Nouvelle race';
 
-// Sérialisation des capacités pour le JS (état initial)
+// État initial des capacités sérialisé pour le JS
 $capacites_init = [];
 foreach ($capacites as $cap):
   $capacites_init[] = [
@@ -114,11 +111,11 @@ endforeach;
 
   <form id="form-race" method="POST" action="<?= BASE_URL ?>/compendium/enregistrement.php?ajax=1">
     <?= csrfField() ?>
-    <input type="hidden" name="entite"           value="race">
-    <input type="hidden" name="action"           value="sauvegarder">
-    <input type="hidden" name="ra_id"            value="<?= (int)$ra['ra_id'] ?>">
+    <input type="hidden" name="entite"            value="race">
+    <input type="hidden" name="action"            value="sauvegarder">
+    <input type="hidden" name="ra_id"             value="<?= (int)$ra['ra_id'] ?>">
     <input type="hidden" name="ra_ruleset_var_id" value="<?= $ruleset_id ?>">
-    <input type="hidden" id="capacites_payload"  name="capacites_payload" value="[]">
+    <input type="hidden" id="capacites_payload"   name="capacites_payload" value="[]">
 
     <!-- ====================================================
          SECTION 1 — Données de base
@@ -195,7 +192,6 @@ endforeach;
       <div class="modif-section__header">
         <span class="modif-section__label">Section 2 — DD3.5</span>
       </div>
-
       <div class="modif-grid">
         <div class="form-group">
           <label for="ra_mod_niveau">Modificateur de niveau global</label>
@@ -210,11 +206,12 @@ endforeach;
          SECTION 3 — Capacités raciales
          ==================================================== -->
     <div class="modif-section">
-      <div class="modif-section__header" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="modif-section__header"
+           style="display:flex; justify-content:space-between; align-items:center;">
         <span class="modif-section__label">Section 3 — Capacités raciales</span>
         <?php if ($id > 0): ?>
           <button type="button" class="btn btn-secondary btn-sm"
-                  onclick="raceNouvelleCapacite()">
+                  onclick="raceForm.nouvelleCapacite()">
             <i class="fa fa-plus"></i> Nouvelle capacité
           </button>
         <?php endif ?>
@@ -224,13 +221,12 @@ endforeach;
         <p class="form-hint" style="margin:.5rem 0;">
           Enregistrez d'abord la race (Section 1) avant d'ajouter des capacités raciales.
         </p>
-
       <?php else: ?>
         <div class="table-scroll">
           <table class="table-classe-modif" id="race-cap-table">
             <thead>
               <tr>
-                <th style="width:30px;"></th><!-- drag handle -->
+                <th style="width:30px;"></th>
                 <th>Nom</th>
                 <?php if ($ruleset === 'DD3.5'): ?>
                   <th style="width:80px;">Type</th>
@@ -239,9 +235,7 @@ endforeach;
                 <th style="width:80px;">Actions</th>
               </tr>
             </thead>
-            <tbody id="race-cap-tbody">
-              <!-- Rendu par JS depuis capacitesState -->
-            </tbody>
+            <tbody id="race-cap-tbody"></tbody>
           </table>
         </div>
       <?php endif ?>
@@ -251,7 +245,7 @@ endforeach;
          BOUTONS
          ==================================================== -->
     <div class="modif-actions">
-      <button type="button" class="btn btn-primary" onclick="soumettreRace()">
+      <button type="button" class="btn btn-primary" onclick="raceForm.soumettre()">
         <i class="fa fa-save"></i> Enregistrer
       </button>
       <button type="button" class="btn btn-secondary" onclick="fermerModification()">
@@ -265,8 +259,10 @@ endforeach;
 <!-- ====================================================
      OVERLAY — Formulaire capacité (nouvelle / modifier)
      ==================================================== -->
-<div id="race-cap-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1100;">
-  <div style="max-width:600px; margin:60px auto; background:#fff; border-radius:6px; padding:20px; max-height:calc(100vh - 120px); overflow:auto;">
+<div id="race-cap-overlay"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1100;">
+  <div style="max-width:600px; margin:60px auto; background:#fff; border-radius:6px;
+              padding:20px; max-height:calc(100vh - 120px); overflow:auto;">
     <h4 id="race-cap-overlay-titre" style="margin-top:0;">Capacité raciale</h4>
 
     <div class="form-group">
@@ -286,14 +282,14 @@ endforeach;
 
     <div class="form-group">
       <label for="ov_cap_description">Description</label>
-      <textarea id="ov_cap_description" class="tinymce-basic" rows="6" style="width:100%;"></textarea>
+      <textarea id="ov_cap_description" rows="6" style="width:100%;"></textarea>
     </div>
 
     <div style="display:flex; gap:.5rem; margin-top:1rem;">
-      <button type="button" class="btn btn-primary" onclick="raceValiderCapacite()">
+      <button type="button" class="btn btn-primary" onclick="raceForm.validerCapacite()">
         <i class="fa fa-check"></i> Valider
       </button>
-      <button type="button" class="btn btn-secondary" onclick="raceFermerOverlay()">
+      <button type="button" class="btn btn-secondary" onclick="raceForm.fermerOverlay()">
         Annuler
       </button>
     </div>
@@ -303,159 +299,47 @@ endforeach;
 <!-- TinyMCE -->
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
 <script>
-(function initTMCE() {
-  if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
-  ['ra_description', 'ov_cap_description'].forEach(function(sel) {
-    tinymce.remove('#' + sel);
-  });
-  tinymce.init({
-    selector:    '#ra_description',
-    language:    'fr_FR',
-    menubar:     false,
-    plugins:     'lists link',
-    toolbar:     'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
-    height:      300,
-    skin:        'oxide-dark',
-    content_css: 'dark',
-    promotion:   false,
-    branding:    false,
-    base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
-    suffix:      '.min',
-  });
-})();
-
 // ============================================================
-// État des capacités raciales
+// IIFE — isolation complète du scope
+//
+// Bug corrigé : sans IIFE, les déclarations let/const/function
+// restaient dans le scope global de la page. À la 2ème ouverture
+// du formulaire (via innerHTML), les redéclarations échouaient
+// silencieusement et capacitesState conservait l'état de la
+// session précédente (vide ou données d'une autre race).
+//
+// Solution : tout le code est isolé dans une IIFE. L'objet
+// raceForm est exposé sur window pour que les onclick="" HTML
+// puissent l'atteindre — il est réécrit à chaque ouverture.
 // ============================================================
+(function() {
+  'use strict';
 
-const RULESET = <?= json_encode($ruleset) ?>;
-const RACE_ID = <?= $id ?>;
+  // ---- Constantes PHP → JS ----
+  const RULESET = <?= json_encode($ruleset) ?>;
+  const RACE_ID = <?= $id ?>;
 
-// Tableau d'état courant — chaque item : { action, cap_id, cap_nom, cap_description, cap_type, cr_ordre }
-let capacitesState = <?= json_encode($capacites_init) ?>;
+  // ---- État des capacités raciales ----
+  // action possible : 'existing' | 'new' | 'update' | 'delete'
+  let state = <?= json_encode($capacites_init) ?>;
+  let overlayIdx = -1;  // index en cours d'édition dans l'overlay (-1 = nouvelle)
+  let dragSrc   = null;
 
-// Index de l'item en cours d'édition dans l'overlay (-1 = nouvelle)
-let overlayEditIndex = -1;
+  // ============================================================
+  // TinyMCE
+  // ============================================================
 
-// ============================================================
-// Rendu du tableau des capacités
-// ============================================================
-
-function raceRendreTableau() {
-  const tbody = document.getElementById('race-cap-tbody');
-  if (!tbody) return;
-
-  tbody.innerHTML = '';
-
-  capacitesState
-    .filter(c => c.action !== 'delete')
-    .forEach(function(cap, idx) {
-      const realIdx = capacitesState.indexOf(cap);
-      const tr = document.createElement('tr');
-      tr.dataset.index = realIdx;
-      tr.draggable = true;
-
-      let typeCell = '';
-      if (RULESET === 'DD3.5') {
-        typeCell = '<td>' + escHtml(cap.cap_type || '') + '</td>';
-      }
-
-      tr.innerHTML =
-        '<td class="drag-handle" style="cursor:grab; text-align:center; color:#999;">&#9776;</td>' +
-        '<td>' + escHtml(cap.cap_nom) + '</td>' +
-        typeCell +
-        '<td><em style="color:#888; font-size:.85em;">' +
-          (cap.cap_description ? '(contenu)' : '—') +
-        '</em></td>' +
-        '<td style="white-space:nowrap;">' +
-          '<button type="button" class="btn btn-sm" onclick="raceEditerCapacite(' + realIdx + ')" title="Modifier">' +
-            '<i class="fa fa-pencil"></i>' +
-          '</button> ' +
-          '<button type="button" class="btn btn-sm btn-danger" onclick="raceSupprimerCapacite(' + realIdx + ')" title="Supprimer">' +
-            '<i class="fa fa-trash"></i>' +
-          '</button>' +
-        '</td>';
-
-      tbody.appendChild(tr);
-    });
-
-  raceInitDragDrop();
-}
-
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// ============================================================
-// Drag & drop (natif HTML5)
-// ============================================================
-
-let dragSrcIndex = null;
-
-function raceInitDragDrop() {
-  const rows = document.querySelectorAll('#race-cap-tbody tr');
-
-  rows.forEach(function(row) {
-    row.addEventListener('dragstart', function(e) {
-      dragSrcIndex = parseInt(row.dataset.index, 10);
-      e.dataTransfer.effectAllowed = 'move';
-      row.style.opacity = '.4';
-    });
-
-    row.addEventListener('dragend', function() {
-      row.style.opacity = '';
-    });
-
-    row.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      return false;
-    });
-
-    row.addEventListener('drop', function(e) {
-      e.preventDefault();
-      const dropIndex = parseInt(row.dataset.index, 10);
-      if (dragSrcIndex === null || dragSrcIndex === dropIndex) return;
-
-      // Déplacer l'item dans capacitesState
-      const moved = capacitesState.splice(dragSrcIndex, 1)[0];
-      const newPos = dragSrcIndex < dropIndex ? dropIndex : dropIndex;
-      capacitesState.splice(newPos, 0, moved);
-
-      dragSrcIndex = null;
-      raceRendreTableau();
-    });
-  });
-}
-
-// ============================================================
-// Overlay — Nouvelle / Modifier capacité
-// ============================================================
-
-function raceNouvelleCapacite() {
-  overlayEditIndex = -1;
-  document.getElementById('race-cap-overlay-titre').textContent = 'Nouvelle capacité raciale';
-  document.getElementById('ov_cap_nom').value = '';
-  const typeEl = document.getElementById('ov_cap_type');
-  if (typeEl) typeEl.value = '';
-
-  // Réinitialise TinyMCE de l'overlay
-  const ed = tinymce.get('ov_cap_description');
-  if (ed) {
-    ed.setContent('');
-  } else {
-    document.getElementById('ov_cap_description').value = '';
+  (function initTMCE() {
+    if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
+    tinymce.remove('#ra_description');
+    tinymce.remove('#ov_cap_description');
     tinymce.init({
-      selector:    '#ov_cap_description',
+      selector:    '#ra_description',
       language:    'fr_FR',
       menubar:     false,
       plugins:     'lists link',
-      toolbar:     'bold italic underline | bullist numlist | link | removeformat',
-      height:      220,
+      toolbar:     'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
+      height:      300,
       skin:        'oxide-dark',
       content_css: 'dark',
       promotion:   false,
@@ -463,156 +347,298 @@ function raceNouvelleCapacite() {
       base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
       suffix:      '.min',
     });
+  })();
+
+  // ============================================================
+  // Utilitaires
+  // ============================================================
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
-  document.getElementById('race-cap-overlay').style.display = 'block';
-  document.getElementById('ov_cap_nom').focus();
-}
-
-function raceEditerCapacite(idx) {
-  overlayEditIndex = idx;
-  const cap = capacitesState[idx];
-  document.getElementById('race-cap-overlay-titre').textContent = 'Modifier la capacité';
-  document.getElementById('ov_cap_nom').value = cap.cap_nom;
-  const typeEl = document.getElementById('ov_cap_type');
-  if (typeEl) typeEl.value = cap.cap_type || '';
-
-  const ed = tinymce.get('ov_cap_description');
-  if (ed) {
-    ed.setContent(cap.cap_description || '');
-  } else {
-    document.getElementById('ov_cap_description').value = cap.cap_description || '';
-    tinymce.init({
-      selector:    '#ov_cap_description',
-      language:    'fr_FR',
-      menubar:     false,
-      plugins:     'lists link',
-      toolbar:     'bold italic underline | bullist numlist | link | removeformat',
-      height:      220,
-      skin:        'oxide-dark',
-      content_css: 'dark',
-      promotion:   false,
-      branding:    false,
-      base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
-      suffix:      '.min',
-    });
-  }
-
-  document.getElementById('race-cap-overlay').style.display = 'block';
-  document.getElementById('ov_cap_nom').focus();
-}
-
-function raceFermerOverlay() {
-  document.getElementById('race-cap-overlay').style.display = 'none';
-}
-
-function raceValiderCapacite() {
-  const nom = document.getElementById('ov_cap_nom').value.trim();
-  if (!nom) {
-    alert('Le nom de la capacité est obligatoire.');
-    return;
-  }
-
-  // Récupérer le contenu TinyMCE de l'overlay
-  let desc = '';
-  const ed = tinymce.get('ov_cap_description');
-  if (ed) {
-    desc = ed.getContent();
-  } else {
-    desc = document.getElementById('ov_cap_description').value;
-  }
-
-  const typeEl = document.getElementById('ov_cap_type');
-  const type   = typeEl ? typeEl.value.trim() : '';
-
-  if (overlayEditIndex === -1) {
-    // Nouvelle capacité
-    capacitesState.push({
-      action:          'new',
-      cap_id:          null,
-      cap_nom:         nom,
-      cap_description: desc,
-      cap_type:        type,
-      cr_ordre:        capacitesState.length,
-    });
-  } else {
-    // Modification d'une existante
-    const cap = capacitesState[overlayEditIndex];
-    cap.cap_nom         = nom;
-    cap.cap_description = desc;
-    cap.cap_type        = type;
-    // Si c'était 'existing', on passe à 'existing' (l'ordre et le contenu sont à jour)
-    // Si c'était 'new', reste 'new'
-  }
-
-  raceFermerOverlay();
-  raceRendreTableau();
-}
-
-function raceSupprimerCapacite(idx) {
-  const cap = capacitesState[idx];
-  if (!confirm('Supprimer la capacité "' + cap.cap_nom + '" de cette race ?')) return;
-
-  if (cap.action === 'new') {
-    // Pas encore en base — on retire simplement du tableau
-    capacitesState.splice(idx, 1);
-  } else {
-    // En base — on marque pour suppression
-    cap.action = 'delete';
-  }
-
-  raceRendreTableau();
-}
-
-// ============================================================
-// Soumission du formulaire
-// ============================================================
-
-function soumettreRace() {
-  const form = document.getElementById('form-race');
-  if (!form) return;
-
-  // Synchroniser TinyMCE description principale
-  if (typeof tinymce !== 'undefined') {
-    const ed = tinymce.get('ra_description');
-    if (ed) document.getElementById('ra_description').value = ed.getContent();
-  }
-
-  // Mettre à jour cr_ordre depuis l'ordre actuel du tableau DOM
-  // (les lignes delete sont absentes du DOM mais présentes dans capacitesState)
-  let ordre = 0;
-  document.querySelectorAll('#race-cap-tbody tr').forEach(function(row) {
-    const idx = parseInt(row.dataset.index, 10);
-    if (!isNaN(idx) && capacitesState[idx]) {
-      capacitesState[idx].cr_ordre = ordre++;
+  function tmceGet(id) {
+    if (typeof tinymce !== 'undefined') {
+      const ed = tinymce.get(id);
+      if (ed) return ed.getContent();
     }
-  });
+    const el = document.getElementById(id);
+    return el ? el.value : '';
+  }
 
-  // Sérialiser le payload
-  document.getElementById('capacites_payload').value = JSON.stringify(capacitesState);
+  function tmceSet(id, content) {
+    if (typeof tinymce !== 'undefined') {
+      const ed = tinymce.get(id);
+      if (ed) { ed.setContent(content); return; }
+    }
+    const el = document.getElementById(id);
+    if (el) el.value = content;
+  }
 
-  fetch(form.getAttribute('action'), {
-    method: 'POST',
-    body:   new FormData(form),
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.ok) {
-      apresModification(data);
+  // ============================================================
+  // Rendu du tableau des capacités
+  // ============================================================
+
+  function rendreTableau() {
+    const tbody = document.getElementById('race-cap-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    state
+      .filter(c => c.action !== 'delete')
+      .forEach(function(cap) {
+        const realIdx = state.indexOf(cap);
+        const tr = document.createElement('tr');
+        tr.dataset.index = realIdx;
+        tr.draggable = true;
+
+        let typeCell = '';
+        if (RULESET === 'DD3.5') {
+          typeCell = '<td>' + esc(cap.cap_type || '') + '</td>';
+        }
+
+        tr.innerHTML =
+          '<td class="drag-handle" style="cursor:grab; text-align:center; color:#999;">&#9776;</td>' +
+          '<td>' + esc(cap.cap_nom) + '</td>' +
+          typeCell +
+          '<td><em style="color:#888; font-size:.85em;">' +
+            (cap.cap_description ? '(contenu)' : '—') +
+          '</em></td>' +
+          '<td style="white-space:nowrap;">' +
+            '<button type="button" class="btn btn-sm"' +
+              ' onclick="raceForm.editerCapacite(' + realIdx + ')" title="Modifier">' +
+              '<i class="fa fa-pencil"></i>' +
+            '</button> ' +
+            '<button type="button" class="btn btn-sm btn-danger"' +
+              ' onclick="raceForm.supprimerCapacite(' + realIdx + ')" title="Supprimer">' +
+              '<i class="fa fa-trash"></i>' +
+            '</button>' +
+          '</td>';
+
+        tbody.appendChild(tr);
+      });
+
+    initDragDrop();
+  }
+
+  // ============================================================
+  // Drag & drop (natif HTML5)
+  // ============================================================
+
+  function initDragDrop() {
+    document.querySelectorAll('#race-cap-tbody tr').forEach(function(row) {
+      row.addEventListener('dragstart', function(e) {
+        dragSrc = parseInt(row.dataset.index, 10);
+        e.dataTransfer.effectAllowed = 'move';
+        row.style.opacity = '.4';
+      });
+      row.addEventListener('dragend', function() {
+        row.style.opacity = '';
+      });
+      row.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+      row.addEventListener('drop', function(e) {
+        e.preventDefault();
+        const dropIdx = parseInt(row.dataset.index, 10);
+        if (dragSrc === null || dragSrc === dropIdx) return;
+        const moved = state.splice(dragSrc, 1)[0];
+        state.splice(dragSrc < dropIdx ? dropIdx : dropIdx, 0, moved);
+        dragSrc = null;
+        rendreTableau();
+      });
+    });
+  }
+
+  // ============================================================
+  // Overlay — Nouvelle / Modifier capacité
+  // ============================================================
+
+  function ouvrirOverlay(titre, nom, type, desc) {
+    document.getElementById('race-cap-overlay-titre').textContent = titre;
+    document.getElementById('ov_cap_nom').value = nom;
+    const typeEl = document.getElementById('ov_cap_type');
+    if (typeEl) typeEl.value = type;
+
+    // Stocker la description dans le textarea brut AVANT l'affichage.
+    // TinyMCE de l'overlay (s'il existe) sera réinitialisé proprement.
+    // On détruit l'instance TinyMCE existante pour repartir proprement
+    // à chaque ouverture — évite les décalages entre instances et textarea.
+    if (typeof tinymce !== 'undefined') {
+      const ed = tinymce.get('ov_cap_description');
+      if (ed) ed.destroy();
+    }
+    const textarea = document.getElementById('ov_cap_description');
+    textarea.value = desc;
+
+    document.getElementById('race-cap-overlay').style.display = 'block';
+
+    // Init TinyMCE après affichage de l'overlay (nécessaire pour le calcul dimensions)
+    setTimeout(function() {
+      tinymce.init({
+        selector:    '#ov_cap_description',
+        language:    'fr_FR',
+        menubar:     false,
+        plugins:     'lists link',
+        toolbar:     'bold italic underline | bullist numlist | link | removeformat',
+        height:      220,
+        skin:        'oxide-dark',
+        content_css: 'dark',
+        promotion:   false,
+        branding:    false,
+        base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
+        suffix:      '.min',
+        setup: function(ed) {
+          ed.on('init', function() {
+            // Restaurer le contenu depuis le textarea (valeur posée avant init)
+            ed.setContent(textarea.value);
+          });
+        },
+      });
+      document.getElementById('ov_cap_nom').focus();
+    }, 50);
+  }
+
+  function nouvelleCapacite() {
+    overlayIdx = -1;
+    ouvrirOverlay('Nouvelle capacité raciale', '', '', '');
+  }
+
+  function editerCapacite(idx) {
+    overlayIdx = idx;
+    const cap = state[idx];
+    ouvrirOverlay('Modifier la capacité', cap.cap_nom, cap.cap_type || '', cap.cap_description || '');
+  }
+
+  function fermerOverlay() {
+    // Détruire l'instance TinyMCE de l'overlay à la fermeture
+    // pour qu'ouvrirOverlay reparte toujours d'une instance propre.
+    if (typeof tinymce !== 'undefined') {
+      const ed = tinymce.get('ov_cap_description');
+      if (ed) ed.destroy();
+    }
+    document.getElementById('race-cap-overlay').style.display = 'none';
+  }
+
+  function validerCapacite() {
+    const nom = document.getElementById('ov_cap_nom').value.trim();
+    if (!nom) { alert('Le nom de la capacité est obligatoire.'); return; }
+
+    // Récupérer la description depuis TinyMCE si l'instance est prête,
+    // sinon depuis le textarea brut (fallback si init encore en cours).
+    let desc = '';
+    const ed = (typeof tinymce !== 'undefined') ? tinymce.get('ov_cap_description') : null;
+    if (ed && ed.initialized) {
+      desc = ed.getContent();
     } else {
-      alert(data.erreur || "Erreur lors de l'enregistrement.");
+      desc = document.getElementById('ov_cap_description').value;
     }
-  })
-  .catch(err => alert('Erreur : ' + err));
-}
 
+    const typeEl = document.getElementById('ov_cap_type');
+    const type   = typeEl ? typeEl.value.trim() : '';
 
-// ============================================================
-// Initialisation
-// ============================================================
-// Le formulaire est injecté via innerHTML (actualiserPageModif dans main.js).
-// DOMContentLoaded ne se redéclenche pas — appel direct.
-// Le DOM est déjà présent quand ce script s'exécute.
+    if (overlayIdx === -1) {
+      // Nouvelle capacité
+      state.push({
+        action:          'new',
+        cap_id:          null,
+        cap_nom:         nom,
+        cap_description: desc,
+        cap_type:        type,
+        cr_ordre:        state.length,
+      });
+    } else {
+      // Modification : on distingue 'existing' → 'update' pour que le PHP
+      // mette à jour dd_capacites_speciales, pas seulement cr_ordre.
+      const cap = state[overlayIdx];
+      cap.cap_nom         = nom;
+      cap.cap_description = desc;
+      cap.cap_type        = type;
+      if (cap.action === 'existing') cap.action = 'update';
+      // 'new' reste 'new' — les données seront insérées au submit.
+    }
 
-if (RACE_ID > 0) raceRendreTableau();
+    fermerOverlay();
+    rendreTableau();
+  }
+
+  function supprimerCapacite(idx) {
+    const cap = state[idx];
+    if (!confirm('Supprimer la capacité "' + cap.cap_nom + '" de cette race ?')) return;
+
+    if (cap.action === 'new') {
+      state.splice(idx, 1);
+    } else {
+      cap.action = 'delete';
+    }
+    rendreTableau();
+  }
+
+  // ============================================================
+  // Soumission du formulaire
+  // ============================================================
+
+  function soumettre() {
+    const form = document.getElementById('form-race');
+    if (!form) return;
+
+    // Synchroniser TinyMCE description principale
+    const descEl = document.getElementById('ra_description');
+    if (descEl) descEl.value = tmceGet('ra_description');
+
+    // Recalculer cr_ordre depuis l'ordre DOM courant
+    let ordre = 0;
+    document.querySelectorAll('#race-cap-tbody tr').forEach(function(row) {
+      const idx = parseInt(row.dataset.index, 10);
+      if (!isNaN(idx) && state[idx]) {
+        state[idx].cr_ordre = ordre++;
+      }
+    });
+
+    document.getElementById('capacites_payload').value = JSON.stringify(state);
+
+    fetch(form.getAttribute('action'), {
+      method: 'POST',
+      body:   new FormData(form),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        apresModification(data);
+      } else {
+        alert(data.erreur || "Erreur lors de l'enregistrement.");
+      }
+    })
+    .catch(err => alert('Erreur : ' + err));
+  }
+
+  // ============================================================
+  // Exposition sur window pour les onclick="" du HTML
+  // (seul point de contact entre le scope IIFE et le monde extérieur)
+  // ============================================================
+
+  window.raceForm = {
+    nouvelleCapacite: nouvelleCapacite,
+    editerCapacite:   editerCapacite,
+    fermerOverlay:    fermerOverlay,
+    validerCapacite:  validerCapacite,
+    supprimerCapacite: supprimerCapacite,
+    soumettre:        soumettre,
+  };
+
+  // ============================================================
+  // Initialisation — appel direct (pas de DOMContentLoaded)
+  // Le formulaire est injecté via innerHTML : l'événement ne se
+  // redéclenche pas. Le DOM est déjà présent à ce stade.
+  // ============================================================
+
+  if (RACE_ID > 0) rendreTableau();
+
+})(); // fin IIFE
 </script>
