@@ -279,7 +279,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
             <?php endif ?>
             <th class="col-aptitudes" data-groupe="aptitudes">Aptitudes</th>
             <?php foreach ($activePouvoirs as $p): ?>
-              <th data-groupe="pouvoirs"><?= h($cla['cla_pouvoir' . $p]) ?></th>
+              <th data-groupe="pouvoirs"><?= h((string)($cla['cla_pouvoir' . $p] ?? '')) ?></th>
             <?php endforeach ?>
             <?php if ($isLanceurSorts): ?>
               <?php for ($s = 0; $s <= 9; $s++): ?>

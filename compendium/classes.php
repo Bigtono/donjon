@@ -25,8 +25,9 @@ $filtres = [
     'champ'        => 'cla.cla_clt_id',
     'query'        => 'SELECT clt_id val, clt_nom lab
                        FROM   dd_classe_type
+                       WHERE  clt_ruleset_var_id = ?
                        ORDER  BY clt_nom',
-    'query_params' => [],
+    'query_params' => [$ruleset_id],
   ],
   [
     'type'         => 'select',

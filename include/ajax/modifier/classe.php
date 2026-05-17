@@ -17,6 +17,13 @@ if (!canEditCompendium()):
   exit;
 endif;
 
+// Capture globale des erreurs PHP pour éviter un rendu tronqué silencieux
+set_exception_handler(function(Throwable $e) {
+  echo '<p class="erreur"><strong>Erreur serveur :</strong> '
+    . htmlspecialchars($e->getMessage(), ENT_QUOTES)
+    . ' (ligne ' . $e->getLine() . ')</p>';
+});
+
 $id         = intParam($_GET['id'] ?? 0);
 $ruleset    = $_SESSION['rulesetRep'] ?? 'DD3.5';
 $ruleset_id = (int)($_SESSION['ruleset_var_id'] ?? 1);
@@ -65,7 +72,9 @@ if ($id > 0):
   $stmt = $db->prepare('SELECT * FROM dd_classes WHERE cla_id = ?');
   $stmt->execute([$id]);
   $row = $stmt->fetch();
-  if ($row) $cla = $row;
+  // Fusionner avec les valeurs par défaut : les champs NULL en base
+  // deviennent '' plutôt que null — évite les erreurs dans h() et (int).
+  if ($row) $cla = array_merge($cla, array_map(fn($v) => $v ?? '', $row));
 endif;
 
 $niveauMax = max(1, (int)$cla['cla_niveauMax']);
@@ -94,11 +103,11 @@ for ($i = 1; $i <= $niveauMax; $i++):
   for ($s = 0; $s <= 9; $s++):
     if (!isset($niveaux[$i]['cn_sort_n' . $s]))      $niveaux[$i]['cn_sort_n' . $s]      = '';
     if (!isset($niveaux[$i]['cn_sortConnu_n' . $s])) $niveaux[$i]['cn_sortConnu_n' . $s] = '';
-  endforeach;
+  endfor;
   if (!isset($niveaux[$i]['cn_sortPrepare'])) $niveaux[$i]['cn_sortPrepare'] = '';
   for ($p = 1; $p <= 5; $p++):
     if (!isset($niveaux[$i]['cn_pouvoir' . $p])) $niveaux[$i]['cn_pouvoir' . $p] = '';
-  endforeach;
+  endfor;
 endfor;
 ksort($niveaux);
 
@@ -154,7 +163,9 @@ endif;
 // Listes de référence
 // ============================================================
 
-$types_classe = $db->query('SELECT clt_id, clt_nom FROM dd_classe_type ORDER BY clt_nom')->fetchAll();
+$stmt_clt = $db->prepare('SELECT clt_id, clt_nom FROM dd_classe_type WHERE clt_ruleset_var_id = ? ORDER BY clt_nom');
+$stmt_clt->execute([$ruleset_id]);
+$types_classe = $stmt_clt->fetchAll();
 
 $stmt_mag = $db->prepare('SELECT mag_id, mag_nom FROM dd_typemagie WHERE mag_ruleset_var_id = ? ORDER BY mag_nom');
 $stmt_mag->execute([$ruleset_id]);
@@ -314,7 +325,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
           <div class="form-group">
             <label for="cla_pouvoir<?= $p ?>">Pouvoir <?= $p ?> (intitulé colonne)</label>
             <input type="text" id="cla_pouvoir<?= $p ?>" name="cla_pouvoir<?= $p ?>"
-                   value="<?= h($cla['cla_pouvoir' . $p]) ?>" maxlength="100"
+                   value="<?= h((string)($cla['cla_pouvoir' . $p] ?? '')) ?>" maxlength="100"
                    placeholder="Laisser vide si inutilisé">
           </div>
         <?php endfor ?>
@@ -507,7 +518,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
                   <th class="col-stat">Vol.</th>
                 <?php endif ?>
                 <?php foreach ($activePouvoirs as $p): ?>
-                  <th class="col-pouvoir"><?= h($cla['cla_pouvoir' . $p]) ?></th>
+                  <th class="col-pouvoir"><?= h((string)($cla['cla_pouvoir' . $p] ?? '')) ?></th>
                 <?php endforeach ?>
                 <?php if ($isLanceurSorts): ?>
                   <?php for ($s = 0; $s <= 9; $s++): ?>
