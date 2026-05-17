@@ -109,7 +109,6 @@ switch ($entite):
     endswitch;
     break;
 
-
   case 'race':
     switch ($action):
       case 'sauvegarder':
@@ -120,6 +119,22 @@ switch ($entite):
         break;
       case 'bulk_supprimer':
         bulkSupprimerRaces($db, $is_ajax, $redirect);
+        break;
+      default:
+        repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+    endswitch;
+    break;
+
+  case 'classe':
+    switch ($action):
+      case 'sauvegarder':
+        enregistrerClasse($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+        supprimerClasse($db, $is_ajax, $redirect);
+        break;
+      case 'bulk_supprimer':
+        bulkSupprimerClasses($db, $is_ajax, $redirect);
         break;
       default:
         repondreErreur($is_ajax, 'Action inconnue.', $redirect);
@@ -792,4 +807,407 @@ function supprimerRace($db, bool $is_ajax, string $redirect): void
 function bulkSupprimerRaces($db, bool $is_ajax, string $redirect): void
 {
   supprimerRace($db, $is_ajax, $redirect);
+}
+
+// ============================================================
+// CLASSE — Enregistrement (création + modification)
+// ============================================================
+
+function enregistrerClasse($db, bool $is_ajax, string $redirect): void
+{
+  $cla_id     = intParam($_POST['cla_id']             ?? 0);
+  $nom        = strParam($_POST['cla_nom']             ?? '');
+  $ruleset_id = intParam($_POST['cla_ruleset_var_id']  ?? 1);
+
+  if (!$nom):
+    repondreErreur($is_ajax, 'Le nom de la classe est obligatoire.', $redirect);
+  endif;
+
+  $res_id = intParam($_POST['cla_res_id'] ?? 0);
+  if (!$res_id):
+    repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
+  endif;
+
+  // Champs scalaires
+  $clt_id      = intParam($_POST['cla_clt_id']          ?? 1);
+  $dV          = intParam($_POST['cla_dV']              ?? 8);
+  $niveauMax   = intParam($_POST['cla_niveauMax']       ?? 20);
+  $mag_id      = intParam($_POST['cla_mag_id']          ?? 0);
+  $car_id      = intParam($_POST['cla_car_id']          ?? 0);
+  $camp_id     = intParam($_POST['cla_camp_id']         ?? 0) ?: null;
+  $abreviation = strParam($_POST['cla_abreviation']     ?? '');
+  $alignement  = strParam($_POST['cla_alignement']      ?? '');
+  $ptsComp     = intParam($_POST['cla_pointsCompetences'] ?? 0);
+  $poNiv1      = intParam($_POST['cla_po_niveau1']      ?? 0);
+
+  // Flags booléens (checkboxes — absent = 0)
+  $sortConnu    = isset($_POST['cla_sort_connu'])    ? 1 : 0;
+  $sortCompris  = isset($_POST['cla_sort_compris'])  ? 1 : 0;
+  $sortPrepare  = isset($_POST['cla_sort_prepare'])  ? 1 : 0;
+  $domaineDivin = isset($_POST['cla_domaine_divin']) ? 1 : 0;
+
+  // Champs texte TinyMCE (HTML — pas de h())
+  $description    = $_POST['cla_description']    ?? '';
+  $armes          = $_POST['cla_armes']          ?? '';
+  $armures        = $_POST['cla_armures']        ?? '';
+  $outils         = $_POST['cla_outils']         ?? '';
+  $sauvegardes    = $_POST['cla_sauvegardes']    ?? '';
+  $equipement     = $_POST['cla_equipement']     ?? '';
+  $competences    = $_POST['cla_competences']    ?? '';
+  $sorts          = $_POST['cla_sorts']          ?? '';
+  $conditions     = $_POST['cla_conditions']     ?? '';
+  $caracteristiques = $_POST['cla_caracteristiques'] ?? '';
+  $traits         = $_POST['cla_traits']         ?? '';
+  $critere_rec    = $_POST['cla_critere_rec']    ?? '';
+
+  // Intitulés des pouvoirs 1-5
+  $pouvoirs = [];
+  for ($p = 1; $p <= 5; $p++):
+    $pouvoirs[$p] = strParam($_POST['cla_pouvoir' . $p] ?? '');
+  endfor;
+
+  // Payloads capacités
+  $capacites_payload    = json_decode($_POST['capacites_payload']    ?? '[]', true) ?: [];
+  $affectations_payload = json_decode($_POST['affectations_payload'] ?? '[]', true) ?: [];
+  $payload_ready        = ($_POST['payload_ready'] ?? '0') === '1';
+
+  try {
+    $db->beginTransaction();
+
+    // ---- 1. INSERT ou UPDATE dd_classes ----
+
+    $params = [
+      ':cla_nom'              => $nom,
+      ':cla_abreviation'      => $abreviation,
+      ':cla_clt_id'           => $clt_id,
+      ':cla_dV'               => $dV,
+      ':cla_niveauMax'        => $niveauMax,
+      ':cla_mag_id'           => $mag_id,
+      ':cla_car_id'           => $car_id,
+      ':cla_sort_connu'       => $sortConnu,
+      ':cla_sort_compris'     => $sortCompris,
+      ':cla_sort_prepare'     => $sortPrepare,
+      ':cla_domaine_divin'    => $domaineDivin,
+      ':cla_pointsCompetences' => $ptsComp,
+      ':cla_po_niveau1'       => $poNiv1,
+      ':cla_alignement'       => $alignement,
+      ':cla_conditions'       => $conditions,
+      ':cla_description'      => $description,
+      ':cla_armes'            => $armes,
+      ':cla_armures'          => $armures,
+      ':cla_outils'           => $outils,
+      ':cla_sauvegardes'      => $sauvegardes,
+      ':cla_equipement'       => $equipement,
+      ':cla_competences'      => $competences,
+      ':cla_sorts'            => $sorts,
+      ':cla_caracteristiques' => $caracteristiques,
+      ':cla_traits'           => $traits,
+      ':cla_critere_rec'      => $critere_rec,
+      ':cla_pouvoir1'         => $pouvoirs[1],
+      ':cla_pouvoir2'         => $pouvoirs[2],
+      ':cla_pouvoir3'         => $pouvoirs[3],
+      ':cla_pouvoir4'         => $pouvoirs[4],
+      ':cla_pouvoir5'         => $pouvoirs[5],
+      ':cla_res_id'           => $res_id,
+      ':cla_camp_id'          => $camp_id,
+    ];
+
+    if ($cla_id === 0):
+      $params[':cla_ruleset_var_id'] = $ruleset_id;
+      $stmt = $db->prepare('
+        INSERT INTO dd_classes (
+          cla_nom, cla_abreviation, cla_clt_id, cla_dV, cla_niveauMax,
+          cla_mag_id, cla_car_id, cla_sort_connu, cla_sort_compris, cla_sort_prepare,
+          cla_domaine_divin, cla_pointsCompetences, cla_po_niveau1, cla_alignement,
+          cla_conditions, cla_description, cla_armes, cla_armures, cla_outils,
+          cla_sauvegardes, cla_equipement, cla_competences, cla_sorts,
+          cla_caracteristiques, cla_traits, cla_critere_rec,
+          cla_pouvoir1, cla_pouvoir2, cla_pouvoir3, cla_pouvoir4, cla_pouvoir5,
+          cla_res_id, cla_camp_id, cla_ruleset_var_id
+        ) VALUES (
+          :cla_nom, :cla_abreviation, :cla_clt_id, :cla_dV, :cla_niveauMax,
+          :cla_mag_id, :cla_car_id, :cla_sort_connu, :cla_sort_compris, :cla_sort_prepare,
+          :cla_domaine_divin, :cla_pointsCompetences, :cla_po_niveau1, :cla_alignement,
+          :cla_conditions, :cla_description, :cla_armes, :cla_armures, :cla_outils,
+          :cla_sauvegardes, :cla_equipement, :cla_competences, :cla_sorts,
+          :cla_caracteristiques, :cla_traits, :cla_critere_rec,
+          :cla_pouvoir1, :cla_pouvoir2, :cla_pouvoir3, :cla_pouvoir4, :cla_pouvoir5,
+          :cla_res_id, :cla_camp_id, :cla_ruleset_var_id
+        )
+      ');
+      $stmt->execute($params);
+      $cla_id = (int)$db->lastInsertId();
+    else:
+      $params[':cla_id'] = $cla_id;
+      $stmt = $db->prepare('
+        UPDATE dd_classes SET
+          cla_nom              = :cla_nom,
+          cla_abreviation      = :cla_abreviation,
+          cla_clt_id           = :cla_clt_id,
+          cla_dV               = :cla_dV,
+          cla_niveauMax        = :cla_niveauMax,
+          cla_mag_id           = :cla_mag_id,
+          cla_car_id           = :cla_car_id,
+          cla_sort_connu       = :cla_sort_connu,
+          cla_sort_compris     = :cla_sort_compris,
+          cla_sort_prepare     = :cla_sort_prepare,
+          cla_domaine_divin    = :cla_domaine_divin,
+          cla_pointsCompetences= :cla_pointsCompetences,
+          cla_po_niveau1       = :cla_po_niveau1,
+          cla_alignement       = :cla_alignement,
+          cla_conditions       = :cla_conditions,
+          cla_description      = :cla_description,
+          cla_armes            = :cla_armes,
+          cla_armures          = :cla_armures,
+          cla_outils           = :cla_outils,
+          cla_sauvegardes      = :cla_sauvegardes,
+          cla_equipement       = :cla_equipement,
+          cla_competences      = :cla_competences,
+          cla_sorts            = :cla_sorts,
+          cla_caracteristiques = :cla_caracteristiques,
+          cla_traits           = :cla_traits,
+          cla_critere_rec      = :cla_critere_rec,
+          cla_pouvoir1         = :cla_pouvoir1,
+          cla_pouvoir2         = :cla_pouvoir2,
+          cla_pouvoir3         = :cla_pouvoir3,
+          cla_pouvoir4         = :cla_pouvoir4,
+          cla_pouvoir5         = :cla_pouvoir5,
+          cla_res_id           = :cla_res_id,
+          cla_camp_id          = :cla_camp_id
+        WHERE cla_id = :cla_id
+      ');
+      $stmt->execute($params);
+    endif;
+
+    // ---- 2. Table de progression (UPSERT niveau par niveau) ----
+
+    $niveaux_post = isset($_POST['niveaux']) && is_array($_POST['niveaux'])
+      ? $_POST['niveaux']
+      : [];
+
+    if (!empty($niveaux_post)):
+      $stmt_exists = $db->prepare('
+        SELECT cn_id FROM dd_classe_niveau
+        WHERE cn_cla_id = ? AND cn_niveau = ?
+      ');
+
+      // Colonnes autorisées (toujours présentes dans la table)
+      $cols_allowed = [
+        'cn_bba',
+        'cn_reflexes',
+        'cn_vigueur',
+        'cn_volonte',
+        'cn_pouvoir1',
+        'cn_pouvoir2',
+        'cn_pouvoir3',
+        'cn_pouvoir4',
+        'cn_pouvoir5',
+        'cn_sort_n0',
+        'cn_sort_n1',
+        'cn_sort_n2',
+        'cn_sort_n3',
+        'cn_sort_n4',
+        'cn_sort_n5',
+        'cn_sort_n6',
+        'cn_sort_n7',
+        'cn_sort_n8',
+        'cn_sort_n9',
+        'cn_sortConnu_n0',
+        'cn_sortConnu_n1',
+        'cn_sortConnu_n2',
+        'cn_sortConnu_n3',
+        'cn_sortConnu_n4',
+        'cn_sortConnu_n5',
+        'cn_sortConnu_n6',
+        'cn_sortConnu_n7',
+        'cn_sortConnu_n8',
+        'cn_sortConnu_n9',
+        'cn_sortPrepare',
+      ];
+
+      foreach ($niveaux_post as $nKey => $row):
+        $niv = (int)$nKey;
+        if ($niv < 1 || $niv > $niveauMax) continue;
+
+        $values = [];
+        foreach ($cols_allowed as $col):
+          $values[$col] = isset($row[$col]) ? trim((string)$row[$col]) : '';
+        endforeach;
+
+        $stmt_exists->execute([$cla_id, $niv]);
+        $exists = (bool)$stmt_exists->fetchColumn();
+
+        if ($exists):
+          $setParts = [];
+          $updParams = [':cla' => $cla_id, ':niveau' => $niv];
+          foreach ($cols_allowed as $col):
+            $setParts[]           = $col . ' = :' . $col;
+            $updParams[':' . $col] = $values[$col];
+          endforeach;
+          $db->prepare('
+            UPDATE dd_classe_niveau SET ' . implode(', ', $setParts) . '
+            WHERE cn_cla_id = :cla AND cn_niveau = :niveau
+          ')->execute($updParams);
+        else:
+          $insCols   = ['cn_cla_id', 'cn_niveau'];
+          $insParams = [':cn_cla_id' => $cla_id, ':cn_niveau' => $niv];
+          foreach ($cols_allowed as $col):
+            $insCols[]            = $col;
+            $insParams[':' . $col] = $values[$col];
+          endforeach;
+          $db->prepare('
+            INSERT INTO dd_classe_niveau (' . implode(', ', $insCols) . ')
+            VALUES (' . implode(', ', array_keys($insParams)) . ')
+          ')->execute($insParams);
+        endif;
+      endforeach;
+    endif;
+
+    // ---- 3. Capacités spéciales (payload JS) ----
+
+    if ($payload_ready && !empty($capacites_payload)):
+
+      // Résoudre cap_key → cap_id (créer les nouvelles entrées dans dd_capacites_speciales)
+      $capKeyToId = [];
+      foreach ($capacites_payload as $capRow):
+        $capKey  = (string)($capRow['cap_key'] ?? '');
+        $cap_id  = intParam($capRow['cap_id'] ?? 0);
+        $cap_nom = strParam($capRow['cap_nom'] ?? '');
+        if (!$capKey || !$cap_nom) continue;
+
+        $cap_desc = $capRow['cap_description'] ?? '';
+        $cap_type = strParam($capRow['cap_type'] ?? '');
+
+        if ($cap_id > 0):
+          // Mise à jour de la capacité existante
+          $db->prepare('
+            UPDATE dd_capacites_speciales
+            SET cap_nom = ?, cap_description = ?, cap_type = ?
+            WHERE cap_id = ?
+          ')->execute([$cap_nom, $cap_desc, $cap_type, $cap_id]);
+          $capKeyToId[$capKey] = $cap_id;
+        else:
+          // Nouvelle capacité
+          $db->prepare('
+            INSERT INTO dd_capacites_speciales (cap_nom, cap_description, cap_type)
+            VALUES (?, ?, ?)
+          ')->execute([$cap_nom, $cap_desc, $cap_type]);
+          $capKeyToId[$capKey] = (int)$db->lastInsertId();
+        endif;
+      endforeach;
+
+      // Supprimer toutes les affectations existantes de la classe
+      $db->prepare('DELETE FROM dd_classe_capacite WHERE cc_cla_id = ?')->execute([$cla_id]);
+
+      // Réinsérer depuis affectations_payload
+      $seen = [];
+      $stmt_ins_aff = $db->prepare('
+        INSERT INTO dd_classe_capacite (cc_cla_id, cc_cap_id, cc_niveau, cc_precision)
+        VALUES (?, ?, ?, ?)
+      ');
+      foreach ($affectations_payload as $aff):
+        $capKey   = (string)($aff['cap_key'] ?? '');
+        $cc_niv   = intParam($aff['cc_niveau'] ?? 0);
+        $cc_prec  = strParam($aff['cc_precision'] ?? '');
+
+        if (!isset($capKeyToId[$capKey]) || $cc_niv < 1 || $cc_niv > $niveauMax) continue;
+        $cap_id_eff = $capKeyToId[$capKey];
+
+        // Déduplication
+        $sig = $cap_id_eff . '|' . $cc_niv . '|' . $cc_prec;
+        if (isset($seen[$sig])) continue;
+        $seen[$sig] = true;
+
+        $stmt_ins_aff->execute([$cla_id, $cap_id_eff, $cc_niv, $cc_prec]);
+      endforeach;
+
+    endif;
+
+    $db->commit();
+    repondreOk($is_ajax, $cla_id, 'classe', $redirect);
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('enregistrerClasse : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+
+// ============================================================
+// CLASSE — Suppression (avec vérification dépendances)
+// ============================================================
+
+function supprimerClasse($db, bool $is_ajax, string $redirect): void
+{
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_filter(array_map('intval', (array)$ids));
+
+  if (empty($ids)):
+    repondreErreur($is_ajax, 'Aucune classe à supprimer.', $redirect);
+  endif;
+
+  $refus  = [];
+  $ok_ids = [];
+
+  foreach ($ids as $cla_id):
+    // Vérification : personnages utilisant cette classe
+    $stmt = $db->prepare('
+      SELECT COUNT(*) FROM dd_personnages_classes WHERE pc_cla_id = ?
+    ');
+    $stmt->execute([$cla_id]);
+    $nb = (int)$stmt->fetchColumn();
+
+    if ($nb > 0):
+      $stmt_nom = $db->prepare('SELECT cla_nom FROM dd_classes WHERE cla_id = ?');
+      $stmt_nom->execute([$cla_id]);
+      $nom    = $stmt_nom->fetchColumn() ?: "classe #$cla_id";
+      $refus[] = "« $nom » : $nb personnage(s) associé(s)";
+    else:
+      $ok_ids[] = $cla_id;
+    endif;
+  endforeach;
+
+  if (!empty($ok_ids)):
+    try {
+      $db->beginTransaction();
+      foreach ($ok_ids as $cla_id):
+        $db->prepare('DELETE FROM dd_classe_capacite WHERE cc_cla_id = ?')->execute([$cla_id]);
+        $db->prepare('DELETE FROM dd_classe_niveau   WHERE cn_cla_id = ?')->execute([$cla_id]);
+        $db->prepare('DELETE FROM dd_classes         WHERE cla_id    = ?')->execute([$cla_id]);
+      endforeach;
+      $db->commit();
+    } catch (Exception $e) {
+      $db->rollBack();
+      error_log('supprimerClasse : ' . $e->getMessage());
+      repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
+    }
+  endif;
+
+  if (empty($refus)):
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Classe(s) supprimée(s).'];
+    header('Location: ' . $redirect);
+    exit;
+  endif;
+
+  $msg = 'Suppression impossible pour : ' . implode(' ; ', $refus) . '.';
+  if (!empty($ok_ids)):
+    $msg = count($ok_ids) . ' classe(s) supprimée(s). ' . $msg;
+  endif;
+  repondreErreur($is_ajax, $msg, $redirect);
+}
+
+
+// ============================================================
+// CLASSE — Suppression groupée (bulk)
+// ============================================================
+
+function bulkSupprimerClasses($db, bool $is_ajax, string $redirect): void
+{
+  supprimerClasse($db, $is_ajax, $redirect);
 }

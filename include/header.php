@@ -67,6 +67,8 @@ $body_class = isset($body_class) ? h($body_class) : '';
     <div id="modification-backdrop" class="overlay-backdrop noDisplay" onclick="fermerModification()"></div>
     <div id="detail-pp" class="overlay-panel noDisplay" style="position:fixed;"></div>
     <div id="modification" class="overlay-panel overlay-panel--edit noDisplay" style="position:fixed;"></div>
+    <div id="detail-pp-sub-backdrop" class="overlay-backdrop overlay-backdrop--sub noDisplay" onclick="fermerSubPanel()"></div>
+    <div id="detail-pp-sub" class="overlay-panel overlay-panel--sub noDisplay" style="position:fixed;"></div>
 
     <?
     // Affichage d'un message flash s'il existe

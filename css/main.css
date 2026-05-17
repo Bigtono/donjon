@@ -219,6 +219,21 @@ button {
   max-width: 860px;
 }
 
+/* Sous-panel — s'affiche au-dessus de detail-pp
+   Légèrement décalé (offset) pour marquer visuellement la superposition */
+.overlay-backdrop--sub {
+  z-index: 299;
+}
+
+.overlay-panel--sub {
+  z-index: 300;
+  max-width: 680px;
+  /* Décalage visuel par rapport au panel parent */
+  transform: translate(-46%, -46%);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
+  border-color: var(--clr-accent-muted, var(--clr-border));
+}
+
 /* Bouton fermer */
 .overlay-close {
   position: absolute;

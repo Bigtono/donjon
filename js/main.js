@@ -122,17 +122,58 @@ function fermerModification() {
   if (backdrop) backdrop.classList.add('noDisplay');
 }
 
-// Ferme #detail-pp (et #modification si ouvert)
+// Ferme #detail-pp (et #modification et #detail-pp-sub si ouverts)
 function fermerDetailPP() {
   const panel = document.getElementById('detail-pp');
   const backdrop = document.getElementById('detail-pp-backdrop');
   if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
   if (backdrop) backdrop.classList.add('noDisplay');
+  fermerSubPanel();
   fermerModification();
   if (_pendingListRefresh) {
     _pendingListRefresh = false;
     rafraichirListe();
   }
+}
+
+// ============================================================
+// SOUS-PANEL — detail-pp-sub
+// S'affiche au-dessus du detail-pp courant.
+// Utilisé pour afficher le détail d'un élément référencé
+// dans une fiche (capacité, compétence, sort…) sans fermer
+// le panel principal.
+// ============================================================
+
+// Charge #detail-pp-sub via GET — lecture seule
+function actualiserPageSub(url, params = {}) {
+  const panel = document.getElementById('detail-pp-sub');
+  const backdrop = document.getElementById('detail-pp-sub-backdrop');
+  if (!panel) return;
+
+  if (backdrop) backdrop.classList.remove('noDisplay');
+  panel.classList.remove('noDisplay');
+  panel.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
+
+  const fullUrl = Object.keys(params).length > 0
+    ? url + '?' + new URLSearchParams(params).toString()
+    : url;
+
+  fetch(fullUrl)
+    .then(r => { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
+    .then(html => {
+      const closeBtn = '<button class="overlay-close" onclick="fermerSubPanel()" title="Fermer">'
+        + '<i class="fa fa-times"></i></button>';
+      panel.innerHTML = closeBtn + html;
+    })
+    .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
+}
+
+// Ferme #detail-pp-sub sans toucher au panel principal
+function fermerSubPanel() {
+  const panel = document.getElementById('detail-pp-sub');
+  const backdrop = document.getElementById('detail-pp-sub-backdrop');
+  if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+  if (backdrop) backdrop.classList.add('noDisplay');
 }
 
 // ============================================================
