@@ -267,18 +267,18 @@ Classes de personnage (base et prestige).
 | cla_pointsCompetences | tinyint unsigned | null | *[DD3.5]* Points de compétences par niveau |
 | cla_po_niveau1 | smallint unsigned | null | *[DD3.5]* Pièces d'or de départ |
 | cla_conditions | text | null | *[DD3.5]* Conditions d'accès (classes de prestige) |
+| cla_armes | text | null | Formations aux armes. Pour *[DD3.5]* contient armes et armures |
 | cla_armures | text | null | *[DD2024]* Formations aux armures |
 | cla_outils | text | null | *[DD2024]* Formations aux outils |
 | cla_sauvegardes | text | null | *[DD2024]* Jets de sauvegarde maîtrisés |
 | cla_equipement | text | null | *[DD2024]* Équipement de départ |
-| cla_armes | text | null | Formations aux armes |
 | cla_competences | text | null | Compétences de classe |
 | cla_sorts | text | null | Description de la liste de sorts |
 | cla_description | text | null | Description générale de la classe |
 | cla_traits | text | null | Traits raciaux ou de classe |
 | cla_caracteristiques | text | null | Caractéristiques importantes |
 | cla_critere_rec | text | null | Critères recommandés |
-| cla_pouvoir1 … cla_pouvoir4 | varchar(100) | null | Intitulé des pouvoirs spécifiques (colonnes de la table de bonus) |
+| cla_pouvoir1 … cla_pouvoir5 | varchar(100) | null | Intitulé des pouvoirs spécifiques (colonnes de la table de bonus) |
 | cla_cla_id | int unsigned | null | Classe parente éventuelle -> dd_classes |
 | cla_res_id | int unsigned | nn | Source -> dd_ressources |
 | cla_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
@@ -294,17 +294,18 @@ Table de bonus de classe par niveau.
 | cn_id | int unsigned | PK | |
 | cn_cla_id | int unsigned | nn, UK(cn_cla_id, cn_niveau) | -> dd_classes |
 | cn_niveau | tinyint unsigned | nn | Niveau de classe (1 à niveauMax) |
-| cn_bba | varchar(20) | nn, défaut '0' | Bonus de base à l'attaque. *[DD3.5]* peut être multi-valeurs ex : +6/+1 |
-| cn_reflexes | tinyint | nn, défaut 0 | Bonus de base aux réflexes |
-| cn_vigueur | tinyint | nn, défaut 0 | Bonus de base à la vigueur |
-| cn_volonte | tinyint | nn, défaut 0 | Bonus de base à la volonté |
+| cn_bba | varchar(20) | nn, défaut '0' | *[DD3.5]* Bonus de base à l'attaque. Peut être multi-valeurs ex : +6/+1 |
+| cn_reflexes | tinyint | nn, défaut 0 | *[DD3.5]* Bonus de base aux réflexes |
+| cn_vigueur | tinyint | nn, défaut 0 | *[DD3.5]* Bonus de base à la vigueur |
+| cn_volonte | tinyint | nn, défaut 0 | *[DD3.5]* Bonus de base à la volonté |
 | cn_sort_n0 … cn_sort_n9 | tinyint unsigned | null | Sorts par jour par niveau de sort (0-9) |
-| cn_sortConnu_n0 … cn_sortConnu_n9 | tinyint unsigned | null | Sorts connus par niveau de sort (0-9) |
+| cn_sortPrepare | tinyint unsigned | null | *[DD2024]* Nombre de sorts préparés |
+| cn_sortConnu_n0 … cn_sortConnu_n9 | tinyint unsigned | null | *[DD3.5]*  Sorts connus par niveau de sort (0-9) |
 | cn_niveauSortArcane | tinyint(1) | nn, défaut 0 | *[DD3.5]* 1 = ce niveau de prestige avance le NLS arcane |
 | cn_niveauSortDivin | tinyint(1) | nn, défaut 0 | *[DD3.5]* 1 = ce niveau de prestige avance le NLS divin |
 | cn_niveauSortEffectif | tinyint(1) | nn, défaut 0 | *[DD3.5]* 1 = ce niveau de prestige avance le NLS effectif |
-| cn_pouvoir1 … cn_pouvoir4 | varchar(255) | null | Valeur du pouvoir spécifique pour ce niveau |
-| cn_sortPrepare | tinyint unsigned | null | *[DD2024]* Nombre de sorts préparés |
+| cn_pouvoir1 … cn_pouvoir5 | varchar(255) | null | Valeur du pouvoir spécifique pour ce niveau |
+| cn_sort_bonus | int unsigned | null | *[DD3.5]* Nb de sorts bonus par niveau de classe de prestige |
 
 ---
 
@@ -329,6 +330,15 @@ Affectation d'une compétence à une classe. Pour DD3.5 : il s'agit des compéte
 | ccomp_cla_id | int unsigned | nn, UK(cc_cla_id, cc_cap_id, cc_niveau) | -> dd_classes |
 | ccomp_cap_id | int unsigned | nn | -> dd_capacites_speciales |
 | ccomp_precision | varchar(255) | null | Précision pour les compétences d'artisanat, connaissance... Ex : Géographie, tailleur de pierre |
+
+---
+
+### dd_classe_type
+Type de classe 
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| clt_id | int unsigned | PK | |
+| clt_nom | varchar(50) | nn | |
 
 ---
 
