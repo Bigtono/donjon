@@ -10,6 +10,12 @@ $page_title = isset($page_title) ? h($page_title) . ' — Codex D&D' : 'Codex D&
 $js_module  = isset($js_module) ? h($js_module) : '';
 $css_module = isset($css_module) ? h($css_module) : '';
 $body_class = isset($body_class) ? h($body_class) : '';
+
+// Thème utilisateur — dark par défaut si non défini
+$theme_valides = ['dark', 'light'];
+$theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
+                 ? $_SESSION['j_theme']
+                 : 'dark';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -27,7 +33,7 @@ $body_class = isset($body_class) ? h($body_class) : '';
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 
-<body class="<?= $body_class ?>">
+<body class="theme-<?= $theme_actif ?><?= $body_class ? ' ' . $body_class : '' ?>">
 
   <header class="site-header">
     <div class="site-header__brand">

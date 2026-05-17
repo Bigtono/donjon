@@ -1,22 +1,67 @@
 /* css/main.css — Design system Codex DD */
 
 /* ============================================================
-   VARIABLES
+   THÈMES — variables par classe body
+   body.theme-dark  : thème sombre (défaut)
+   body.theme-light : thème clair "Parchemin"
    ============================================================ */
-:root {
-  /* Couleurs principales */
+
+body.theme-dark {
+  /* Fonds */
   --clr-bg: #1a1a2e;
   --clr-surface: #16213e;
   --clr-surface-2: #0f3460;
+  --clr-surface-alt: #0f3460;   /* fix table-classe-niv : header lisible sur fond sombre */
+
+  /* Accents */
   --clr-accent: #e94560;
   --clr-accent-2: #c7a84f;
+
+  /* Texte */
   --clr-text: #e0e0e0;
   --clr-text-muted: #8a8fa8;
+
+  /* Bordures / états */
   --clr-border: #2a2d4a;
   --clr-success: #2ecc71;
   --clr-warning: #f39c12;
   --clr-danger: #e74c3c;
 
+  /* Blocs burger — fond toujours clair (indépendant du thème) */
+  --burger-bg: #f3f3ef;
+  --burger-border: #e2e2dd;
+  --burger-text: #2a2a2a;
+}
+
+body.theme-light {
+  /* Fonds — tons parchemin */
+  --clr-bg: #f4f1eb;
+  --clr-surface: #ffffff;
+  --clr-surface-2: #eae6dd;
+  --clr-surface-alt: #eae6dd;   /* fix table-classe-niv : header beige sur fond clair */
+
+  /* Accents */
+  --clr-accent: #8b2020;
+  --clr-accent-2: #6b4e1f;
+
+  /* Texte */
+  --clr-text: #2a2015;
+  --clr-text-muted: #7a6e5a;
+
+  /* Bordures / états */
+  --clr-border: #d5cfc3;
+  --clr-success: #2a7a3b;
+  --clr-warning: #a06010;
+  --clr-danger: #c0392b;
+
+  /* Blocs burger — parchemin léger, harmonieux sur thème clair */
+  --burger-bg: #f9f6f0;
+  --burger-border: #d5cfc3;
+  --burger-text: #2a2015;
+}
+
+/* Variables communes aux deux thèmes */
+:root {
   /* Typographie */
   --font-main: 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'Cascadia Code', 'Fira Code', monospace;
@@ -35,9 +80,7 @@
   --radius-md: 8px;
   --radius-lg: 12px;
 
-  /* Composants validés (blocs burger) */
-  --burger-bg: #f3f3ef;
-  --burger-border: #e2e2dd;
+  /* Blocs burger */
   --burger-radius: 0.35rem;
   --burger-pad: 10px;
 
@@ -123,10 +166,8 @@ button {
 
 .site-header__logo-img {
   height: calc(var(--header-h) - 16px);
-  /* s'adapte à la hauteur du header */
   width: auto;
   max-height: 48px;
-  /* plafond de sécurité */
   display: block;
 }
 
@@ -186,7 +227,9 @@ button {
 
 /* ============================================================
    OVERLAYS detail-pp / modification
+   Largeur augmentée pour les tables de progression de classe
    ============================================================ */
+
 /* Backdrop semi-transparent */
 .overlay-backdrop {
   position: fixed;
@@ -203,8 +246,8 @@ button {
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 200;
-  width: 90%;
-  max-width: 720px;
+  width: 92%;
+  max-width: 960px;    /* anciennement 720px */
   max-height: 85vh;
   overflow-y: auto;
   background: var(--clr-surface);
@@ -216,11 +259,10 @@ button {
 
 .overlay-panel--edit {
   border-color: var(--clr-accent);
-  max-width: 860px;
+  max-width: 1040px;   /* anciennement 860px */
 }
 
-/* Sous-panel — s'affiche au-dessus de detail-pp
-   Légèrement décalé (offset) pour marquer visuellement la superposition */
+/* Sous-panel */
 .overlay-backdrop--sub {
   z-index: 299;
 }
@@ -228,7 +270,6 @@ button {
 .overlay-panel--sub {
   z-index: 300;
   max-width: 680px;
-  /* Décalage visuel par rapport au panel parent */
   transform: translate(-46%, -46%);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
   border-color: var(--clr-accent-muted, var(--clr-border));
@@ -279,16 +320,12 @@ button {
   color: var(--clr-text);
 }
 
-.accordion-content {
-  /* géré via noDisplay */
-}
-
 .box-data {
   background: var(--burger-bg);
   border: 1px solid var(--burger-border);
   border-radius: var(--burger-radius);
   padding: var(--burger-pad);
-  color: #2a2a2a;
+  color: var(--burger-text);
 }
 
 /* ============================================================
@@ -317,7 +354,7 @@ button {
 }
 
 .table-std tr:hover td {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(128, 128, 128, 0.05);
 }
 
 /* ============================================================
@@ -535,11 +572,11 @@ textarea {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Overlay panels : légèrement réduits sur mobile */
+  /* Overlay panels : pleine largeur sur mobile */
   .overlay-panel {
-    width: 96%;
+    width: 98%;
     padding: var(--sp-md);
-    max-height: 90vh;
+    max-height: 92vh;
   }
 
   /* Boutons : pleine largeur dans form-actions sur mobile */

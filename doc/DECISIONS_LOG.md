@@ -406,6 +406,58 @@ Actions possibles par entrée : `existing` (mise à jour ordre), `new` (créatio
 La suppression d'un lien (action=delete) ne supprime pas l'entrée `dd_capacites_speciales`.
 → Réutilisation du pattern éprouvé sur les classes — cohérence technique et UX.
 
+---
+
+## Mise en page — Thèmes et overlays
+
+**[2026-05] Système de thèmes — deux templates CSS**
+Deux thèmes disponibles : `dark` (sombre, défaut — identique à l'existant) et `light` (clair "Parchemin").
+Mécanisme : classe `theme-dark` ou `theme-light` sur `<body>`, pilotée par `$_SESSION['j_theme']`.
+Les variables CSS (--clr-bg, --clr-surface, etc.) sont déclarées sous `body.theme-dark` et
+`body.theme-light` dans main.css — plus sous `:root`. Les variables communes (typo, espacement,
+rayons, layout) restent dans `:root`.
+Stockage : champ `j_theme ENUM('dark','light') DEFAULT 'dark'` dans `dd_joueurs`.
+Session : `$_SESSION['j_theme']` chargé dans `startUserSession()` (auth.php).
+Choix utilisateur : radio buttons dans la section Paramètres de profil/index.php.
+→ Zéro impact sur la structure HTML des pages — seules les couleurs changent.
+→ Extensible : un troisième thème s'ajoute en déclarant `body.theme-xxx` dans main.css
+  et en ajoutant la valeur au ENUM et à la whitelist de validation.
+
+**[2026-05] Thème clair "Parchemin" — palette**
+Fonds : #f4f1eb (bg), #ffffff (surface), #eae6dd (surface-2 et surface-alt).
+Accents : #8b2020 (rouge bordeaux), #6b4e1f (or patiné).
+Texte : #2a2015 (principal), #7a6e5a (atténué).
+Bordures : #d5cfc3.
+États : success #2a7a3b, warning #a06010, danger #c0392b.
+Blocs burger (box-data) : fond #f9f6f0, bordure #d5cfc3 — harmonieux sur le thème clair.
+→ Ambiance grimoire/manuscrit médiéval, cohérente avec l'univers DD.
+
+**[2026-05] Thème sombre — correction bug table-classe-niv**
+Bug identifié : `.table-classe-niv th` utilisait `background: var(--clr-surface-alt, #f5efe6)`.
+La variable `--clr-surface-alt` n'était pas définie → fallback `#f5efe6` (fond clair)
+avec texte `--clr-text` clair → en-tête illisible (texte clair sur fond clair).
+Correction : `--clr-surface-alt` est maintenant définie dans chaque thème :
+  - `body.theme-dark`  → `--clr-surface-alt: #0f3460` (bleu foncé, texte --clr-text-muted lisible)
+  - `body.theme-light` → `--clr-surface-alt: #eae6dd` (beige parchemin)
+Aucune modification du PHP nécessaire — la variable CSS est simplement définie.
+→ Le fallback ne s'active plus ; la lisibilité est garantie dans les deux thèmes.
+
+**[2026-05] Overlays élargis — tables de progression de classe**
+`.overlay-panel` : max-width 720px → **960px** (width 90% → 92%).
+`.overlay-panel--edit` : max-width 860px → **1040px**.
+Les tables de classe (20+ colonnes : niveaux, BBA, jets, sorts/jour) nécessitent cet espace.
+Sur mobile (≤991px) : width 98%, max-height 92vh — légère adaptation responsive.
+→ Modification dans main.css uniquement, sans impact sur les autres modules.
+
+**[2026-05] Sélecteur de thème dans le profil — radio buttons stylés**
+Composant `.theme-selector` / `.theme-option` ajouté dans css/modules.css
+(après le bloc `.toggle-label`).
+Deux radio buttons visuellement transformés en boutons avec bordure active sur la valeur sélectionnée.
+Couleur active : --clr-accent-2 (or/bordeaux selon le thème actif).
+→ Cohérent avec le style des toggles existants dans la section Paramètres.
+
+---
+
 ## Bugs connus — à traiter
 
 - **Admin / liste utilisateurs** : le menu ⋮ (dropdown) ne fonctionne pas correctement sur les lignes `admin-ligne--inactif`. La piste CSS (stacking context créé par `opacity` sur `<td>`) a été explorée sans succès. À investiguer en session dédiée.
@@ -420,6 +472,7 @@ La suppression d'un lien (action=delete) ne supprime pas l'entrée `dd_capacites
 - [x] ~~Suppression utilisateur~~ → désactivation j_visible=0, jamais DELETE
 - [x] ~~Sélection sources profil — zéro sélection~~ → autorisé, retour au défaut, message explicatif
 - [x] ~~Homebrew profil vs campagne~~ → homebrew reste campagne uniquement ; res_camp_id IS NULL réservé
+- [x] ~~Thèmes visuels~~ → dark (défaut) + light "Parchemin" via j_theme en BDD + classe body
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
 - [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
 - [ ] Homebrew profil (recueil maison transversal) — implémentation future si besoin confirmé

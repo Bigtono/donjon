@@ -14,7 +14,7 @@ $ok     = false;
 $stmt = $db->prepare('
   SELECT j_id, j_prenom, j_nom, j_pseudo, j_email,
          j_default_ruleset_var_id, j_mode_campagne,
-         j_affichage_ruleset, j_items_par_page
+         j_affichage_ruleset, j_items_par_page, j_theme
   FROM   dd_joueurs
   WHERE  j_id = ?
 ');
@@ -122,6 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
     $mode_campagne     = isset($_POST['j_mode_campagne'])     ? 1 : 0;
     $affichage_ruleset = isset($_POST['j_affichage_ruleset']) ? 1 : 0;
     $items_par_page    = max(5, min(100, intParam($_POST['j_items_par_page'] ?? 20)));
+    $theme_post        = $_POST['j_theme'] ?? 'dark';
+    $theme             = in_array($theme_post, ['dark', 'light'], true) ? $theme_post : 'dark';
 
     $chk = $db->prepare('SELECT var_id FROM dd_variables WHERE var_id = ? AND var_cat = \'ruleset\'');
     $chk->execute([$ruleset_var_id]);
@@ -133,15 +135,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
         SET    j_default_ruleset_var_id = ?,
                j_mode_campagne          = ?,
                j_affichage_ruleset      = ?,
-               j_items_par_page         = ?
+               j_items_par_page         = ?,
+               j_theme                  = ?
         WHERE  j_id = ?
       ');
-      $upd->execute([$ruleset_var_id, $mode_campagne, $affichage_ruleset, $items_par_page, $j_id]);
+      $upd->execute([$ruleset_var_id, $mode_campagne, $affichage_ruleset, $items_par_page, $theme, $j_id]);
 
       $_SESSION['ruleset_var_id']      = $ruleset_var_id;
       $_SESSION['rulesetRep']          = getRulesetRep($ruleset_var_id);
       $_SESSION['j_mode_campagne']     = $mode_campagne;
       $_SESSION['j_affichage_ruleset'] = $affichage_ruleset;
+      $_SESSION['j_theme']             = $theme;
 
       $ok = true;
       $stmt->execute([$j_id]);
@@ -318,6 +322,27 @@ require_once '../include/header.php';
             <? endforeach ?>
           </select>
           <p class="form-hint">Ruleset chargé par défaut à chaque connexion.</p>
+        </div>
+
+        <div class="form-group">
+          <label>Apparence du site</label>
+          <div class="theme-selector">
+            <label class="theme-option">
+              <input type="radio" name="j_theme" value="dark"
+                     <?= ($joueur['j_theme'] ?? 'dark') === 'dark' ? 'checked' : '' ?>>
+              <span class="theme-option__label">
+                <i class="fa fa-moon"></i> Sombre
+              </span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="j_theme" value="light"
+                     <?= ($joueur['j_theme'] ?? 'dark') === 'light' ? 'checked' : '' ?>>
+              <span class="theme-option__label">
+                <i class="fa fa-sun"></i> Clair — Parchemin
+              </span>
+            </label>
+          </div>
+          <p class="form-hint">Le thème choisi s'applique immédiatement après enregistrement.</p>
         </div>
 
         <div class="form-group">

@@ -327,8 +327,8 @@ Affectation d'une compétence à une classe. Pour DD3.5 : il s'agit des compéte
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | ccomp_id | int unsigned | PK | |
-| ccomp_cla_id | int unsigned | nn, UK(cc_cla_id, cc_cap_id, cc_niveau) | -> dd_classes |
-| ccomp_cap_id | int unsigned | nn | -> dd_capacites_speciales |
+| ccomp_cla_id | int unsigned | nn, UK(ccomp_cla_id, ccomp_comp_id, cc_niveau) | -> dd_classes |
+| ccomp_comp_id | int unsigned | nn | -> dd_competences |
 | ccomp_precision | varchar(255) | null | Précision pour les compétences d'artisanat, connaissance... Ex : Géographie, tailleur de pierre |
 
 ---
@@ -339,6 +339,7 @@ Type de classe
 |---|---|---|---|
 | clt_id | int unsigned | PK | |
 | clt_nom | varchar(50) | nn | |
+| clt_ruleset_var_id | int unsigned | nn | -> dd_variables| |
 
 ---
 

@@ -1,0 +1,46 @@
+/* ============================================================
+   SÉLECTEUR DE THÈME (section Paramètres du profil)
+   À coller dans css/modules.css après le bloc .toggle-label
+   ============================================================ */
+
+.theme-selector {
+  display: flex;
+  gap: var(--sp-md);
+  margin-top: var(--sp-xs);
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  cursor: pointer;
+}
+
+.theme-option input[type="radio"] {
+  width: auto;
+  accent-color: var(--clr-accent-2);
+  cursor: pointer;
+}
+
+.theme-option__label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding: 6px 14px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--clr-text-muted);
+  background: var(--clr-surface-2);
+  transition: border-color 0.15s, color 0.15s;
+  cursor: pointer;
+}
+
+.theme-option input[type="radio"]:checked + .theme-option__label {
+  border-color: var(--clr-accent-2);
+  color: var(--clr-accent-2);
+}
+
+.theme-option__label i {
+  font-size: 0.9rem;
+}

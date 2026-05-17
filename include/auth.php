@@ -28,7 +28,7 @@ function checkRememberMe($db)
   $token = $_COOKIE['remember_token'];
   $stmt  = $db->prepare('
     SELECT j_id, j_pseudo, j_admin, j_compendium_manager, j_default_ruleset_var_id,
-           j_mode_campagne, j_affichage_ruleset
+           j_mode_campagne, j_affichage_ruleset, j_theme
     FROM   dd_joueurs
     WHERE  j_remember_token = ?
       AND  j_remember_token_expires > NOW()
@@ -54,6 +54,9 @@ function startUserSession(array $row)
   $_SESSION['rulesetRep']            = getRulesetRep($_SESSION['ruleset_var_id']);
   $_SESSION['j_mode_campagne']       = (bool)($row['j_mode_campagne'] ?? false);
   $_SESSION['j_affichage_ruleset']   = (bool)($row['j_affichage_ruleset'] ?? false);
+  $_SESSION['j_theme']               = in_array($row['j_theme'] ?? '', ['dark', 'light'], true)
+                                       ? $row['j_theme']
+                                       : 'dark';
 }
 
 function setRememberCookie(string $token, int $expires)

@@ -2,7 +2,7 @@
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Phase 2 — compendium sorts + TinyMCE + zone admin + compétences + sélection sources profil
+> Dernière mise à jour : Mise en page — Système de thèmes (dark/light) + fix table-classe-niv + overlays élargis
 
 ---
 
@@ -416,6 +416,7 @@ DEV_MODE = true dans include/db.php → lien reset MDP affiché en page.
 | Paramètre | Champ | Description |
 |---|---|---|
 | Ruleset par défaut | j_default_ruleset_var_id | Ruleset chargé à chaque connexion |
+| Apparence | j_theme | Thème visuel : dark (sombre) ou light (Parchemin) |
 | Mode campagne | j_mode_campagne | Active/désactive le menu Campagnes |
 | Affichage ruleset | j_affichage_ruleset | Affiche le ruleset dans le header |
 | Éléments par page | j_items_par_page | Taille des listes (10/20/50/100) |
@@ -439,6 +440,70 @@ Chaque res_id reçu en POST est revalidé côté serveur contre la liste autoris
 
 > Les ressources homebrew (`res_j_id IS NOT NULL`) ne sont pas gérées depuis le profil.
 > Voir §5 Compendium — Contenu homebrew.
+
+---
+
+## 11b. Système de thèmes visuels
+
+### Mécanisme
+
+Le thème est une classe CSS sur `<body>` : `theme-dark` ou `theme-light`.
+
+```php
+// include/header.php
+$theme_valides = ['dark', 'light'];
+$theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
+                 ? $_SESSION['j_theme']
+                 : 'dark';
+// ...
+<body class="theme-<?= $theme_actif ?>">
+```
+
+Les variables CSS sont déclarées par thème dans `css/main.css` :
+
+```css
+body.theme-dark  { --clr-bg: #1a1a2e; --clr-surface: #16213e; ... }
+body.theme-light { --clr-bg: #f4f1eb; --clr-surface: #ffffff; ... }
+:root            { /* typo, espacements, rayons — indépendants du thème */ }
+```
+
+### Thèmes disponibles
+
+| Valeur | Nom | Description |
+|---|---|---|
+| dark | Sombre | Bleu nuit, accents rouge/or — défaut |
+| light | Parchemin | Tons beiges chauds, accents bordeaux/or patiné |
+
+### Stockage et session
+
+- BDD : `dd_joueurs.j_theme ENUM('dark','light') DEFAULT 'dark'`
+- Session : `$_SESSION['j_theme']` chargé dans `startUserSession()` (include/auth.php)
+- Validation : whitelist `['dark','light']` dans auth.php et profil/index.php
+- Choix : radio buttons dans la section Paramètres de profil/index.php
+
+### Variable CSS --clr-surface-alt
+
+`--clr-surface-alt` est définie dans chaque thème pour les composants qui nécessitent
+une surface légèrement différente de `--clr-surface-2` (ex : en-têtes de `table-classe-niv`).
+Ne pas utiliser de fallback hardcodé — toujours passer par la variable.
+
+### Overlays — largeurs
+
+| Composant | max-width |
+|---|---|
+| .overlay-panel (detail-pp) | 960px |
+| .overlay-panel--edit (modification) | 1040px |
+
+Ces valeurs permettent d'afficher les tables de progression de classe (20+ colonnes)
+sans scroll horizontal dans le panel.
+
+### Extension future
+
+Un troisième thème s'ajoute en :
+1. Déclarant `body.theme-xxx { ... }` dans main.css
+2. Ajoutant 'xxx' au ENUM de dd_joueurs
+3. Ajoutant 'xxx' aux whitelists dans auth.php et profil/index.php
+4. Ajoutant l'option radio dans profil/index.php
 
 ---
 
@@ -502,7 +567,9 @@ Règle :
   <div class="box-data">contenu</div>
 </div>
 ```
-Style : fond #f3f3ef, bordure #e2e2dd, rayon 0.35rem, padding 10px.
+Style : fond var(--burger-bg), bordure var(--burger-border), texte var(--burger-text).
+Les valeurs de ces variables sont définies par thème dans main.css.
+Le fond reste toujours "clair" dans les deux thèmes (beige #f3f3ef en dark, #f9f6f0 en light).
 
 ---
 
@@ -535,8 +602,8 @@ donjon/
     profil.js
     admin.js         (Phase admin — clone adapté de compendium.js)
   css/
-    main.css                  variables, layout, composants transverses
-    modules.css               styles globaux (login, dashboard, profil, header)
+    main.css                  variables par thème (body.theme-dark/light), layout, composants transverses
+    modules.css               styles globaux (login, dashboard, profil, header, sélecteur thème)
     compendium-modules.css    styles compendium — chargé si $css_module = 'compendium'
     personnages-modules.css   (Phase 3) — chargé si $css_module = 'personnages'
     campagnes-modules.css     (Phase 4) — chargé si $css_module = 'campagnes'
@@ -544,9 +611,9 @@ donjon/
     admin-modules.css         chargé si $css_module = 'admin'
   include/
     db.php           PDO + BASE_URL + DEV_MODE
-    auth.php
+    auth.php         + chargement j_theme en session
     helpers.php
-    header.php       charge $css_module-modules.css et $js_module.js conditionnellement
+    header.php       classe theme-{dark|light} sur body + charge $css_module-modules.css et $js_module.js
     footer.php
     compendium-liste.php    moteur de liste commun compendium (lit $listConfig)
     admin-liste.php         moteur de liste commun admin (lit $adminListConfig)
@@ -561,6 +628,7 @@ donjon/
   sql/
     schema.sql
     patch_001_reset_password.sql
+    patch_002_theme.sql        ← ALTER TABLE dd_joueurs ADD j_theme
   img/
     uploads/               dépôt fichiers uploadés via TinyMCE (755)
   doc/
@@ -587,7 +655,7 @@ Auth, session, helpers, header/footer, dashboard, profil, reset MDP, CSS design 
 - AJAX detail-pp et modifier pour chaque entité
 - Templates DD3.5 et DD2024 en parallèle
 
-### Phase Admin — Zone d'administration
+### Phase Admin — Zone d'administration TERMINE
 - include/admin-liste.php — moteur commun admin
 - admin/enregistrement.php — POST commun admin
 - js/admin.js — tri, bulk, confirmation inline (adapté)
@@ -595,6 +663,12 @@ Auth, session, helpers, header/footer, dashboard, profil, reset MDP, CSS design 
 - admin/index.php — dashboard 2 cartes
 - admin/utilisateurs.php + AJAX detail-pp/modifier/utilisateur.php
 - admin/ressources.php + AJAX detail-pp/modifier/ressource.php
+
+### Mise en page — Thèmes TERMINE
+- Système dark/light via classe body + variables CSS par thème
+- Fix bug table-classe-niv (--clr-surface-alt non défini)
+- Overlays élargis (960px / 1040px)
+- Sélecteur de thème dans profil/index.php section Paramètres
 
 ### Phase 3 — Personnages
 Fiche, classes/niveaux, sorts, compétences, dons, NLS (DD3.5).
@@ -787,3 +861,6 @@ tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
 - [ ] TinyMCE : triggerSave() appelé avant tout submit AJAX
 - [ ] TinyMCE : champs description/contenu affichés sans h()
 - [ ] img/uploads/ exclu du repo (.gitignore)
+- [ ] Thèmes : toute nouvelle variable CSS définie dans body.theme-dark ET body.theme-light
+- [ ] Thèmes : aucun fallback de couleur hardcodé dans les composants (ex: #f5efe6) — utiliser uniquement des var()
+- [ ] Thèmes : --clr-surface-alt défini dans les deux thèmes si utilisé dans un composant
