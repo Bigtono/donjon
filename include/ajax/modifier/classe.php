@@ -457,13 +457,13 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
       <div class="form-group">
         <label for="cla_armes">Maîtrise d'armes</label>
         <textarea id="cla_armes" name="cla_armes"
-                  class="tinymce-basic"><?= $cla['cla_armes'] ?? '' ?></textarea>
+                  rows="3"><?= h($cla['cla_armes'] ?? '') ?></textarea>
       </div>
 
       <div class="form-group">
         <label for="cla_armures">Formation aux armures</label>
         <textarea id="cla_armures" name="cla_armures"
-                  class="tinymce-basic"><?= $cla['cla_armures'] ?? '' ?></textarea>
+                  rows="3"><?= h($cla['cla_armures'] ?? '') ?></textarea>
       </div>
 
       <div class="form-group">
@@ -475,17 +475,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
       <div class="form-group">
         <label for="cla_equipement">Équipement de départ</label>
         <textarea id="cla_equipement" name="cla_equipement"
-                  class="tinymce-basic"><?= $cla['cla_equipement'] ?? '' ?></textarea>
-      </div>
-
-      <div class="modif-grid" style="margin-top:.25rem;">
-        <div class="form-group">
-          <label>
-            <input type="checkbox" name="cla_sort_prepare" value="1"
-                   <?= $cla['cla_sort_prepare'] ? 'checked' : '' ?>>
-            Sorts préparés
-          </label>
-        </div>
+                  rows="3"><?= h($cla['cla_equipement'] ?? '') ?></textarea>
       </div>
 
     </div><!-- .modif-section DD2024 -->
@@ -511,8 +501,8 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
             <thead>
               <tr>
                 <th class="col-niveau">Niv.</th>
-                <th class="col-stat"><?= $ruleset === 'DD3.5' ? 'BBA' : 'B. maîtrise' ?></th>
                 <?php if ($ruleset === 'DD3.5'): ?>
+                  <th class="col-stat">BBA</th>
                   <th class="col-stat">Réf.</th>
                   <th class="col-stat">Vig.</th>
                   <th class="col-stat">Vol.</th>
@@ -521,16 +511,21 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
                   <th class="col-pouvoir"><?= h((string)($cla['cla_pouvoir' . $p] ?? '')) ?></th>
                 <?php endforeach ?>
                 <?php if ($isLanceurSorts): ?>
-                  <?php for ($s = 0; $s <= 9; $s++): ?>
-                    <th class="col-sort">S<?= $s ?></th>
-                  <?php endfor ?>
-                  <?php if ($ruleset === 'DD3.5' && $cla['cla_sort_connu']): ?>
-                    <?php for ($s = 0; $s <= 9; $s++): ?>
-                      <th class="col-sort">C<?= $s ?></th>
+                  <?php if ($ruleset === 'DD2024'): ?>
+                    <th class="col-sort" title="Sorts mineurs (niveau 0)">Min.</th>
+                    <th class="col-sort" title="Sorts préparés">Prép.</th>
+                    <?php for ($s = 1; $s <= 9; $s++): ?>
+                      <th class="col-sort">N<?= $s ?></th>
                     <?php endfor ?>
-                  <?php endif ?>
-                  <?php if ($ruleset === 'DD2024' && $cla['cla_sort_prepare']): ?>
-                    <th class="col-sort">Prép.</th>
+                  <?php else: ?>
+                    <?php for ($s = 0; $s <= 9; $s++): ?>
+                      <th class="col-sort">S<?= $s ?></th>
+                    <?php endfor ?>
+                    <?php if ($cla['cla_sort_connu']): ?>
+                      <?php for ($s = 0; $s <= 9; $s++): ?>
+                        <th class="col-sort">C<?= $s ?></th>
+                      <?php endfor ?>
+                    <?php endif ?>
                   <?php endif ?>
                 <?php endif ?>
               </tr>
@@ -542,12 +537,12 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
                     <?= $niv ?>
                     <input type="hidden" name="niveaux[<?= $niv ?>][cn_niveau]" value="<?= $niv ?>">
                   </td>
-                  <td>
-                    <input type="text" class="col-stat"
-                           name="niveaux[<?= $niv ?>][cn_bba]"
-                           value="<?= h($row['cn_bba']) ?>">
-                  </td>
                   <?php if ($ruleset === 'DD3.5'): ?>
+                    <td>
+                      <input type="text" class="col-stat"
+                             name="niveaux[<?= $niv ?>][cn_bba]"
+                             value="<?= h($row['cn_bba']) ?>">
+                    </td>
                     <td>
                       <input type="text" class="col-stat"
                              name="niveaux[<?= $niv ?>][cn_reflexes]"
@@ -572,28 +567,41 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
                     </td>
                   <?php endforeach ?>
                   <?php if ($isLanceurSorts): ?>
-                    <?php for ($s = 0; $s <= 9; $s++): ?>
+                    <?php if ($ruleset === 'DD2024'): ?>
                       <td>
                         <input type="text" class="col-sort"
-                               name="niveaux[<?= $niv ?>][cn_sort_n<?= $s ?>]"
-                               value="<?= h((string)($row['cn_sort_n' . $s] ?? '')) ?>">
+                               name="niveaux[<?= $niv ?>][cn_sort_n0]"
+                               value="<?= h((string)($row['cn_sort_n0'] ?? '')) ?>">
                       </td>
-                    <?php endfor ?>
-                    <?php if ($ruleset === 'DD3.5' && $cla['cla_sort_connu']): ?>
-                      <?php for ($s = 0; $s <= 9; $s++): ?>
-                        <td>
-                          <input type="text" class="col-sort"
-                                 name="niveaux[<?= $niv ?>][cn_sortConnu_n<?= $s ?>]"
-                                 value="<?= h((string)($row['cn_sortConnu_n' . $s] ?? '')) ?>">
-                        </td>
-                      <?php endfor ?>
-                    <?php endif ?>
-                    <?php if ($ruleset === 'DD2024' && $cla['cla_sort_prepare']): ?>
                       <td>
                         <input type="text" class="col-sort"
                                name="niveaux[<?= $niv ?>][cn_sortPrepare]"
                                value="<?= h((string)($row['cn_sortPrepare'] ?? '')) ?>">
                       </td>
+                      <?php for ($s = 1; $s <= 9; $s++): ?>
+                        <td>
+                          <input type="text" class="col-sort"
+                                 name="niveaux[<?= $niv ?>][cn_sort_n<?= $s ?>]"
+                                 value="<?= h((string)($row['cn_sort_n' . $s] ?? '')) ?>">
+                        </td>
+                      <?php endfor ?>
+                    <?php else: ?>
+                      <?php for ($s = 0; $s <= 9; $s++): ?>
+                        <td>
+                          <input type="text" class="col-sort"
+                                 name="niveaux[<?= $niv ?>][cn_sort_n<?= $s ?>]"
+                                 value="<?= h((string)($row['cn_sort_n' . $s] ?? '')) ?>">
+                        </td>
+                      <?php endfor ?>
+                      <?php if ($cla['cla_sort_connu']): ?>
+                        <?php for ($s = 0; $s <= 9; $s++): ?>
+                          <td>
+                            <input type="text" class="col-sort"
+                                   name="niveaux[<?= $niv ?>][cn_sortConnu_n<?= $s ?>]"
+                                   value="<?= h((string)($row['cn_sortConnu_n' . $s] ?? '')) ?>">
+                          </td>
+                        <?php endfor ?>
+                      <?php endif ?>
                     <?php endif ?>
                   <?php endif ?>
                 </tr>
@@ -743,18 +751,19 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
     if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
     tinymce.remove('.tinymce-basic');
     tinymce.init({
-      selector:    '.tinymce-basic',
-      language:    'fr_FR',
-      menubar:     false,
-      plugins:     'lists link',
-      toolbar:     'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
-      height:      220,
-      skin:        'oxide-dark',
-      content_css: 'dark',
-      promotion:   false,
-      branding:    false,
-      base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
-      suffix:      '.min',
+      selector:      '.tinymce-basic',
+      language:      'fr_FR',
+      menubar:       false,
+      plugins:       'lists link',
+      toolbar:       'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
+      height:        220,
+      skin:          'oxide',
+      content_css:   'default',
+      content_style: 'body { background: #eae6dd; color: #1a1a1a; font-family: Segoe UI, system-ui, sans-serif; font-size: 14px; margin: 8px; }',
+      promotion:     false,
+      branding:      false,
+      base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
+      suffix:        '.min',
     });
   })();
 

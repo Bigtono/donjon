@@ -114,7 +114,7 @@ Types de magie (profane, divin).
 
 ---
 
-### dd_bonus_matrise
+### dd_bonus_maitrise
 Bonus de maitrise par niveau dns *[DD2024]*
 
 | Champ | Type | Null | Commentaire |

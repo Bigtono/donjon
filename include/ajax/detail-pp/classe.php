@@ -113,6 +113,19 @@ $stmt_cap = $db->prepare('
 $stmt_cap->execute([$id]);
 $capacites = $stmt_cap->fetchAll();
 
+// Bonus de maîtrise DD2024 — commun à toutes les classes, par niveau
+$bonusMaitrise = [];
+if ($ruleset === 'DD2024'):
+  try {
+    $stmt_bm = $db->query('SELECT bm_niveau, bm_bonus FROM dd_bonus_maitrise ORDER BY bm_niveau');
+    foreach ($stmt_bm->fetchAll() as $bm):
+      $bonusMaitrise[(int)$bm['bm_niveau']] = (int)$bm['bm_bonus'];
+    endforeach;
+  } catch (Exception $e) {
+    // Table absente — bonus non affiché
+  }
+endif;
+
 // URL de base pour les sous-panels
 $url_sub_cap  = BASE_URL . '/include/ajax/detail-pp/capacite.php';
 $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
@@ -253,14 +266,26 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
   <?php // ---- Tableau de progression par niveau ?>
   <?php if (!empty($niveaux)): ?>
     <?php
-    // Nombre de colonnes sorts actives (pour le colspan "Nombre de sorts par jour")
-    $nbColsSorts = $isLanceurSorts ? 10 : 0; // niv 0-9
-    if ($ruleset === 'DD2024' && $cla['cla_sort_prepare']) $nbColsSorts = 1; // remplace les 10 par 1
-    // Nombre de colonnes stats
-    $nbColsStats  = ($ruleset === 'DD3.5') ? 4 : 1; // BBA+Réf+Vig+Vol ou B.maîtrise seul
+    // DD2024 : colonnes sorts = Min. + Prép. + niv 1-9 = 11 cols si lanceur de sorts
+    // DD3.5  : colonnes sorts = niv 0-9 = 10 cols
     $nbColsPouvoirs = count($activePouvoirs);
-    // Colspan total de l'en-tête sur la rangée 1 avant les sorts
-    $colsBefore = 1 + $nbColsStats + 1 + $nbColsPouvoirs; // Niv + stats + Aptitudes + pouvoirs
+    if ($ruleset === 'DD2024'):
+      $nbColsStats = 1; // Bonus maîtrise
+      if ($isLanceurSorts):
+        // Min. | Prép. | N1..N9
+        $nbColsSorts  = 11;
+        $lblGroupSort = 'Nombre de sorts par jour';
+      else:
+        $nbColsSorts  = 0;
+        $lblGroupSort = '';
+      endif;
+    else:
+      $nbColsStats = 4; // BBA + Réf + Vig + Vol
+      $nbColsSorts = $isLanceurSorts ? 10 : 0;
+      $lblGroupSort = 'Nombre de sorts par jour';
+    endif;
+    // Colonnes avant les sorts : Niv + stats + Aptitudes + Pouvoirs
+    $colsBefore = 1 + $nbColsStats + 1 + $nbColsPouvoirs;
     ?>
     <div class="classe-detail__niveaux" style="margin-top:1rem; overflow-x:auto;">
       <p class="classe-detail__table-titre">
@@ -272,7 +297,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
           <?php if ($isLanceurSorts): ?>
           <tr class="thead-groupes">
             <th colspan="<?= $colsBefore ?>"></th>
-            <th colspan="<?= $nbColsSorts ?>" class="th-groupe-sorts">Nombre de sorts par jour</th>
+            <th colspan="<?= $nbColsSorts ?>" class="th-groupe-sorts"><?= $lblGroupSort ?></th>
           </tr>
           <?php endif ?>
           <tr>
@@ -290,8 +315,12 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
               <th class="col-pouvoir"><?= h((string)($cla['cla_pouvoir' . $p] ?? '')) ?></th>
             <?php endforeach ?>
             <?php if ($isLanceurSorts): ?>
-              <?php if ($ruleset === 'DD2024' && $cla['cla_sort_prepare']): ?>
-                <th class="col-sort">Prép.</th>
+              <?php if ($ruleset === 'DD2024'): ?>
+                <th class="col-sort" title="Sorts mineurs (niveau 0)">Min.</th>
+                <th class="col-sort" title="Sorts préparés">Prép.</th>
+                <?php for ($s = 1; $s <= 9; $s++): ?>
+                  <th class="col-sort">N<?= $s ?></th>
+                <?php endfor ?>
               <?php else: ?>
                 <?php for ($s = 0; $s <= 9; $s++): ?>
                   <th class="col-sort"><?= $s ?></th>
@@ -316,24 +345,31 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
               endforeach;
               $caps_html = implode(', ', $caps_parts);
             endif;
+            $niveau = (int)$niv['cn_niveau'];
             ?>
             <tr>
-              <td class="col-niv"><strong><?= (int)$niv['cn_niveau'] ?></strong></td>
+              <td class="col-niv"><strong><?= $niveau ?></strong></td>
               <?php if ($ruleset === 'DD3.5'): ?>
                 <td class="col-stat"><?= h($niv['cn_bba'] ?? '') ?></td>
                 <td class="col-stat">+<?= (int)($niv['cn_reflexes'] ?? 0) ?></td>
                 <td class="col-stat">+<?= (int)($niv['cn_vigueur']  ?? 0) ?></td>
                 <td class="col-stat">+<?= (int)($niv['cn_volonte']  ?? 0) ?></td>
               <?php else: ?>
-                <td class="col-stat"><?= h($niv['cn_bba'] ?? '') ?></td>
+                <td class="col-stat">
+                  <?= isset($bonusMaitrise[$niveau]) ? '+' . $bonusMaitrise[$niveau] : '—' ?>
+                </td>
               <?php endif ?>
               <td class="col-aptitudes"><?= $caps_html ?></td>
               <?php foreach ($activePouvoirs as $p): ?>
                 <td class="col-pouvoir"><?= h((string)($niv['cn_pouvoir' . $p] ?? '—')) ?></td>
               <?php endforeach ?>
               <?php if ($isLanceurSorts): ?>
-                <?php if ($ruleset === 'DD2024' && $cla['cla_sort_prepare']): ?>
+                <?php if ($ruleset === 'DD2024'): ?>
+                  <td class="col-sort"><?= $niv['cn_sort_n0'] !== null && $niv['cn_sort_n0'] !== '' ? (int)$niv['cn_sort_n0'] : '—' ?></td>
                   <td class="col-sort"><?= $niv['cn_sortPrepare'] !== null && $niv['cn_sortPrepare'] !== '' ? (int)$niv['cn_sortPrepare'] : '—' ?></td>
+                  <?php for ($s = 1; $s <= 9; $s++): ?>
+                    <td class="col-sort"><?= $niv['cn_sort_n' . $s] !== null && $niv['cn_sort_n' . $s] !== '' ? (int)$niv['cn_sort_n' . $s] : '—' ?></td>
+                  <?php endfor ?>
                 <?php else: ?>
                   <?php for ($s = 0; $s <= 9; $s++): ?>
                     <td class="col-sort"><?= $niv['cn_sort_n' . $s] !== null && $niv['cn_sort_n' . $s] !== '' ? (int)$niv['cn_sort_n' . $s] : '—' ?></td>
