@@ -991,7 +991,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
         WHERE cn_cla_id = ? AND cn_niveau = ?
       ');
 
-      // Colonnes autorisées (toujours présentes dans la table)
+      // Colonnes toujours présentes dans la table
       $cols_allowed = [
         'cn_bba',
         'cn_reflexes',
@@ -1025,13 +1025,49 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
         'cn_sortPrepare',
       ];
 
+      // Colonnes nullable : champ vide → NULL (distinction entre "pas de sort" et "0 sort")
+      // Les colonnes nn (bba, réflexes, vigueur, volonté) conservent leur valeur par défaut.
+      $cols_nullable = [
+        'cn_sort_n0',
+        'cn_sort_n1',
+        'cn_sort_n2',
+        'cn_sort_n3',
+        'cn_sort_n4',
+        'cn_sort_n5',
+        'cn_sort_n6',
+        'cn_sort_n7',
+        'cn_sort_n8',
+        'cn_sort_n9',
+        'cn_sortConnu_n0',
+        'cn_sortConnu_n1',
+        'cn_sortConnu_n2',
+        'cn_sortConnu_n3',
+        'cn_sortConnu_n4',
+        'cn_sortConnu_n5',
+        'cn_sortConnu_n6',
+        'cn_sortConnu_n7',
+        'cn_sortConnu_n8',
+        'cn_sortConnu_n9',
+        'cn_sortPrepare',
+        'cn_pouvoir1',
+        'cn_pouvoir2',
+        'cn_pouvoir3',
+        'cn_pouvoir4',
+        'cn_pouvoir5',
+      ];
+
       foreach ($niveaux_post as $nKey => $row):
         $niv = (int)$nKey;
         if ($niv < 1 || $niv > $niveauMax) continue;
 
         $values = [];
         foreach ($cols_allowed as $col):
-          $values[$col] = isset($row[$col]) ? trim((string)$row[$col]) : '';
+          $raw = isset($row[$col]) ? trim((string)$row[$col]) : '';
+          if ($raw === '' && in_array($col, $cols_nullable, true)):
+            $values[$col] = null;
+          else:
+            $values[$col] = $raw;
+          endif;
         endforeach;
 
         $stmt_exists->execute([$cla_id, $niv]);

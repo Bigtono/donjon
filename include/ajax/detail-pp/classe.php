@@ -13,7 +13,8 @@ require_once __DIR__ . '/../../helpers.php';
 requireAuth();
 
 $id      = intParam($_GET['id'] ?? $_POST['id'] ?? 0);
-$ruleset = $_SESSION['rulesetRep'] ?? 'DD3.5';
+$ruleset    = $_SESSION['rulesetRep']      ?? 'DD3.5';
+$ruleset_id = (int)($_SESSION['ruleset_var_id'] ?? 1);
 
 if (!$id):
   http_response_code(400);
@@ -114,15 +115,22 @@ $stmt_cap->execute([$id]);
 $capacites = $stmt_cap->fetchAll();
 
 // Bonus de maîtrise DD2024 — commun à toutes les classes, par niveau
+// Table : dd_bonus_matrise (orthographe exacte en base, filtrée par ruleset)
 $bonusMaitrise = [];
 if ($ruleset === 'DD2024'):
   try {
-    $stmt_bm = $db->query('SELECT bm_niveau, bm_bonus FROM dd_bonus_maitrise ORDER BY bm_niveau');
+    $stmt_bm = $db->prepare('
+      SELECT bm_niveau, bm_bonus
+      FROM   dd_bonus_maitrise
+      WHERE  bm_ruleset_var_id = ?
+      ORDER  BY bm_niveau
+    ');
+    $stmt_bm->execute([$ruleset_id]);
     foreach ($stmt_bm->fetchAll() as $bm):
       $bonusMaitrise[(int)$bm['bm_niveau']] = (int)$bm['bm_bonus'];
     endforeach;
   } catch (Exception $e) {
-    // Table absente — bonus non affiché
+    // Table absente ou vide — bonus non affiché
   }
 endif;
 
