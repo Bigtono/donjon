@@ -121,8 +121,8 @@ Bonus de maitrise par niveau dns *[DD2024]*
 |---|---|---|---|
 | bm_id | int unsigned | PK | |
 | bm_niveau | int | nn | de 1 à 20 |
-| mm_bonus | int | nn | de 0 à 6 |
-
+| bm_bonus | int | nn | de 0 à 6 |
+| bm_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
 ---
 
