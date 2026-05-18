@@ -252,46 +252,50 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
 
   <?php // ---- Tableau de progression par niveau ?>
   <?php if (!empty($niveaux)): ?>
+    <?php
+    // Nombre de colonnes sorts actives (pour le colspan "Nombre de sorts par jour")
+    $nbColsSorts = $isLanceurSorts ? 10 : 0; // niv 0-9
+    if ($ruleset === 'DD2024' && $cla['cla_sort_prepare']) $nbColsSorts = 1; // remplace les 10 par 1
+    // Nombre de colonnes stats
+    $nbColsStats  = ($ruleset === 'DD3.5') ? 4 : 1; // BBA+Réf+Vig+Vol ou B.maîtrise seul
+    $nbColsPouvoirs = count($activePouvoirs);
+    // Colspan total de l'en-tête sur la rangée 1 avant les sorts
+    $colsBefore = 1 + $nbColsStats + 1 + $nbColsPouvoirs; // Niv + stats + Aptitudes + pouvoirs
+    ?>
     <div class="classe-detail__niveaux" style="margin-top:1rem; overflow-x:auto;">
-      <div class="classe-detail__table-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.4rem;">
+      <p class="classe-detail__table-titre">
         <strong>Table de progression : <?= h($cla['cla_nom']) ?></strong>
-        <?php if ($isLanceurSorts): ?>
-          <button type="button" class="btn btn-sm btn-secondary"
-                  onclick="classeSwitchVue(this)"
-                  data-vue="stats"
-                  title="Basculer l'affichage sorts / statistiques">
-            <i class="fa fa-exchange-alt"></i>
-          </button>
-        <?php endif ?>
-      </div>
+      </p>
 
       <table class="table-classe-niv" id="classe-niv-table">
         <thead>
+          <?php if ($isLanceurSorts): ?>
+          <tr class="thead-groupes">
+            <th colspan="<?= $colsBefore ?>"></th>
+            <th colspan="<?= $nbColsSorts ?>" class="th-groupe-sorts">Nombre de sorts par jour</th>
+          </tr>
+          <?php endif ?>
           <tr>
-            <th>Niv.</th>
+            <th class="col-niv">Niv.</th>
             <?php if ($ruleset === 'DD3.5'): ?>
-              <th data-groupe="stats">BBA</th>
-              <th data-groupe="stats">Réf.</th>
-              <th data-groupe="stats">Vig.</th>
-              <th data-groupe="stats">Vol.</th>
+              <th class="col-stat">BBA</th>
+              <th class="col-stat">Réf.</th>
+              <th class="col-stat">Vig.</th>
+              <th class="col-stat">Vol.</th>
             <?php else: ?>
-              <th data-groupe="stats">B. maîtrise</th>
+              <th class="col-stat">B. maîtrise</th>
             <?php endif ?>
-            <th class="col-aptitudes" data-groupe="aptitudes">Aptitudes</th>
+            <th class="col-aptitudes">Aptitudes</th>
             <?php foreach ($activePouvoirs as $p): ?>
-              <th data-groupe="pouvoirs"><?= h((string)($cla['cla_pouvoir' . $p] ?? '')) ?></th>
+              <th class="col-pouvoir"><?= h((string)($cla['cla_pouvoir' . $p] ?? '')) ?></th>
             <?php endforeach ?>
             <?php if ($isLanceurSorts): ?>
-              <?php for ($s = 0; $s <= 9; $s++): ?>
-                <th data-groupe="sorts">S<?= $s ?></th>
-              <?php endfor ?>
-              <?php if ($ruleset === 'DD3.5' && $cla['cla_sort_connu']): ?>
-                <?php for ($s = 0; $s <= 9; $s++): ?>
-                  <th data-groupe="sorts-connus">C<?= $s ?></th>
-                <?php endfor ?>
-              <?php endif ?>
               <?php if ($ruleset === 'DD2024' && $cla['cla_sort_prepare']): ?>
-                <th data-groupe="sorts">Prép.</th>
+                <th class="col-sort">Prép.</th>
+              <?php else: ?>
+                <?php for ($s = 0; $s <= 9; $s++): ?>
+                  <th class="col-sort"><?= $s ?></th>
+                <?php endfor ?>
               <?php endif ?>
             <?php endif ?>
           </tr>
@@ -299,7 +303,6 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
         <tbody>
           <?php foreach ($niveaux as $niv): ?>
             <?php
-            // Construire la liste des capacités cliquables pour ce niveau
             $caps_html = '—';
             if (!empty($niv['capacites_raw'])):
               $caps_parts = [];
@@ -315,30 +318,26 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
             endif;
             ?>
             <tr>
-              <td class="col-niveau"><strong><?= (int)$niv['cn_niveau'] ?></strong></td>
+              <td class="col-niv"><strong><?= (int)$niv['cn_niveau'] ?></strong></td>
               <?php if ($ruleset === 'DD3.5'): ?>
-                <td data-groupe="stats"><?= h($niv['cn_bba']) ?></td>
-                <td data-groupe="stats">+<?= (int)$niv['cn_reflexes'] ?></td>
-                <td data-groupe="stats">+<?= (int)$niv['cn_vigueur'] ?></td>
-                <td data-groupe="stats">+<?= (int)$niv['cn_volonte'] ?></td>
+                <td class="col-stat"><?= h($niv['cn_bba'] ?? '') ?></td>
+                <td class="col-stat">+<?= (int)($niv['cn_reflexes'] ?? 0) ?></td>
+                <td class="col-stat">+<?= (int)($niv['cn_vigueur']  ?? 0) ?></td>
+                <td class="col-stat">+<?= (int)($niv['cn_volonte']  ?? 0) ?></td>
               <?php else: ?>
-                <td data-groupe="stats"><?= h($niv['cn_bba']) ?></td>
+                <td class="col-stat"><?= h($niv['cn_bba'] ?? '') ?></td>
               <?php endif ?>
-              <td class="col-aptitudes" data-groupe="aptitudes"><?= $caps_html ?></td>
+              <td class="col-aptitudes"><?= $caps_html ?></td>
               <?php foreach ($activePouvoirs as $p): ?>
-                <td data-groupe="pouvoirs"><?= h((string)($niv['cn_pouvoir' . $p] ?? '—')) ?></td>
+                <td class="col-pouvoir"><?= h((string)($niv['cn_pouvoir' . $p] ?? '—')) ?></td>
               <?php endforeach ?>
               <?php if ($isLanceurSorts): ?>
-                <?php for ($s = 0; $s <= 9; $s++): ?>
-                  <td data-groupe="sorts"><?= $niv['cn_sort_n' . $s] !== null ? (int)$niv['cn_sort_n' . $s] : '—' ?></td>
-                <?php endfor ?>
-                <?php if ($ruleset === 'DD3.5' && $cla['cla_sort_connu']): ?>
-                  <?php for ($s = 0; $s <= 9; $s++): ?>
-                    <td data-groupe="sorts-connus"><?= $niv['cn_sortConnu_n' . $s] !== null ? (int)$niv['cn_sortConnu_n' . $s] : '—' ?></td>
-                  <?php endfor ?>
-                <?php endif ?>
                 <?php if ($ruleset === 'DD2024' && $cla['cla_sort_prepare']): ?>
-                  <td data-groupe="sorts"><?= $niv['cn_sortPrepare'] !== null ? (int)$niv['cn_sortPrepare'] : '—' ?></td>
+                  <td class="col-sort"><?= $niv['cn_sortPrepare'] !== null && $niv['cn_sortPrepare'] !== '' ? (int)$niv['cn_sortPrepare'] : '—' ?></td>
+                <?php else: ?>
+                  <?php for ($s = 0; $s <= 9; $s++): ?>
+                    <td class="col-sort"><?= $niv['cn_sort_n' . $s] !== null && $niv['cn_sort_n' . $s] !== '' ? (int)$niv['cn_sort_n' . $s] : '—' ?></td>
+                  <?php endfor ?>
                 <?php endif ?>
               <?php endif ?>
             </tr>
@@ -346,6 +345,65 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
         </tbody>
       </table>
     </div>
+
+    <?php // ---- Table Sorts connus (DD3.5 uniquement, dans une table séparée) ?>
+    <?php
+    // Vérifier qu'au moins une ligne contient une valeur avant d'afficher la table
+    $hasSortsConnus = false;
+    if ($ruleset === 'DD3.5' && $cla['cla_sort_connu'] && !empty($niveaux)):
+      foreach ($niveaux as $niv):
+        for ($s = 0; $s <= 9; $s++):
+          if (isset($niv['cn_sortConnu_n' . $s]) && $niv['cn_sortConnu_n' . $s] !== '' && $niv['cn_sortConnu_n' . $s] !== null):
+            $hasSortsConnus = true;
+            break 2;
+          endif;
+        endfor;
+      endforeach;
+    endif;
+    ?>
+    <?php if ($hasSortsConnus): ?>
+    <div class="classe-detail__niveaux" style="margin-top:.75rem; overflow-x:auto;">
+      <p class="classe-detail__table-titre">
+        <strong>Sorts connus : <?= h($cla['cla_nom']) ?></strong>
+      </p>
+      <table class="table-classe-niv">
+        <thead>
+          <tr class="thead-groupes">
+            <th></th>
+            <th colspan="10" class="th-groupe-sorts">Nombre de sorts connus</th>
+          </tr>
+          <tr>
+            <th class="col-niv">Niv.</th>
+            <?php for ($s = 0; $s <= 9; $s++): ?>
+              <th class="col-sort"><?= $s ?></th>
+            <?php endfor ?>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($niveaux as $niv): ?>
+            <?php
+            // N'afficher que les lignes qui ont au moins une valeur non vide
+            $hasData = false;
+            for ($s = 0; $s <= 9; $s++):
+              if (isset($niv['cn_sortConnu_n' . $s]) && $niv['cn_sortConnu_n' . $s] !== '' && $niv['cn_sortConnu_n' . $s] !== null):
+                $hasData = true;
+                break;
+              endif;
+            endfor;
+            if (!$hasData) continue;
+            ?>
+            <tr>
+              <td class="col-niv"><strong><?= (int)$niv['cn_niveau'] ?></strong></td>
+              <?php for ($s = 0; $s <= 9; $s++): ?>
+                <td class="col-sort"><?= $niv['cn_sortConnu_n' . $s] !== null && $niv['cn_sortConnu_n' . $s] !== '' ? (int)$niv['cn_sortConnu_n' . $s] : '—' ?></td>
+              <?php endfor ?>
+            </tr>
+          <?php endforeach ?>
+        </tbody>
+      </table>
+    </div>
+    <?php endif ?>
+
   <?php endif ?>
 
   <?php // ---- Sorts (description DD3.5) ?>
@@ -397,70 +455,102 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
 </div>
 
 <style>
-/* Styles locaux au panel classe — injectés avec le HTML */
+/* ============================================================
+   Styles locaux au panel classe — injectés avec le HTML
+   ============================================================ */
+
+/* Titre de table */
+.classe-detail__table-titre {
+  margin: 0 0 .3rem;
+  font-size: .9rem;
+}
+
+/* Table pleine largeur */
 .table-classe-niv {
   border-collapse: collapse;
-  font-size: .85rem;
-  white-space: nowrap;
+  font-size: .82rem;
+  width: 100%;
+  table-layout: auto;
 }
+
 .table-classe-niv th,
 .table-classe-niv td {
   border: 1px solid var(--clr-border);
-  padding: 3px 6px;
+  padding: 3px 5px;
   text-align: center;
   vertical-align: middle;
+  white-space: nowrap;
 }
-.table-classe-niv th {
-  background: var(--clr-surface-alt, #f5efe6);
+
+/* En-tête de groupe (ligne 1 : "Nombre de sorts par jour") */
+.table-classe-niv .thead-groupes th {
+  background: var(--clr-surface-alt, #2a2a2a);
+  font-size: .78rem;
+  border-bottom: none;
+  padding: 2px 4px;
+}
+.table-classe-niv .th-groupe-sorts {
+  border-left: 2px solid var(--clr-accent, #8b6914);
+}
+
+/* En-tête ligne 2 (labels de colonnes) */
+.table-classe-niv thead tr:last-child th {
+  background: var(--clr-surface-alt, #1e1e1e);
   font-size: .8rem;
+  font-weight: 600;
 }
+
+/* Colonne niveau */
+.table-classe-niv .col-niv {
+  width: 28px;
+  min-width: 28px;
+  font-weight: 700;
+}
+
+/* Colonnes stats — taille fixe compacte */
+.table-classe-niv .col-stat {
+  width: 44px;
+  min-width: 36px;
+}
+
+/* Colonnes sorts — compactes */
+.table-classe-niv .col-sort {
+  width: 24px;
+  min-width: 20px;
+  border-left-color: var(--clr-border-muted, var(--clr-border));
+}
+/* Séparation visuelle avant le groupe sorts */
+.table-classe-niv td.col-sort:first-of-type,
+.table-classe-niv th.col-sort:first-of-type {
+  border-left: 2px solid var(--clr-accent, #8b6914);
+}
+
+/* Colonnes pouvoirs — taille adaptée */
+.table-classe-niv .col-pouvoir {
+  min-width: 48px;
+  max-width: 80px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Colonne aptitudes — flexible, prend le reste de la largeur */
 .table-classe-niv .col-aptitudes {
   text-align: left;
   white-space: normal;
-  min-width: 140px;
+  min-width: 25%;   /* garantit au moins 25% de la largeur totale */
+  width: 100%;      /* avec table-layout:auto, s'étire pour combler le reste */
+  word-break: break-word;
 }
-.table-classe-niv .col-niveau {
-  width: 36px;
-}
+
+/* Liens cliquables vers le sous-panel */
 .lien-sub {
   cursor: pointer;
-  color: var(--clr-accent);
+  color: var(--clr-accent, #c8a84b);
   text-decoration: underline dotted;
 }
 .lien-sub:hover {
   text-decoration: underline;
 }
-/* Vue sorts — masque stats/aptitudes sur mobile */
-.classe-niv--vue-sorts [data-groupe="stats"],
-.classe-niv--vue-sorts [data-groupe="aptitudes"],
-.classe-niv--vue-sorts [data-groupe="pouvoirs"] {
-  display: none;
-}
-.classe-niv--vue-stats [data-groupe="sorts"],
-.classe-niv--vue-stats [data-groupe="sorts-connus"] {
-  display: none;
-}
 </style>
 
-<script>
-(function() {
-  // Switch vue sorts / stats sur mobile
-  function classeSwitchVue(btn) {
-    const table = document.getElementById('classe-niv-table');
-    if (!table) return;
-    const vue = btn.dataset.vue;
-    if (vue === 'stats') {
-      table.classList.add('classe-niv--vue-sorts');
-      table.classList.remove('classe-niv--vue-stats');
-      btn.dataset.vue = 'sorts';
-      btn.title = 'Afficher les statistiques';
-    } else {
-      table.classList.add('classe-niv--vue-stats');
-      table.classList.remove('classe-niv--vue-sorts');
-      btn.dataset.vue = 'stats';
-      btn.title = 'Afficher les sorts';
-    }
-  }
-  window.classeSwitchVue = classeSwitchVue;
-})();
-</script>
+
