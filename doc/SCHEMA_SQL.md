@@ -114,6 +114,19 @@ Types de magie (profane, divin).
 
 ---
 
+### dd_bonus_matrise
+Bonus de maitrise par niveau dns *[DD2024]*
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| bm_id | int unsigned | PK | |
+| bm_niveau | int | nn | de 1 à 20 |
+| mm_bonus | int | nn | de 0 à 6 |
+
+
+---
+
+
 ## 2. Utilisateurs
 
 ### dd_joueurs
