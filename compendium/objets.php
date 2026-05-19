@@ -14,9 +14,23 @@ $ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
 $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
 
 // ============================================================
+// Filtre "Afficher les propriétés spéciales" — DD3.5 uniquement
+// Les catégories com_est_propriete = 1 sont masquées par défaut.
+// La case cochée (f_om_props=1) les réintègre dans la liste
+// et dans le SELECT de catégorie.
+// ============================================================
+
+$afficher_props = $ruleset_id === 1
+  && isset($_GET['f_om_props'])
+  && $_GET['f_om_props'] === '1';
+
+// Clause conditionnelle pour la query du SELECT catégorie
+$where_props_cat = (!$afficher_props && $ruleset_id === 1)
+  ? 'AND com_est_propriete = 0'
+  : '';
+
+// ============================================================
 // Filtres spécifiques
-// Catégorie : filtrée par ruleset courant
-// Visible   : filtre MJ/admin uniquement (DD3.5 — champ om_visible)
 // ============================================================
 
 $filtres = [
@@ -25,25 +39,50 @@ $filtres = [
     'name'         => 'f_om_com_id',
     'label'        => 'Catégorie',
     'champ'        => 'om.om_com_id',
-    'query'        => 'SELECT com_id val, com_nom lab
+    'query'        => "SELECT com_id val, com_nom lab
                        FROM dd_categorie_objet_magique
                        WHERE com_ruleset_var_id = :ruleset_id
-                       ORDER BY com_nom',
+                       $where_props_cat
+                       ORDER BY com_nom",
     'query_params' => [':ruleset_id' => $ruleset_id],
   ],
 ];
 
+// Checkbox "Afficher les propriétés spéciales" — DD3.5 uniquement
+if ($ruleset_id === 1):
+  $filtres[] = [
+    'type'    => 'checkbox',
+    'name'    => 'f_om_props',
+    'label'   => 'Afficher les propriétés spéciales',
+    'checked' => $afficher_props,
+  ];
+endif;
+
 // ============================================================
-// Configuration de la liste
-// champ_camp => 'om.om_camp_id' : les objets supportent le homebrew
-// om_visible  : les joueurs non éditeurs ne voient que om_visible = 1
-//   → géré via extra_where ci-dessous
+// Construction de extra_where
+// Cumule les clauses métier non portées par les filtres GET :
+//   - visibilité (non-éditeurs ne voient que om_visible = 1)
+//   - exclusion des propriétés spéciales (par défaut en DD3.5)
 // ============================================================
 
-$extra_where = '';
+$extra_where_parts = [];
+
 if (!canEditCompendium()):
-  $extra_where = 'om.om_visible = 1';
+  $extra_where_parts[] = 'om.om_visible = 1';
 endif;
+
+if (!$afficher_props && $ruleset_id === 1):
+  $extra_where_parts[] = 'om.om_com_id NOT IN (
+    SELECT com_id FROM dd_categorie_objet_magique
+    WHERE com_est_propriete = 1
+  )';
+endif;
+
+$extra_where = implode(' AND ', $extra_where_parts);
+
+// ============================================================
+// Configuration de la liste
+// ============================================================
 
 $listConfig = [
   'entite'        => 'objet',

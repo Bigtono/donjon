@@ -493,6 +493,25 @@ clause SQL brute ajoutée en AND au WHERE si présente et non vide.
 → À documenter dans ARCHITECTURE_0_REFERENCE.md si d'autres entités en ont besoin.
 → La valeur est construite côté PHP dans la page contrôleur, jamais côté client.
 
+**[2026-05] Objets magiques — com_est_propriete vs IDs hardcodés**
+Les catégories "Propriétés spéciales des armes" et "Propriétés spéciales des armures" (DD3.5)
+ne sont pas de vrais objets mais des pouvoirs d'objets. Elles doivent être masquées par défaut.
+→ Champ `com_est_propriete tinyint(1) DEFAULT 0` ajouté dans `dd_categorie_objet_magique`.
+→ Masquage via `extra_where` (sous-requête `NOT IN`) dans la liste, et clause conditionnelle
+  dans la query du SELECT catégorie (barre de filtres).
+→ Pas d'IDs hardcodés : le filtre lit `WHERE com_est_propriete = 1` — insensible aux IDs réels.
+→ Exclusivement DD3.5 : le filtre et la case à cocher n'apparaissent qu'en ruleset DD3.5
+  (`$ruleset_id === 1`). En DD2024, comportement standard sans masquage.
+
+**[2026-05] Filtre checkbox — type générique dans compendium-liste.php**
+Nouveau type `'checkbox'` ajouté dans la boucle de rendu des filtres de `compendium-liste.php`.
+Structure de déclaration dans `$listConfig['filtres']` :
+  `['type' => 'checkbox', 'name' => 'f_om_props', 'label' => '…', 'checked' => bool]`
+→ Le `onchange` soumet le formulaire immédiatement (cohérent avec les selects).
+→ Le badge mobile (`$filtres_actifs`) compte la checkbox si `checked = true`.
+→ La valeur `checked` est calculée côté PHP dans la page contrôleur, jamais dans le moteur.
+→ Réutilisable pour toute autre entité nécessitant un filtre booléen dans la barre de filtres.
+
 ---
 
 ## Bugs connus — à traiter

@@ -215,8 +215,12 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
   $filtres_actifs = 0;
   if ($q !== '') $filtres_actifs++;
   foreach ($listConfig['filtres'] as $f):
-    $v = strParam($_GET[$f['name']] ?? '');
-    if ($v !== '' && $v !== '0') $filtres_actifs++;
+    if ($f['type'] === 'checkbox'):
+      if (!empty($f['checked'])) $filtres_actifs++;
+    else:
+      $v = strParam($_GET[$f['name']] ?? '');
+      if ($v !== '' && $v !== '0') $filtres_actifs++;
+    endif;
   endforeach;
   $sources_actives = count($res_get);
   if ($sources_actives > 0) $filtres_actifs++;
@@ -283,6 +287,16 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
                   </option>
                 <?php endforeach ?>
               </select>
+
+            <?php elseif ($f['type'] === 'checkbox'): ?>
+              <label class="comp-filtre-checkbox-label">
+                <input type="checkbox"
+                       name="<?= h($f['name']) ?>"
+                       value="1"
+                       <?= !empty($f['checked']) ? 'checked' : '' ?>
+                       onchange="document.getElementById('form-filtre-<?= h($entite) ?>').submit()">
+                <?= h($f['label']) ?>
+              </label>
 
             <?php endif ?>
           </div>

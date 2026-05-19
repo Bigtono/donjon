@@ -957,3 +957,28 @@
 .om-lien-sort:hover {
   color: var(--clr-accent);
 }
+
+/* ============================================================
+   Filtre checkbox — barre de filtres compendium
+   Ex : "Afficher les propriétés spéciales" (objets magiques)
+   ============================================================ */
+
+.comp-filtre-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: 0.875rem;
+  color: var(--clr-text);
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 5px 0;
+  user-select: none;
+}
+
+.comp-filtre-checkbox-label input[type="checkbox"] {
+  accent-color: var(--clr-accent-2);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}

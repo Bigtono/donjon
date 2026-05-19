@@ -491,6 +491,7 @@ Catégories d'objets magiques (Anneau, Arme, Baguette, Parchemin, Potion…).
 | com_id | int unsigned | PK | |
 | com_nom | varchar(80) | nn | |
 | com_est_calcule | tinyint(1) | nn, défaut 0 | 1 = calcul auto NLS/prix activable (DD3.5 uniquement) |
+| com_est_propriete | tinyint(1) | nn, défaut 0 | 1 = catégorie masquée par défaut dans la liste (propriétés spéciales DD3.5) |
 | com_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
 > `com_est_calcule = 1` pour : Arme, Armure/Bouclier, Baguette, Parchemin, Potion/Huile (DD3.5 uniquement).
