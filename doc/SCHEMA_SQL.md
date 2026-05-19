@@ -512,6 +512,8 @@ Objets magiques du compendium.
 | om_modificateurs | tinyint | nn, défaut 0 | Bonus magique +1 à +5 (armes/armures) |
 | om_variantes | varchar(255) | null | Variantes textuelles (mineur, majeur…) |
 | om_description | text | null | Description HTML TinyMCE (format libre) |
+| om_prix | int | null | prix de l'objet |
+| om_ajustement_prix | int | nn, defaut 0 | ajustement de prix de l'objet |
 | om_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs |
 | om_res_id | int unsigned | nn | Source -> dd_ressources |
 | om_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
