@@ -215,12 +215,12 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
   $filtres_actifs = 0;
   if ($q !== '') $filtres_actifs++;
   foreach ($listConfig['filtres'] as $f):
-    if ($f['type'] === 'checkbox'):
+    if ($f['type'] === 'checkbox') {
       if (!empty($f['checked'])) $filtres_actifs++;
-    else:
-      $v = strParam($_GET[$f['name']] ?? '');
-      if ($v !== '' && $v !== '0') $filtres_actifs++;
-    endif;
+      continue;
+    }
+    $v = strParam($_GET[$f['name']] ?? '');
+    if ($v !== '' && $v !== '0') $filtres_actifs++;
   endforeach;
   $sources_actives = count($res_get);
   if ($sources_actives > 0) $filtres_actifs++;
