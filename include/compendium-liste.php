@@ -119,6 +119,14 @@ endforeach;
 
 $where_sql = $where_parts ? 'WHERE ' . implode(' AND ', $where_parts) : '';
 
+// extra_where : clause SQL brute optionnelle injectée par la page contrôleur
+// (ex : om.om_visible = 1 pour masquer les objets invisibles aux non-éditeurs)
+if (!empty($listConfig['extra_where'])):
+  $where_sql = $where_sql
+    ? $where_sql . ' AND ' . $listConfig['extra_where']
+    : 'WHERE ' . $listConfig['extra_where'];
+endif;
+
 // SELECT des colonnes
 $select_parts = [$listConfig['champ_id'] . ' AS _id'];
 foreach ($listConfig['colonnes'] as $col):

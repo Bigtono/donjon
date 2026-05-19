@@ -471,6 +471,52 @@ historiques de personnages (*[DD2024]*).
 
 ---
 
+---
+
+### dd_format_objet_magique
+Formats d'objet magique — détermine si la description est calculée auto (DD3.5) ou saisie librement.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| fom_id | int unsigned | PK | |
+| fom_nom | varchar(50) | nn | Ex : "Auto (calculé)", "Description libre" |
+
+---
+
+### dd_categorie_objet_magique
+Catégories d'objets magiques (Anneau, Arme, Baguette, Parchemin, Potion…).
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| com_id | int unsigned | PK | |
+| com_nom | varchar(80) | nn | |
+| com_est_calcule | tinyint(1) | nn, défaut 0 | 1 = calcul auto NLS/prix activable (DD3.5 uniquement) |
+| com_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> `com_est_calcule = 1` pour : Arme, Armure/Bouclier, Baguette, Parchemin, Potion/Huile (DD3.5 uniquement).
+> En DD2024, toutes les catégories ont `com_est_calcule = 0` — pas de calcul auto.
+
+---
+
+### dd_objets_magiques
+Objets magiques du compendium.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| om_id | int unsigned | PK | |
+| om_nom | varchar(150) | nn | |
+| om_com_id | int unsigned | nn | Catégorie -> dd_categorie_objet_magique |
+| om_fom_id | int unsigned | nn, défaut 2 | Format -> dd_format_objet_magique (1=auto, 2=libre) |
+| om_so_id | int unsigned | null | Sort lié (potions/parchemins/baguettes) -> dd_sorts |
+| om_so_niveau | tinyint | nn, défaut 0 | NLS override (0 = calculé auto depuis dd_sortclasse) |
+| om_modificateurs | tinyint | nn, défaut 0 | Bonus magique +1 à +5 (armes/armures) |
+| om_variantes | varchar(255) | null | Variantes textuelles (mineur, majeur…) |
+| om_description | text | null | Description HTML TinyMCE (format libre) |
+| om_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs |
+| om_res_id | int unsigned | nn | Source -> dd_ressources |
+| om_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
+| om_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
 ### dd_monstres
 
 | Champ | Type | Null | Commentaire |

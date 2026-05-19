@@ -456,6 +456,43 @@ Deux radio buttons visuellement transformés en boutons avec bordure active sur 
 Couleur active : --clr-accent-2 (or/bordeaux selon le thème actif).
 → Cohérent avec le style des toggles existants dans la section Paramètres.
 
+**[2026-05] Objets magiques — com_est_calcule vs IDs hardcodés**
+La V1 hardcodait les IDs de catégorie (4=baguettes, 14=parchemins, 15=potions, 2=armes, 3=armures)
+directement dans le template `descriptionOM.php`.
+→ En V2 : champ `com_est_calcule tinyint(1)` ajouté dans `dd_categorie_objet_magique`.
+Le template DD3.5 lit `$om['com_est_calcule']` et branche sur le calcul auto si = 1.
+Le template DD2024 ignore toujours ce champ : pas de calcul NLS/prix en DD2024.
+→ Les IDs de catégories restent nécessaires pour distinguer armes/armures des sorts liés
+(baguettes/parchemins/potions) à l'intérieur du template DD3.5, mais le template n'est appelé
+que si com_est_calcule=1, ce qui réduit l'exposition au hardcoding.
+
+**[2026-05] Objets magiques — om_visible**
+Champ repris de la V1. Permet au MJ de masquer un objet aux joueurs (om_visible=0).
+→ Le filtre est appliqué dans `compendium/objets.php` via `extra_where` passé à `$listConfig`
+  pour les utilisateurs sans droit d'édition.
+→ Le detail-pp vérifie aussi om_visible et retourne 403 si l'utilisateur n'est pas éditeur.
+→ Pas de filtrage dans `compendium-liste.php` lui-même : le moteur commun ne connaît pas
+  la sémantique de chaque entité. L'extra_where est injecté dans $listConfig par la page.
+
+**[2026-05] Objets magiques — autocomplétion sort lié**
+Le champ "sort reproduit" est un select en V1 (liste complète). En V2 : autocomplétion AJAX.
+→ Endpoint dédié `include/ajax/autocomplete-sorts.php`, requête LIKE + LIMIT 5.
+→ Label affiché : "Nom du sort — Niv. X (Source)" pour lever les homonymes inter-sources.
+→ Niveau unifié : DD3.5 → MIN(sc_niveau) via dd_sortclasse ; DD2024 → so_niveau direct.
+→ Les sorts homebrew (so_camp_id IS NOT NULL) sont exclus : un objet global ne référence
+  pas un sort de campagne.
+→ Composant autonome : `initSortAutocomplete()` dans compendium.js, initialisée par le script
+  inline de modifier/objet.php après injection du HTML dans #modification.
+→ Bouton × (`.autocomplete-clear`) pour désélectionner sans vider le champ texte manuellement.
+→ Navigation clavier : ArrowDown/Up, Enter, Escape.
+
+**[2026-05] Objets magiques — extra_where dans $listConfig**
+Le moteur `compendium-liste.php` ne gère pas nativement les filtres métier sur des champs
+qui ne sont pas des filtres GET (ex: om_visible). Mécanisme : clé `extra_where` dans $listConfig,
+clause SQL brute ajoutée en AND au WHERE si présente et non vide.
+→ À documenter dans ARCHITECTURE_0_REFERENCE.md si d'autres entités en ont besoin.
+→ La valeur est construite côté PHP dans la page contrôleur, jamais côté client.
+
 ---
 
 ## Bugs connus — à traiter

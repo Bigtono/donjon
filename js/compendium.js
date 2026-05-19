@@ -322,3 +322,211 @@ function soumettreCompetence() {
   })
   .catch(err => alert('Erreur : ' + err));
 }
+
+// ============================================================
+// OBJET MAGIQUE — Affichage conditionnel des sections
+// Appelé au changement de catégorie ou de format
+// Dépend de OM_CAT_CALCULE (map injecté par modifier/objet.php)
+// ============================================================
+
+function omToggleSections() {
+  const selCat = document.getElementById('om_com_id');
+  const selFom = document.getElementById('om_fom_id');
+  if (!selCat) return; // page sans formulaire objet
+
+  const comId      = parseInt(selCat.value, 10) || 0;
+  const fomId      = selFom ? parseInt(selFom.value, 10) : 2;
+  const estCalcule = (typeof OM_CAT_CALCULE !== 'undefined') && !!OM_CAT_CALCULE[comId];
+  const modeAuto   = estCalcule && fomId === 1;
+
+  // Groupes liés au format auto
+  const grpSort = document.getElementById('grp-sort-lie');
+  const grpNls  = document.getElementById('grp-nls');
+  const grpMod  = document.getElementById('grp-modificateurs');
+  const secDesc = document.getElementById('section-description');
+
+  // Catégories avec sort lié (baguettes=4, parchemins=14, potions=15)
+  // L'info vient du serveur via OM_CAT_CALCULE ; on distingue armes/armures
+  // (modificateurs, pas de sort) des autres catégories calculées.
+  const CATS_AVEC_SORT = [4, 14, 15]; // IDs stables DD3.5
+  const avecSort = modeAuto && CATS_AVEC_SORT.includes(comId);
+  const avecMod  = modeAuto && (comId === 2 || comId === 3);
+
+  if (grpSort) grpSort.style.display = avecSort ? '' : 'none';
+  if (grpNls)  grpNls.style.display  = avecSort ? '' : 'none';
+  if (grpMod)  grpMod.style.display  = avecMod  ? '' : 'none';
+
+  // Description libre : visible si format libre ou catégorie non calculée
+  if (secDesc) secDesc.style.display = modeAuto ? 'none' : '';
+}
+
+// ============================================================
+// OBJET MAGIQUE — Autocomplétion du champ "sort lié"
+// Initialisée par modifier/objet.php après injection du HTML
+// ============================================================
+
+function initSortAutocomplete() {
+  const input  = document.getElementById('om_so_search');
+  const hidden = document.getElementById('om_so_id');
+  const list   = document.getElementById('om_so_list');
+  const clearBtn = document.getElementById('om_so_clear');
+
+  if (!input || !hidden || !list) return;
+
+  const rulesetId = (typeof OM_RULESET_ID !== 'undefined') ? OM_RULESET_ID : 1;
+  const resIds    = document.getElementById('om_active_res_ids')?.value ?? '';
+
+  let debounceTimer = null;
+  let activeIndex   = -1;
+
+  // ---- Fetch ----
+
+  function fetchSuggestions(q) {
+    const params = new URLSearchParams({ q, ruleset: rulesetId, res_ids: resIds });
+    fetch(BASE_URL + '/include/ajax/autocomplete-sorts.php?' + params.toString())
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderList(data, q); })
+      .catch(function() { closeList(); });
+  }
+
+  // ---- Rendu ----
+
+  function renderList(items, q) {
+    list.innerHTML = '';
+    activeIndex    = -1;
+
+    if (items.length === 0) {
+      const li = document.createElement('li');
+      li.className   = 'autocomplete-empty';
+      li.textContent = 'Aucun sort trouvé';
+      list.appendChild(li);
+      list.hidden = false;
+      return;
+    }
+
+    items.forEach(function(item, i) {
+      const li = document.createElement('li');
+      li.className     = 'autocomplete-item';
+      li.dataset.id    = item.id;
+      li.dataset.label = item.label;
+      li.innerHTML     = highlightMatch(item.label, q);
+      li.addEventListener('mousedown', function(e) {
+        e.preventDefault(); // évite blur avant click
+        selectItem(item.id, item.label);
+      });
+      list.appendChild(li);
+    });
+
+    list.hidden = false;
+  }
+
+  function highlightMatch(label, q) {
+    if (!q) return escHtml(label);
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return escHtml(label).replace(
+      new RegExp('(' + escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'),
+      '<em>$1</em>'
+    );
+  }
+
+  function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // ---- Sélection ----
+
+  function selectItem(id, label) {
+    hidden.value = id;
+    input.value  = label;
+    if (clearBtn) clearBtn.classList.remove('noDisplay');
+    closeList();
+  }
+
+  function closeList() {
+    list.hidden = true;
+    list.innerHTML = '';
+    activeIndex = -1;
+  }
+
+  function updateActive(newIndex) {
+    const items = list.querySelectorAll('.autocomplete-item');
+    items.forEach(function(el, i) {
+      el.classList.toggle('is-active', i === newIndex);
+    });
+    activeIndex = newIndex;
+  }
+
+  // ---- Événements ----
+
+  input.addEventListener('input', function() {
+    const q = input.value.trim();
+    hidden.value = 0; // invalider la sélection en cours
+    if (clearBtn && !q) clearBtn.classList.add('noDisplay');
+    clearTimeout(debounceTimer);
+    if (q.length < 2) { closeList(); return; }
+    debounceTimer = setTimeout(function() { fetchSuggestions(q); }, 250);
+  });
+
+  input.addEventListener('keydown', function(e) {
+    const items = list.querySelectorAll('.autocomplete-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      updateActive(Math.min(activeIndex + 1, items.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      updateActive(Math.max(activeIndex - 1, 0));
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      const el = items[activeIndex];
+      if (el) selectItem(el.dataset.id, el.dataset.label);
+    } else if (e.key === 'Escape') {
+      closeList();
+    }
+  });
+
+  // Fermeture au clic extérieur
+  document.addEventListener('click', function(e) {
+    const wrap = input.closest('.autocomplete-wrap');
+    if (wrap && !wrap.contains(e.target)) closeList();
+  });
+
+  // Bouton d'effacement
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      hidden.value = 0;
+      input.value  = '';
+      clearBtn.classList.add('noDisplay');
+      closeList();
+    });
+  }
+}
+
+// ============================================================
+// SOUMISSION FORMULAIRE OBJET MAGIQUE
+// ============================================================
+
+function soumettreObjet() {
+  const form = document.getElementById('form-objet');
+  if (!form) return;
+
+  if (typeof tinymce !== 'undefined') {
+    const editor = tinymce.get('om_description');
+    if (editor) document.getElementById('om_description').value = editor.getContent();
+  }
+
+  fetch(form.getAttribute('action'), {
+    method: 'POST',
+    body:   new FormData(form),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.ok) {
+      apresModification(data);
+    } else {
+      alert(data.erreur || "Erreur lors de l'enregistrement.");
+    }
+  })
+  .catch(function(err) { alert('Erreur : ' + err); });
+}

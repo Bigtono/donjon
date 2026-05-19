@@ -141,6 +141,20 @@ switch ($entite):
     endswitch;
     break;
 
+  case 'objet':
+    switch ($action):
+      case 'sauvegarder':
+        enregistrerObjet($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+      case 'bulk_supprimer':
+        supprimerEntite($db, 'dd_objets_magiques', 'om_id', $is_ajax, $redirect);
+        break;
+      default:
+        repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+    endswitch;
+    break;
+
   default:
     repondreErreur($is_ajax, 'Entité inconnue : ' . h($entite), $redirect);
 
@@ -1246,4 +1260,105 @@ function supprimerClasse($db, bool $is_ajax, string $redirect): void
 function bulkSupprimerClasses($db, bool $is_ajax, string $redirect): void
 {
   supprimerClasse($db, $is_ajax, $redirect);
+}
+
+
+// ============================================================
+// OBJET MAGIQUE — Enregistrement
+// ============================================================
+
+function enregistrerObjet($db, bool $is_ajax, string $redirect): void
+{
+  $om_id      = intParam($_POST['om_id']             ?? 0);
+  $nom        = strParam($_POST['om_nom']            ?? '');
+  $ruleset_id = intParam($_POST['om_ruleset_var_id'] ?? 1);
+
+  if (!$nom):
+    repondreErreur($is_ajax, "Le nom de l'objet magique est obligatoire.", $redirect);
+  endif;
+
+  $res_id = intParam($_POST['om_res_id'] ?? 0);
+  if (!$res_id):
+    repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
+  endif;
+
+  $com_id = intParam($_POST['om_com_id'] ?? 0);
+  if (!$com_id):
+    repondreErreur($is_ajax, 'La catégorie est obligatoire.', $redirect);
+  endif;
+
+  $fom_id       = intParam($_POST['om_fom_id']        ?? 2);
+  $so_id        = intParam($_POST['om_so_id']         ?? 0) ?: null;
+  $so_niveau    = intParam($_POST['om_so_niveau']      ?? 0);
+  $modificateurs = intParam($_POST['om_modificateurs'] ?? 0);
+  $variantes    = strParam($_POST['om_variantes']      ?? '') ?: null;
+  $visible      = isset($_POST['om_visible']) ? 1 : 0;
+  $camp_id      = intParam($_POST['om_camp_id']       ?? 0) ?: null;
+  $description  = $_POST['om_description'] ?? '';   // HTML TinyMCE — pas de h()
+
+  try {
+    $db->beginTransaction();
+
+    if ($om_id === 0):
+      $stmt = $db->prepare('
+        INSERT INTO dd_objets_magiques
+          (om_nom, om_com_id, om_fom_id, om_so_id, om_so_niveau,
+           om_modificateurs, om_variantes, om_description, om_visible,
+           om_res_id, om_camp_id, om_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+      ');
+      $stmt->execute([
+        $nom,
+        $com_id,
+        $fom_id,
+        $so_id,
+        $so_niveau,
+        $modificateurs,
+        $variantes,
+        $description,
+        $visible,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
+      ]);
+      $om_id = (int)$db->lastInsertId();
+    else:
+      $stmt = $db->prepare('
+        UPDATE dd_objets_magiques SET
+          om_nom            = ?,
+          om_com_id         = ?,
+          om_fom_id         = ?,
+          om_so_id          = ?,
+          om_so_niveau      = ?,
+          om_modificateurs  = ?,
+          om_variantes      = ?,
+          om_description    = ?,
+          om_visible        = ?,
+          om_res_id         = ?,
+          om_camp_id        = ?
+        WHERE om_id = ?
+      ');
+      $stmt->execute([
+        $nom,
+        $com_id,
+        $fom_id,
+        $so_id,
+        $so_niveau,
+        $modificateurs,
+        $variantes,
+        $description,
+        $visible,
+        $res_id,
+        $camp_id,
+        $om_id,
+      ]);
+    endif;
+
+    $db->commit();
+    repondreOk($is_ajax, $om_id, 'objet', $redirect);
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('enregistrerObjet : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
 }
