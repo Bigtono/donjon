@@ -127,7 +127,7 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
         <div class="form-group">
           <label for="om_com_id">Catégorie <span class="required">*</span></label>
           <select id="om_com_id" name="om_com_id" required
-                  onchange="omToggleSections()">
+                  onchange="omToggleSections('categorie')">
             <option value="">— Choisir —</option>
             <?php foreach ($categories as $cat): ?>
               <option value="<?= (int)$cat['com_id'] ?>"
@@ -184,9 +184,11 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
 
       <div class="modif-grid">
 
-        <!-- Format -->
+        <!-- Format / Affichage -->
         <div class="form-group">
-          <label for="om_fom_id">Format d'objet</label>
+          <label for="om_fom_id">Affichage
+            <span class="form-hint">(mis à jour selon la catégorie)</span>
+          </label>
           <select id="om_fom_id" name="om_fom_id"
                   onchange="omToggleSections()">
             <?php foreach ($formats as $fom): ?>
@@ -298,8 +300,10 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
 })();
 
 // Données contextuelles pour omToggleSections() et initSortAutocomplete()
-const OM_CAT_CALCULE = <?= json_encode($cat_calcule_map) ?>;
-const OM_RULESET_ID  = <?= $ruleset_id ?>;
+// var (pas const) : réexécuté à chaque ouverture — const provoquerait SyntaxError
+var OM_CAT_CALCULE = <?= json_encode($cat_calcule_map) ?>;
+var OM_RULESET_ID  = <?= $ruleset_id ?>;
+var BASE_URL = <?= json_encode(BASE_URL) ?>;
 
 // Initialisation des comportements au chargement du formulaire
 omToggleSections();

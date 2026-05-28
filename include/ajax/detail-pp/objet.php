@@ -96,7 +96,7 @@ if ($calcule && $om['om_so_id']):
     $so_nom   = h($so['so_nom'] ?? '');
     $so_id    = (int)$so['so_id'];
     $lien_sort = '<span class="om-lien-sort"'
-      . ' onclick="actualiserPage(\''
+      . ' onclick="actualiserPageSub(\''
       . BASE_URL . '/include/ajax/detail-pp/sort.php\', {id:' . $so_id . '})">'
       . $so_nom . '</span>';
 

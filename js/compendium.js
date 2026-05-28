@@ -329,15 +329,26 @@ function soumettreCompetence() {
 // Dépend de OM_CAT_CALCULE (map injecté par modifier/objet.php)
 // ============================================================
 
-function omToggleSections() {
+function omToggleSections(source) {
+  // source = 'categorie' quand appelé depuis onchange du select catégorie
+  //        = undefined   quand appelé depuis onchange du select format
+  //                       ou à l'initialisation du formulaire
   const selCat = document.getElementById('om_com_id');
   const selFom = document.getElementById('om_fom_id');
   if (!selCat) return; // page sans formulaire objet
 
   const comId      = parseInt(selCat.value, 10) || 0;
-  const fomId      = selFom ? parseInt(selFom.value, 10) : 2;
   const estCalcule = (typeof OM_CAT_CALCULE !== 'undefined') && !!OM_CAT_CALCULE[comId];
-  const modeAuto   = estCalcule && fomId === 1;
+
+  // Quand l'utilisateur change de catégorie, repositionner le select format
+  // sur la valeur par défaut de la nouvelle catégorie (com_est_calcule).
+  // Quand il change le format lui-même, ou à l'init, on respecte la valeur actuelle.
+  if (source === 'categorie' && selFom) {
+    selFom.value = estCalcule ? '1' : '2';
+  }
+
+  const fomId    = selFom ? parseInt(selFom.value, 10) : 2;
+  const modeAuto = estCalcule && fomId === 1;
 
   // Groupes liés au format auto
   const grpSort = document.getElementById('grp-sort-lie');
@@ -356,7 +367,7 @@ function omToggleSections() {
   if (grpNls)  grpNls.style.display  = avecSort ? '' : 'none';
   if (grpMod)  grpMod.style.display  = avecMod  ? '' : 'none';
 
-  // Description libre : visible si format libre ou catégorie non calculée
+  // Description : visible si format libre — préservée en base même en mode auto
   if (secDesc) secDesc.style.display = modeAuto ? 'none' : '';
 }
 

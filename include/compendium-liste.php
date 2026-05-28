@@ -105,6 +105,9 @@ endif;
 
 // Filtres métier intermédiaires
 foreach ($listConfig['filtres'] as $f):
+  // Les filtres checkbox n'alimentent pas le WHERE SQL —
+  // leur effet est géré par extra_where dans la page contrôleur
+  if ($f['type'] === 'checkbox') continue;
   $val = strParam($_GET[$f['name']] ?? '');
   if ($val === '' || $val === '0') continue;
   if ($f['type'] === 'exists' || $f['type'] === 'exists_range'):
