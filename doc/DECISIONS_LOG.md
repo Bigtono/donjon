@@ -514,6 +514,126 @@ Structure de déclaration dans `$listConfig['filtres']` :
 
 ---
 
+## Module Règles — Wiki de règles
+
+**[2026-05] Table unique récursive dd_regles — pas de séparation chapitre/règle en deux tables**
+Reprise du modèle v1 (table auto-référençante via re_re_id) plutôt qu'une hiérarchie fixe à
+3 niveaux comme le wiki univers. Le besoin est explicitement récursif (chapitres imbriqués).
+Une seule table dd_regles (préfixe reg), parent via reg_reg_id, distinction chapitre/règle
+portée par un champ reg_type (indice d'affichage, non contraignant).
+Alternative écartée : deux tables (chapitres récursifs + règles feuilles) — plus rigide,
+empêche une règle d'avoir des sous-règles, complexifie l'ordre de lecture global.
+→ Souplesse maximale, modèle unique, ordre de lecture linéaire trivial.
+
+**[2026-05] dd_categorie_regle (v1) — non portée en v2**
+La table v1 dd_categorie_regle (préfixe cr) était vestigiale : le <select> catégorie existait
+dans regle-modifier.php mais regle-enregistrement.php ne sauvegardait jamais re_cr_id.
+En v2, la hiérarchie récursive EST la catégorisation. La table n'est pas reprise.
+→ Suppression d'un concept mort, modèle simplifié.
+
+**[2026-05] re_ecran (v1) — non porté en v2**
+Le champ v1 re_ecran (« affichage écran », sémantique floue) n'est pas repris.
+La visibilité est gérée par reg_visible (0/1), l'ordre par reg_ordre.
+→ Champs aux rôles clairs.
+
+**[2026-05] Règles — scoping ruleset seul, pas de filtre sources**
+Comme en v1 (re_ruleset_var_id seul), les règles sont scopées par ruleset, sans res_id.
+Ce sont du contenu de référence, pas du contenu filtré par livre/sélection.
+Conséquence : le module Règles n'utilise PAS compendium-liste.php (qui impose le filtre sources).
+Il a sa propre structure (arbre + vue lecture + recherche), proche du module Wiki.
+→ Séparation nette ; le moteur compendium reste sans branchement « règles ».
+
+**[2026-05] reg_camp_id — réservé pour de futures house rules**
+Champ reg_camp_id (nullable, NULL = règle officielle) ajouté mais inexploité en v2.
+Réservé à de futures règles maison rattachées à une campagne (house rules), sur le modèle
+de la réserve homebrew. Aucun comportement v2 ne s'appuie dessus.
+→ Schéma prêt pour l'évolution sans refonte. Cohérent avec la réserve homebrew profil.
+
+**[2026-05] Droits d'édition Règles — alignés sur le compendium global**
+Édition réservée à admin + j_compendium_manager (canEditCompendium()), consultation par tout
+utilisateur authentifié. Les règles sont du contenu de référence global, comme le compendium.
+→ Pas de nouveau droit dédié ; réutilisation de la grille de droits existante.
+
+**[2026-05] Navigation Précédent/Suivant — ordre de lecture DFS, pas de colonne matérialisée**
+Le « feuilletage » du livre (Précédent/Suivant) repose sur l'ordre de lecture linéarisé :
+parcours en profondeur de l'arbre trié par (reg_reg_id, reg_ordre), calculé à l'affichage par
+reglesOrdreLecture($ruleset_var_id). Pas de colonne reg_ordre_global matérialisée.
+Alternative écartée : numéro d'ordre global stocké — désynchronisation à chaque insertion/déplacement.
+→ Zéro maintenance d'index de lecture ; volumes (quelques centaines de nœuds) sans enjeu perf.
+
+**[2026-05] Recherche Règles — FULLTEXT InnoDB + fallback LIKE + surlignage**
+Index FULLTEXT (reg_nom, reg_texte), MATCH AGAINST en mode naturel, pertinence avec reg_nom pondéré
+plus fort que reg_texte. Fallback LIKE si la requête est sous la longueur minimale FULLTEXT
+(ft_min_word_len) ou ramène 0 résultat. Résultats affichés avec fil d'Ariane (contexte), extrait
+et terme surligné (span resultat_recherche, repris de la v1). Scope : ruleset actif + reg_camp_id IS NULL.
+→ Recherche pertinente et rapide, robuste sur les requêtes courtes.
+
+**[2026-05] reg_slug — liens profonds stables**
+reg_slug (URL-safe, unique par ruleset) permet au MJ de mettre en favori une règle précise :
+regles/regle.php?r=tests-de-caracteristique. Régénéré + validé en unicité à l'enregistrement.
+→ Accès direct mémorisable, indépendant des reg_id auto-incrémentés.
+
+**[2026-05] Consultation pendant la partie — detail-pp transverse**
+include/ajax/detail-pp/regle.php rend une règle dans l'overlay #detail-pp (ariane + contenu +
+Précédent/Suivant + recherche embarquée), ouvrable depuis les pages campagne/scénario/rencontre
+en contexte 'externe'. Le MJ consulte une règle sans quitter sa partie.
+→ Réutilisation du pattern detail-pp transverse ; usage en table fluidifié.
+
+**[2026-05] Édition Règles — anti-cycle sur le parent**
+À l'enregistrement, validation serveur : le parent choisi ne peut être ni le nœud lui-même
+ni l'un de ses descendants (sinon cycle dans l'arbre). reg_type whitelisté, slug unique/ruleset.
+Réordonnancement des frères par drag & drop (payload JSON, pattern races/classes).
+→ Intégrité de l'arbre garantie côté serveur.
+
+**[2026-05] Glossaire DD2024 — termes = nœuds dd_regles (reg_type='glossaire'), pas de table dédiée**
+DD2024 fournit un Glossaire de règles dont les définitions sont référencées partout dans le texte.
+Chaque terme de glossaire est un nœud dd_regles ordinaire, enfant d'un chapitre « Glossaire de
+règles », distingué par reg_type='glossaire' (enum étendu : 'chapitre','regle','glossaire').
+Alternative écartée : table dd_glossaire dédiée — redondante avec l'arbre, casserait l'uniformité
+(recherche, sommaire, ordre de lecture devraient gérer deux sources). Un terme reste un nœud
+consultable, cherchable et navigable comme les autres.
+→ Modèle unique préservé ; extension d'enum rétro-compatible.
+
+**[2026-05] Glossaire — compatibilité DD3.5 (mécanisme dormant)**
+DD3.5 n'a pas de glossaire structurant : aucun nœud reg_type='glossaire', aucune ancre de renvoi.
+Le mécanisme glossaire est entièrement dormant côté DD3.5 ; le schéma reste agnostique du ruleset.
+→ Aucune régression ni branchement spécifique DD3.5.
+
+**[2026-05] Renvois glossaire — ancres explicites dans reg_texte, pas d'auto-détection au rendu**
+Un renvoi est une ancre HTML explicite : <a class="glossaire-lien" data-glossaire-slug="…">terme</a>,
+stockée dans reg_texte. L'auto-détection au rendu est écartée : mêmes risques que le surlignage de
+recherche (casse du HTML TinyMCE, faux positifs, accords singulier/pluriel/genre).
+L'auto-liaison ne sert qu'UNE fois, à l'import, pour poser ces ancres (appariement des termes connus
+avec les marqueurs « (cf. « Glossaire de règles ») » et les tournures « l'état X »). L'éditeur garde
+ensuite le contrôle des liens.
+→ Renvois déterministes, sans faux positifs, identiques en detail-pp et en pleine page.
+
+**[2026-05] Affichage d'un renvoi — réutilisation du sous-panneau #detail-pp-sub existant**
+Le clic sur un .glossaire-lien (handler délégué dans regles.js) appelle actualiserPageSub()
+(main.js, déjà en place) vers include/ajax/detail-pp-sub/glossaire.php?slug=…
+La définition s'affiche en lecture seule dans #detail-pp-sub, au-dessus de la règle ouverte dans
+#detail-pp (backdrop + bouton fermeture auto-injectés). Aucune nouvelle couche d'overlay créée.
+→ Réutilisation du pattern sous-panneau (déjà utilisé pour capacités/sorts référencés). Zéro dette UI.
+
+**[2026-05] Renvois glossaire imbriqués — remplacement sur place, pas d'empilement**
+Une définition de glossaire peut contenir des renvois vers d'autres termes. Un clic à l'intérieur
+du sous-panneau rappelle actualiserPageSub() : le contenu du MÊME #detail-pp-sub est remplacé sur
+place. Pile « retour » optionnelle en JS si navigation profonde fréquente.
+→ Pas d'empilement de z-index ni de couches multiples ; comportement prévisible.
+
+**[2026-05] Système d'overlays empilés — #detail-pp-sub acté comme pattern de référence**
+Question récurrente sur plusieurs phases : « le sous-panneau au-dessus de detail-pp existe-t-il ? ».
+Réponse définitive : OUI. main.js expose actualiserPageSub(url, params) (lecture seule, GET, bouton
+fermer + backdrop auto-injectés), fermerSubPanel(), et fermerDetailPP() qui referme en cascade
+#modification et #detail-pp-sub. Trois overlays empilés par z-index : #detail-pp (détail principal),
+#modification (édition), #detail-pp-sub (élément référencé au-dessus du détail). Endpoints rangés
+sous include/ajax/detail-pp-sub/. Documenté en §12 d'ARCHITECTURE_0_REFERENCE comme référence.
+Tout nouveau développement réutilise ce mécanisme (capacités/sorts/objets référencés, glossaire) —
+ne jamais réinventer ni reposer la question de son existence.
+→ Fin du doute récurrent ; pattern stable et réutilisable, source de vérité dans la doc.
+
+---
+
 ## Bugs connus — à traiter
 
 - **Admin / liste utilisateurs** : le menu ⋮ (dropdown) ne fonctionne pas correctement sur les lignes `admin-ligne--inactif`. La piste CSS (stacking context créé par `opacity` sur `<td>`) a été explorée sans succès. À investiguer en session dédiée.
@@ -529,6 +649,10 @@ Structure de déclaration dans `$listConfig['filtres']` :
 - [x] ~~Sélection sources profil — zéro sélection~~ → autorisé, retour au défaut, message explicatif
 - [x] ~~Homebrew profil vs campagne~~ → homebrew reste campagne uniquement ; res_camp_id IS NULL réservé
 - [x] ~~Thèmes visuels~~ → dark (défaut) + light "Parchemin" via j_theme en BDD + classe body
+- [x] ~~Module Règles — modèle de données~~ → table unique récursive dd_regles (reg_reg_id) + reg_type ; pas de dd_categorie_regle
+- [x] ~~Module Règles — navigation Précédent/Suivant~~ → ordre de lecture DFS via reglesOrdreLecture(), sans colonne globale
+- [x] ~~Module Règles (DD2024) — glossaire et renvois cliquables~~ → termes = nœuds reg_type='glossaire' ; renvois = ancres .glossaire-lien ouvrant la définition dans #detail-pp-sub
+- [ ] Module Règles — house rules de campagne (reg_camp_id) : implémentation future si besoin confirmé
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
 - [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
 - [ ] Homebrew profil (recueil maison transversal) — implémentation future si besoin confirmé

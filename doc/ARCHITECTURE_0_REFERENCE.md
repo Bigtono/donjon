@@ -2,7 +2,7 @@
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Mise en page — Système de thèmes (dark/light) + fix table-classe-niv + overlays élargis
+> Dernière mise à jour : Module Règles + glossaire DD2024 ; documentation du système d'overlays empilés (#detail-pp / #modification / #detail-pp-sub) comme pattern de référence
 
 ---
 
@@ -390,6 +390,206 @@ Délégation droits via dd_univers_droits. En v1 : globale sur l'univers entier.
 
 ---
 
+## 9b. Module Règles
+
+Module de référence transverse : un **wiki de règles** hiérarchique et récursif, pensé pour
+la consultation rapide par le MJ pendant ses parties et la recherche d'une règle précise.
+
+### Principe — table unique récursive
+
+Une **table unique** `dd_regles` (préfixe `reg`) modélise l'intégralité d'un livre de règles
+d'un ruleset. Chaque nœud référence son parent via `reg_reg_id` (NULL = racine). Un nœud porte
+un `reg_type` qui sert d'indice sémantique et d'affichage :
+
+| reg_type | Rôle | Arbre | Contenu |
+|---|---|---|---|
+| `chapitre` | Conteneur structurel (peut avoir une intro) | dossier | `reg_texte` optionnel |
+| `regle` | Unité consultable (feuille en pratique) | page | `reg_texte` = corps de la règle |
+| `glossaire` | Terme de glossaire DD2024 (définition courte, cible de renvoi) | page | `reg_texte` = définition |
+
+> `reg_type` est un **indice**, pas une contrainte : une `regle` peut techniquement avoir
+> des enfants. La récursion reste libre — la souplesse prime.
+
+La hiérarchie EST la catégorisation : la table v1 `dd_categorie_regle` (vestigiale, jamais
+sauvegardée par `regle-enregistrement.php`) n'est **pas** portée en v2.
+
+### Schéma de la table dd_regles
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| reg_id | int unsigned | PK | |
+| reg_reg_id | int unsigned | null | Parent récursif -> dd_regles ; NULL = racine |
+| reg_type | enum('chapitre','regle','glossaire') | nn, défaut 'regle' | Indice d'affichage / sémantique ; `'glossaire'` = terme de glossaire DD2024 (cible de renvoi cliquable) |
+| reg_nom | varchar(200) | nn | Titre du chapitre / de la règle |
+| reg_slug | varchar(220) | nn, UK(reg_slug, reg_ruleset_var_id) | Version URL-safe — liens profonds stables |
+| reg_texte | longtext | null | Contenu HTML (TinyMCE) — intro pour un chapitre, corps pour une règle |
+| reg_ordre | smallint unsigned | nn, défaut 0 | Ordre parmi les frères (drag & drop) |
+| reg_ruleset_var_id | int unsigned | nn | -> dd_variables |
+| reg_camp_id | int unsigned | null | **RÉSERVÉ** house rules futures -> dd_campagnes ; NULL = règle officielle |
+| reg_visible | tinyint(1) | nn, défaut 1 | 0 = brouillon/masqué (éditeurs seulement) |
+| reg_date_creation | datetime | nn | Horodatage automatique |
+| reg_date_modif | datetime | nn | Mis à jour automatiquement |
+
+Index : `(reg_reg_id, reg_ordre)`, `(reg_ruleset_var_id)`, **FULLTEXT (reg_nom, reg_texte)**.
+
+> Le champ v1 `re_ecran` (« affichage écran », sémantique floue) n'est pas repris :
+> visibilité = `reg_visible`, ordre = `reg_ordre`.
+
+### Périmètre / scoping
+
+- Scoping **ruleset uniquement** (`reg_ruleset_var_id`). Un module Règles existe en parallèle
+  pour DD3.5 et DD2024, comme le compendium.
+- **Pas** de filtre sources (`_res_id`) : les règles sont du contenu de référence, pas du contenu
+  filtré par livre/sélection. Le moteur `compendium-liste.php` **ne s'applique pas** à ce module.
+- `reg_camp_id` (nullable) est **réservé** pour de futures *house rules* de campagne
+  (NULL = règle officielle). Aucun comportement v2 ne s'en sert. Réservation cohérente avec la
+  réserve homebrew (§5).
+
+### Droits d'édition
+
+Même portail que le compendium global : édition réservée à `admin` + `j_compendium_manager`
+(via `canEditCompendium()`). Consultation : tout utilisateur authentifié.
+
+### Navigation « comme un livre »
+
+Trois axes pensés pour l'usage en table :
+
+1. **Sommaire / arbre** (`regles/index.php`) — arbre récursif repliable du ruleset actif, rendu
+   par `include/regles-arbre.php` (fonction récursive, équivalent v2 de la fonction `regles()`
+   de la v1). Les chapitres se replient/déplient ; un clic ouvre la vue lecture.
+2. **Fil d'Ariane (breadcrumb)** — sur la vue lecture, la chaîne des ancêtres est reconstruite
+   en remontant `reg_reg_id` jusqu'à la racine. Le MJ sait toujours où il se trouve.
+3. **Précédent / Suivant (ordre de lecture)** — `regle.php` affiche ◄ Précédent / Suivant ►
+   calculés sur l'**ordre de lecture linéarisé** : parcours en profondeur (DFS) de l'arbre trié
+   par `(reg_reg_id, reg_ordre)`. Helper `reglesOrdreLecture($ruleset_var_id)` (include/helpers.php)
+   → séquence à plat ; Précédent/Suivant = voisins du nœud courant dans cette séquence.
+   Aucune colonne d'ordre global matérialisée → pas de désynchronisation à l'édition ; feuillette
+   le livre entier en descendant naturellement dans les chapitres.
+
+La vue lecture affiche aussi un **sous-sommaire** : la liste ordonnée des enfants directs du nœud
+courant (pour plonger d'un chapitre vers ses règles).
+
+### Recherche
+
+`regles/recherche.php` — moteur dédié, scope ruleset actif + `reg_camp_id IS NULL`.
+
+- Index **FULLTEXT (InnoDB)** sur `(reg_nom, reg_texte)` → `MATCH … AGAINST` en mode naturel,
+  classement par pertinence, le match sur `reg_nom` pondéré plus fort que sur `reg_texte`.
+- **Fallback LIKE** si la requête est sous la longueur minimale FULLTEXT (`ft_min_word_len`)
+  ou ramène 0 résultat.
+- Chaque résultat affiche : **fil d'Ariane** du nœud (contexte), **extrait** du texte, et **terme
+  recherché surligné** (`<span class="resultat_recherche">`, repris de la v1).
+- Un clic ouvre la vue lecture (`regle.php`) ou le detail-pp selon le contexte d'ouverture.
+
+### Consultation pendant la partie — detail-pp transverse
+
+`include/ajax/detail-pp/regle.php` rend une règle dans l'overlay `#detail-pp` (fil d'Ariane +
+contenu + Précédent/Suivant + recherche embarquée), ouvrable depuis les pages campagne/scénario/
+rencontre en contexte `'externe'` (pattern detail-pp transverse, §12).
+→ Le MJ tape un mot-clé, ouvre la règle, navigue, ferme l'overlay et reprend sa partie.
+
+### Glossaire DD2024 et renvois cliquables
+
+DD2024 introduit un **Glossaire de règles** : des définitions structurantes (états, termes,
+dangers, sens spéciaux…) auxquelles le reste des règles renvoie en permanence
+(« … l'état Aveuglé (cf. « Glossaire de règles ») »). Le module gère ces renvois sans
+modèle de données dédié — il s'appuie sur l'arbre récursif existant et le sous-panneau
+`#detail-pp-sub` déjà en place.
+
+**Stockage des termes.** Chaque terme de glossaire est un **nœud `dd_regles` ordinaire**
+(`reg_type = 'glossaire'`), enfant d'un chapitre « Glossaire de règles ». Il a donc nom,
+`reg_slug`, `reg_texte` (la définition) et apparaît dans le sommaire, la recherche et l'ordre
+de lecture comme tout autre nœud.
+
+**Encodage des renvois — ancres explicites.** Un renvoi dans le corps d'une règle est une
+**ancre HTML explicite** dans `reg_texte` :
+
+```html
+… vous subissez l'état <a class="glossaire-lien" data-glossaire-slug="aveugle">Aveuglé</a> …
+```
+
+> Choix : ancre explicite **plutôt qu'auto-détection au rendu**. L'auto-détection poserait
+> les mêmes risques que le surlignage de recherche (casser le HTML TinyMCE, faux positifs,
+> accords singulier/pluriel/genre). L'auto-liaison ne sert qu'**une seule fois à l'import**
+> pour poser ces ancres ; l'éditeur garde ensuite le contrôle. Voir DECISIONS_LOG.
+
+**Affichage au clic — sous-panneau `#detail-pp-sub`.** Un handler **délégué** dans `regles.js`
+intercepte les clics sur `.glossaire-lien` et appelle le mécanisme existant :
+
+```javascript
+// regles.js — délégation
+document.addEventListener('click', function (e) {
+  const lien = e.target.closest('.glossaire-lien');
+  if (!lien) return;
+  e.preventDefault();
+  actualiserPageSub(BASE_URL + '/include/ajax/detail-pp-sub/glossaire.php',
+                    { slug: lien.dataset.glossaireSlug });
+});
+```
+
+`actualiserPageSub()` (main.js, déjà existant) charge la définition en **lecture seule** dans
+`#detail-pp-sub`, qui s'affiche **au-dessus** de la règle ouverte dans `#detail-pp` (backdrop et
+bouton de fermeture auto-injectés). Le MJ lit la définition, ferme le sous-panneau
+(`fermerSubPanel()`) et retrouve sa règle intacte.
+
+**Renvois imbriqués.** Une définition de glossaire peut elle-même contenir des
+`.glossaire-lien`. Un clic à l'intérieur du sous-panneau rappelle `actualiserPageSub()` :
+le contenu du **même** `#detail-pp-sub` est **remplacé sur place** (pas d'empilement de
+couches). Une pile « retour » optionnelle peut être gérée dans `regles.js` si la navigation
+profonde le justifie.
+
+**Endpoint.** `include/ajax/detail-pp-sub/glossaire.php?slug=…` : résout le terme par
+`(reg_slug, reg_ruleset_var_id, reg_type='glossaire')`, rend nom + définition (HTML sans `h()`).
+Lecture seule, scope ruleset actif.
+
+**Recherche.** Les termes de glossaire étant des nœuds, ils remontent naturellement dans
+`regles/recherche.php` (le MJ peut chercher « neutralisé » et tomber directement sur la
+définition).
+
+**Compatibilité DD3.5.** DD3.5 n'a pas de glossaire : aucun nœud `reg_type='glossaire'`,
+aucune ancre `.glossaire-lien`. Le mécanisme est **dormant** côté DD3.5 — zéro impact.
+Le schéma reste agnostique du ruleset.
+
+**Responsabilités de l'import (étape SQL).** Le seed DD2024 doit : (1) créer le chapitre
+« Glossaire de règles » et un nœud `reg_type='glossaire'` par terme ; (2) poser les ancres
+`.glossaire-lien` dans les `reg_texte` des règles, par appariement des termes connus avec les
+marqueurs « (cf. « Glossaire de règles ») » et les tournures « l'état X ».
+
+### Édition
+
+- `regles/modifier.php` *(ou overlay `include/ajax/modifier/regle.php`)* : édition locale JS/DOM,
+  **zéro écriture BDD**. Champs : nom, type (chapitre/regle/glossaire), parent (`<select>` des nœuds du
+  ruleset), contenu (TinyMCE config règles avec tables), visible. `reg_ordre` géré par
+  **drag & drop** dans le sous-sommaire du parent (pattern races/classes, payload JSON au submit).
+- `regles/enregistrement.php` : un seul POST en transaction PDO (insert/update/delete +
+  réordonnancement des frères). Validations serveur : parent ≠ soi-même **et** ≠ un descendant
+  (**anti-cycle**), `reg_type` whitelisté, `reg_ruleset_var_id` = ruleset en session, `reg_slug`
+  régénéré + unicité par ruleset.
+- `reg_slug` permet un lien profond mémorisable : `regles/regle.php?r=tests-de-caracteristique`.
+
+### Fichiers du module
+
+```
+regles/
+  index.php          sommaire racine (arbre) + barre de recherche
+  regle.php          vue lecture (ariane, contenu, sous-sommaire, Précédent/Suivant)
+  recherche.php      résultats FULLTEXT + surlignage + ariane
+  modifier.php       formulaire d'édition (ou overlay) — aucune écriture BDD
+  enregistrement.php POST commun (insert/update/delete/réordonnancement) — transaction PDO
+
+include/
+  regles-arbre.php   moteur d'arbre récursif (rendu sommaire) — fonction récursive
+  ajax/
+    detail-pp/regle.php   aperçu règle en overlay (consultation pendant la partie)
+    detail-pp-sub/glossaire.php   définition d'un terme de glossaire (DD2024) — sous-panneau
+    modifier/regle.php    formulaire édition en overlay
+
+css/regles-modules.css   chargé si $css_module = 'regles'
+js/regles.js             repli arbre, recherche, drag & drop ordre, overlay
+```
+
+---
+
 ## 10. Responsive
 
 | Module | Responsive | Notes |
@@ -553,6 +753,54 @@ Règle :
 - _detailPpContext = 'liste'    → rafraîchit detail-pp + liste
 - _detailPpContext = 'externe'  → rafraîchit detail-pp uniquement
 
+### Système d'overlays empilés — #detail-pp, #modification, #detail-pp-sub
+
+> **Référence définitive.** Ces trois overlays existent et sont câblés dans `main.js`.
+> Tout nouveau développement les **réutilise** — ne jamais en réinventer ni se demander
+> si le sous-panneau existe : il existe.
+
+Trois conteneurs d'overlay, chacun avec son backdrop, empilés par z-index croissant :
+
+| Conteneur | Backdrop | Rôle | Écriture BDD |
+|---|---|---|---|
+| `#detail-pp` | `#detail-pp-backdrop` | Panneau de détail principal (lecture) | Non |
+| `#modification` | `#modification-backdrop` | Formulaire d'édition (overlay) | Non (commit via enregistrement.php) |
+| `#detail-pp-sub` | `#detail-pp-sub-backdrop` | **Sous-panneau** affiché AU-DESSUS de `#detail-pp` | **Non — lecture seule** |
+
+**À quoi sert `#detail-pp-sub`.** Afficher le détail d'un élément **référencé** depuis un
+panneau déjà ouvert, sans fermer le panneau principal : une capacité, une compétence, un sort
+cité dans une fiche — et, pour le module Règles, **un terme de glossaire** cliqué dans une règle.
+C'est la mécanique « overlay au-dessus de detail-pp » réutilisée par le glossaire DD2024 (§9b).
+
+**API JavaScript (main.js) :**
+
+```javascript
+// Ouvre/rafraîchit le sous-panneau en lecture seule (GET).
+// Injecte automatiquement un bouton de fermeture (fermerSubPanel) et affiche le backdrop.
+actualiserPageSub(url, params = {});      // ex: actualiserPageSub(BASE_URL + '/include/ajax/detail-pp-sub/glossaire.php', { slug })
+
+// Ferme UNIQUEMENT le sous-panneau, sans toucher au panneau principal.
+fermerSubPanel();
+
+// Ferme #detail-pp ET, en cascade, #modification + #detail-pp-sub.
+fermerDetailPP();   // appelle fermerSubPanel() et fermerModification()
+```
+
+**Règles d'usage :**
+- `#detail-pp-sub` est **strictement en lecture seule** : il charge un fragment via GET. Toute
+  édition passe par `#modification` + `*-enregistrement.php` (jamais depuis le sous-panneau).
+- Le bouton de fermeture et le backdrop sont **injectés automatiquement** par `actualiserPageSub()` —
+  l'endpoint appelé ne rend que le contenu (pas de wrapper, pas de bouton fermer).
+- **Pas d'empilement de N couches** : un lien référencé cliqué *dans* le sous-panneau rappelle
+  `actualiserPageSub()`, ce qui **remplace le contenu sur place** du même `#detail-pp-sub`.
+  Une pile « retour » peut être gérée côté JS du module si une navigation profonde est requise.
+- Fermer le panneau principal (`fermerDetailPP()`) referme le sous-panneau en cascade.
+- Endpoints dédiés rangés sous `include/ajax/detail-pp-sub/` (ex : `glossaire.php`).
+
+**Quand l'utiliser (vs `#detail-pp`) :** dès qu'on consulte un élément référencé alors qu'un
+détail est déjà ouvert. Si aucun panneau n'est ouvert (ouverture depuis une liste ou une page),
+c'est `#detail-pp` (via `actualiserPage`) qui s'applique, pas le sous-panneau.
+
 ### Commit global (pages modifier)
 
 - *-modifier.php : édition locale JS/DOM — zéro écriture BDD
@@ -586,6 +834,7 @@ donjon/
                    enregistrement.php
   campagnes/       campagne.php, scenario.php, rencontres.php
   wiki/            univers.php, articles.php
+  regles/          index.php, regle.php, recherche.php, modifier.php, enregistrement.php
   profil/          index.php, mot-de-passe-oublie.php, reinitialisation.php
   admin/
     index.php            (dashboard admin — 2 cartes)
@@ -599,6 +848,7 @@ donjon/
     compendium.js    toggleSort, submitFiltre, bulk, confirmerSuppression inline
     campagne.js
     wiki.js
+    regles.js        repli arbre, recherche, drag&drop ordre, overlay
     profil.js
     admin.js         (Phase admin — clone adapté de compendium.js)
   css/
@@ -608,6 +858,7 @@ donjon/
     personnages-modules.css   (Phase 3) — chargé si $css_module = 'personnages'
     campagnes-modules.css     (Phase 4) — chargé si $css_module = 'campagnes'
     wiki-modules.css          (Phase 5) — chargé si $css_module = 'wiki'
+    regles-modules.css        chargé si $css_module = 'regles'
     admin-modules.css         chargé si $css_module = 'admin'
   include/
     db.php           PDO + BASE_URL + DEV_MODE
@@ -617,11 +868,16 @@ donjon/
     footer.php
     compendium-liste.php    moteur de liste commun compendium (lit $listConfig)
     admin-liste.php         moteur de liste commun admin (lit $adminListConfig)
+    regles-arbre.php        moteur d'arbre récursif du module Règles (fonction récursive)
     ajax/
       detail-pp/     sort.php, classe.php, don.php, race.php, historique.php...
+                     regle.php   (Règles)
                      utilisateur.php, ressource.php   (admin)
+      detail-pp-sub/ glossaire.php   (Règles — terme de glossaire DD2024, au-dessus de detail-pp)
       modifier/      sort.php, classe.php, don.php, race.php, historique.php...
+                     regle.php   (Règles)
                      utilisateur.php, ressource.php   (admin)
+      regles/        reorder.php, arbre.php   (drag & drop ordre + fragment sommaire)
     insert/
       DD3.5/
       DD2024/
@@ -680,6 +936,15 @@ Campagne, scénarios, chapitres, rencontres, monstres, personnages invités.
 Univers, catégories, articles, délégation, lien univers <-> campagne.
 
 ---
+
+### Module Règles — Wiki de règles
+Table récursive dd_regles (reg_reg_id), arbre/sommaire repliable, vue lecture (fil d'Ariane +
+sous-sommaire + Précédent/Suivant en ordre de lecture DFS), recherche FULLTEXT + surlignage,
+édition (drag & drop de l'ordre, anti-cycle parent), detail-pp transverse pour consultation
+pendant la partie.
+Glossaire DD2024 : termes = nœuds reg_type='glossaire' ; renvois cliquables (ancres
+.glossaire-lien) ouvrant la définition dans le sous-panneau #detail-pp-sub (réutilisé).
+Import SRD 5.2.1 : arbre complet + glossaire + pose des ancres de renvoi.
 
 ## 15. Tables de la base de données
 
@@ -749,6 +1014,13 @@ Univers, catégories, articles, délégation, lien univers <-> campagne.
 | dd_univers_categories | uca | Catégories d'articles |
 | dd_univers_articles | ua | Articles wiki |
 
+### Règles (wiki de règles)
+| Table | Préfixe | Rôle |
+|---|---|---|
+| dd_regles | reg | Chapitres et règles, hiérarchie récursive (reg_reg_id) — scoping ruleset seul |
+
+> La table v1 `dd_categorie_regle` n'est pas portée : la hiérarchie récursive remplace la catégorisation.
+
 ### Notes
 | Table | Préfixe | Rôle |
 |---|---|---|
@@ -816,6 +1088,23 @@ tinymce.init({
 });
 ```
 
+### Configuration règles — listes + tables, sans images
+
+Pour : module Règles (chapitres et règles). Les règles DD comportent de nombreuses tables
+(degrés de difficulté, modificateurs de caractéristique, allure de voyage, abris…).
+
+```javascript
+tinymce.init({
+  selector: '.tinymce-regle',
+  language: 'fr_FR',
+  menubar: false,
+  plugins: 'lists link table',
+  toolbar: 'bold italic underline | bullist numlist | h2 h3 | table | link | removeformat',
+  height: 360,
+  skin: 'oxide-dark',
+});
+```
+
 ### Endpoint upload images
 
 Fichier : include/ajax/upload-image.php
@@ -860,6 +1149,16 @@ tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
 - [ ] Admin : suppression ressource = vérification préalable sur les 7 tables compendium
 - [ ] TinyMCE : triggerSave() appelé avant tout submit AJAX
 - [ ] TinyMCE : champs description/contenu affichés sans h()
+- [ ] Règles : module n'utilise PAS compendium-liste.php (scoping ruleset seul, pas de sources)
+- [ ] Règles : Précédent/Suivant calculés par reglesOrdreLecture() (DFS), pas de colonne globale
+- [ ] Règles : parent validé anti-cycle (≠ soi-même, ≠ descendant) à l'enregistrement
+- [ ] Règles : recherche FULLTEXT scope ruleset actif + reg_camp_id IS NULL, fallback LIKE
+- [ ] Règles : édition réservée à canEditCompendium(), consultation par tout utilisateur
+- [ ] Règles (DD2024) : termes de glossaire = nœuds reg_type='glossaire' (enfants du chapitre Glossaire)
+- [ ] Règles (DD2024) : renvois = ancres `.glossaire-lien[data-glossaire-slug]` dans reg_texte (jamais d'auto-détection au rendu)
+- [ ] Règles (DD2024) : clic renvoi → actualiserPageSub() vers detail-pp-sub/glossaire.php (sous-panneau existant réutilisé)
+- [ ] Règles (DD2024) : renvoi imbriqué = remplacement sur place du #detail-pp-sub, pas d'empilement
+- [ ] Règles : reg_type whitelisté côté serveur ('chapitre','regle','glossaire')
 - [ ] img/uploads/ exclu du repo (.gitignore)
 - [ ] Thèmes : toute nouvelle variable CSS définie dans body.theme-dark ET body.theme-light
 - [ ] Thèmes : aucun fallback de couleur hardcodé dans les composants (ex: #f5efe6) — utiliser uniquement des var()
