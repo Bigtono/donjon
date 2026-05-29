@@ -614,7 +614,7 @@ Sorts préparés d'un personnage.
 ---
 
 ### dd_personnages_competences
-
+Liste des compétences que possède le personnage
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | pec_id | int unsigned | PK | |
@@ -625,7 +625,7 @@ Sorts préparés d'un personnage.
 ---
 
 ### dd_personnages_dons
-
+Liste des dons que possède le personnage
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | ped_id | int unsigned | PK | |
