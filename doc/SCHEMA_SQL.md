@@ -124,6 +124,15 @@ Bonus de maitrise par niveau dns *[DD2024]*
 | bm_bonus | int | nn | de 0 à 6 |
 | bm_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
+### dd_fp
+Facteur de puissance des monstres
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| fp_id | int unsigned | PK | |
+| fp_nom | varchar(3) | nn | alpahnumérique |
+| fp_valeur | int | nn | |
+
+
 ---
 
 
