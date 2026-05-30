@@ -520,6 +520,7 @@ Objets magiques du compendium.
 | om_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | om_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
+
 ### dd_monstres
 
 | Champ | Type | Null | Commentaire |
@@ -529,7 +530,28 @@ Objets magiques du compendium.
 | mo_stats | text | null | Bloc de statistiques (format libre) |
 | mo_fp_id | varchar(10) | null | Facteur de puissance (alphanumérique, ex : 1/2) |
 | mo_j_id | int unsigned | null | Propriétaire -> dd_joueurs (null = visible par tous) |
+| mo_res_id | int unsigned | nn | Source -> dd_ressources |
+| mo_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | mo_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+### dd_monstres_categories
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| mocat_id | int unsigned | PK | |
+| mocat_nom | varchar(150) | nn | |
+| mocat_description | text | null | Description de la catégorie |
+| mocat_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+### dd_monstres_groupes
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| mogr_id | int unsigned | PK | |
+| mogr_nom | varchar(150) | nn | |
+| mogr_description | text | null | Description de la catégorie |
+| mogr_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
 
 ---
 
