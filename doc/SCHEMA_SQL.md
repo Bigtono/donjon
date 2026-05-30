@@ -536,6 +536,8 @@ Objets magiques du compendium.
 |---|---|---|---|
 | mo_id | int unsigned | PK | |
 | mo_nom | varchar(150) | nn | |
+| mo_mocat_id | int(10) | nn | Catégorie du monstre -> dd_monstres_categories |
+| mo_mogr_id | int(10) | nn | groupe du monstre -> dd_monstres_groupes |
 | mo_stats | text | null | Bloc de statistiques (format libre) |
 | mo_fp_id | varchar(10) | null | Facteur de puissance (alphanumérique, ex : 1/2) |
 | mo_j_id | int unsigned | null | Propriétaire -> dd_joueurs (null = visible par tous) |
