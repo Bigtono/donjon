@@ -406,6 +406,71 @@ Actions possibles par entrée : `existing` (mise à jour ordre), `new` (créatio
 La suppression d'un lien (action=delete) ne supprime pas l'entrée `dd_capacites_speciales`.
 → Réutilisation du pattern éprouvé sur les classes — cohérence technique et UX.
 
+## Phase 2 — Monstres
+
+**[2025-05] Reprise complète du formatage v1 (trt-insertion-monstre-2.php)**
+Le script v1 (analyse ligne à ligne, listes de mots-clés en dur, requête SQL par item,
+modes à séparateurs `...` / `$$$` / `***`, `onClick` JS codés en dur, matching exact
+sensible casse/accents, liaison limitée à dons + compétences) est abandonné.
+Remplacé par un moteur unique `include/monstre-parser.php`.
+→ Code plus efficace (requêtes groupées au lieu de N+1) et plus maintenable
+  (registre déclaratif, sortie découplée du JS).
+
+**[2025-05] Registre déclaratif des types liables**
+Les 7 types cliquables (don, compétence, sort, objet magique, capacité spéciale,
+race, classe) sont décrits dans un tableau de config `$TYPES_LIABLES` (table, clé,
+champ nom, endpoint detail-pp, scoping), sur le modèle de `$listConfig`.
+Ajouter un type liable = ajouter une ligne, aucune logique à dupliquer.
+→ Cohérence avec l'esprit config-driven du compendium.
+
+**[2025-05] Scoping différencié par type — capacités spéciales non scopées**
+6 types sur 7 sont filtrés par ruleset + sources actives + `camp_id IS NULL`.
+`dd_capacites_speciales` ne porte ni ressource ni ruleset ni campagne : ce type est
+résolu sans filtre de scoping (table partagée, déjà le cas pour classes et races).
+→ Évite d'inventer des colonnes de scoping artificielles sur les capacités.
+
+**[2025-05] Analyse via DOMDocument, pas de chirurgie de chaîne**
+`mo_stats` provient de TinyMCE (HTML). L'analyse parcourt les nœuds texte du DOM et
+n'altère jamais balises ni attributs. Abandon du découpage ligne par ligne de la v1
+(qui supposait du texte brut et `htmlspecialchars`).
+→ Aucun risque de corruption du HTML ni de double-encodage.
+
+**[2025-05] Sortie neutre `data-*`, résolution côté client**
+Le parser stocke `<span class="mo-lien" data-type="…" data-id="…">…</span>` sans
+`onclick` ni URL. Un gestionnaire délégué dans `compendium.js` résout
+type -> endpoint -> `actualiserPageSub()`.
+Abandon des `onClick="afficherDon(id)"` v1 stockés en base.
+→ Le contenu survit à un changement de `BASE_URL` (local `/donjon` vs OVH) ou de
+  chemin d'endpoint ; couplage stockage/JS supprimé.
+
+**[2025-05] Ré-analyse idempotente à chaque sauvegarde**
+Avant de relier, le parser déballe les `.mo-lien` existants (remplacés par leur
+texte) puis relie à neuf.
+→ Les ré-éditions successives ne produisent ni liens imbriqués ni liens périmés.
+
+**[2025-05] Détection à deux niveaux — contrôle des faux positifs**
+Lignes étiquetées (`Dons :`, `Compétences :`) reliées à leur type spécifique
+uniquement ; texte libre relié à l'ensemble élargi (sorts, objets, capacités, races,
+classes) avec garde-fous (plus longue correspondance d'abord, bornes de mots,
+longueur minimale, drapeau `actif` par type).
+→ Précision là où la structure existe, portée ailleurs, sans liaisons parasites.
+
+**[2025-05] Visibilité monstre portée par mo_j_id (et non un booléen)**
+`mo_j_id IS NULL` = visible par tous ; sinon visible par ce seul joueur (MJ).
+Clause de liste `(mo_j_id IS NULL OR mo_j_id = :uid)` injectée via `extra_where` ;
+`ownerFilter()` non utilisé car il masquerait les monstres globaux.
+→ Un MJ peut tenir des monstres « secrets » sans les exposer aux joueurs.
+
+**[2025-05] ⚠ Schéma à réconcilier — BLOQUANT avant code**
+Le `SCHEMA_SQL.md` poussé sur `main` décrit `dd_monstres` **sans** `mo_mocat_id`
+ni `mo_mogr_id`, et `mo_fp_id` y est typé `varchar(10)` (valeur littérale type « 1/2 »).
+La proposition retenue suppose au contraire des **clés étrangères entières** :
+  - `mo_mocat_id  INT UNSIGNED NULL  -> dd_monstres_categories.mocat_id`
+  - `mo_mogr_id   INT UNSIGNED NULL  -> dd_monstres_groupes.mogr_id`  (DD2024 seul)
+  - `mo_fp_id     INT UNSIGNED NULL  -> dd_fp.fp_id`  (tri via dd_fp.fp_valeur)
+À confirmer côté base et à reporter dans `SCHEMA_SQL.md` avant écriture du module.
+→ Cohérence avec la convention `*_id` du projet et tri du FP par `fp_valeur`.
+
 ---
 
 ## Mise en page — Thèmes et overlays
@@ -675,3 +740,7 @@ Décisions d'import :
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
 - [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
 - [ ] Homebrew profil (recueil maison transversal) — implémentation future si besoin confirmé
+- [x] ~~Monstres — reprise du formatage v1~~ → moteur monstre-parser.php (registre + DOMDocument + sortie data-*)
+- [x] ~~Monstres — visibilité~~ → mo_j_id (NULL = public, sinon privé MJ), pas de booléen om_visible
+- [ ] Monstres — stratégie de liaison : deux niveaux (étiqueté + texte libre) à confirmer, ou tagging explicite ?
+- [ ] Monstres — réconcilier le schéma (mo_mocat_id / mo_mogr_id / mo_fp_id) — bloquant
