@@ -632,6 +632,25 @@ Tout nouveau développement réutilise ce mécanisme (capacités/sorts/objets r�
 ne jamais réinventer ni reposer la question de son existence.
 → Fin du doute récurrent ; pattern stable et réutilisable, source de vérité dans la doc.
 
+**[2026-05] Import SQL du module Règles — patch_regles.sql + seed_regles_dd2024.sql**
+Deux fichiers livrés : (1) patch_regles.sql = DDL de dd_regles (enum reg_type chapitre/regle/glossaire,
+FULLTEXT(reg_nom,reg_texte), FK récursive reg_reg_id ON DELETE RESTRICT, FK ruleset/ressource/campagne,
+UNIQUE(reg_slug,reg_ruleset_var_id)) ; (2) seed_regles_dd2024.sql = données DD2024 (SRD 5.2.1, CC-BY-4.0).
+Décisions d'import :
+- Ruleset et ressource résolus dynamiquement en SQL (SET @ddver/@res via SELECT sur dd_variables/dd_ressources),
+  jamais d'id entier codé en dur — robuste quel que soit l'ordre des seeds.
+- Ressource SRD 5.2.1 insérée de façon idempotente (NOT EXISTS) avec res_selection=1 et l'attribution CC-BY requise.
+- Seed rejouable : DELETE des règles du ruleset DD2024 dans une transaction (FOREIGN_KEY_CHECKS neutralisées
+  le temps du DELETE à cause de l'auto-FK reg_reg_id), puis ré-INSERT complet à ids contigus.
+- Le seed livre les 10 chapitres racines + sous-chapitres « Comment jouer » (squelette, reg_texte=NULL à compléter
+  ultérieurement) ET le glossaire DD2024 COMPLET (155 termes, reg_type='glossaire', définitions rédigées).
+- Renvois cliquables posés à la génération (script gen_seed_regles.py) : 1re occurrence de chaque terme connu
+  wrappée en <a class="glossaire-lien" data-glossaire-slug="..">, hors balises et hors ancres existantes,
+  jamais d'auto-lien d'un terme vers lui-même. ~221 ancres posées.
+- Le contenu narratif des chapitres de règles (hors glossaire) reste à importer dans une passe ultérieure ;
+  le squelette fixe dès maintenant l'arbre, les slugs et l'ordre de lecture.
+→ Schéma + glossaire complets et rejouables ; chapitres de règles à enrichir progressivement.
+
 ---
 
 ## Bugs connus — à traiter

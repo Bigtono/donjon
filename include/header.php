@@ -14,8 +14,8 @@ $body_class = isset($body_class) ? h($body_class) : '';
 // Thème utilisateur — dark par défaut si non défini
 $theme_valides = ['dark', 'light'];
 $theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
-                 ? $_SESSION['j_theme']
-                 : 'dark';
+  ? $_SESSION['j_theme']
+  : 'dark';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -31,6 +31,7 @@ $theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
     <link rel="stylesheet" href="<?= BASE_URL ?>/css/<?= $css_module ?>-modules.css">
   <? endif ?>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="csrf-token" content="<?= csrfToken() ?>">
 </head>
 
 <body class="theme-<?= $theme_actif ?><?= $body_class ? ' ' . $body_class : '' ?>">
@@ -47,6 +48,7 @@ $theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
 
     <nav class="site-header__nav">
       <? if (!empty($_SESSION['j_id'])): ?>
+        <a href="<?= BASE_URL ?>/regles/index.php">Règles</a>
         <a href="<?= BASE_URL ?>/compendium/index.php">Compendium</a>
         <a href="<?= BASE_URL ?>/personnages/index.php">Personnages</a>
         <? if (!empty($_SESSION['j_mode_campagne'])): ?>
