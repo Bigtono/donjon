@@ -494,32 +494,38 @@ mark.regles-surligné {
 }
 
 .glossaire-sub__header {
+  margin-bottom: var(--sp-md, 16px);
+  /* padding-right pour ne pas passer sous le bouton Fermer (absolute, haut droite) */
+  padding-right: 2rem;
+}
+
+/* Ligne 1 : badge seul a gauche (le bouton Fermer flotte a droite) */
+.glossaire-sub__ligne-badge {
   display: flex;
   align-items: center;
-  gap: var(--sp-sm, 8px);
-  margin-bottom: var(--sp-md, 16px);
+  min-height: 1.6rem;
+  margin-bottom: .4rem;
+}
+
+.glossaire-sub__ligne-badge .regles-badge--glossaire {
+  font-size: .62rem;
+  padding: 2px 7px;
+  letter-spacing: .07em;
+}
+
+/* Ligne 2 : titre + lien "voir la page complete", l'un derriere l'autre */
+.glossaire-sub__ligne-titre {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
   flex-wrap: wrap;
 }
 
 .glossaire-sub__titre {
-  flex: 1;
-  font-size: 1.2rem;
   margin: 0;
-  display: flex;
-  flex-direction: column;  /* badge au-dessus du nom */
-  align-items: flex-start;
-  gap: .15rem;
+  flex: 0 1 auto;
 }
 
-/* Le badge "Glossaire" s'affiche en petite étiquette au-dessus du nom */
-.glossaire-sub__titre .regles-badge--glossaire {
-  font-size: .6rem;
-  padding: 1px 5px;
-  letter-spacing: .07em;
-  opacity: .75;
-}
-
-/* Nom du terme — element flex distinct du badge */
 .glossaire-sub__nom {
   font-size: 1.2rem;
   font-weight: 600;
@@ -527,16 +533,21 @@ mark.regles-surligné {
 }
 
 .glossaire-sub__lien-complet {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
   color: var(--clr-text-muted, #7a6e5a);
-  font-size: .85rem;
+  font-size: .8rem;
   text-decoration: none;
-  padding: .2rem .4rem;
+  white-space: nowrap;
+  padding: .15rem .4rem;
   border-radius: var(--radius-sm, 4px);
-  transition: color .15s;
+  transition: color .15s, background .15s;
 }
 
 .glossaire-sub__lien-complet:hover {
   color: var(--clr-accent, #8b2020);
+  background: var(--clr-surface-2);
 }
 
 .glossaire-sub__texte {
@@ -684,6 +695,16 @@ mark.regles-surligné {
    ============================================================ */
 
 @media (max-width: 768px) {
+  /* Glossaire sous-panneau : sur mobile, le lien passe sous le titre
+     et son libelle texte reste visible (l'icone seule serait trop petite a toucher) */
+  .glossaire-sub__ligne-titre {
+    gap: .35rem .75rem;
+  }
+  .glossaire-sub__lien-complet {
+    font-size: .78rem;
+    padding: .3rem .5rem; /* cible tactile plus large */
+  }
+
   .regles-layout {
     flex-direction: column;
     padding: var(--sp-sm, 8px);

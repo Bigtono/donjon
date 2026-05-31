@@ -66,14 +66,23 @@ endif;
 <div class="glossaire-sub">
 
   <header class="glossaire-sub__header">
-    <span class="regles-badge regles-badge--glossaire">Glossaire</span>
-    <h3 class="glossaire-sub__titre">
-      <span class="glossaire-sub__nom"><?= h($terme['reg_nom']) ?></span>
-    </h3>
-    <a href="<?= BASE_URL ?>/regles/regle.php?id=<?= (int)$terme['reg_id'] ?>"
-      class="glossaire-sub__lien-complet" title="Voir la page complète">
-      <i class="fa fa-external-link-alt"></i>
-    </a>
+    <!-- Ligne 1 : badge (le bouton Fermer, injecte par actualiserPageSub,
+         flotte en absolute en haut a droite sur cette meme ligne) -->
+    <div class="glossaire-sub__ligne-badge">
+      <span class="regles-badge regles-badge--glossaire">Glossaire</span>
+    </div>
+
+    <!-- Ligne 2 : titre + lien "voir la page complete", l'un derriere l'autre -->
+    <div class="glossaire-sub__ligne-titre">
+      <h3 class="glossaire-sub__titre">
+        <span class="glossaire-sub__nom"><?= h($terme['reg_nom']) ?></span>
+      </h3>
+      <a href="<?= BASE_URL ?>/regles/regle.php?id=<?= (int)$terme['reg_id'] ?>"
+        class="glossaire-sub__lien-complet" title="Voir la page complète">
+        <i class="fa fa-external-link-alt"></i>
+        <span class="glossaire-sub__lien-texte">Voir la page complète</span>
+      </a>
+    </div>
   </header>
 
   <div class="glossaire-sub__texte">
