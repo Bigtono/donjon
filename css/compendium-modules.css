@@ -1143,8 +1143,12 @@
   color: var(--clr-text-muted);
 }
 
-/* Fond uniforme sur les deux lignes de données (pas d'alternance) */
-.mo-carac-table tbody tr { background: rgba(180,140,90,.07); }
+/* Fond uniforme sur les deux lignes — surcharge les règles génériques
+   .sort-detail__description table tbody tr:nth-child(odd/even) */
+.sort-detail__description .mo-carac-table tbody tr,
+.mo-carac-table tbody tr {
+  background: rgba(180,140,90,.07) !important;
+}
 
 /* ============================================================
    Menu contextuel tags @/% dans le textarea
