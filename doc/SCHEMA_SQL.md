@@ -74,8 +74,7 @@ Livres et suppléments de règles. Utilisés pour filtrer le contenu du compendi
 | res_ruleset_var_id | int unsigned | nn | -> dd_variables |
 | res_j_id | int unsigned | null | null = ressource officielle ; sinon propriétaire d'un recueil homebrew -> dd_joueurs |
 | res_editeur | varchar(255) | null | Nom de l'éditeur |
-| res_pages | int | nn | Nombre de pages |
-| res_description | text | nn | Description de la ressource |
+| res_description | text | null | Description de la ressource |
 
 ---
 

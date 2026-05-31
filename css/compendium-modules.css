@@ -1099,26 +1099,33 @@
   border: none;
   background: transparent;
 }
-/* Largeurs des colonnes — définies sur <col> pour table-layout:fixed */
-.mo-col-abbr { width: 12%; }
-.mo-col-val  { width: 10%; }
-.mo-col-mod  { width:  9%; }
-.mo-col-js   { width:  9%; }
+/* Largeurs des colonnes — definies sur <col> pour table-layout:fixed.
+   Somme = 100% exact : chaque groupe (abbr+val+mod+js) = 33.333%, les 3 groupes
+   sont donc strictement identiques. */
+.mo-col-abbr { width: 10%;    }
+.mo-col-val  { width: 8.5%;   }
+.mo-col-mod  { width: 7.5%;   }
+.mo-col-js   { width: 7.333%; }
 
-/* Séparateur entre les 3 groupes */
+/* Separateur entre les 3 groupes : seulement un trait, sans largeur ajoutee
+   (box-sizing:border-box sur les td -> le border n'agrandit pas la colonne) */
 .mo-ct-sep {
   border-right: 2px solid var(--clr-border);
-  padding-right: 8px !important;
-  margin-right: 4px;
 }
 
 /* Corps */
+.mo-carac-table th,
+.mo-carac-table td {
+  box-sizing: border-box; /* padding/border inclus dans la largeur du <col> */
+}
 .mo-carac-table tbody td {
   padding: 3px 4px;
   text-align: center;
   border: none;
   vertical-align: middle;
   white-space: nowrap;
+  overflow: hidden;        /* securite si un contenu deborde */
+  text-overflow: ellipsis;
 }
 
 /* Abréviation (FOR, DEX…) — fond coloré, texte accent */
@@ -1129,7 +1136,7 @@
   letter-spacing: .04em;
   color: var(--clr-accent);
   background: var(--clr-surface-2);
-  padding: 3px 6px !important;
+  padding: 3px 4px;
 }
 
 /* Valeur de la caractéristique */
