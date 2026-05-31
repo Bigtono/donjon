@@ -388,3 +388,123 @@
   font-size: 0.8rem;
   color: var(--clr-text-muted);
 }
+
+
+/* ============================================================
+   GLOSSAIRE — SOUS-PANNEAU (#detail-pp-sub) + BADGES
+   Déplacé depuis regles-modules.css : le sous-panneau glossaire
+   peut s'ouvrir aussi bien depuis les pages Règles que depuis le
+   Compendium (fiches monstres). Ce CSS doit donc être chargé
+   partout -> modules.css (global) et non un module spécifique.
+   ============================================================ */
+
+.regles-badge {
+  display: inline-block;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 99px;
+  vertical-align: middle;
+}
+
+.regles-badge--glossaire {
+  background: rgba(203, 166, 247, .15);
+  color: #6b47a4;
+  border: 1px solid rgba(203, 166, 247, .4);
+}
+
+.regles-badge--brouillon {
+  background: rgba(249, 226, 175, .1);
+  color: #9a6f1a;
+  border: 1px solid rgba(249, 226, 175, .3);
+}
+
+/* ============================================================
+   GLOSSAIRE — SOUS-PANNEAU (#detail-pp-sub)
+   ============================================================ */
+
+.glossaire-sub {
+  padding: var(--sp-md, 16px);
+}
+
+.glossaire-sub__header {
+  margin-bottom: var(--sp-md, 16px);
+  /* padding-right pour ne pas passer sous le bouton Fermer (absolute, haut droite) */
+  padding-right: 2rem;
+}
+
+/* Ligne 1 : badge seul a gauche (le bouton Fermer flotte a droite) */
+.glossaire-sub__ligne-badge {
+  display: flex;
+  align-items: center;
+  min-height: 1.6rem;
+  margin-bottom: .4rem;
+}
+
+.glossaire-sub__ligne-badge .regles-badge--glossaire {
+  font-size: .62rem;
+  padding: 2px 7px;
+  letter-spacing: .07em;
+}
+
+/* Ligne 2 : titre + lien "voir la page complete", l'un derriere l'autre */
+.glossaire-sub__ligne-titre {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.glossaire-sub__titre {
+  margin: 0;
+  flex: 0 1 auto;
+}
+
+.glossaire-sub__nom {
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.glossaire-sub__lien-complet {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  color: var(--clr-text-muted, #7a6e5a);
+  font-size: .8rem;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: .15rem .4rem;
+  border-radius: var(--radius-sm, 4px);
+  transition: color .15s, background .15s;
+}
+
+.glossaire-sub__lien-complet:hover {
+  color: var(--clr-accent, #8b2020);
+  background: var(--clr-surface-2);
+}
+
+.glossaire-sub__texte {
+  font-size: .9rem;
+  line-height: 1.7;
+}
+
+/* Lien « Lire aussi » dans les définitions */
+.glossaire-sub__texte .glossaire-voir {
+  font-size: .8rem;
+  color: var(--clr-text-muted, #7a6e5a);
+  margin-top: var(--sp-sm, 8px);
+}
+
+/* Glossaire sous-panneau — responsive mobile */
+@media (max-width: 768px) {
+  .glossaire-sub__ligne-titre {
+    gap: .35rem .75rem;
+  }
+  .glossaire-sub__lien-complet {
+    font-size: .78rem;
+    padding: .3rem .5rem; /* cible tactile plus large */
+  }
+}
