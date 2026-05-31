@@ -1,10 +1,10 @@
-<!-- Mis à jour : 2026-05-30 -->
+<!-- Mis à jour : 2026-05-31 16:39 -->
 
 # Codex DD v2 — Document de référence architecture
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Module Règles + glossaire DD2024 ; documentation du système d'overlays empilés (#detail-pp / #modification / #detail-pp-sub) comme pattern de référence
+> Dernière mise à jour : Module Monstres v3 (moteur monstre-parser.php — texte brut + rendu à l'affichage + tags explicites) ; précisions sur le système de thèmes (invariant connexion/remember-me)
 
 ---
 
@@ -239,153 +239,146 @@ Détecte $_GET['ajax'] et retourne JSON {ok, id, url_detail} pour les saves indi
 Mode normal (bulk) : redirect + flash message SESSION.
 
 
-### Module Monstres — bloc de stats à liaisons cliquables
+### Module Monstres — bloc de stats à liaisons cliquables (v3)
 
-Le module Monstres est un module de compendium **classique dans sa forme** (moteur de
-liste commun `compendium-liste.php`, fiche `detail-pp`, formulaire `modifier`,
-dispatch dans `enregistrement.php`) mais il ajoute une **passe d'analyse du bloc de
-stats** à l'enregistrement, afin de rendre cliquables les entités du jeu citées dans
-la description.
+Le module Monstres est un module de compendium **classique dans sa forme** (moteur de liste
+commun `compendium-liste.php`, fiche `detail-pp`, formulaire `modifier`, dispatch dans
+`enregistrement.php`), enrichi d'un **moteur de rendu propre** : `include/monstre-parser.php` (v3).
+
+#### Principe directeur — texte brut au stockage, analyse à l'affichage
+
+`mo_stats` est **stocké tel quel**, en texte brut. `enregistrerMonstre()` écrit la valeur POST
+sans transformation (pas de `h()`, pas de passe d'analyse au save). Le **formatage** (mise en page)
+et les **liens cliquables** sont recalculés **à chaque affichage** par `rendreStatsMonstre()`,
+appelé depuis `include/ajax/detail-pp/monstre.php`.
+
+```php
+// include/monstre-parser.php — point d'entrée public
+// Retourne ['html' => string, 'rapport' => array]  ($rapport = compteur de liens par type)
+function rendreStatsMonstre(PDO $db, ?string $texte, int $ruleset_id, array $res_ids): array
+```
+
+→ Ré-édition fidèle à la source ; liens toujours à jour (une entité ajoutée plus tard devient
+cliquable sans re-sauvegarde) ; aucune logique d'idempotence. La saisie se fait dans un
+`<textarea>` brut — **pas de TinyMCE**, pas de `DOMDocument`.
 
 #### Périmètre des données
 
-Table principale `dd_monstres` :
+Table principale `dd_monstres` (colonnes référencées par le code) :
 
 | Champ | Rôle |
 |---|---|
-| `mo_nom` | Nom de la créature |
-| `mo_mocat_id` | Catégorie -> `dd_monstres_categories` |
-| `mo_mogr_id` | Groupe -> `dd_monstres_groupes` *(DD2024 uniquement, NULL en DD3.5)* |
-| `mo_fp_id` | Facteur de puissance -> `dd_fp` |
-| `mo_stats` | Bloc de description (HTML TinyMCE) — **enrichi par la passe d'analyse** |
+| `mo_nom` | Nom de la créature (obligatoire) |
+| `mo_mocat_id` | Catégorie (obligatoire) → `dd_monstres_categories` |
+| `mo_mogr_id` | Groupe → `dd_monstres_groupes` *(DD2024 uniquement ; `0` → stocké `NULL` en DD3.5)* |
+| `mo_fp_id` | Facteur de puissance — **libellé varchar** (« 1/2 ») → référentiel `dd_fp` |
+| `mo_stats` | Bloc de description en **texte brut** — analysé au rendu, jamais au save |
 | `mo_j_id` | Propriétaire. **NULL = visible par tous ; sinon visible par ce seul joueur** |
-| `mo_res_id`, `mo_camp_id`, `mo_ruleset_var_id` | Scoping classique |
+| `mo_res_id` | Source (obligatoire) → `dd_ressources` |
+| `mo_camp_id` | Homebrew de campagne (NULL = officiel) |
+| `mo_ruleset_var_id` | Ruleset → `dd_variables` |
 
-**Visibilité — règle propre au module.** Contrairement aux objets magiques
-(`om_visible` booléen), la visibilité d'un monstre est portée par `mo_j_id` :
+> ⚠️ **Écart SQL versionné / code.** `sql/schema.sql` et le dump `sql/maikasteiymaika.sql` ne
+> reflètent pas encore `mo_mocat_id`, `mo_mogr_id`, `mo_res_id`, `mo_camp_id` ni les tables
+> `dd_monstres_categories`, `dd_monstres_groupes`, `dd_fp`. La base réelle est à jour ; les
+> fichiers SQL du dépôt sont à resynchroniser (voir DECISIONS_LOG — Monstres).
+
+**Visibilité — règle propre au module.** Portée par `mo_j_id` (et non un booléen comme les objets
+magiques) :
 
 ```sql
 -- clause de liste (extra_where), $uid = (int) $_SESSION['j_id']
 (mo.mo_j_id IS NULL OR mo.mo_j_id = $uid)
 ```
 
-`ownerFilter()` ne convient pas ici (il renvoie `prefix_j_id = :owner` et masquerait
-les monstres globaux à NULL). La clause est donc injectée via `extra_where` dans le
-contrôleur de page. Les éditeurs (`canEditCompendium()`) voient tout.
+`ownerFilter()` ne convient pas (il renverrait `prefix_j_id = :owner` et masquerait les monstres
+publics à NULL). Les éditeurs (`canEditCompendium()`) voient tout.
 
-#### Moteur d'analyse — `include/monstre-parser.php`
+#### Liaison des entités — deux mécanismes complémentaires
 
-Point d'entrée unique, appelé par `enregistrerMonstre()` **en création et en
-modification**, juste avant l'écriture de `mo_stats` :
+**1. Tags explicites (prioritaires, résolus en pré-passe `resoudreTagsExplicites()`)** — le moyen
+fiable de poser un lien, sous le contrôle de l'éditeur :
 
-```php
-// Retourne ['html' => string, 'rapport' => array]
-function analyserStatsMonstre(
-  PDO $db, string $html, int $ruleset_id, array $res_ids
-): array
+| Tag | Cible | Résolution |
+|---|---|---|
+| `#Nom du don#` | `dd_dons` | par **nom** (index, insensible casse/accents) |
+| `$Nom du sort$` | `dd_sorts` | par **nom** |
+| `@id@` | `dd_regles` (tout type) | par **id** |
+| `%id%` | `dd_regles` `reg_type='glossaire'` | par **id** |
+
+Un tag introuvable est rendu en **texte simple** (sans lien), jamais en erreur.
+
+**2. Liaison automatique (`lierAuto()`) — limitée à sorts + glossaire.** Sur le texte libre
+(descriptions de pouvoirs, valeurs de labels), une passe relie automatiquement les **sorts** et
+les **termes de glossaire** via un index fusionné (`construireIndexAuto()`, priorité sort >
+glossaire). Garde-fous : normalisation casse/accents (`normaliserNomMonstre()`), plus longue
+correspondance d'abord, longueur minimale `MO_LONGUEUR_MIN = 4`. Le **nom d'un pouvoir n'est
+jamais auto-parsé**. Les **dons ne sont pas auto-liés** (noms trop ambigus) : tag `#…#` uniquement
+(ou ligne « Dons : » en DD3.5 via `lierDons()`).
+
+#### Dictionnaire — registre `typesLiablesMonstre()`
+
+Registre déclaratif décrivant les types chargés **par nom** : `don` et `sort` (table, id, nom,
+colonnes ruleset/res/camp). Le **glossaire** est chargé séparément depuis `dd_regles`. Chargement
+(`chargerIndexMonstre()`) scopé : **ruleset courant + sources actives (`getActiveResIds()`) +
+`camp IS NULL`**. Aucune source active → dictionnaire vide pour les types scopés par ressource.
+
+#### Rendu par ruleset
+
+- **DD2024** (`formaterBlocDD2024()` + `classerLigneDD2024()`) : classification ligne par ligne —
+  en-tête / ligne de **caractéristiques** (rendues en **grille 3×2** via `rendreTableauCarac()` :
+  For/Dex/Con/Int/Sag/Cha avec colonnes MOD/JS), **titre de section** (Traits, Actions, Actions
+  légendaires, Réactions, Repaire, Pouvoirs…), **label inline** (CA, Pv, Vitesse, Initiative),
+  **label gras** (Résistances, Immunités, FP, Équipement…), **sous-liste de sorts** (« À volonté : »,
+  « N/jour : » → liaison sorts seuls), **pouvoir** (« Nom. Description »), ligne simple.
+- **DD3.5** (`formaterLigneDD35()`) : labels terminés par « : » (Classe d'armure, Dés de vie, Dons,
+  Compétences…). Ligne « Dons : » → liaison dons ; autres → liaison auto (sorts + glossaire).
+  Parsing automatique DD3.5 **minimal — à compléter ultérieurement**.
+
+Séparateur de blocs commun : une ligne `***` → `<hr class="mo-stat-hr">`.
+
+#### Sortie découplée du JS et résolution des liens
+
+Le moteur produit des spans **neutres**, sans `onclick` ni URL :
+
+```html
+<span class="mo-lien" data-type="sort" data-id="42">Boule de feu</span>
 ```
 
-Principes de conception (rupture nette avec la v1) :
+Le conteneur `.mo-stats[data-detail-base]` porte la base d'URL. Un **gestionnaire délégué** dans
+`compendium.js` lit `data-type`/`data-id` et résout la cible :
 
-1. **Registre déclaratif des types liables** (`$TYPES_LIABLES`) : un tableau de
-   config par type, sur le modèle de `$listConfig`. Chaque entrée décrit la table,
-   la clé, le champ nom, l'endpoint `detail-pp` et le **scoping** applicable (ruleset,
-   sources, homebrew global). Ajouter un type = ajouter une ligne.
+| `data-type` | Action |
+|---|---|
+| `regle` | ouverture de `regles/regle.php?id=…` dans un **nouvel onglet** |
+| `glossaire` | `actualiserPageSub()` → `detail-pp-sub/glossaire.php` (sous-panneau) |
+| `don` / `sort` | `actualiserPageSub()` → endpoint `detail-pp` du type (table `MO_LIEN_FICHIERS`) |
 
-   | type | table | id | nom | scoping |
-   |---|---|---|---|---|
-   | `don` | `dd_dons` | `do_id` | `do_nom` | ruleset + sources + `camp IS NULL` |
-   | `competence` | `dd_competences` | `comp_id` | `comp_nom` | ruleset + sources |
-   | `sort` | `dd_sorts` | `so_id` | `so_nom` | ruleset + sources + `camp IS NULL` |
-   | `objet` | `dd_objets_magiques` | `om_id` | `om_nom` | ruleset + sources + `camp IS NULL` |
-   | `capacite` | `dd_capacites_speciales` | `cap_id` | `cap_nom` | **aucun** (table partagée, non scopée) |
-   | `race` | `dd_races` | `ra_id` | `ra_nom` | ruleset + sources + `camp IS NULL` |
-   | `classe` | `dd_classes` | `cla_id` | `cla_nom` | ruleset + sources + `camp IS NULL` |
+→ Indépendant de `BASE_URL` (local `/donjon` vs OVH) ; couplage stockage/JS supprimé.
 
-2. **Dictionnaire en mémoire, requêtes groupées** : une seule requête `SELECT` par
-   type (7 requêtes au total, quelle que soit la taille du bloc), chargée dans un
-   index `nom_normalisé => ['type'=>…, 'id'=>…]`. Fin du N+1 de la v1 (qui faisait
-   une requête par item).
+#### Formulaire et autocomplétion des tags
 
-3. **Normalisation des noms** : `mb_strtolower` + suppression des accents + espaces
-   compactés, des deux côtés (dictionnaire et texte). Le matching devient
-   insensible à la casse et aux accents.
+`include/ajax/modifier/monstre.php` : `<textarea>` brut + popup d'**autocomplétion clavier** des
+tags `@` (règle) et `%` (glossaire), alimentée par `include/ajax/autocomplete-tags-monstre.php`
+(suggestions id + libellé + fil d'Ariane, scopées au ruleset). Les tags `#`/`$` (don/sort) sont
+résolus par nom au rendu. Champs : `mo_nom`, `mo_mocat_id`, `mo_mogr_id`, `mo_fp_id`, `mo_res_id`,
+`mo_camp_id`, `mo_prive` (visibilité), `mo_stats`.
 
-4. **Parcours par nœuds texte via `DOMDocument`** : `mo_stats` étant du HTML
-   TinyMCE, on ne fait **pas** de chirurgie de chaîne ligne à ligne (cause de
-   fragilité en v1). On parcourt les nœuds texte du DOM, on remplace les occurrences
-   reconnues, et on ne touche jamais aux balises ni aux attributs. Aucun risque de
-   casser le HTML, aucun double-encodage.
-
-5. **Sortie découplée du JS** — point clé de maintenabilité. On stocke un span
-   **neutre**, sans `onclick` ni URL :
-
-   ```html
-   <span class="mo-lien" data-type="don" data-id="42">Alerte</span>
-   ```
-
-   La résolution `type -> endpoint detail-pp -> actualiserPageSub()` se fait
-   **côté client** (gestionnaire délégué dans `compendium.js`). Conséquences :
-   - le contenu stocké survit à un changement de `BASE_URL` (local `/donjon`
-     vs OVH) ou de chemin d'endpoint ;
-   - on supprime le couplage v1 aux fonctions JS `afficherDon()` / `affichercompetence()`.
-
-
-6. **Ré-analyse idempotente** : à chaque sauvegarde, on **déballe** d'abord les
-   `span.mo-lien` existants (remplacement par leur texte), puis on relie à neuf.
-   Éditer dix fois un monstre ne crée donc ni liens imbriqués ni liens périmés.
-
-#### Stratégie de détection (contrôle des faux positifs)
-
-Détection à deux niveaux, entièrement pilotée par le registre :
-
-- **Lignes étiquetées** (`Dons :`, `Compétences :`, …) : les items de la ligne sont
-  reliés **uniquement** à leur type spécifique (haute précision, reprend l'intention
-  de la v1, gère le modificateur `+15` accolé au nom d'une compétence).
-- **Texte libre + section Pouvoirs** : matching sur l'ensemble élargi (sorts, objets,
-  capacités, races, classes) via le dictionnaire. Garde-fous : plus longue
-  correspondance d'abord, bornes de mots, longueur minimale paramétrable, drapeau
-  `actif` par type dans le registre (pour désactiver un type bruyant), jamais de
-  re-liaison à l'intérieur d'un `.mo-lien` existant.
-
-#### Rendu et interaction
-
-- `detail-pp/monstre.php` affiche `mo_stats` **tel quel** (déjà enrichi) dans
-  `#detail-pp`.
-- `compendium.js` porte un **gestionnaire délégué** sur `.mo-lien` qui lit
-  `data-type`/`data-id`, résout l'URL via une map, et ouvre la fiche cible dans
-  `#detail-pp-sub` (`actualiserPageSub`), sans fermer la fiche monstre.
+> Une ancienne version `include/ajax/modifier/monstre-old.php` subsiste dans le dépôt — à supprimer
+> une fois le v3 stabilisé.
 
 #### Fichiers du module
 
 ```
-compendium/monstres.php                     # contrôleur liste + $listConfig
-compendium/enregistrement.php               # + case 'monstre' / enregistrerMonstre()
-include/monstre-parser.php                  # moteur d'analyse (nouveau)
-include/ajax/modifier/monstre.php           # formulaire création / modification
-include/ajax/detail-pp/monstre.php          # fiche détail (#detail-pp)
-js/compendium.js                            # + soumettreMonstre() + handler .mo-lien
-css/compendium-modules.css                  # + styles .mo-lien
+compendium/monstres.php                     # contrôleur liste + $listConfig + extra_where visibilité
+compendium/enregistrement.php               # case 'monstre' / enregistrerMonstre() (stockage brut)
+include/monstre-parser.php                  # moteur d'analyse + rendu (v3) — rendreStatsMonstre()
+include/ajax/detail-pp/monstre.php          # fiche détail (#detail-pp) — appelle rendreStatsMonstre()
+include/ajax/modifier/monstre.php           # formulaire (textarea + autocomplete tags)
+include/ajax/autocomplete-tags-monstre.php  # suggestions tags @ (règle) / % (glossaire)
+js/compendium.js                            # gestionnaire délégué .mo-lien (résolution data-*)
+css/compendium-modules.css                  # styles .mo-stats / .mo-lien / grille carac
 ```
-
-<!--
-  ════════════════════════════════════════════════════════════════════
-  MISES À JOUR PONCTUELLES À REPORTER AILLEURS DANS LE FICHIER
-  ════════════════════════════════════════════════════════════════════
-
-  §13 Arborescence du projet — ajouter :
-    compendium/monstres.php
-    include/monstre-parser.php
-    include/ajax/modifier/monstre.php
-    include/ajax/detail-pp/monstre.php
-
-  §14 Plan de développement → « Phase 2 — Compendium » :
-    ajouter « Monstres » à la liste des sections implémentées (bloc de stats à
-    liaisons cliquables — moteur monstre-parser.php).
-
-  §15 Tables de la base de données → « Compendium » : ajouter dd_monstres,
-    dd_monstres_categories, dd_monstres_groupes, dd_fp.
--->
 
 
 ---
@@ -1004,7 +997,7 @@ donjon/
   .htaccess
   personnages/     fiche.php, modifier.php, enregistrement.php
   compendium/      sorts.php, classes.php, dons.php, races.php,
-                   competences.php, objets.php,
+                   competences.php, objets.php, monstres.php,
                    historiques.php   (DD2024 uniquement)
                    enregistrement.php
   campagnes/       campagne.php, scenario.php, rencontres.php
@@ -1044,14 +1037,18 @@ donjon/
     compendium-liste.php    moteur de liste commun compendium (lit $listConfig)
     admin-liste.php         moteur de liste commun admin (lit $adminListConfig)
     regles-arbre.php        moteur d'arbre récursif du module Règles (fonction récursive)
+    monstre-parser.php      moteur d'analyse + rendu du bloc de stats monstre (v3)
     ajax/
       detail-pp/     sort.php, classe.php, don.php, race.php, historique.php...
+                     monstre.php   (Monstres — appelle rendreStatsMonstre())
                      regle.php   (Règles)
                      utilisateur.php, ressource.php   (admin)
       detail-pp-sub/ glossaire.php   (Règles — terme de glossaire DD2024, au-dessus de detail-pp)
       modifier/      sort.php, classe.php, don.php, race.php, historique.php...
+                     monstre.php   (Monstres — textarea + autocomplete tags)
                      regle.php   (Règles)
                      utilisateur.php, ressource.php   (admin)
+      autocomplete-tags-monstre.php   (Monstres — suggestions tags @ règle / % glossaire)
       regles/        reorder.php, arbre.php   (drag & drop ordre + fragment sommaire)
     insert/
       DD3.5/
@@ -1082,8 +1079,9 @@ Auth, session, helpers, header/footer, dashboard, profil, reset MDP, CSS design 
 - compendium/enregistrement.php — POST commun + mode AJAX
 - js/compendium.js — tri, filtre, bulk, confirmation inline
 - css/compendium-modules.css — styles listes, detail-pp sort, responsive compendium
-- Pages : sorts, classes, dons, races, competences, objets, historiques (DD2024)
+- Pages : sorts, classes, dons, races, competences, objets, monstres, historiques (DD2024)
 - AJAX detail-pp et modifier pour chaque entité
+- Monstres : moteur de rendu dédié include/monstre-parser.php (v3) — texte brut, analyse à l'affichage, tags explicites + autocomplétion
 - Templates DD3.5 et DD2024 en parallèle
 
 ### Phase Admin — Zone d'administration TERMINE
@@ -1155,6 +1153,10 @@ Import SRD 5.2.1 : arbre complet + glossaire + pose des ancres de renvoi.
 | dd_competences | comp | Compétences | DD3.5 + DD2024 |
 | dd_historiques | hi | Historiques de personnage | **DD2024 uniquement** |
 | dd_objets_magiques | om | Objets magiques | DD3.5 + DD2024 |
+| dd_monstres | mo | Monstres (mo_stats texte brut, rendu à l'affichage) | DD3.5 + DD2024 |
+| dd_monstres_categories | mocat | Catégories de monstres | DD3.5 + DD2024 |
+| dd_monstres_groupes | mogr | Groupes de monstres | **DD2024 uniquement** |
+| dd_fp | fp | Référentiel des facteurs de puissance (ordonne le filtre FP) | DD3.5 + DD2024 |
 
 ### Personnages
 | Table | Préfixe | Rôle |
@@ -1179,7 +1181,7 @@ Import SRD 5.2.1 : arbre complet + glossaire + pose des ancres de renvoi.
 | dd_scenarios_chapitres | scc | Chapitres |
 | dd_rencontres | re | Rencontres |
 | dd_rencontres_monstres | rem | Monstres d'une rencontre |
-| dd_monstres | mo | Monstres |
+| dd_monstres | mo | Monstres (table principale décrite au §Compendium) |
 
 ### Wiki / Univers
 | Table | Préfixe | Rôle |
