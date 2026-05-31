@@ -586,20 +586,26 @@ var MO_LIEN_FICHIERS = {
 document.addEventListener('click', function (e) {
   const lien = e.target.closest('.mo-lien');
   if (!lien) return;
-  const type    = lien.dataset.type;
-  const id      = parseInt(lien.dataset.id, 10);
+  const type = lien.dataset.type;
+  const id   = parseInt(lien.dataset.id, 10);
   if (!id) return;
-  const cont    = lien.closest('[data-detail-base]');
-  const base    = cont ? cont.dataset.detailBase : '';
+
+  // Reconstruire BASE_URL depuis data-detail-base
+  // data-detail-base = "http://localhost/donjon/include/ajax/detail-pp/"
+  const cont       = lien.closest('[data-detail-base]');
+  const detailBase = cont ? cont.dataset.detailBase : '';
+  // Retirer "/include/ajax/detail-pp/" pour obtenir la racine
+  const appBase    = detailBase.replace(/\/include\/ajax\/detail-pp\/$/, '');
+
   // Regle : nouvelle page
   if (type === 'regle') {
-    window.open(BASE_URL + '/regles/regle.php?id=' + id, '_blank');
+    window.open(appBase + '/regles/regle.php?id=' + id, '_blank');
     return;
   }
-  // Glossaire : sub-panel via endpoint dedie
+  // Glossaire : sub-panel
   if (type === 'glossaire') {
     if (typeof actualiserPageSub === 'function') {
-      actualiserPageSub(BASE_URL + '/include/ajax/detail-pp-sub/glossaire.php', { id: id });
+      actualiserPageSub(appBase + '/include/ajax/detail-pp-sub/glossaire.php', { id: id });
     }
     return;
   }
@@ -607,6 +613,6 @@ document.addEventListener('click', function (e) {
   const fichier = MO_LIEN_FICHIERS[type];
   if (!fichier) return;
   if (typeof actualiserPageSub === 'function') {
-    actualiserPageSub(base + fichier, { id: id });
+    actualiserPageSub(detailBase + fichier, { id: id });
   }
 });

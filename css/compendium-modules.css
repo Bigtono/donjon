@@ -1078,12 +1078,15 @@
 .mo-carac-table {
   border-collapse: collapse;
   width: 100%;
-  font-size: .85rem;
+  table-layout: fixed; /* garantit des largeurs égales entre les 3 groupes */
 }
 
-/* En-tête : labels MOD / JS discrets */
+/* En-tête : fond transparent, labels MOD/JS discrets */
+.mo-carac-table thead tr {
+  background: transparent;
+}
 .mo-carac-table thead th {
-  padding: 0 4px 1px;
+  padding: 0 4px 2px;
   font-size: .65rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -1093,27 +1096,27 @@
   border: none;
   background: transparent;
 }
-/* Les cellules abbr-h et val-h restent vides et sans style */
-.mo-ct-abbr-h,
-.mo-ct-val-h { width: 0; }
+.mo-ct-abbr-h { width: 9%; }
+.mo-ct-val-h  { width: 9%; }
+.mo-ct-label  { width: 9%; } /* MOD et JS */
 
-/* Séparateur visuel entre les 3 groupes */
+/* Séparateur entre les 3 groupes */
 .mo-ct-sep {
   border-right: 2px solid var(--clr-border);
-  padding-right: 10px !important;
+  padding-right: 8px !important;
+  margin-right: 4px;
 }
-.mo-ct-sep:last-child { border-right: none; }
 
 /* Corps */
 .mo-carac-table tbody td {
-  padding: 2px 4px;
+  padding: 3px 4px;
   text-align: center;
   border: none;
   vertical-align: middle;
   white-space: nowrap;
 }
 
-/* Abréviation (For, Dex…) — fond coloré, texte accent */
+/* Abréviation (FOR, DEX…) — fond coloré, texte accent */
 .mo-ct-abbr {
   font-weight: 700;
   font-size: .82rem;
@@ -1121,18 +1124,16 @@
   letter-spacing: .04em;
   color: var(--clr-accent);
   background: var(--clr-surface-2);
-  padding: 3px 8px !important;
-  border-radius: 3px 0 0 3px;
+  padding: 3px 6px !important;
 }
 
 /* Valeur de la caractéristique */
 .mo-ct-val {
   font-weight: 700;
   font-size: 1rem;
-  padding: 2px 6px !important;
 }
 
-/* Modificateurs (MOD et JS) */
+/* Modificateurs */
 .mo-ct-mod,
 .mo-ct-js {
   font-size: .85rem;

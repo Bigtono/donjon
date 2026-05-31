@@ -383,28 +383,31 @@ function rendreTableauCarac(array $lignes): string
     return implode('<br>', array_map('h', $lignes));
   endif;
 
-  // Tableau 12 colonnes (4 par carac : abbr, val, mod, js) x 3 groupes
-  // En-tête : MOD et JS alignés sur les bonnes colonnes, abbr et val sans label
+  // Tableau : 4 colonnes par carac (abbr, val, mod, js) x 3 groupes = 12 colonnes.
+  // En-tête : une seule ligne avec MOD/JS positionnés sur les colonnes 3-4, 7-8, 11-12.
+  // Corps : une ligne par groupe de 3 caracs (For/Dex/Con puis Int/Sag/Cha).
+
+  // En-tête : 3 groupes fixes (jamais 6, même si on a 6 caracs réparties en 2 rangées)
   $thead = '<thead><tr>';
-  foreach (array_chunk($caracs, 3) as $rang):
-    foreach ($rang as $c):
-      $thead .= '<th class="mo-ct-abbr-h"></th>'
-              . '<th class="mo-ct-val-h"></th>'
-              . '<th class="mo-ct-label">MOD</th>'
-              . '<th class="mo-ct-label mo-ct-sep">JS</th>';
-    endforeach;
-  endforeach;
+  for ($g = 0; $g < 3; $g++):
+    $sep = ($g < 2) ? ' mo-ct-sep' : '';
+    $thead .= '<th class="mo-ct-abbr-h"></th>'
+            . '<th class="mo-ct-val-h"></th>'
+            . '<th class="mo-ct-label">MOD</th>'
+            . '<th class="mo-ct-label' . $sep . '">JS</th>';
+  endfor;
   $thead .= '</tr></thead>';
 
   // Corps : une ligne par groupe de 3 caracs
   $tbody = '<tbody>';
   foreach (array_chunk($caracs, 3) as $rang):
     $tbody .= '<tr>';
-    foreach ($rang as $c):
-      $tbody .= '<td class="mo-ct-abbr">' . h($c['abbr']) . '</td>'
-              . '<td class="mo-ct-val">'  . h($c['val'])  . '</td>'
-              . '<td class="mo-ct-mod">'  . h($c['mod'])  . '</td>'
-              . '<td class="mo-ct-js mo-ct-sep">' . h($c['js']) . '</td>';
+    foreach ($rang as $i => $c):
+      $sep = ($i < 2) ? ' mo-ct-sep' : '';
+      $tbody .= '<td class="mo-ct-abbr">'           . h($c['abbr']) . '</td>'
+              . '<td class="mo-ct-val">'             . h($c['val'])  . '</td>'
+              . '<td class="mo-ct-mod">'             . h($c['mod'])  . '</td>'
+              . '<td class="mo-ct-js' . $sep . '">'  . h($c['js'])   . '</td>';
     endforeach;
     $tbody .= '</tr>';
   endforeach;
