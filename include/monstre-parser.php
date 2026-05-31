@@ -378,37 +378,42 @@ function rendreTableauCarac(array $lignes): string
       $caracs[] = $c;
     endforeach;
   endforeach;
+
   if (empty($caracs)):
     return implode('<br>', array_map('h', $lignes));
   endif;
 
-  // On attend 6 carac dans l'ordre CARAC_DD2024.
-  // Si 3 ou 6 elements : rendu en rangees de 3.
-  $rangees = array_chunk($caracs, 3);
-  $html    = '<div class="mo-carac-grid">';
-  foreach ($rangees as $rang):
-    $html .= '<div class="mo-carac-row">';
+  // Tableau 12 colonnes (4 par carac : abbr, val, mod, js) x 3 groupes
+  // En-tête : MOD et JS alignés sur les bonnes colonnes, abbr et val sans label
+  $thead = '<thead><tr>';
+  foreach (array_chunk($caracs, 3) as $rang):
     foreach ($rang as $c):
-      $html .= '<div class="mo-carac-col">'
-             . '<div class="mo-carac-abbr">' . h($c['abbr']) . '</div>'
-             . '<div class="mo-carac-val">'  . h($c['val'])  . '</div>'
-             . '<div class="mo-carac-mods">'
-             . '<span class="mo-carac-mod-label">MOD</span>'
-             . '<span class="mo-carac-mod-val">'  . h($c['mod']) . '</span>'
-             . '<span class="mo-carac-mod-label">JS</span>'
-             . '<span class="mo-carac-js-val">'   . h($c['js'])  . '</span>'
-             . '</div>'
-             . '</div>';
+      $thead .= '<th class="mo-ct-abbr-h"></th>'
+              . '<th class="mo-ct-val-h"></th>'
+              . '<th class="mo-ct-label">MOD</th>'
+              . '<th class="mo-ct-label mo-ct-sep">JS</th>';
     endforeach;
-    $html .= '</div>';
   endforeach;
-  $html .= '</div>';
-  return $html;
+  $thead .= '</tr></thead>';
+
+  // Corps : une ligne par groupe de 3 caracs
+  $tbody = '<tbody>';
+  foreach (array_chunk($caracs, 3) as $rang):
+    $tbody .= '<tr>';
+    foreach ($rang as $c):
+      $tbody .= '<td class="mo-ct-abbr">' . h($c['abbr']) . '</td>'
+              . '<td class="mo-ct-val">'  . h($c['val'])  . '</td>'
+              . '<td class="mo-ct-mod">'  . h($c['mod'])  . '</td>'
+              . '<td class="mo-ct-js mo-ct-sep">' . h($c['js']) . '</td>';
+    endforeach;
+    $tbody .= '</tr>';
+  endforeach;
+  $tbody .= '</tbody>';
+
+  return '<div class="mo-carac-wrap"><table class="mo-carac-table">'
+       . $thead . $tbody . '</table></div>';
 }
 
-// ============================================================
-// 8. CLASSIFICATION ET RENDU DD2024
-// ============================================================
 
 function classerLigneDD2024(string $ligne): array
 {

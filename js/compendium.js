@@ -599,7 +599,7 @@ document.addEventListener('click', function (e) {
   // Glossaire : sub-panel via endpoint dedie
   if (type === 'glossaire') {
     if (typeof actualiserPageSub === 'function') {
-      actualiserPageSub(base + 'detail-pp-sub/glossaire.php', { id: id });
+      actualiserPageSub(BASE_URL + '/include/ajax/detail-pp-sub/glossaire.php', { id: id });
     }
     return;
   }
@@ -608,7 +608,5 @@ document.addEventListener('click', function (e) {
   if (!fichier) return;
   if (typeof actualiserPageSub === 'function') {
     actualiserPageSub(base + fichier, { id: id });
-  }
-});
   }
 });

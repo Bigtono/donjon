@@ -1072,85 +1072,76 @@
    ============================================================ */
 .mo-carac-wrap {
   margin: .5rem 0 .65rem;
+  overflow-x: auto;
 }
 
-.mo-carac-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.mo-carac-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-}
-
-/* Chaque colonne : abréviation | valeur | mod+js empilés */
-.mo-carac-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-}
-
-/* Abréviation (FOR, DEX…) — fond coloré, texte accent */
-.mo-carac-abbr {
+.mo-carac-table {
+  border-collapse: collapse;
   width: 100%;
-  text-align: center;
-  background: var(--clr-surface-2);
-  color: var(--clr-accent);
-  font-weight: 700;
-  font-size: .78rem;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  padding: 3px 0;
-  border-radius: 3px 3px 0 0;
+  font-size: .85rem;
 }
 
-/* Valeur de la caractéristique */
-.mo-carac-val {
-  width: 100%;
-  text-align: center;
-  font-weight: 700;
-  font-size: 1rem;
-  padding: 2px 0;
-  background: var(--clr-surface);
-  border-top: 1px solid var(--clr-border);
-}
-
-/* Bloc MOD + JS côte à côte */
-.mo-carac-mods {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: baseline;
-  gap: 4px;
-  padding: 2px 4px 4px;
-  background: var(--clr-surface);
-  border-top: 1px solid var(--clr-border);
-  border-radius: 0 0 3px 3px;
-  font-size: .8rem;
-}
-
-/* Étiquettes MOD / JS discrets */
-.mo-carac-mod-label {
+/* En-tête : labels MOD / JS discrets */
+.mo-carac-table thead th {
+  padding: 0 4px 1px;
   font-size: .65rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .04em;
   color: var(--clr-text-muted);
-  line-height: 1;
+  text-align: center;
+  border: none;
+  background: transparent;
+}
+/* Les cellules abbr-h et val-h restent vides et sans style */
+.mo-ct-abbr-h,
+.mo-ct-val-h { width: 0; }
+
+/* Séparateur visuel entre les 3 groupes */
+.mo-ct-sep {
+  border-right: 2px solid var(--clr-border);
+  padding-right: 10px !important;
+}
+.mo-ct-sep:last-child { border-right: none; }
+
+/* Corps */
+.mo-carac-table tbody td {
+  padding: 2px 4px;
+  text-align: center;
+  border: none;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
-/* Valeurs numériques */
-.mo-carac-mod-val,
-.mo-carac-js-val {
-  font-weight: 600;
-  color: var(--clr-text);
-  min-width: 1.8em;
-  text-align: center;
+/* Abréviation (For, Dex…) — fond coloré, texte accent */
+.mo-ct-abbr {
+  font-weight: 700;
+  font-size: .82rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--clr-accent);
+  background: var(--clr-surface-2);
+  padding: 3px 8px !important;
+  border-radius: 3px 0 0 3px;
 }
+
+/* Valeur de la caractéristique */
+.mo-ct-val {
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 2px 6px !important;
+}
+
+/* Modificateurs (MOD et JS) */
+.mo-ct-mod,
+.mo-ct-js {
+  font-size: .85rem;
+  color: var(--clr-text-muted);
+}
+
+/* Alternance de lignes */
+.mo-carac-table tbody tr:nth-child(odd)  { background: rgba(180,140,90,.05); }
+.mo-carac-table tbody tr:nth-child(even) { background: rgba(180,140,90,.12); }
 
 /* ============================================================
    Menu contextuel tags @/% dans le textarea
