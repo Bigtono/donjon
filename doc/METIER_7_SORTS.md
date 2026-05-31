@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Définition d'un sort
 
 # Données communes à tous les sorts
@@ -9,4 +11,3 @@
 * un sort peut posséder une branche et un registre. Le registre, quand il existe, est présenté entre crochets
 
 # Ruleset DD2024
-

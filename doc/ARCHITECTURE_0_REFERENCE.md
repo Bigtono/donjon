@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Codex DD v2 — Document de référence architecture
 
 > Source de vérité pour tous les développements.
@@ -327,6 +329,7 @@ Principes de conception (rupture nette avec la v1) :
    - le contenu stocké survit à un changement de `BASE_URL` (local `/donjon`
      vs OVH) ou de chemin d'endpoint ;
    - on supprime le couplage v1 aux fonctions JS `afficherDon()` / `affichercompetence()`.
+
 
 6. **Ré-analyse idempotente** : à chaque sauvegarde, on **déballe** d'abord les
    `span.mo-lien` existants (remplacement par leur texte), puis on relie à neuf.
@@ -829,6 +832,29 @@ body.theme-light { --clr-bg: #f4f1eb; --clr-surface: #ffffff; ... }
 - Session : `$_SESSION['j_theme']` chargé dans `startUserSession()` (include/auth.php)
 - Validation : whitelist `['dark','light']` dans auth.php et profil/index.php
 - Choix : radio buttons dans la section Paramètres de profil/index.php
+
+#### Thème utilisateur — `j_theme`
+
+La préférence de thème (`dark` / `light`) est stockée en base dans
+`dd_joueurs.j_theme` et propagée en session via `$_SESSION['j_theme']`. Le rendu
+applique la classe `theme-<dark|light>` sur `<body>` dans `include/header.php`,
+avec repli sur `dark` si la valeur de session est absente ou hors whitelist.
+
+`$_SESSION['j_theme']` est alimenté à **trois** endroits, qui doivent rester
+cohérents (même whitelist `['dark', 'light']`, même défaut `dark`) :
+
+- **`startUserSession()`** (`include/auth.php`) — appelée à la connexion par
+  formulaire **et** par le remember me.
+- **`index.php`** — `SELECT` de connexion : **doit inclure `j_theme`**, sinon
+  `startUserSession()` reçoit un `$row` incomplet et retombe sur `dark`.
+- **`checkRememberMe()`** (`include/auth.php`) — `SELECT` de reconnexion
+  automatique : inclut déjà `j_theme`.
+- **`profil/index.php`** — mise à jour de la préférence (UPDATE + rafraîchissement
+  de `$_SESSION['j_theme']`).
+
+**Invariant** : toute colonne consommée par `startUserSession()` figure dans les
+deux requêtes qui peuvent l'appeler (login formulaire et remember me). Un oubli
+dans l'une des deux produit un comportement divergent selon le mode de connexion.
 
 ### Variable CSS --clr-surface-alt
 

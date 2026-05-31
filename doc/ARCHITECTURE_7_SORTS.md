@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Architecture Fiche de sort DD3.5 / DD2024
 
 # Objectif

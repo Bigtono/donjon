@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Définition d'un don
 
 # Données communes à tous les dons

@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Codex DD v2 — Schéma de base de données
 
 > Documentation lisible du schéma réel de la base.

@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Règles métiers générales sur les classes
 
 ## Tronc commun
@@ -127,4 +129,3 @@ Dans un deuxième bloc en dessous sont affichés toutes les affectations de la c
 Deux boutons Valider et Annuler en dessous les deux blocs permettent respectivement d'enregistrer les modifications apportées à la capacités et à ses affectations ou d'annuler tous les changements. Dans les deux cas de figures, le div detailPP est fermé et le tableau des capacités spéciales de la classe est mis à jour (si besoin)
 
 A droite du libelle "tableau des capacités spéciales" se trouve un bouton permettant de créer une nouvelle capacité spéciale. Le click ouvre alors detailPP directement en mode formulaire pour saisir les données de la nouvelle capacité. Le bloc Affecation n'est pas affiché, il l'est uniquement si la capacité est validée. 
-

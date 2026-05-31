@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Codex DD v2 — Architecture : Races
 
 > Décisions techniques et structure de code pour la section Races du compendium.

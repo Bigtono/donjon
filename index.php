@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $db->prepare('
       SELECT j_id, j_pseudo, j_password_hash, j_admin, j_compendium_manager,
              j_default_ruleset_var_id, j_remember_token, j_affichage_ruleset,
-             j_mode_campagne
+             j_mode_campagne, j_theme
       FROM   dd_joueurs
       WHERE  j_email = ? AND j_visible = 1
     ');

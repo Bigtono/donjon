@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Règles métiers générales concernant les personnages
 ---------------------------------------------------------
 
@@ -40,5 +42,3 @@
  * le niveau global d'un personnage est égal au total des niveaux de toutes ses classes
  * le ruleset introduit le concept de sous-classe (voir METIER_2_Classes.md)
  * les sous-classes n'influent pas sur le niveau global du personnage
-
-

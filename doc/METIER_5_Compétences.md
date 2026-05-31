@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Définition d'une compétences
 Les compétences représentent toute une palette d'aptitudes différentes. Un personnage maîtrise ses compétences de mieux en mieux à mesure qu'il monte de niveau. 
 
@@ -24,4 +26,3 @@ Ce ruleset introduit plusieurs nouvelles notions pour les compétences
 * Un personnage gagne la maîtrise d'une compétence grace à son historique, sa race ou sa classe
 * le fait de maitriser une compétence permet au perosnnage d'ajouter son bonus de maitrise à son jet de compétence en plus du bonus de caractéristique de la caractéristique associée à la compétence. 
 * Dasn certains cas, un personnage peut gagner "l'expertise" d'une compétence auquel cas il double son bonus de maitrise lors d'un test de compétence
-

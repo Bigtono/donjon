@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 <!--
   À INSÉRER DANS doc/DECISIONS_LOG.md
   Emplacement : après la dernière section de Phase 2. Mettre aussi à jour « ## À décider ».

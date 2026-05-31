@@ -1,3 +1,5 @@
+<!-- Mis à jour : 2026-05-30 -->
+
 # Codex DD v2 — Métier : Races
 
 > Règles fonctionnelles et comportement attendu côté utilisateur.
