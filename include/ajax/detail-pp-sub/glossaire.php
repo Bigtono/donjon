@@ -80,7 +80,6 @@ endif;
       <a href="<?= BASE_URL ?>/regles/regle.php?id=<?= (int)$terme['reg_id'] ?>"
         class="glossaire-sub__lien-complet" title="Voir la page complète">
         <i class="fa fa-external-link-alt"></i>
-        <!---<span class="glossaire-sub__lien-texte">Voir la page complète</span>---->
       </a>
     </div>
   </header>
