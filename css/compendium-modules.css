@@ -839,6 +839,7 @@
 .sort-detail__description table:not(:has(thead)) tr:not(:first-child):nth-child(even) {
   background: rgba(180, 140, 90, 0.17);
 }
+
 /* ============================================================
    Autocomplétion — sort lié (objets magiques)
    ============================================================ */
@@ -981,4 +982,50 @@
   height: 15px;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+/* ===== Monstres ===== */
+
+/* Saisie : bloc de stats en texte brut, police à chasse fixe pour aligner */
+.mo-stats-input {
+  width: 100%;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: .9rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* Affichage du bloc de stats rendu */
+.mo-stats {
+  line-height: 1.55;
+}
+
+.mo-stat-ligne {
+  margin: .12rem 0;
+}
+
+.mo-stat-vide {
+  height: .55rem;
+}
+
+.mo-stat-hr {
+  border: 0;
+  border-top: 1px solid var(--clr-border);
+  margin: .6rem 0;
+}
+
+.mo-stat-label {
+  color: var(--clr-accent);
+}
+
+/* Entité cliquable — aligné sur .om-lien-sort */
+.mo-lien {
+  color: var(--clr-accent-2);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.mo-lien:hover {
+  color: var(--clr-accent);
 }

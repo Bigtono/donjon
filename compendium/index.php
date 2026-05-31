@@ -25,6 +25,11 @@ require_once '../include/header.php';
     <span>Classes</span>
   </a>
 
+  <a href="<?= BASE_URL ?>/compendium/races.php" class="dashboard-card">
+    <i class="fa fa-dragon"></i>
+    <span>Races</span>
+  </a>
+
   <a href="<?= BASE_URL ?>/compendium/sorts.php" class="dashboard-card">
     <i class="fa fa-magic"></i>
     <span>Sorts</span>
@@ -35,11 +40,6 @@ require_once '../include/header.php';
     <span>Dons</span>
   </a>
 
-  <a href="<?= BASE_URL ?>/compendium/races.php" class="dashboard-card">
-    <i class="fa fa-dragon"></i>
-    <span>Races</span>
-  </a>
-
   <a href="<?= BASE_URL ?>/compendium/competences.php" class="dashboard-card">
     <i class="fa fa-tools"></i>
     <span>Compétences</span>
@@ -48,6 +48,11 @@ require_once '../include/header.php';
   <a href="<?= BASE_URL ?>/compendium/objets.php" class="dashboard-card">
     <i class="fa fa-gem"></i>
     <span>Objets magiques</span>
+  </a>
+
+  <a href="<?= BASE_URL ?>/compendium/monstres.php" class="dashboard-card">
+    <i class="fa fa-paw"></i>
+    <span>Monstres</span>
   </a>
 
 </div>

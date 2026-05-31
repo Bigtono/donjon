@@ -4,7 +4,7 @@
 
 function toggleFiltresMobile() {
   const content = document.getElementById('comp-filtre-content');
-  const btn     = document.getElementById('filtre-toggle-btn');
+  const btn = document.getElementById('filtre-toggle-btn');
   if (!content || !btn) return;
 
   const isOpen = !content.classList.contains('is-closed');
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', e => {
     document.querySelectorAll('.comp-filtre-sources-menu').forEach(menu => {
       if (!menu.classList.contains('noDisplay') &&
-          !menu.parentElement.contains(e.target)) {
+        !menu.parentElement.contains(e.target)) {
         const entite = menu.id.replace('sources-menu-', '');
         fermerSources(entite);
       }
@@ -43,8 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 
 function toggleSources(entite) {
-  const menu    = document.getElementById('sources-menu-' + entite);
-  const btn     = document.getElementById('sources-btn-'  + entite);
+  const menu = document.getElementById('sources-menu-' + entite);
+  const btn = document.getElementById('sources-btn-' + entite);
   const chevron = document.getElementById('sources-chevron-' + entite);
   if (!menu) return;
 
@@ -53,23 +53,23 @@ function toggleSources(entite) {
     fermerSources(entite);
   } else {
     menu.classList.remove('noDisplay');
-    if (btn)     btn.classList.add('is-open');
+    if (btn) btn.classList.add('is-open');
     if (chevron) chevron.style.transform = 'rotate(180deg)';
   }
 }
 
 function fermerSources(entite) {
-  const menu    = document.getElementById('sources-menu-' + entite);
-  const btn     = document.getElementById('sources-btn-'  + entite);
+  const menu = document.getElementById('sources-menu-' + entite);
+  const btn = document.getElementById('sources-btn-' + entite);
   const chevron = document.getElementById('sources-chevron-' + entite);
-  if (menu)    menu.classList.add('noDisplay');
-  if (btn)     btn.classList.remove('is-open');
+  if (menu) menu.classList.add('noDisplay');
+  if (btn) btn.classList.remove('is-open');
   if (chevron) chevron.style.transform = '';
 }
 
 function majSourcesBadge(entite) {
-  const menu    = document.getElementById('sources-menu-' + entite);
-  const badge   = document.getElementById('sources-badge-' + entite);
+  const menu = document.getElementById('sources-menu-' + entite);
+  const badge = document.getElementById('sources-badge-' + entite);
   if (!menu || !badge) return;
 
   const checked = menu.querySelectorAll('input[type="checkbox"]:checked').length;
@@ -282,17 +282,17 @@ function soumettreDon() {
 
   fetch(form.getAttribute('action'), {
     method: 'POST',
-    body:   new FormData(form),
+    body: new FormData(form),
   })
-  .then(r => r.json())
-  .then(data => {
-    if (data.ok) {
-      apresModification(data);
-    } else {
-      alert(data.erreur || "Erreur lors de l'enregistrement.");
-    }
-  })
-  .catch(err => alert('Erreur : ' + err));
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        apresModification(data);
+      } else {
+        alert(data.erreur || "Erreur lors de l'enregistrement.");
+      }
+    })
+    .catch(err => alert('Erreur : ' + err));
 }
 
 // ============================================================
@@ -310,17 +310,17 @@ function soumettreCompetence() {
 
   fetch(form.getAttribute('action'), {
     method: 'POST',
-    body:   new FormData(form),
+    body: new FormData(form),
   })
-  .then(r => r.json())
-  .then(data => {
-    if (data.ok) {
-      apresModification(data);
-    } else {
-      alert(data.erreur || "Erreur lors de l'enregistrement.");
-    }
-  })
-  .catch(err => alert('Erreur : ' + err));
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        apresModification(data);
+      } else {
+        alert(data.erreur || "Erreur lors de l'enregistrement.");
+      }
+    })
+    .catch(err => alert('Erreur : ' + err));
 }
 
 // ============================================================
@@ -337,7 +337,7 @@ function omToggleSections(source) {
   const selFom = document.getElementById('om_fom_id');
   if (!selCat) return; // page sans formulaire objet
 
-  const comId      = parseInt(selCat.value, 10) || 0;
+  const comId = parseInt(selCat.value, 10) || 0;
   const estCalcule = (typeof OM_CAT_CALCULE !== 'undefined') && !!OM_CAT_CALCULE[comId];
 
   // Quand l'utilisateur change de catégorie, repositionner le select format
@@ -347,13 +347,13 @@ function omToggleSections(source) {
     selFom.value = estCalcule ? '1' : '2';
   }
 
-  const fomId    = selFom ? parseInt(selFom.value, 10) : 2;
+  const fomId = selFom ? parseInt(selFom.value, 10) : 2;
   const modeAuto = estCalcule && fomId === 1;
 
   // Groupes liés au format auto
   const grpSort = document.getElementById('grp-sort-lie');
-  const grpNls  = document.getElementById('grp-nls');
-  const grpMod  = document.getElementById('grp-modificateurs');
+  const grpNls = document.getElementById('grp-nls');
+  const grpMod = document.getElementById('grp-modificateurs');
   const secDesc = document.getElementById('section-description');
 
   // Catégories avec sort lié (baguettes=4, parchemins=14, potions=15)
@@ -361,11 +361,11 @@ function omToggleSections(source) {
   // (modificateurs, pas de sort) des autres catégories calculées.
   const CATS_AVEC_SORT = [4, 14, 15]; // IDs stables DD3.5
   const avecSort = modeAuto && CATS_AVEC_SORT.includes(comId);
-  const avecMod  = modeAuto && (comId === 2 || comId === 3);
+  const avecMod = modeAuto && (comId === 2 || comId === 3);
 
   if (grpSort) grpSort.style.display = avecSort ? '' : 'none';
-  if (grpNls)  grpNls.style.display  = avecSort ? '' : 'none';
-  if (grpMod)  grpMod.style.display  = avecMod  ? '' : 'none';
+  if (grpNls) grpNls.style.display = avecSort ? '' : 'none';
+  if (grpMod) grpMod.style.display = avecMod ? '' : 'none';
 
   // Description : visible si format libre — préservée en base même en mode auto
   if (secDesc) secDesc.style.display = modeAuto ? 'none' : '';
@@ -377,51 +377,51 @@ function omToggleSections(source) {
 // ============================================================
 
 function initSortAutocomplete() {
-  const input  = document.getElementById('om_so_search');
+  const input = document.getElementById('om_so_search');
   const hidden = document.getElementById('om_so_id');
-  const list   = document.getElementById('om_so_list');
+  const list = document.getElementById('om_so_list');
   const clearBtn = document.getElementById('om_so_clear');
 
   if (!input || !hidden || !list) return;
 
   const rulesetId = (typeof OM_RULESET_ID !== 'undefined') ? OM_RULESET_ID : 1;
-  const resIds    = document.getElementById('om_active_res_ids')?.value ?? '';
+  const resIds = document.getElementById('om_active_res_ids')?.value ?? '';
 
   let debounceTimer = null;
-  let activeIndex   = -1;
+  let activeIndex = -1;
 
   // ---- Fetch ----
 
   function fetchSuggestions(q) {
     const params = new URLSearchParams({ q, ruleset: rulesetId, res_ids: resIds });
     fetch(BASE_URL + '/include/ajax/autocomplete-sorts.php?' + params.toString())
-      .then(function(r) { return r.json(); })
-      .then(function(data) { renderList(data, q); })
-      .catch(function() { closeList(); });
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderList(data, q); })
+      .catch(function () { closeList(); });
   }
 
   // ---- Rendu ----
 
   function renderList(items, q) {
     list.innerHTML = '';
-    activeIndex    = -1;
+    activeIndex = -1;
 
     if (items.length === 0) {
       const li = document.createElement('li');
-      li.className   = 'autocomplete-empty';
+      li.className = 'autocomplete-empty';
       li.textContent = 'Aucun sort trouvé';
       list.appendChild(li);
       list.hidden = false;
       return;
     }
 
-    items.forEach(function(item, i) {
+    items.forEach(function (item, i) {
       const li = document.createElement('li');
-      li.className     = 'autocomplete-item';
-      li.dataset.id    = item.id;
+      li.className = 'autocomplete-item';
+      li.dataset.id = item.id;
       li.dataset.label = item.label;
-      li.innerHTML     = highlightMatch(item.label, q);
-      li.addEventListener('mousedown', function(e) {
+      li.innerHTML = highlightMatch(item.label, q);
+      li.addEventListener('mousedown', function (e) {
         e.preventDefault(); // évite blur avant click
         selectItem(item.id, item.label);
       });
@@ -450,7 +450,7 @@ function initSortAutocomplete() {
 
   function selectItem(id, label) {
     hidden.value = id;
-    input.value  = label;
+    input.value = label;
     if (clearBtn) clearBtn.classList.remove('noDisplay');
     closeList();
   }
@@ -463,7 +463,7 @@ function initSortAutocomplete() {
 
   function updateActive(newIndex) {
     const items = list.querySelectorAll('.autocomplete-item');
-    items.forEach(function(el, i) {
+    items.forEach(function (el, i) {
       el.classList.toggle('is-active', i === newIndex);
     });
     activeIndex = newIndex;
@@ -471,16 +471,16 @@ function initSortAutocomplete() {
 
   // ---- Événements ----
 
-  input.addEventListener('input', function() {
+  input.addEventListener('input', function () {
     const q = input.value.trim();
     hidden.value = 0; // invalider la sélection en cours
     if (clearBtn && !q) clearBtn.classList.add('noDisplay');
     clearTimeout(debounceTimer);
     if (q.length < 2) { closeList(); return; }
-    debounceTimer = setTimeout(function() { fetchSuggestions(q); }, 250);
+    debounceTimer = setTimeout(function () { fetchSuggestions(q); }, 250);
   });
 
-  input.addEventListener('keydown', function(e) {
+  input.addEventListener('keydown', function (e) {
     const items = list.querySelectorAll('.autocomplete-item');
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -498,16 +498,16 @@ function initSortAutocomplete() {
   });
 
   // Fermeture au clic extérieur
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', function (e) {
     const wrap = input.closest('.autocomplete-wrap');
     if (wrap && !wrap.contains(e.target)) closeList();
   });
 
   // Bouton d'effacement
   if (clearBtn) {
-    clearBtn.addEventListener('click', function() {
+    clearBtn.addEventListener('click', function () {
       hidden.value = 0;
-      input.value  = '';
+      input.value = '';
       clearBtn.classList.add('noDisplay');
       closeList();
     });
@@ -529,15 +529,67 @@ function soumettreObjet() {
 
   fetch(form.getAttribute('action'), {
     method: 'POST',
-    body:   new FormData(form),
+    body: new FormData(form),
   })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if (data.ok) {
-      apresModification(data);
-    } else {
-      alert(data.erreur || "Erreur lors de l'enregistrement.");
-    }
-  })
-  .catch(function(err) { alert('Erreur : ' + err); });
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.ok) {
+        apresModification(data);
+      } else {
+        alert(data.erreur || "Erreur lors de l'enregistrement.");
+      }
+    })
+    .catch(function (err) { alert('Erreur : ' + err); });
 }
+
+// ============================================================
+// MONSTRE — soumission du formulaire (texte brut, pas de TinyMCE)
+// ============================================================
+function soumettreMonstre() {
+  const form = document.getElementById('form-monstre');
+  if (!form) return;
+
+  fetch(form.getAttribute('action'), {
+    method: 'POST',
+    body: new FormData(form),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        apresModification(data);
+      } else {
+        alert(data.erreur || "Erreur lors de l'enregistrement.");
+      }
+    })
+    .catch(err => alert('Erreur : ' + err));
+}
+
+// ============================================================
+// MONSTRE — liens cliquables du bloc de stats (.mo-lien)
+// Le span ne porte que data-type / data-id ; l'URL de l'endpoint
+// detail-pp est résolue ici, et la base est lue sur le conteneur
+// (.mo-stats[data-detail-base]) -> aucune dépendance à un BASE_URL global.
+// Délégation : un seul écouteur pour tous les monstres affichés.
+// ============================================================
+var MO_LIEN_FICHIERS = {
+  don: 'don.php',
+  competence: 'competence.php',
+  sort: 'sort.php',
+  objet: 'objet.php',
+  capacite: 'capacite.php',
+  race: 'race.php',
+  classe: 'classe.php',
+};
+
+document.addEventListener('click', function (e) {
+  const lien = e.target.closest('.mo-lien');
+  if (!lien) return;
+  const fichier = MO_LIEN_FICHIERS[lien.dataset.type];
+  const id = parseInt(lien.dataset.id, 10);
+  if (!fichier || !id) return;
+  const cont = lien.closest('[data-detail-base]');
+  const base = cont ? cont.dataset.detailBase : '';
+  if (typeof actualiserPageSub === 'function') {
+    actualiserPageSub(base + fichier, { id: id });
+  }
+});

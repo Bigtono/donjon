@@ -155,6 +155,20 @@ switch ($entite):
     endswitch;
     break;
 
+  case 'monstre':
+    switch ($action):
+      case 'sauvegarder':
+        enregistrerMonstre($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+      case 'bulk_supprimer':
+        supprimerEntite($db, 'dd_monstres', 'mo_id', $is_ajax, $redirect);
+        break;
+      default:
+        repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+    endswitch;
+    break;
+
   default:
     repondreErreur($is_ajax, 'Entité inconnue : ' . h($entite), $redirect);
 
@@ -1359,6 +1373,102 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
   } catch (Exception $e) {
     $db->rollBack();
     error_log('enregistrerObjet : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// ============================================================
+// MONSTRE — Enregistrement (création + modification)
+// ============================================================
+// mo_stats est stocké TEL QUEL (texte brut). Aucune passe d'analyse à
+// l'enregistrement : le formatage et les liens sont calculés à l'affichage
+// par rendreStatsMonstre() (include/monstre-parser.php).
+
+function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
+{
+  $mo_id      = intParam($_POST['mo_id']             ?? 0);
+  $nom        = strParam($_POST['mo_nom']            ?? '');
+  $ruleset_id = intParam($_POST['mo_ruleset_var_id'] ?? 1);
+
+  if (!$nom):
+    repondreErreur($is_ajax, 'Le nom du monstre est obligatoire.', $redirect);
+  endif;
+
+  $res_id = intParam($_POST['mo_res_id'] ?? 0);
+  if (!$res_id):
+    repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
+  endif;
+
+  $mocat_id = intParam($_POST['mo_mocat_id'] ?? 0);
+  if (!$mocat_id):
+    repondreErreur($is_ajax, 'La catégorie est obligatoire.', $redirect);
+  endif;
+
+  // Groupe : NN en base, mais concept DD2024 uniquement.
+  // En DD3.5 le champ caché transmet 0 -> on stocke 0 (pas de groupe).
+  $mogr_id = intParam($_POST['mo_mogr_id'] ?? 0);
+
+  $fp_id   = strParam($_POST['mo_fp_id'] ?? '') ?: null; // varchar : libellé ou NULL
+  $stats   = (string)($_POST['mo_stats'] ?? '');         // TEXTE BRUT — pas de h()
+  $camp_id = intParam($_POST['mo_camp_id'] ?? 0) ?: null;
+
+  // Visibilité : privé -> mo_j_id = utilisateur courant ; public -> NULL
+  $prive = isset($_POST['mo_prive']);
+  $j_id  = $prive ? (int)($_SESSION['j_id'] ?? 0) : null;
+
+  try {
+    $db->beginTransaction();
+
+    if ($mo_id === 0):
+      $stmt = $db->prepare('
+        INSERT INTO dd_monstres
+          (mo_nom, mo_mocat_id, mo_mogr_id, mo_stats, mo_fp_id,
+           mo_j_id, mo_res_id, mo_camp_id, mo_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?,?,?)
+      ');
+      $stmt->execute([
+        $nom,
+        $mocat_id,
+        $mogr_id,
+        $stats,
+        $fp_id,
+        $j_id,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
+      ]);
+      $mo_id = (int)$db->lastInsertId();
+    else:
+      $stmt = $db->prepare('
+        UPDATE dd_monstres SET
+          mo_nom      = ?,
+          mo_mocat_id = ?,
+          mo_mogr_id  = ?,
+          mo_stats    = ?,
+          mo_fp_id    = ?,
+          mo_j_id     = ?,
+          mo_res_id   = ?,
+          mo_camp_id  = ?
+        WHERE mo_id = ?
+      ');
+      $stmt->execute([
+        $nom,
+        $mocat_id,
+        $mogr_id,
+        $stats,
+        $fp_id,
+        $j_id,
+        $res_id,
+        $camp_id,
+        $mo_id,
+      ]);
+    endif;
+
+    $db->commit();
+    repondreOk($is_ajax, $mo_id, 'monstre', $redirect);
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('enregistrerMonstre : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
   }
 }
