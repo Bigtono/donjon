@@ -383,16 +383,25 @@ function rendreTableauCarac(array $lignes): string
     return implode('<br>', array_map('h', $lignes));
   endif;
 
-  // Tableau : 4 colonnes par carac (abbr, val, mod, js) x 3 groupes = 12 colonnes.
-  // En-tête : une seule ligne avec MOD/JS positionnés sur les colonnes 3-4, 7-8, 11-12.
-  // Corps : une ligne par groupe de 3 caracs (For/Dex/Con puis Int/Sag/Cha).
+  // Tableau 12 colonnes fixes (4 par carac x 3 groupes).
+  // <colgroup> impose les largeurs indépendamment du contenu des cellules.
+  // Chaque groupe : abbr(12%) val(10%) mod(9%) js(9%) -> 40% x 3 = 120%
+  // table-layout:fixed + width:100% -> les % sont relatifs à 100%, ok.
+  $colgroup = '<colgroup>';
+  for ($g = 0; $g < 3; $g++):
+    $colgroup .= '<col class="mo-col-abbr">'
+               . '<col class="mo-col-val">'
+               . '<col class="mo-col-mod">'
+               . '<col class="mo-col-js">';
+  endfor;
+  $colgroup .= '</colgroup>';
 
-  // En-tête : 3 groupes fixes (jamais 6, même si on a 6 caracs réparties en 2 rangées)
+  // En-tête : 3 groupes, MOD et JS centrés sur les bonnes colonnes
   $thead = '<thead><tr>';
   for ($g = 0; $g < 3; $g++):
     $sep = ($g < 2) ? ' mo-ct-sep' : '';
-    $thead .= '<th class="mo-ct-abbr-h"></th>'
-            . '<th class="mo-ct-val-h"></th>'
+    $thead .= '<th></th>'
+            . '<th></th>'
             . '<th class="mo-ct-label">MOD</th>'
             . '<th class="mo-ct-label' . $sep . '">JS</th>';
   endfor;
@@ -414,7 +423,7 @@ function rendreTableauCarac(array $lignes): string
   $tbody .= '</tbody>';
 
   return '<div class="mo-carac-wrap"><table class="mo-carac-table">'
-       . $thead . $tbody . '</table></div>';
+       . $colgroup . $thead . $tbody . '</table></div>';
 }
 
 

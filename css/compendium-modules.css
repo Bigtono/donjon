@@ -1099,9 +1099,11 @@
   border: none;
   background: transparent;
 }
-.mo-ct-abbr-h { width: 9%; }
-.mo-ct-val-h  { width: 9%; }
-.mo-ct-label  { width: 9%; } /* MOD et JS */
+/* Largeurs des colonnes — définies sur <col> pour table-layout:fixed */
+.mo-col-abbr { width: 12%; }
+.mo-col-val  { width: 10%; }
+.mo-col-mod  { width:  9%; }
+.mo-col-js   { width:  9%; }
 
 /* Séparateur entre les 3 groupes */
 .mo-ct-sep {

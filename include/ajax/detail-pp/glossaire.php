@@ -66,12 +66,12 @@ endif;
 <div class="glossaire-sub">
 
   <header class="glossaire-sub__header">
+    <span class="regles-badge regles-badge--glossaire">Glossaire</span>
     <h3 class="glossaire-sub__titre">
-      <span class="regles-badge regles-badge--glossaire">Glossaire</span>
-      <?= h($terme['reg_nom']) ?>
+      <span class="glossaire-sub__nom"><?= h($terme['reg_nom']) ?></span>
     </h3>
     <a href="<?= BASE_URL ?>/regles/regle.php?id=<?= (int)$terme['reg_id'] ?>"
-       class="glossaire-sub__lien-complet" title="Voir la page complète">
+      class="glossaire-sub__lien-complet" title="Voir la page complète">
       <i class="fa fa-external-link-alt"></i>
     </a>
   </header>

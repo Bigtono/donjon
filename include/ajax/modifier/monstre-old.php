@@ -210,7 +210,7 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
 
 <div id="mo-tag-popup" class="mo-tag-popup" hidden>
   <div class="mo-tag-popup__header">
-    <span class="mo-tag-popup__titre" id="mo-tag-popup-titre">Regle</span>
+    <span class="mo-tag-popup__titre" id="mo-tag-popup-titre">Règle</span>
     <button type="button" class="mo-tag-popup__close" id="mo-tag-popup-close">&times;</button>
   </div>
   <input type="text" id="mo-tag-popup-input" class="mo-tag-popup__input"
@@ -235,18 +235,18 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
   var tagStart    = -1;     // position du @ ou % ouvrant dans le textarea
   var debounce    = null;
 
-  // ---- Detection de la frappe ----
+  // ---- Détection de la frappe ----
   textarea.addEventListener('keyup', function (e) {
     var pos = textarea.selectionStart;
     var val = textarea.value;
 
-    // Remonter depuis le curseur pour trouver un @ ou % non ferme
+    // Remonter depuis le curseur pour trouver un @ ou % non fermé
     var found = null;
     for (var i = pos - 1; i >= Math.max(0, pos - 60); i--) {
       var c = val[i];
       if (c === '@') { found = { type: 'regle',    pos: i }; break; }
       if (c === '%') { found = { type: 'glossaire', pos: i }; break; }
-      // Si on trouve le caractere fermant avant d'ouvrir -> on est hors tag
+      // Si on trouve le caractère fermant avant d'ouvrir -> on est hors tag
       if (c === '
 ') break;
     }
@@ -255,7 +255,7 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
 
     // Extraire le terme partiel entre le @ et le curseur
     var terme = val.substring(found.pos + 1, pos);
-    // Si le terme contient deja le fermant -> tag complet, fermer
+    // Si le terme contient déjà le fermant -> tag complet, fermer
     if (terme.indexOf(found.type === 'regle' ? '@' : '%') !== -1) {
       fermerPopup(); return;
     }
@@ -269,7 +269,7 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
     debounce = setTimeout(function () { fetchSuggestions(terme); }, 220);
   });
 
-  // Fermeture sur Echap
+  // Fermeture sur Échap
   textarea.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') fermerPopup();
   });
@@ -293,7 +293,7 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
     if (items.length === 0) {
       var li = document.createElement('li');
       li.className = 'mo-tag-popup__vide';
-      li.textContent = 'Aucun resultat';
+      li.textContent = 'Aucun résultat';
       popupList.appendChild(li);
     } else {
       items.forEach(function (item) {
@@ -321,7 +321,7 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
       });
     }
 
-    popupTitre.textContent = tagType === 'glossaire' ? 'Glossaire' : 'Regle';
+    popupTitre.textContent = tagType === 'glossaire' ? 'Glossaire' : 'Règle';
 
     // Positionner le popup sous le textarea (simple : toujours en bas)
     var rect = textarea.getBoundingClientRect();
@@ -349,7 +349,7 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
     var avant  = val.substring(0, tagStart);
     var apres  = val.substring(cur);
     textarea.value = avant + ouv + id + ferm + apres;
-    // Repositionner le curseur apres le tag
+    // Repositionner le curseur après le tag
     var newPos = tagStart + 1 + String(id).length + 1;
     textarea.setSelectionRange(newPos, newPos);
     textarea.focus();

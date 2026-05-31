@@ -517,7 +517,13 @@ mark.regles-surligné {
   padding: 1px 5px;
   letter-spacing: .07em;
   opacity: .75;
-  order: -1; /* toujours en premier même si injecté après le texte */
+}
+
+/* Nom du terme — element flex distinct du badge */
+.glossaire-sub__nom {
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .glossaire-sub__lien-complet {
