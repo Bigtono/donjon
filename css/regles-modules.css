@@ -506,9 +506,18 @@ mark.regles-surligné {
   font-size: 1.2rem;
   margin: 0;
   display: flex;
-  align-items: center;
-  gap: .4rem;
-  flex-wrap: wrap;
+  flex-direction: column;  /* badge au-dessus du nom */
+  align-items: flex-start;
+  gap: .15rem;
+}
+
+/* Le badge "Glossaire" s'affiche en petite étiquette au-dessus du nom */
+.glossaire-sub__titre .regles-badge--glossaire {
+  font-size: .6rem;
+  padding: 1px 5px;
+  letter-spacing: .07em;
+  opacity: .75;
+  order: -1; /* toujours en premier même si injecté après le texte */
 }
 
 .glossaire-sub__lien-complet {

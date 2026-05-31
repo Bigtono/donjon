@@ -1081,9 +1081,12 @@
   table-layout: fixed; /* garantit des largeurs égales entre les 3 groupes */
 }
 
-/* En-tête : fond transparent, labels MOD/JS discrets */
-.mo-carac-table thead tr {
-  background: transparent;
+/* En-tête : fond transparent — surcharge la règle générique
+   .sort-detail__description table thead tr { background: #2a1810 } */
+.mo-carac-table thead tr,
+.mo-stats .mo-carac-table thead tr {
+  background: transparent !important;
+  color: var(--clr-text-muted);
 }
 .mo-carac-table thead th {
   padding: 0 4px 2px;
@@ -1140,9 +1143,8 @@
   color: var(--clr-text-muted);
 }
 
-/* Alternance de lignes */
-.mo-carac-table tbody tr:nth-child(odd)  { background: rgba(180,140,90,.05); }
-.mo-carac-table tbody tr:nth-child(even) { background: rgba(180,140,90,.12); }
+/* Fond uniforme sur les deux lignes de données (pas d'alternance) */
+.mo-carac-table tbody tr { background: rgba(180,140,90,.07); }
 
 /* ============================================================
    Menu contextuel tags @/% dans le textarea
