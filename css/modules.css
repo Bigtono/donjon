@@ -427,20 +427,29 @@
 
 .glossaire-sub {
   padding: var(--sp-md, 16px);
+  /* PAS de position:relative ici : on veut que le badge absolu se réfère au
+     panel #detail-pp-sub (.overlay-panel, position:fixed), comme .overlay-close,
+     pour un alignement vertical identique. */
 }
 
 .glossaire-sub__header {
   margin-bottom: var(--sp-md, 16px);
-  /* padding-right pour ne pas passer sous le bouton Fermer (absolute, haut droite) */
-  padding-right: 2rem;
+  /* badge et bouton Fermer flottent (absolute) au-dessus ; on reserve la bande
+     pour que le titre demarre dessous */
+  padding-top: 1.4rem;
 }
 
 /* Ligne 1 : badge seul a gauche (le bouton Fermer flotte a droite) */
 .glossaire-sub__ligne-badge {
+  /* Reference = panel #detail-pp-sub (.overlay-panel, position:fixed), comme
+     .overlay-close. Memes top et hauteur que le bouton Fermer -> alignes.
+     left = --sp-lg (padding du panel) pour s'aligner sur le bord du contenu. */
+  position: absolute;
+  top: var(--sp-sm, 8px);
+  left: var(--sp-lg, 24px);
   display: flex;
   align-items: center;
-  min-height: 1.6rem;
-  margin-bottom: .4rem;
+  height: calc(1.2rem + 8px);
 }
 
 .glossaire-sub__ligne-badge .regles-badge--glossaire {

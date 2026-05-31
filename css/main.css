@@ -11,7 +11,8 @@ body.theme-dark {
   --clr-bg: #1a1a2e;
   --clr-surface: #16213e;
   --clr-surface-2: #0f3460;
-  --clr-surface-alt: #0f3460;   /* fix table-classe-niv : header lisible sur fond sombre */
+  --clr-surface-alt: #0f3460;
+  /* fix table-classe-niv : header lisible sur fond sombre */
 
   /* Accents */
   --clr-accent: #e94560;
@@ -38,7 +39,8 @@ body.theme-light {
   --clr-bg: #f4f1eb;
   --clr-surface: #ffffff;
   --clr-surface-2: #eae6dd;
-  --clr-surface-alt: #eae6dd;   /* fix table-classe-niv : header beige sur fond clair */
+  --clr-surface-alt: #eae6dd;
+  /* fix table-classe-niv : header beige sur fond clair */
 
   /* Accents */
   --clr-accent: #8b2020;
@@ -247,7 +249,8 @@ button {
   transform: translate(-50%, -50%);
   z-index: 200;
   width: 92%;
-  max-width: 960px;    /* anciennement 720px */
+  max-width: 960px;
+  /* anciennement 720px */
   max-height: 85vh;
   overflow-y: auto;
   background: var(--clr-surface);
@@ -259,7 +262,8 @@ button {
 
 .overlay-panel--edit {
   border-color: var(--clr-accent);
-  max-width: 1040px;   /* anciennement 860px */
+  max-width: 1040px;
+  /* anciennement 860px */
 }
 
 /* Sous-panel */
