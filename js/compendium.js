@@ -579,17 +579,36 @@ var MO_LIEN_FICHIERS = {
   capacite: 'capacite.php',
   race: 'race.php',
   classe: 'classe.php',
+  regle: 'regle',
+  glossaire: 'glossaire',
 };
 
 document.addEventListener('click', function (e) {
   const lien = e.target.closest('.mo-lien');
   if (!lien) return;
-  const fichier = MO_LIEN_FICHIERS[lien.dataset.type];
-  const id = parseInt(lien.dataset.id, 10);
-  if (!fichier || !id) return;
-  const cont = lien.closest('[data-detail-base]');
-  const base = cont ? cont.dataset.detailBase : '';
+  const type    = lien.dataset.type;
+  const id      = parseInt(lien.dataset.id, 10);
+  if (!id) return;
+  const cont    = lien.closest('[data-detail-base]');
+  const base    = cont ? cont.dataset.detailBase : '';
+  // Regle : nouvelle page
+  if (type === 'regle') {
+    window.open(BASE_URL + '/regles/regle.php?id=' + id, '_blank');
+    return;
+  }
+  // Glossaire : sub-panel via endpoint dedie
+  if (type === 'glossaire') {
+    if (typeof actualiserPageSub === 'function') {
+      actualiserPageSub(base + 'detail-pp-sub/glossaire.php', { id: id });
+    }
+    return;
+  }
+  // Autres types compendium : sub-panel standard
+  const fichier = MO_LIEN_FICHIERS[type];
+  if (!fichier) return;
   if (typeof actualiserPageSub === 'function') {
     actualiserPageSub(base + fichier, { id: id });
+  }
+});
   }
 });

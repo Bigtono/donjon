@@ -186,13 +186,13 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
       <div class="form-group">
         <label for="mo_stats">Description complète
           <span class="form-hint">
-            (texte brut — les dons, sorts, objets, capacités… cités seront
-            rendus cliquables automatiquement à l'affichage)
+            (texte brut — les sorts et termes du glossaire sont liés automatiquement.
+            Utilisez #Nom# pour un don, $Nom$ pour un sort, @id@ pour une règle, %id% pour le glossaire.)
           </span>
         </label>
         <textarea id="mo_stats" name="mo_stats"
                   class="mo-stats-input" rows="18"
-                  placeholder="Classe d'armure : …&#10;Dés de vie : …&#10;Dons : …&#10;Compétences : …&#10;&#10;Utiliser une ligne *** pour insérer un séparateur."><?= h($mo['mo_stats'] ?? '') ?></textarea>
+                  placeholder="CA 13  Initiative +3 (13)&#10;Pv 67 (9d8 + 27)&#10;Vitesse 1,50 m&#10;&#10;Traits&#10;Nom du pouvoir. Description...&#10;&#10;Tags : #Nom don# $Nom sort$ @id règle@ %id glossaire%&#10;Séparateur : ligne ***"><?= h($mo['mo_stats'] ?? '') ?></textarea>
       </div>
     </div>
 
@@ -207,4 +207,155 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
     </div>
 
   </form>
+
+<div id="mo-tag-popup" class="mo-tag-popup" hidden>
+  <div class="mo-tag-popup__header">
+    <span class="mo-tag-popup__titre" id="mo-tag-popup-titre">Règle</span>
+    <button type="button" class="mo-tag-popup__close" id="mo-tag-popup-close">&times;</button>
+  </div>
+  <input type="text" id="mo-tag-popup-input" class="mo-tag-popup__input"
+         placeholder="Rechercher…" autocomplete="off">
+  <ul id="mo-tag-popup-list" class="mo-tag-popup__list"></ul>
+</div>
+
+<script>
+(function () {
+  var textarea    = document.getElementById('mo_stats');
+  var popup       = document.getElementById('mo-tag-popup');
+  var popupTitre  = document.getElementById('mo-tag-popup-titre');
+  var popupInput  = document.getElementById('mo-tag-popup-input');
+  var popupList   = document.getElementById('mo-tag-popup-list');
+  var popupClose  = document.getElementById('mo-tag-popup-close');
+
+  if (!textarea || !popup) return;
+
+  var BASE_URL    = <?= json_encode(BASE_URL) ?>;
+  var RULESET_ID  = <?= (int)$ruleset_id ?>;
+  var tagType     = null;   // 'regle' ou 'glossaire'
+  var tagStart    = -1;     // position du @ ou % ouvrant dans le textarea
+  var debounce    = null;
+
+  // ---- Détection de la frappe ----
+  textarea.addEventListener('keyup', function (e) {
+    var pos = textarea.selectionStart;
+    var val = textarea.value;
+
+    // Remonter depuis le curseur pour trouver un @ ou % non fermé
+    var found = null;
+    for (var i = pos - 1; i >= Math.max(0, pos - 60); i--) {
+      var c = val[i];
+      if (c === '@') { found = { type: 'regle',    pos: i }; break; }
+      if (c === '%') { found = { type: 'glossaire', pos: i }; break; }
+      // Si on trouve le caractère fermant avant d'ouvrir -> on est hors tag
+      if (c === '
+') break;
+    }
+
+    if (!found) { fermerPopup(); return; }
+
+    // Extraire le terme partiel entre le @ et le curseur
+    var terme = val.substring(found.pos + 1, pos);
+    // Si le terme contient déjà le fermant -> tag complet, fermer
+    if (terme.indexOf(found.type === 'regle' ? '@' : '%') !== -1) {
+      fermerPopup(); return;
+    }
+
+    tagType  = found.type;
+    tagStart = found.pos;
+
+    if (terme.length < 2) { fermerPopup(); return; }
+
+    clearTimeout(debounce);
+    debounce = setTimeout(function () { fetchSuggestions(terme); }, 220);
+  });
+
+  // Fermeture sur Échap
+  textarea.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') fermerPopup();
+  });
+  popupClose.addEventListener('click', fermerPopup);
+
+  // ---- Fetch ----
+  function fetchSuggestions(q) {
+    var url = BASE_URL + '/include/ajax/autocomplete-tags-monstre.php'
+            + '?type=' + encodeURIComponent(tagType)
+            + '&q='    + encodeURIComponent(q)
+            + '&ruleset=' + RULESET_ID;
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (data) { afficherPopup(data, q); })
+      .catch(function () { fermerPopup(); });
+  }
+
+  // ---- Affichage ----
+  function afficherPopup(items, q) {
+    popupList.innerHTML = '';
+    if (items.length === 0) {
+      var li = document.createElement('li');
+      li.className = 'mo-tag-popup__vide';
+      li.textContent = 'Aucun résultat';
+      popupList.appendChild(li);
+    } else {
+      items.forEach(function (item) {
+        var li = document.createElement('li');
+        li.className = 'mo-tag-popup__item';
+
+        var nomEl = document.createElement('span');
+        nomEl.className = 'mo-tag-popup__nom';
+        nomEl.textContent = item.label;
+
+        li.appendChild(nomEl);
+
+        if (item.contexte) {
+          var ctxEl = document.createElement('span');
+          ctxEl.className = 'mo-tag-popup__ctx';
+          ctxEl.textContent = item.contexte;
+          li.appendChild(ctxEl);
+        }
+
+        li.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          insererTag(item.id);
+        });
+        popupList.appendChild(li);
+      });
+    }
+
+    popupTitre.textContent = tagType === 'glossaire' ? 'Glossaire' : 'Règle';
+
+    // Positionner le popup sous le textarea (simple : toujours en bas)
+    var rect = textarea.getBoundingClientRect();
+    popup.style.top  = (textarea.offsetTop + textarea.offsetHeight + 4) + 'px';
+    popup.style.left = textarea.offsetLeft + 'px';
+    popup.style.width = Math.min(360, textarea.offsetWidth) + 'px';
+    popup.hidden = false;
+  }
+
+  function fermerPopup() {
+    popup.hidden = true;
+    popupList.innerHTML = '';
+    tagType = null;
+    tagStart = -1;
+  }
+
+  // ---- Insertion ----
+  function insererTag(id) {
+    if (tagStart < 0) return;
+    var val    = textarea.value;
+    var ferm   = tagType === 'regle' ? '@' : '%';
+    var ouv    = ferm;
+    var cur    = textarea.selectionStart;
+    // Remplacer depuis tagStart jusqu'au curseur par @id@ ou %id%
+    var avant  = val.substring(0, tagStart);
+    var apres  = val.substring(cur);
+    textarea.value = avant + ouv + id + ferm + apres;
+    // Repositionner le curseur après le tag
+    var newPos = tagStart + 1 + String(id).length + 1;
+    textarea.setSelectionRange(newPos, newPos);
+    textarea.focus();
+    fermerPopup();
+  }
+}());
+</script>
+
 </div>

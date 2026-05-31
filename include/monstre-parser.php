@@ -1,16 +1,27 @@
 <?php
-// include/monstre-parser.php
+// include/monstre-parser.php  v3
 // ============================================================
 // Moteur d'analyse et de rendu du bloc de stats d'un monstre.
 // Entree  : mo_stats TEXTE BRUT. Sortie : HTML formate + liens cliquables.
-// DD2024  : labels sans ":", sections titres, tableau carac, pouvoirs gras.
-// DD3.5   : labels avec ":".
+//
+// TAGS EXPLICITES (resolus en pre-passe) :
+//   #Nom don#       -> lien vers le don par nom
+//   $Nom sort$      -> lien vers le sort par nom
+//   @id@            -> lien vers la regle (dd_regles, tout type)
+//   %id%            -> lien vers le glossaire (dd_regles, type=glossaire)
+//
+// PARSING AUTOMATIQUE DD2024 (description des pouvoirs + labels) :
+//   - Sorts (liaison par nom)
+//   - Glossaire (liaison par nom, type=glossaire)
+//   Le nom du pouvoir lui-meme n'est jamais parse automatiquement.
+//
+// DD3.5 : labels avec ":" ; parsing automatique a completer ulterieurement.
 // ============================================================
 
 require_once __DIR__ . '/helpers.php';
 
 // ============================================================
-// 1. CONFIGURATION — types liables
+// 1. TYPES LIABLES (index base)
 // ============================================================
 
 function typesLiablesMonstre(): array
@@ -19,37 +30,10 @@ function typesLiablesMonstre(): array
     'don' => [
       'table' => 'dd_dons', 'id' => 'do_id', 'nom' => 'do_nom',
       'ruleset' => 'do_ruleset_var_id', 'res' => 'do_res_id', 'camp' => 'do_camp_id',
-      'actif' => true,
-    ],
-    'competence' => [
-      'table' => 'dd_competences', 'id' => 'comp_id', 'nom' => 'comp_nom',
-      'ruleset' => 'comp_ruleset_var_id', 'res' => 'comp_res_id', 'camp' => null,
-      'actif' => true,
     ],
     'sort' => [
       'table' => 'dd_sorts', 'id' => 'so_id', 'nom' => 'so_nom',
       'ruleset' => 'so_ruleset_var_id', 'res' => 'so_res_id', 'camp' => 'so_camp_id',
-      'actif' => true,
-    ],
-    'objet' => [
-      'table' => 'dd_objets_magiques', 'id' => 'om_id', 'nom' => 'om_nom',
-      'ruleset' => 'om_ruleset_var_id', 'res' => 'om_res_id', 'camp' => 'om_camp_id',
-      'actif' => true,
-    ],
-    'capacite' => [
-      'table' => 'dd_capacites_speciales', 'id' => 'cap_id', 'nom' => 'cap_nom',
-      'ruleset' => null, 'res' => null, 'camp' => null,
-      'actif' => true,
-    ],
-    'race' => [
-      'table' => 'dd_races', 'id' => 'ra_id', 'nom' => 'ra_nom',
-      'ruleset' => 'ra_ruleset_var_id', 'res' => 'ra_res_id', 'camp' => 'ra_camp_id',
-      'actif' => false,
-    ],
-    'classe' => [
-      'table' => 'dd_classes', 'id' => 'cla_id', 'nom' => 'cla_nom',
-      'ruleset' => 'cla_ruleset_var_id', 'res' => 'cla_res_id', 'camp' => 'cla_camp_id',
-      'actif' => false,
     ],
   ];
 }
@@ -67,7 +51,6 @@ function labelsDD35(): array
     'Jets de sauvegarde', 'Caracteristiques', 'Competences', 'Dons',
     'Environnement', 'Organisation sociale', 'Facteur de puissance', 'Tresor',
     'Alignement', 'Evolution possible', 'Ajustement de niveau', 'Type',
-    // formes accentuees reconnues via normalisation
   ];
 }
 
@@ -80,7 +63,7 @@ function labelsGrasDD2024(): array
 {
   return [
     'Resistances', 'Immunites', 'Vulnerabilites', 'Sens', 'Langues', 'FP',
-    'Competences', 'Dons', 'Maitrises', 'Bonus de maitrise',
+    'Competences', 'Dons', 'Maitrises', 'Bonus de maitrise', 'Equipement',
   ];
 }
 
@@ -102,18 +85,17 @@ define('CARAC_DD2024', ['For', 'Dex', 'Con', 'Int', 'Sag', 'Cha']);
 function normaliserNomMonstre(string $s): string
 {
   $s = mb_strtolower(trim($s), 'UTF-8');
-  // apostrophes variantes -> apostrophe droite
   $s = preg_replace("/[\x{2018}\x{2019}\x{201A}\x{201B}`\x{00B4}]/u", "'", $s);
-  $accents = [
-    "\xc3\xa0" => 'a', "\xc3\xa1" => 'a', "\xc3\xa2" => 'a', "\xc3\xa4" => 'a',
-    "\xc3\xa8" => 'e', "\xc3\xa9" => 'e', "\xc3\xaa" => 'e', "\xc3\xab" => 'e',
-    "\xc3\xac" => 'i', "\xc3\xad" => 'i', "\xc3\xae" => 'i', "\xc3\xaf" => 'i',
-    "\xc3\xb2" => 'o', "\xc3\xb3" => 'o', "\xc3\xb4" => 'o', "\xc3\xb6" => 'o',
-    "\xc3\xb9" => 'u', "\xc3\xba" => 'u', "\xc3\xbb" => 'u', "\xc3\xbc" => 'u',
-    "\xc3\xa7" => 'c', "\xc3\xb1" => 'n',
-    "\xc5\x93" => 'oe', "\xc3\xa6" => 'ae', "\xc3\xbd" => 'y', "\xc3\xbf" => 'y',
+  $acc = [
+    "\xc3\xa0"=>'a',"\xc3\xa1"=>'a',"\xc3\xa2"=>'a',"\xc3\xa4"=>'a',
+    "\xc3\xa8"=>'e',"\xc3\xa9"=>'e',"\xc3\xaa"=>'e',"\xc3\xab"=>'e',
+    "\xc3\xac"=>'i',"\xc3\xad"=>'i',"\xc3\xae"=>'i',"\xc3\xaf"=>'i',
+    "\xc3\xb2"=>'o',"\xc3\xb3"=>'o',"\xc3\xb4"=>'o',"\xc3\xb6"=>'o',
+    "\xc3\xb9"=>'u',"\xc3\xba"=>'u',"\xc3\xbb"=>'u',"\xc3\xbc"=>'u',
+    "\xc3\xa7"=>'c',"\xc3\xb1"=>'n',
+    "\xc5\x93"=>'oe',"\xc3\xa6"=>'ae',"\xc3\xbd"=>'y',"\xc3\xbf"=>'y',
   ];
-  $s = str_replace(array_keys($accents), array_values($accents), $s);
+  $s = str_replace(array_keys($acc), array_values($acc), $s);
   $s = preg_replace('/\s+/', ' ', $s);
   return trim($s);
 }
@@ -132,124 +114,191 @@ function maxMotsIndex(array $cles): int
 // 4. CHARGEMENT DU DICTIONNAIRE
 // ============================================================
 
+// Charge sorts + dons via typesLiablesMonstre().
+// Charge glossaire separement (dd_regles, reg_type='glossaire').
+// Retourne ['sort'=>[...], 'don'=>[...], 'glossaire'=>[...]]
 function chargerIndexMonstre(PDO $db, int $ruleset_id, array $res_ids): array
 {
   $res_ids = array_values(array_filter(array_map('intval', $res_ids)));
   $index   = [];
 
   foreach (typesLiablesMonstre() as $type => $cfg):
-    $where  = [];
-    $params = [];
-
-    if ($cfg['ruleset'] !== null):
-      $where[]  = $cfg['ruleset'] . ' = ?';
-      $params[] = $ruleset_id;
-    endif;
+    $where  = [$cfg['ruleset'] . ' = ?'];
+    $params = [$ruleset_id];
 
     if ($cfg['camp'] !== null):
       $where[] = $cfg['camp'] . ' IS NULL';
     endif;
 
-    if ($cfg['res'] !== null && empty($res_ids)):
-      $index[$type] = ['actif' => (bool)$cfg['actif'], 'noms' => []];
-      continue;
-    endif;
-
-    if ($cfg['res'] !== null):
+    if (!empty($res_ids)):
       $ph      = implode(',', array_fill(0, count($res_ids), '?'));
       $where[] = $cfg['res'] . ' IN (' . $ph . ')';
       foreach ($res_ids as $r) $params[] = $r;
+    elseif ($cfg['res'] !== null):
+      // Aucune source active -> dictionnaire vide pour ce type
+      $index[$type] = [];
+      continue;
     endif;
 
-    $sql = 'SELECT ' . $cfg['id'] . ' AS id, ' . $cfg['nom'] . ' AS nom FROM ' . $cfg['table'];
-    if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
-
+    $sql  = 'SELECT ' . $cfg['id'] . ' AS id, ' . $cfg['nom'] . ' AS nom FROM ' . $cfg['table'];
+    $sql .= ' WHERE ' . implode(' AND ', $where);
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
 
     $noms = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row):
       $cle = normaliserNomMonstre((string)$row['nom']);
-      if ($cle === '' || isset($noms[$cle])) continue;
-      $noms[$cle] = ['id' => (int)$row['id'], 'nom' => (string)$row['nom']];
+      if ($cle !== '' && !isset($noms[$cle])):
+        $noms[$cle] = ['id' => (int)$row['id'], 'nom' => (string)$row['nom']];
+      endif;
     endforeach;
-
-    $index[$type] = ['actif' => (bool)$cfg['actif'], 'noms' => $noms];
+    $index[$type] = $noms;
   endforeach;
+
+  // Glossaire : reg_type='glossaire', scope ruleset, visible, global (camp IS NULL)
+  $stmt = $db->prepare("
+    SELECT reg_id AS id, reg_nom AS nom
+    FROM   dd_regles
+    WHERE  reg_ruleset_var_id = ?
+      AND  reg_type = 'glossaire'
+      AND  reg_visible = 1
+      AND  (reg_camp_id IS NULL)
+    ORDER  BY reg_nom
+  ");
+  $stmt->execute([$ruleset_id]);
+  $glos = [];
+  foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row):
+    $cle = normaliserNomMonstre((string)$row['nom']);
+    if ($cle !== '' && !isset($glos[$cle])):
+      $glos[$cle] = ['id' => (int)$row['id'], 'nom' => (string)$row['nom']];
+    endif;
+  endforeach;
+  $index['glossaire'] = $glos;
 
   return $index;
 }
 
-function construireIndexLibre(array $indexParType): array
+// Index fusionne sorts + glossaire pour la detection automatique en texte libre.
+function construireIndexAuto(array $index): array
 {
-  $libre = [];
-  foreach ($indexParType as $type => $bloc):
-    if (empty($bloc['actif'])) continue;
-    foreach ($bloc['noms'] as $cle => $info):
-      if (!isset($libre[$cle])):
-        $libre[$cle] = ['type' => $type, 'id' => $info['id'], 'nom' => $info['nom']];
+  $auto = [];
+  // Priorite : sort > glossaire
+  foreach (['sort', 'glossaire'] as $type):
+    foreach (($index[$type] ?? []) as $cle => $info):
+      if (!isset($auto[$cle])):
+        $auto[$cle] = ['type' => $type, 'id' => $info['id'], 'nom' => $info['nom']];
       endif;
     endforeach;
   endforeach;
-  return $libre;
+  return $auto;
 }
 
 // ============================================================
-// 5. MOTEUR DE LIAISON
+// 5. PRE-PASSE : RESOLUTION DES TAGS EXPLICITES
+// ============================================================
+// Remplace les tags avant toute autre analyse :
+//   #Nom#   -> don par nom
+//   $Nom$   -> sort par nom
+//   @id@    -> regle par id (tout type)
+//   %id%    -> glossaire par id
+
+function resoudreTagsExplicites(
+  string $txt, PDO $db, array $index, int $ruleset_id, array &$rapport
+): string {
+  // @id@ et %id% : resolution directe par id en base
+  $txt = preg_replace_callback('/@(\d+)@/', function ($m) use ($db, &$rapport) {
+    $id   = (int)$m[1];
+    $stmt = $db->prepare('SELECT reg_nom FROM dd_regles WHERE reg_id = ? AND reg_visible = 1');
+    $stmt->execute([$id]);
+    $nom = $stmt->fetchColumn();
+    if (!$nom) return h($m[0]); // tag invalide : afficher tel quel
+    $rapport['liens']++;
+    $rapport['par_type']['regle'] = ($rapport['par_type']['regle'] ?? 0) + 1;
+    return '<span class="mo-lien" data-type="regle" data-id="' . $id . '">'
+         . h((string)$nom) . '</span>';
+  }, $txt);
+
+  $txt = preg_replace_callback('/%(\d+)%/', function ($m) use ($db, &$rapport) {
+    $id   = (int)$m[1];
+    $stmt = $db->prepare(
+      "SELECT reg_nom FROM dd_regles WHERE reg_id = ? AND reg_type = 'glossaire' AND reg_visible = 1"
+    );
+    $stmt->execute([$id]);
+    $nom = $stmt->fetchColumn();
+    if (!$nom) return h($m[0]);
+    $rapport['liens']++;
+    $rapport['par_type']['glossaire'] = ($rapport['par_type']['glossaire'] ?? 0) + 1;
+    return '<span class="mo-lien" data-type="glossaire" data-id="' . $id . '">'
+         . h((string)$nom) . '</span>';
+  }, $txt);
+
+  // #Nom# : don par nom (insensible casse/accents)
+  $txt = preg_replace_callback('/#([^#\n]+)#/', function ($m) use ($index, &$rapport) {
+    $cle  = normaliserNomMonstre($m[1]);
+    $info = $index['don'][$cle] ?? null;
+    if (!$info) return h($m[1]); // non trouve : afficher le nom sans tag
+    $rapport['liens']++;
+    $rapport['par_type']['don'] = ($rapport['par_type']['don'] ?? 0) + 1;
+    return '<span class="mo-lien" data-type="don" data-id="' . $info['id'] . '">'
+         . h($m[1]) . '</span>';
+  }, $txt);
+
+  // $Nom$ : sort par nom
+  $txt = preg_replace_callback('/\$([^\$\n]+)\$/', function ($m) use ($index, &$rapport) {
+    $cle  = normaliserNomMonstre($m[1]);
+    $info = $index['sort'][$cle] ?? null;
+    if (!$info) return h($m[1]);
+    $rapport['liens']++;
+    $rapport['par_type']['sort'] = ($rapport['par_type']['sort'] ?? 0) + 1;
+    return '<span class="mo-lien" data-type="sort" data-id="' . $info['id'] . '">'
+         . h($m[1]) . '</span>';
+  }, $txt);
+
+  return $txt;
+}
+
+// ============================================================
+// 6. MOTEUR DE LIAISON AUTOMATIQUE (sorts + glossaire)
 // ============================================================
 
-define('MO_LONGUEUR_MIN', 3);
+define('MO_LONGUEUR_MIN', 4);
 
 function lierAvecIndex(string $txt, int $maxWords, callable $resolve, array &$rapport): string
 {
   if ($maxWords < 1 || $txt === '') return h($txt);
-
   if (!preg_match_all('/[\p{L}\p{N}\']+/u', $txt, $mm, PREG_OFFSET_CAPTURE)):
     return h($txt);
   endif;
 
-  $mots    = $mm[0];
-  $n       = count($mots);
-  $out     = '';
-  $curseur = 0;
-  $i       = 0;
+  $mots = $mm[0]; $n = count($mots);
+  $out = ''; $curseur = 0; $i = 0;
 
   while ($i < $n):
     $trouve = null;
     $kmax   = min($maxWords, $n - $i);
-
     for ($k = $kmax; $k >= 1; $k--):
       $debut   = $mots[$i][1];
       $dernier = $mots[$i + $k - 1];
       $fin     = $dernier[1] + strlen($dernier[0]);
       $brut    = substr($txt, $debut, $fin - $debut);
       $cle     = normaliserNomMonstre($brut);
-
       if (mb_strlen($cle) < MO_LONGUEUR_MIN) continue;
       if (!preg_match('/\p{L}/u', $cle)) continue;
-
       $cible = $resolve($cle);
       if ($cible !== null):
-        $trouve = ['debut' => $debut, 'fin' => $fin, 'brut' => $brut, 'cible' => $cible];
+        $trouve = ['debut'=>$debut,'fin'=>$fin,'brut'=>$brut,'cible'=>$cible];
         $i += $k;
         break;
       endif;
     endfor;
-
-    if ($trouve === null):
-      $i++;
-      continue;
-    endif;
-
+    if ($trouve === null): $i++; continue; endif;
     if ($trouve['debut'] > $curseur):
       $out .= h(substr($txt, $curseur, $trouve['debut'] - $curseur));
     endif;
-
     $c    = $trouve['cible'];
-    $out .= '<span class="mo-lien" data-type="' . h($c['type']) . '" data-id="' . (int)$c['id'] . '">'
-          . h($trouve['brut']) . '</span>';
+    $out .= '<span class="mo-lien" data-type="' . h($c['type'])
+          . '" data-id="' . (int)$c['id'] . '">' . h($trouve['brut']) . '</span>';
     $curseur = $trouve['fin'];
-
     $rapport['liens']++;
     $rapport['par_type'][$c['type']] = ($rapport['par_type'][$c['type']] ?? 0) + 1;
   endwhile;
@@ -257,70 +306,115 @@ function lierAvecIndex(string $txt, int $maxWords, callable $resolve, array &$ra
   if ($curseur < strlen($txt)):
     $out .= h(substr($txt, $curseur));
   endif;
-
   return $out;
 }
 
-function lierTexteLibre(string $txt, array $indexLibre, array &$rapport): string
+// Liaison auto (sorts + glossaire)
+function lierAuto(string $txt, array $indexAuto, array &$rapport): string
 {
-  $maxW    = maxMotsIndex(array_keys($indexLibre));
-  $resolve = fn(string $cle) => $indexLibre[$cle] ?? null;
+  $maxW    = maxMotsIndex(array_keys($indexAuto));
+  $resolve = fn(string $cle) => $indexAuto[$cle] ?? null;
   return lierAvecIndex($txt, $maxW, $resolve, $rapport);
 }
 
-function lierTexteType(string $txt, array $blocType, string $type, array &$rapport): string
+// Liaison sort uniquement (sous-liste "A volonte :", "2/jour :")
+function lierSorts(string $txt, array $index, array &$rapport): string
 {
-  $noms    = $blocType['noms'] ?? [];
+  $noms    = $index['sort'] ?? [];
   $maxW    = maxMotsIndex(array_keys($noms));
-  $resolve = function (string $cle) use ($noms, $type) {
+  $resolve = function (string $cle) use ($noms) {
     if (!isset($noms[$cle])) return null;
-    return ['type' => $type, 'id' => $noms[$cle]['id'], 'nom' => $noms[$cle]['nom']];
+    return ['type'=>'sort','id'=>$noms[$cle]['id'],'nom'=>$noms[$cle]['nom']];
+  };
+  return lierAvecIndex($txt, $maxW, $resolve, $rapport);
+}
+
+// Liaison don uniquement (ligne "Dons :" DD3.5)
+function lierDons(string $txt, array $index, array &$rapport): string
+{
+  $noms    = $index['don'] ?? [];
+  $maxW    = maxMotsIndex(array_keys($noms));
+  $resolve = function (string $cle) use ($noms) {
+    if (!isset($noms[$cle])) return null;
+    return ['type'=>'don','id'=>$noms[$cle]['id'],'nom'=>$noms[$cle]['nom']];
   };
   return lierAvecIndex($txt, $maxW, $resolve, $rapport);
 }
 
 // ============================================================
-// 6. RENDU DD3.5
+// 7. TABLEAU DES CARACTERISTIQUES DD2024
 // ============================================================
 
-function formaterLigneDD35(
-  string $ligne, array $labelSet, array $indexParType, array $indexLibre, array &$rapport
-): string {
-  $pos = mb_strpos($ligne, ':');
-  if ($pos !== false):
-    $gauche = trim(mb_substr($ligne, 0, $pos));
-    $droite = trim(mb_substr($ligne, $pos + 1));
-    $gNorm  = normaliserNomMonstre($gauche);
+function parserLigneCarac(string $ligne): array
+{
+  $ligne  = preg_replace('/[\x{2010}-\x{2015}\x{2212}]/u', '-', $ligne);
+  $noms   = implode('|', CARAC_DD2024);
+  if (!preg_match_all(
+    '/(' . $noms . ')\s+(\d+)\s+([+-]\s*\d+)\s+([+-]\s*\d+)/u',
+    $ligne, $mm, PREG_SET_ORDER
+  )): return []; endif;
+  $result = [];
+  foreach ($mm as $m):
+    $result[] = [
+      'abbr' => $m[1],
+      'val'  => $m[2],
+      'mod'  => preg_replace('/\s+/', '', $m[3]),
+      'js'   => preg_replace('/\s+/', '', $m[4]),
+    ];
+  endforeach;
+  return $result;
+}
 
-    if ($gauche !== '' && isset($labelSet[$gNorm])):
-      $labelHtml = '<strong class="mo-stat-label">' . h($gauche) . '</strong>';
-      if ($droite === '') return $labelHtml . ' :';
-
-      $gNorm2 = normaliserNomMonstre($gauche);
-      if ($gNorm2 === 'dons' && isset($indexParType['don'])):
-        $valeur = lierTexteType($droite, $indexParType['don'], 'don', $rapport);
-      elseif ($gNorm2 === 'competences' && isset($indexParType['competence'])):
-        $valeur = lierTexteType($droite, $indexParType['competence'], 'competence', $rapport);
-      else:
-        $valeur = lierTexteLibre($droite, $indexLibre, $rapport);
-      endif;
-
-      return $labelHtml . ' : ' . $valeur;
-    endif;
+// Rend une ou deux lignes de carac en grille flex (3 col x 2 rangees)
+// correspondant visuellement au SRD 2024 :
+//   ligne 1 : For Dex Con
+//   ligne 2 : Int Sag Cha
+// avec entete MOD/JS et valeur empilee dans chaque colonne.
+function rendreTableauCarac(array $lignes): string
+{
+  $caracs = [];
+  foreach ($lignes as $l):
+    foreach (parserLigneCarac($l) as $c):
+      $caracs[] = $c;
+    endforeach;
+  endforeach;
+  if (empty($caracs)):
+    return implode('<br>', array_map('h', $lignes));
   endif;
 
-  return lierTexteLibre($ligne, $indexLibre, $rapport);
+  // On attend 6 carac dans l'ordre CARAC_DD2024.
+  // Si 3 ou 6 elements : rendu en rangees de 3.
+  $rangees = array_chunk($caracs, 3);
+  $html    = '<div class="mo-carac-grid">';
+  foreach ($rangees as $rang):
+    $html .= '<div class="mo-carac-row">';
+    foreach ($rang as $c):
+      $html .= '<div class="mo-carac-col">'
+             . '<div class="mo-carac-abbr">' . h($c['abbr']) . '</div>'
+             . '<div class="mo-carac-val">'  . h($c['val'])  . '</div>'
+             . '<div class="mo-carac-mods">'
+             . '<span class="mo-carac-mod-label">MOD</span>'
+             . '<span class="mo-carac-mod-val">'  . h($c['mod']) . '</span>'
+             . '<span class="mo-carac-mod-label">JS</span>'
+             . '<span class="mo-carac-js-val">'   . h($c['js'])  . '</span>'
+             . '</div>'
+             . '</div>';
+    endforeach;
+    $html .= '</div>';
+  endforeach;
+  $html .= '</div>';
+  return $html;
 }
 
 // ============================================================
-// 7. RENDU DD2024
+// 8. CLASSIFICATION ET RENDU DD2024
 // ============================================================
 
 function classerLigneDD2024(string $ligne): array
 {
   $trim = trim($ligne);
 
-  // Entete tableau carac (a ignorer)
+  // Entete tableau carac
   if (preg_match('/^MOD\s+JS\s+MOD\s+JS/i', $trim)):
     return ['type' => 'carac_header'];
   endif;
@@ -330,7 +424,7 @@ function classerLigneDD2024(string $ligne): array
     return ['type' => 'carac_row', 'texte' => $trim];
   endif;
 
-  // Titre de section seul
+  // Titre de section
   $titresNorm = array_map('normaliserNomMonstre', sectionsTitresDD2024());
   if (in_array(normaliserNomMonstre($trim), $titresNorm, true)):
     return ['type' => 'section_titre', 'texte' => $trim];
@@ -339,12 +433,12 @@ function classerLigneDD2024(string $ligne): array
   // Label inline (CA, Pv, Vitesse, Initiative)
   foreach (labelsInlineDD2024() as $lab):
     if (str_starts_with($trim, $lab . ' ')):
-      $valeur = trim(substr($trim, strlen($lab)));
-      return ['type' => 'label_inline', 'label' => $lab, 'valeur' => $valeur];
+      return ['type' => 'label_inline', 'label' => $lab,
+              'valeur' => trim(substr($trim, strlen($lab)))];
     endif;
   endforeach;
 
-  // Label en gras (Resistances, Immunites, FP…)
+  // Label en gras (Resistances, Immunites, FP, Equipement...)
   foreach (labelsGrasDD2024() as $lab):
     $labNorm  = normaliserNomMonstre($lab);
     $lineNorm = normaliserNomMonstre($trim);
@@ -354,59 +448,32 @@ function classerLigneDD2024(string $ligne): array
     endif;
   endforeach;
 
-  // Pouvoir : "Nom du pouvoir. Description..."
-  if (preg_match('/^([\p{Lu}][\p{L}\p{N}\s\'\x{2019}\-\(\)\/]{0,80}?)\.\s+(.+)/su', $trim, $m)):
-    return ['type' => 'pouvoir', 'nom' => $m[1], 'description' => $m[2]];
+  // Sous-liste de sorts : "A volonte :", "2/jour chacun :", "1/jour chacun :"
+  if (preg_match('/^([\p{L}\p{N}\s\/]+?)\s*:\s*(.*)$/u', $trim, $m)):
+    $prefNorm = normaliserNomMonstre($m[1]);
+    // Prefixes caracteristiques des sous-listes de sorts
+    if (preg_match('/^(a volonte|\d+\/jour)/u', $prefNorm)):
+      return ['type' => 'sous_liste', 'label' => trim($m[1]), 'valeur' => trim($m[2])];
+    endif;
+  endif;
+
+  // Pouvoir : "Nom. Description..."
+  // Le nom peut contenir des virgules, parentheses, chiffres (ex: "Resistance legendaire (3/jour)")
+  if (preg_match('/^(.{2,100}?)\.\s+(.{5,})/su', $trim, $m)):
+    // Verification anti-faux-positif : ne pas confondre une phrase normale
+    // dont la 1ere partie fait plus de 100 car avec un pouvoir
+    $nom = trim($m[1]);
+    // Exclure si le "nom" contient deja un point (ex: phrase avec abreviation)
+    if (substr_count($nom, '.') === 0):
+      return ['type' => 'pouvoir', 'nom' => $nom, 'description' => $m[2]];
+    endif;
   endif;
 
   return ['type' => 'ligne', 'texte' => $trim];
 }
 
-function parserLigneCarac(string $ligne): array
-{
-  // Normalise les tirets unicode (moins, tiret long, signe moins mathematique) -> tiret ASCII
-  $ligne = preg_replace('/[\x{2010}-\x{2015}\x{2212}]/u', '-', $ligne);
-  $noms  = implode('|', CARAC_DD2024);
-  if (!preg_match_all('/(' . $noms . ')\s+(\d+)\s+([+-]\s*\d+)\s+([+-]\s*\d+)/u', $ligne, $mm, PREG_SET_ORDER)):
-    return [];
-  endif;
-  $result = [];
-  foreach ($mm as $m):
-    $result[] = ['abbr' => $m[1], 'val' => $m[2], 'mod' => $m[3], 'js' => $m[4]];
-  endforeach;
-  return $result;
-}
-
-function rendreTableauCarac(array $lignes): string
-{
-  $caracs = [];
-  foreach ($lignes as $l):
-    foreach (parserLigneCarac($l) as $c):
-      $caracs[] = $c;
-    endforeach;
-  endforeach;
-
-  if (empty($caracs)):
-    return implode('<br>', array_map('h', $lignes));
-  endif;
-
-  $th = $td_val = $td_mod = '';
-  foreach ($caracs as $c):
-    $th     .= '<th>' . h($c['abbr']) . '</th>';
-    $td_val .= '<td>' . h($c['val'])  . '</td>';
-    $td_mod .= '<td>' . h($c['mod'])  . ' / ' . h($c['js']) . '</td>';
-  endforeach;
-
-  return '<table class="mo-carac-table">'
-       . '<thead><tr><th></th>' . $th . '</tr></thead>'
-       . '<tbody>'
-       . '<tr><td class="mo-carac-label">Val.</td>'    . $td_val . '</tr>'
-       . '<tr><td class="mo-carac-label">Mod / JS</td>' . $td_mod . '</tr>'
-       . '</tbody></table>';
-}
-
 function formaterBlocDD2024(
-  array $lignes, array $indexParType, array $indexLibre, array &$rapport
+  array $lignes, PDO $db, array $index, array $indexAuto, array &$rapport
 ): string {
   $out       = [];
   $i         = 0;
@@ -425,15 +492,13 @@ function formaterBlocDD2024(
     if (trim($ligne) === ''):
       $flushCarac();
       $out[] = '<div class="mo-stat-vide"></div>';
-      $i++;
-      continue;
+      $i++; continue;
     endif;
 
     if (trim($ligne) === '***'):
       $flushCarac();
       $out[] = '<hr class="mo-stat-hr">';
-      $i++;
-      continue;
+      $i++; continue;
     endif;
 
     $cl = classerLigneDD2024($ligne);
@@ -441,63 +506,70 @@ function formaterBlocDD2024(
     switch ($cl['type']):
 
       case 'carac_header':
-        $i++;
-        break;
+        $i++; break;
 
       case 'carac_row':
         $carac_buf[] = $cl['texte'];
-        $i++;
-        break;
+        $i++; break;
 
       case 'section_titre':
         $flushCarac();
         $out[] = '<div class="mo-section-titre">' . h($cl['texte']) . '</div>';
-        $i++;
-        break;
+        $i++; break;
 
       case 'label_inline':
         $flushCarac();
-        $valeur = lierTexteLibre($cl['valeur'], $indexLibre, $rapport);
+        // Pré-passe tags + liaison auto sur la valeur
+        $val = resoudreTagsExplicites($cl['valeur'], $db, $index, 0, $rapport);
+        $val = lierAuto($val, $indexAuto, $rapport);
         $out[] = '<div class="mo-stat-ligne">'
                . '<strong class="mo-stat-label">' . h($cl['label']) . '</strong> '
-               . $valeur . '</div>';
-        $i++;
-        break;
+               . $val . '</div>';
+        $i++; break;
 
       case 'label_gras':
         $flushCarac();
         $gNorm = normaliserNomMonstre($cl['label']);
-        if ($gNorm === 'dons' && isset($indexParType['don'])):
-          $valeurHtml = lierTexteType($cl['valeur'], $indexParType['don'], 'don', $rapport);
-        elseif ($gNorm === 'competences' && isset($indexParType['competence'])):
-          $valeurHtml = lierTexteType($cl['valeur'], $indexParType['competence'], 'competence', $rapport);
-        else:
-          $valeurHtml = lierTexteLibre($cl['valeur'], $indexLibre, $rapport);
-        endif;
+        $val   = resoudreTagsExplicites($cl['valeur'], $db, $index, 0, $rapport);
+        // Competences : pas de liaison auto (les noms de competences peuvent etre des mots communs)
+        // Dons : liaisons via tags # uniquement
+        // Sorts dans FP : pas de liaison
+        // Pour Resistances/Immunites etc. : liaison auto (peut contenir des termes de glossaire)
+        $val = lierAuto($val, $indexAuto, $rapport);
         $out[] = '<div class="mo-stat-ligne">'
                . '<strong class="mo-stat-label">' . h($cl['label']) . '</strong>'
-               . ($cl['valeur'] !== '' ? ' ' . $valeurHtml : '')
+               . ($cl['valeur'] !== '' ? ' ' . $val : '')
                . '</div>';
-        $i++;
-        break;
+        $i++; break;
+
+      case 'sous_liste':
+        // Sous-liste de sorts : uniquement liaison sorts (contexte 100% sorts)
+        $flushCarac();
+        $val = resoudreTagsExplicites($cl['valeur'], $db, $index, 0, $rapport);
+        $val = lierSorts($val, $index, $rapport);
+        $out[] = '<div class="mo-sous-liste">'
+               . '<span class="mo-sous-liste-label">' . h($cl['label']) . ' :</span> '
+               . $val . '</div>';
+        $i++; break;
 
       case 'pouvoir':
         $flushCarac();
-        $nomLie  = lierTexteLibre($cl['nom'], $indexLibre, $rapport);
-        $descLie = lierTexteLibre($cl['description'], $indexLibre, $rapport);
+        // NOM : affiche tel quel, jamais parse automatiquement
+        $nomHtml = h($cl['nom']);
+        // DESCRIPTION : pré-passe tags + liaison auto (sorts + glossaire)
+        $desc = resoudreTagsExplicites($cl['description'], $db, $index, 0, $rapport);
+        $desc = lierAuto($desc, $indexAuto, $rapport);
         $out[] = '<div class="mo-pouvoir">'
-               . '<span class="mo-pouvoir-nom">' . $nomLie . '.</span> '
-               . $descLie . '</div>';
-        $i++;
-        break;
+               . '<span class="mo-pouvoir-nom">' . $nomHtml . '.</span> '
+               . $desc . '</div>';
+        $i++; break;
 
       default:
         $flushCarac();
-        $out[] = '<div class="mo-stat-ligne">'
-               . lierTexteLibre(trim($ligne), $indexLibre, $rapport)
-               . '</div>';
-        $i++;
-        break;
+        $txt = resoudreTagsExplicites(trim($ligne), $db, $index, 0, $rapport);
+        $txt = lierAuto($txt, $indexAuto, $rapport);
+        $out[] = '<div class="mo-stat-ligne">' . $txt . '</div>';
+        $i++; break;
 
     endswitch;
   endwhile;
@@ -507,7 +579,39 @@ function formaterBlocDD2024(
 }
 
 // ============================================================
-// 8. POINT D'ENTREE PUBLIC
+// 9. RENDU DD3.5
+// ============================================================
+
+function formaterLigneDD35(
+  string $ligne, array $labelSet, array $index, array $indexAuto,
+  PDO $db, array &$rapport
+): string {
+  $pos = mb_strpos($ligne, ':');
+  if ($pos !== false):
+    $gauche = trim(mb_substr($ligne, 0, $pos));
+    $droite = trim(mb_substr($ligne, $pos + 1));
+    $gNorm  = normaliserNomMonstre($gauche);
+    if ($gauche !== '' && isset($labelSet[$gNorm])):
+      $labelHtml = '<strong class="mo-stat-label">' . h($gauche) . '</strong>';
+      if ($droite === '') return $labelHtml . ' :';
+      // Dons : liaison par tags # + liaison auto dons
+      // Sorts : liaison par tags $ + liaison auto sorts
+      // Autres : tags explicites + liaison auto (sorts + glossaire)
+      $droite = resoudreTagsExplicites($droite, $db, $index, 0, $rapport);
+      if ($gNorm === 'dons'):
+        $valeur = lierDons($droite, $index, $rapport);
+      else:
+        $valeur = lierAuto($droite, $indexAuto, $rapport);
+      endif;
+      return $labelHtml . ' : ' . $valeur;
+    endif;
+  endif;
+  $ligne = resoudreTagsExplicites($ligne, $db, $index, 0, $rapport);
+  return lierAuto($ligne, $indexAuto, $rapport);
+}
+
+// ============================================================
+// 10. POINT D'ENTREE PUBLIC
 // ============================================================
 
 function rendreStatsMonstre(PDO $db, ?string $texte, int $ruleset_id, array $res_ids): array
@@ -519,14 +623,13 @@ function rendreStatsMonstre(PDO $db, ?string $texte, int $ruleset_id, array $res
     return ['html' => '', 'rapport' => $rapport];
   endif;
 
-  $indexParType = chargerIndexMonstre($db, $ruleset_id, $res_ids);
-  $indexLibre   = construireIndexLibre($indexParType);
-  $est_dd2024   = $ruleset_id !== 1;
-
-  $lignes = preg_split('/\r\n|\r|\n/', $texte);
+  $index     = chargerIndexMonstre($db, $ruleset_id, $res_ids);
+  $indexAuto = construireIndexAuto($index);
+  $est_dd2024 = $ruleset_id !== 1;
+  $lignes    = preg_split('/\r\n|\r|\n/', $texte);
 
   if ($est_dd2024):
-    $html = formaterBlocDD2024($lignes, $indexParType, $indexLibre, $rapport);
+    $html = formaterBlocDD2024($lignes, $db, $index, $indexAuto, $rapport);
   else:
     $labelSet = [];
     foreach (labelsDD35() as $lab):
@@ -544,7 +647,7 @@ function rendreStatsMonstre(PDO $db, ?string $texte, int $ruleset_id, array $res
         continue;
       endif;
       $out[] = '<div class="mo-stat-ligne">'
-             . formaterLigneDD35($ligne, $labelSet, $indexParType, $indexLibre, $rapport)
+             . formaterLigneDD35($ligne, $labelSet, $index, $indexAuto, $db, $rapport)
              . '</div>';
     endforeach;
     $html = implode("\n", $out);
