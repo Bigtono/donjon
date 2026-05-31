@@ -1406,7 +1406,7 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
 
   // Groupe : NN en base, mais concept DD2024 uniquement.
   // En DD3.5 le champ caché transmet 0 -> on stocke 0 (pas de groupe).
-  $mogr_id = intParam($_POST['mo_mogr_id'] ?? 0);
+  $mogr_id = intParam($_POST['mo_mogr_id'] ?? 0) ?: null;
 
   $fp_id   = strParam($_POST['mo_fp_id'] ?? '') ?: null; // varchar : libellé ou NULL
   $stats   = (string)($_POST['mo_stats'] ?? '');         // TEXTE BRUT — pas de h()

@@ -986,7 +986,7 @@
 
 /* ===== Monstres ===== */
 
-/* Saisie : bloc de stats en texte brut, police à chasse fixe pour aligner */
+/* Saisie : textarea monospace */
 .mo-stats-input {
   width: 100%;
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
@@ -995,30 +995,34 @@
   resize: vertical;
 }
 
-/* Affichage du bloc de stats rendu */
+/* Conteneur du bloc rendu */
 .mo-stats {
   line-height: 1.55;
 }
 
+/* Ligne standard */
 .mo-stat-ligne {
   margin: .12rem 0;
 }
 
+/* Ligne vide (espacement entre blocs) */
 .mo-stat-vide {
   height: .55rem;
 }
 
+/* Séparateur *** */
 .mo-stat-hr {
   border: 0;
   border-top: 1px solid var(--clr-border);
   margin: .6rem 0;
 }
 
+/* Label en gras (DD3.5 et DD2024) */
 .mo-stat-label {
   color: var(--clr-accent);
 }
 
-/* Entité cliquable — aligné sur .om-lien-sort */
+/* Lien cliquable vers une entité du compendium */
 .mo-lien {
   color: var(--clr-accent-2);
   cursor: pointer;
@@ -1028,4 +1032,73 @@
 
 .mo-lien:hover {
   color: var(--clr-accent);
+}
+
+/* ---- DD2024 : titre de section (Traits, Actions…) ---- */
+.mo-section-titre {
+  font-size: .85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--clr-accent);
+  border-bottom: 1px solid var(--clr-accent);
+  margin: .8rem 0 .3rem;
+  padding-bottom: .15rem;
+}
+
+/* ---- DD2024 : pouvoir (nom en italique gras + description) ---- */
+.mo-pouvoir {
+  margin: .35rem 0;
+}
+
+.mo-pouvoir-nom {
+  font-style: italic;
+  font-weight: 600;
+}
+
+/* ---- DD2024 : tableau des caractéristiques ---- */
+.mo-carac-wrap {
+  margin: .5rem 0;
+  overflow-x: auto;
+}
+
+.mo-carac-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .85rem;
+}
+
+.mo-carac-table th,
+.mo-carac-table td {
+  text-align: center;
+  padding: 3px 8px;
+  border: none;
+}
+
+/* En-tête : noms des carac */
+.mo-carac-table thead tr {
+  background: var(--clr-surface-2);
+  color: var(--clr-accent);
+  font-weight: 700;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* Première cellule de chaque ligne de données : label "Val." / "Mod / JS" */
+.mo-carac-label {
+  text-align: left !important;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+  min-width: 60px;
+}
+
+/* Alternance lignes */
+.mo-carac-table tbody tr:nth-child(odd) {
+  background: rgba(180, 140, 90, .07);
+}
+
+.mo-carac-table tbody tr:nth-child(even) {
+  background: rgba(180, 140, 90, .14);
 }
