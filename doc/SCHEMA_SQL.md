@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-05-30 -->
+<!-- Mis à jour : 2026-06-01 10:37 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -13,6 +13,7 @@
 | Version | Date | Auteur | Modifications |
 |---|---|---|---|
 | 1.0 | 2025-05 | JM | Création — schéma initial issu du dump XAMPP |
+| 1.1 | 2026-06-01 | JM | Module Campagnes — refonte section 7 : `dd_oppositions` (copie éditable de monstre) + `dd_fichiers` (PJ génériques) ; ruleset hérité de la campagne (retrait `sce_ruleset_var_id`) ; univers 1-1 (`camp_un_id`, retrait `dd_campagnes_univers`) ; abandon `dd_rencontres_monstres` / `dd_rencontres_oppositions` ; `pe_camp_id` (dernière campagne jouée) |
 
 ---
 
@@ -588,9 +589,14 @@ Objets magiques du compendium.
 | pe_pv | smallint | nn, défaut 0 | Points de vie totaux |
 | pe_background | text | null | Historique du personnage |
 | pe_notes | text | null | Notes privées du joueur (non visibles par le MJ) |
+| pe_camp_id | int unsigned | null | Dernière campagne jouée (campagne « en cours ») -> dd_campagnes ; NULL = aucune. Le rattachement réel reste géré par `dd_campagnes_personnages` (N-N) ; ce champ n'est qu'un raccourci de contexte. |
 | pe_ruleset_var_id | int unsigned | nn | -> dd_variables |
 | pe_date_creation | datetime | nn | Horodatage automatique |
 | pe_date_modif | datetime | nn | Mis à jour automatiquement |
+
+> `pe_camp_id` est dénormalisé volontairement : il mémorise la **dernière** campagne du personnage
+> (raccourci d'ouverture de session/fiche). La source de vérité du lien personnage↔campagne est la
+> table N-N `dd_campagnes_personnages`. Géré par le module Personnages.
 
 ---
 
@@ -691,28 +697,38 @@ Degré de connaissance d'une note par un personnage.
 | camp_id | int unsigned | PK | |
 | camp_nom | varchar(150) | nn | |
 | camp_j_id | int unsigned | nn | MJ/propriétaire -> dd_joueurs |
-| camp_ruleset_var_id | int unsigned | nn | -> dd_variables |
-| camp_resume | text | null | Résumé court |
-| camp_description | text | null | Description complète |
+| camp_ruleset_var_id | int unsigned | nn | -> dd_variables. **Ruleset maître** : hérité par scénarios, chapitres, rencontres et oppositions. |
+| camp_un_id | int unsigned | null | Univers de la campagne -> dd_univers ; NULL = aucun. **1 campagne = au plus 1 univers**. Les univers sont agnostiques du ruleset. |
+| camp_resume | text | null | Résumé court (texte simple) |
+| camp_description | longtext | null | Description complète (HTML TinyMCE, images uploadées autorisées) |
 | camp_date_creation | datetime | nn | Horodatage automatique |
+
+> **Ruleset hérité** : le ruleset n'est stocké QUE sur la campagne (`camp_ruleset_var_id`).
+> Scénarios / chapitres / rencontres / oppositions le lisent par jointure remontante. Aucune
+> colonne `_ruleset_var_id` redondante sur les entités filles.
+> **Univers 1-1** : la liaison N-N `dd_campagnes_univers` de l'ébauche précédente est **abandonnée**
+> au profit de `camp_un_id`.
 
 ---
 
 ### dd_campagnes_personnages
-Personnages rattachés à une campagne.
+Personnages rattachés à une campagne. **Source de vérité du lien personnage↔campagne (N-N).**
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | cp_id | int unsigned | PK | |
 | cp_camp_id | int unsigned | nn, UK(cp_camp_id, cp_pe_id) | -> dd_campagnes |
 | cp_pe_id | int unsigned | nn | -> dd_personnages |
-| cp_notes_mj | text | null | Notes privées du MJ sur ce personnage. Visibles uniquement par le MJ. Supprimées si le personnage quitte la campagne. |
+| cp_notes_mj | text | null | **RÉSERVÉ** — notes privées du MJ sur ce personnage. Hors UI v2 (en attente du module Personnages). Visibles MJ uniquement ; perdues si le personnage quitte la campagne. |
 | cp_actif | tinyint(1) | nn, défaut 1 | 0 = personnage inactif dans la campagne |
+
+> Le raccourci `dd_personnages.pe_camp_id` (dernière campagne jouée) est dénormalisé et n'a pas
+> valeur de lien : c'est cette table qui fait foi. Voir §6 `dd_personnages`.
 
 ---
 
 ### dd_campagnes_sources
-Sources actives spécifiques à une campagne (surcharge la sélection personnelle).
+Sources actives spécifiques à une campagne (priorité 1 de `getActiveResIds()`, surcharge la sélection personnelle).
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
@@ -722,27 +738,20 @@ Sources actives spécifiques à une campagne (surcharge la sélection personnell
 
 ---
 
-### dd_campagnes_univers
-Univers wiki rattachés à une campagne.
-
-| Champ | Type | Null | Commentaire |
-|---|---|---|---|
-| cu_id | int unsigned | PK | |
-| cu_camp_id | int unsigned | nn, UK(cu_camp_id, cu_un_id) | -> dd_campagnes |
-| cu_un_id | int unsigned | nn | -> dd_univers |
-
----
-
 ### dd_scenarios
+Ruleset hérité de la campagne (pas de colonne ruleset).
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | sce_id | int unsigned | PK | |
 | sce_nom | varchar(150) | nn | |
 | sce_ordre | smallint unsigned | nn, défaut 0 | Ordre d'affichage dans la campagne |
-| sce_description | text | null | |
+| sce_description | longtext | null | Description (HTML TinyMCE, images uploadées autorisées) |
 | sce_camp_id | int unsigned | nn | -> dd_campagnes |
-| sce_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> Duplicable (« *[nom] - copie* »), dans la **même campagne ou une autre campagne du même ruleset**
+> (toute duplication est limitée au ruleset courant). La copie recopie en cascade chapitres,
+> rencontres et oppositions.
 
 ---
 
@@ -760,25 +769,67 @@ Univers wiki rattachés à une campagne.
 ---
 
 ### dd_rencontres
+Une rencontre appartient **obligatoirement** à un chapitre (plus de rencontre orpheline).
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | re_id | int unsigned | PK | |
 | re_nom | varchar(150) | nn | |
 | re_code | varchar(20) | null | Code de référence libre |
-| re_scc_id | int unsigned | null | Chapitre parent -> dd_scenarios_chapitres (null = rencontre orpheline) |
-| re_description | text | null | |
+| re_scc_id | int unsigned | nn | Chapitre parent -> dd_scenarios_chapitres |
+| re_description | longtext | null | Description (HTML TinyMCE, images uploadées autorisées) |
+| re_composition | text | null | **Détail littéral de la composition de la rencontre (effectifs, disposition, vagues…)**. Champ texte mis en évidence dans l'UI rencontre. Remplace tout stockage chiffré d'effectif. |
+
+> **Effectifs en clair** : il n'existe aucune colonne d'effectif chiffrée ni de table de liaison
+> rencontre↔opposition. Une rencontre porte N oppositions (lien 1-N via `dd_oppositions.opp_re_id`)
+> et un champ texte `re_composition` qui décrit littéralement les effectifs. La table v1
+> `dd_rencontres_monstres` (et l'ébauche `dd_rencontres_oppositions`) sont **abandonnées**.
+> Rencontre duplicable (« *[nom] - copie* ») vers un autre scénario, même ou autre campagne du
+> même ruleset ; la copie recopie ses oppositions.
 
 ---
 
-### dd_rencontres_monstres
+### dd_oppositions
+Copie **éditable** d'un monstre du compendium, propre à une rencontre. Le MJ recopie un monstre
+puis ajuste/annote librement pour sa partie, **sans altérer le compendium**.
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
-| rem_id | int unsigned | PK | |
-| rem_re_id | int unsigned | nn | -> dd_rencontres |
-| rem_mo_id | int unsigned | nn | -> dd_monstres |
-| rem_effectif | smallint unsigned | nn, défaut 1 | Nombre d'exemplaires dans la rencontre |
+| opp_id | int unsigned | PK | |
+| opp_nom | varchar(150) | nn | Recopié de `mo_nom`, éditable |
+| opp_mocat_nom | varchar(150) | null | Recopié du libellé de catégorie (`mocat_nom` via `mo_mocat_id`), **stocké en texte libre**, éditable |
+| opp_stats | text | null | Recopié de `mo_stats`, éditable |
+| opp_re_id | int unsigned | nn | Rencontre parente -> dd_rencontres |
+| opp_mo_id | int unsigned | nn | Monstre-template d'origine -> dd_monstres. **Non éditable** par le MJ (traçabilité). |
+
+> Lien rencontre **1-N** (`opp_re_id`), pas de table de liaison.
+> À la création, le formulaire propose un sélecteur de monstre (scopé ruleset courant + sources
+> actives) qui pré-remplit `opp_nom`, `opp_mocat_nom`, `opp_stats` et fige `opp_mo_id`.
+> Duplicable (« *[nom] - copie* »).
+> `opp_mo_id` normalisé en `int unsigned` (la spec initiale notait `int(10)`).
+
+---
+
+### dd_fichiers
+Pièces jointes **PDF** génériques, rattachables à une campagne, un scénario ou une rencontre
+(table polymorphe, un seul handler d'upload). Stockage du binaire hors base.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| fi_id | int unsigned | PK | |
+| fi_entite | enum('campagne','scenario','rencontre') | nn | Type d'entité porteuse |
+| fi_entite_id | int unsigned | nn, KEY(fi_entite, fi_entite_id) | Id de l'entité porteuse (camp_id / sce_id / re_id) |
+| fi_nom_origine | varchar(255) | nn | Nom de fichier d'origine (affichage) |
+| fi_chemin | varchar(255) | nn | Chemin relatif de stockage serveur |
+| fi_mime | varchar(100) | nn | Type MIME validé (application/pdf attendu) |
+| fi_taille | int unsigned | nn | Taille en octets |
+| fi_j_id | int unsigned | nn | Déposant -> dd_joueurs |
+| fi_date | datetime | nn | Horodatage automatique |
+
+> **PDF uniquement** : validation serveur double (extension + magic bytes), stockage sous
+> `uploads/{fi_entite}/{fi_entite_id}/` protégé (hors webroot ou `.htaccess`). Le téléchargement
+> requiert une autorisation (propriétaire/MJ de la campagne porteuse).
+> Le même socle d'upload sert aux **images** insérées dans les champs `*_description` (TinyMCE).
 
 ---
 
@@ -789,6 +840,8 @@ Univers wiki rattachés à une campagne.
 | cpno_id | int unsigned | PK | |
 | cpno_no_id | int unsigned | nn, UK(cpno_no_id, cpno_camp_id) | -> dd_notes |
 | cpno_camp_id | int unsigned | nn | -> dd_campagnes |
+
+> **RÉSERVÉ / hors UI v2** : système de notes non finalisé, dépend du module Notes/Personnages.
 
 ---
 
