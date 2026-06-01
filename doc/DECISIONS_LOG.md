@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-01 16:55 -->
+<!-- Mis à jour : 2026-06-01 17:19 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -635,10 +635,20 @@ Tout endpoint d'ajout/édition vérifie la propriété de la campagne (`camp_j_i
 remontant la hiérarchie. Correction de la faille v1 (`*_create.php` sans authentification).
 → Empêche la manipulation d'entités par injection d'id en POST.
 
-**[2026-06-01] Soft delete — principe acté**
-Suppression douce pour les données de jeu. Topo détaillé (marquage/archive, cascade, sort des PJ,
-effet sur `pe_camp_id`) à produire avant implémentation.
-→ Cohérent avec la politique « jamais de DELETE » du projet.
+**[2026-06-01] Soft delete — stratégie complète validée**
+Flag par table (`_supprime TINYINT(1) DEFAULT 0` + `_date_supprime DATETIME NULL`) sur les 6 tables
+de contenu : `dd_campagnes`, `dd_scenarios`, `dd_scenarios_chapitres`, `dd_rencontres`,
+`dd_oppositions`, `dd_fichiers`. Index sur chaque colonne `_supprime` (filtre systématique).
+Cascade gérée en application (PHP, transaction PDO unique) dans `enregistrement.php` :
+campagne → scénarios → chapitres → rencontres → oppositions + fichiers, plus
+`SET NULL` sur `dd_personnages.pe_camp_id` et `DELETE` physique des lignes de liaison sans
+contenu propre (`dd_campagnes_personnages`, `dd_campagnes_sources`, `dd_campagnes_notes`).
+Fichiers PDF physiques : **suppression immédiate via `unlink()`** (option A) — libération disque,
+pas de dossier trash.
+**Pas d'interface de restauration côté MJ** — récupération admin uniquement en base si besoin.
+Toute requête de lecture filtre `_supprime = 0` sans exception (précondition implicite).
+Patch SQL : `doc/sql/2026-06-01_campagnes_v2_etape2a.sql`.
+→ Cohérent avec la politique « jamais de DELETE » du projet. Pas de triggers ni FK (style schema.sql).
 
 **[2026-06-01] Notes MJ — réservées**
 `cp_notes_mj` (dans `dd_campagnes_personnages`) et `dd_campagnes_notes` conservées en base mais
@@ -683,7 +693,7 @@ CREATE `dd_oppositions`, DROP `dd_rencontres_monstres`, CREATE `dd_fichiers`. De
 - [x] ~~Campagnes — effectifs~~ → champ texte re_composition, pas de comptage chiffré ni table de liaison
 - [x] ~~Campagnes — univers 1-1 ou N-N ?~~ → 1-1 (camp_un_id)
 - [x] ~~Campagnes — ruleset par entité ?~~ → hérité de la campagne (source unique camp_ruleset_var_id)
-- [ ] Campagnes — topo détaillé de la suppression douce (cascade + sort des PJ + pe_camp_id)
+- [x] ~~Campagnes — topo détaillé de la suppression douce (cascade + sort des PJ + pe_camp_id)~~ → stratégie validée (flag + cascade application + unlink PDF + pas d'UI restauration)
 - [ ] Campagnes — taille max des pièces jointes PDF (proposition : 20 Mo)
 - [ ] Campagnes — stratégie FK/cascade en base (schema.sql sans contraintes FK actuellement)
 - [ ] Campagnes — harmoniser la numérotation doc (ARCHITECTURE_8 vs METIER_10)

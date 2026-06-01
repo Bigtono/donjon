@@ -1,0 +1,184 @@
+/* css/campagnes-modules.css
+   Styles du module Campagnes — chargé si $css_module = 'campagnes'.
+   Réutilise les variables et utilitaires du design system (main.css / modules.css). */
+
+/* ============================================================
+   LISTE DES CAMPAGNES
+   ============================================================ */
+
+.camp-liste {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-main);
+}
+
+.camp-liste thead th {
+  text-align: left;
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 2px solid var(--clr-border);
+  color: var(--clr-text-muted);
+  font-weight: 600;
+  font-size: .9em;
+}
+
+.camp-liste__row {
+  cursor: pointer;
+  transition: background-color .12s ease;
+}
+
+.camp-liste__row td {
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 1px solid var(--clr-border);
+  vertical-align: middle;
+}
+
+.camp-liste__row:hover {
+  background-color: var(--clr-surface-2);
+}
+
+.camp-liste__nom {
+  font-weight: 600;
+  color: var(--clr-text);
+}
+
+.camp-liste__resume {
+  display: block;
+  font-weight: 400;
+  font-size: .85em;
+  color: var(--clr-text-muted);
+  margin-top: 2px;
+}
+
+.camp-liste__col-sec {
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+
+.camp-liste__col-num {
+  text-align: center;
+  width: 110px;
+  color: var(--clr-text-muted);
+}
+
+/* ============================================================
+   FICHE DÉTAIL D'UNE CAMPAGNE (panel #detail-pp)
+   ============================================================ */
+
+.camp-detail__header {
+  border-bottom: 1px solid var(--clr-border);
+  padding-bottom: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+}
+
+.camp-detail__nom {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.camp-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+  margin-top: var(--sp-xs);
+  font-size: .9em;
+  color: var(--clr-text-muted);
+}
+
+.camp-detail__ruleset {
+  font-weight: 600;
+  color: var(--clr-accent);
+}
+
+.camp-detail__resume {
+  font-style: italic;
+  color: var(--clr-text-muted);
+  margin: 0 0 var(--sp-md);
+}
+
+.camp-detail__description {
+  margin: var(--sp-md) 0;
+  line-height: var(--line-height);
+}
+
+.camp-detail__description img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.camp-detail__stats {
+  display: flex;
+  gap: var(--sp-lg);
+  margin: var(--sp-md) 0;
+  padding: var(--sp-sm) 0;
+  border-top: 1px solid var(--clr-border);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.camp-detail__stat {
+  color: var(--clr-text-muted);
+  font-size: .9em;
+}
+
+.camp-detail__stat i {
+  color: var(--clr-accent);
+  margin-right: var(--sp-xs);
+}
+
+.camp-detail__section {
+  margin-top: var(--sp-md);
+}
+
+.camp-detail__section-title {
+  font-size: 1em;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--clr-text-muted);
+  margin: 0 0 var(--sp-sm);
+}
+
+.camp-detail__sources {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.camp-detail__sources li {
+  padding: var(--sp-xs) 0;
+}
+
+.camp-detail__sources i {
+  color: var(--clr-accent);
+  margin-right: var(--sp-xs);
+}
+
+.camp-detail__actions {
+  margin-top: var(--sp-lg);
+  padding-top: var(--sp-md);
+  border-top: 1px solid var(--clr-border);
+}
+
+/* ============================================================
+   FORMULAIRE — Sélection des sources (cases à cocher)
+   ============================================================ */
+
+.camp-sources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-xs) var(--sp-md);
+  margin-top: var(--sp-sm);
+}
+
+.camp-source-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  cursor: pointer;
+  font-size: .92em;
+}
+
+.camp-source-item input {
+  flex: 0 0 auto;
+}
