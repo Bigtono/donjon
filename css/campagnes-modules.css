@@ -1,6 +1,74 @@
 /* css/campagnes-modules.css
    Styles du module Campagnes — chargé si $css_module = 'campagnes'.
-   Réutilise les variables et utilitaires du design system (main.css / modules.css). */
+   Réutilise les variables du design system (main.css / modules.css).
+   Reprend les classes .comp-menu-* de compendium-modules.css
+   (non chargé sur les pages campagnes). */
+
+/* ============================================================
+   MENU CONTEXTUEL — classes partagées avec compendium
+   (compendium-modules.css n'est pas chargé ici)
+   ============================================================ */
+
+.comp-menu-ligne {
+  position: relative;
+  display: inline-block;
+}
+
+.comp-menu-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--clr-text-muted);
+  padding: 2px 6px;
+}
+
+.comp-menu-dropdown {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  min-width: 160px;
+  z-index: 200;
+}
+
+.comp-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  width: 100%;
+  padding: var(--sp-sm) var(--sp-md);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--clr-text);
+  font-size: .92em;
+}
+
+.comp-menu-item:hover {
+  background: var(--clr-surface-2);
+}
+
+.comp-menu-item--danger { color: var(--clr-danger); }
+.comp-menu-item--danger:hover { background: color-mix(in srgb, var(--clr-danger) 10%, transparent); }
+
+.comp-confirm-row {
+  padding: var(--sp-sm) var(--sp-md);
+  background: color-mix(in srgb, var(--clr-danger) 8%, transparent);
+}
+
+.comp-confirm-suppr {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+  font-size: .9em;
+}
 
 /* ============================================================
    LISTE DES CAMPAGNES
@@ -21,18 +89,13 @@
   font-size: .9em;
 }
 
-.camp-liste__row {
-  cursor: pointer;
-  transition: background-color .12s ease;
-}
-
-.camp-liste__row td {
+.camp-liste tbody tr td {
   padding: var(--sp-sm) var(--sp-md);
   border-bottom: 1px solid var(--clr-border);
   vertical-align: middle;
 }
 
-.camp-liste__row:hover {
+.camp-liste tbody tr:hover td {
   background-color: var(--clr-surface-2);
 }
 
@@ -61,13 +124,49 @@
 }
 
 /* ============================================================
-   FICHE DÉTAIL D'UNE CAMPAGNE (panel #detail-pp)
+   SOUS-LISTES (scénarios dans campagne, chapitres dans scénario)
+   ============================================================ */
+
+.camp-sous-liste {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .95em;
+  margin-top: var(--sp-sm);
+}
+
+.camp-sous-liste thead th {
+  text-align: left;
+  padding: var(--sp-xs) var(--sp-sm);
+  border-bottom: 1px solid var(--clr-border);
+  color: var(--clr-text-muted);
+  font-size: .88em;
+  font-weight: 600;
+}
+
+.camp-sous-liste tbody tr td {
+  padding: var(--sp-xs) var(--sp-sm);
+  border-bottom: 1px solid var(--clr-border);
+  vertical-align: middle;
+}
+
+.camp-sous-liste tbody tr:hover td {
+  background-color: var(--clr-surface-2);
+}
+
+/* ============================================================
+   FICHE DÉTAIL (panel #detail-pp et #detail-pp-sub)
    ============================================================ */
 
 .camp-detail__header {
   border-bottom: 1px solid var(--clr-border);
   padding-bottom: var(--sp-sm);
   margin-bottom: var(--sp-md);
+}
+
+.camp-detail__breadcrumb {
+  font-size: .85em;
+  color: var(--clr-text-muted);
+  margin: 0 0 var(--sp-xs);
 }
 
 .camp-detail__nom {
@@ -108,27 +207,17 @@
   border-radius: var(--radius-sm);
 }
 
-.camp-detail__stats {
-  display: flex;
-  gap: var(--sp-lg);
-  margin: var(--sp-md) 0;
-  padding: var(--sp-sm) 0;
-  border-top: 1px solid var(--clr-border);
-  border-bottom: 1px solid var(--clr-border);
-}
-
-.camp-detail__stat {
-  color: var(--clr-text-muted);
-  font-size: .9em;
-}
-
-.camp-detail__stat i {
-  color: var(--clr-accent);
-  margin-right: var(--sp-xs);
-}
-
 .camp-detail__section {
   margin-top: var(--sp-md);
+  padding-top: var(--sp-sm);
+  border-top: 1px solid var(--clr-border);
+}
+
+.camp-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--sp-sm);
 }
 
 .camp-detail__section-title {
@@ -136,12 +225,12 @@
   text-transform: uppercase;
   letter-spacing: .04em;
   color: var(--clr-text-muted);
-  margin: 0 0 var(--sp-sm);
+  margin: 0;
 }
 
 .camp-detail__sources {
   list-style: none;
-  margin: 0;
+  margin: var(--sp-sm) 0 0;
   padding: 0;
 }
 
@@ -179,6 +268,4 @@
   font-size: .92em;
 }
 
-.camp-source-item input {
-  flex: 0 0 auto;
-}
+.camp-source-item input { flex: 0 0 auto; }

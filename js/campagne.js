@@ -1,32 +1,159 @@
-// js/campagne.js — Interactions de la page liste des campagnes.
-// Les URLs sont injectées en variables globales par index.php :
-//   campUrlDetail, campUrlModifier, campUrlEnreg
-// Le formulaire (modifier/campagne.php) gère sa propre soumission en IIFE.
+// js/campagne.js — Interactions du module Campagnes.
+// Chargé uniquement sur les pages du module ($js_module = 'campagne').
+// campUrlDetail / campUrlModifier / campUrlEnreg injectés en inline par index.php.
 'use strict';
 
+// ============================================================
+// MENU CONTEXTUEL — miroir de compToggleMenu (compendium.js)
+// compToggleMenu n'est pas chargé sur les pages campagnes.
+// ============================================================
+
+function campToggleMenu(id) {
+  const menu = document.getElementById('comp-menu-' + id);
+  if (!menu) return;
+
+  document.querySelectorAll('.comp-menu-dropdown').forEach(m => {
+    if (m !== menu) m.classList.add('noDisplay');
+  });
+  menu.classList.toggle('noDisplay');
+
+  if (!menu.classList.contains('noDisplay')) {
+    setTimeout(() => {
+      document.addEventListener('click', function handler(e) {
+        if (!menu.contains(e.target)) {
+          menu.classList.add('noDisplay');
+          document.removeEventListener('click', handler);
+        }
+      });
+    }, 0);
+  }
+}
+
+// ============================================================
+// SUPPRESSION INLINE CAMPAGNE (depuis la liste index.php)
+// ============================================================
+
+function campDemanderSuppression(id) {
+  const row     = document.getElementById('camp-row-' + id);
+  const confirm = document.getElementById('camp-confirm-' + id);
+  if (!row || !confirm) return;
+
+  row.dataset.backup = row.innerHTML;
+  const nbCols = row.querySelectorAll('td').length;
+  row.innerHTML = `<td colspan="${nbCols}" class="comp-confirm-row">${confirm.innerHTML}</td>`;
+}
+
+async function campConfirmerSuppression(id) {
+  try {
+    const data = await postAjax(campUrlEnreg, { action: 'supprimerCampagne', id: id });
+    if (data.ok) {
+      rafraichirListe();
+    } else {
+      alert(data.erreur || 'Erreur lors de la suppression.');
+      campAnnulerSuppression(id);
+    }
+  } catch (err) {
+    alert('Erreur : ' + err);
+    campAnnulerSuppression(id);
+  }
+}
+
+function campAnnulerSuppression(id) {
+  const row = document.getElementById('camp-row-' + id);
+  if (row && row.dataset.backup) row.innerHTML = row.dataset.backup;
+}
+
+// ============================================================
+// SUPPRESSION INLINE SCÉNARIO (depuis detail-pp campagne)
+// ============================================================
+
+function campSceDemanderSuppression(sceId, campId) {
+  const row     = document.getElementById('camp-sce-row-' + sceId);
+  const confirm = document.getElementById('camp-sce-confirm-' + sceId);
+  if (!row || !confirm) return;
+
+  row.dataset.backup  = row.innerHTML;
+  row.dataset.campId  = campId;
+  const nbCols = row.querySelectorAll('td').length;
+  row.innerHTML = `<td colspan="${nbCols}" class="comp-confirm-row">${confirm.innerHTML}</td>`;
+}
+
+async function campSceConfirmerSuppression(sceId) {
+  const row    = document.getElementById('camp-sce-row-' + sceId);
+  const campId = parseInt(row ? row.dataset.campId : 0);
+  try {
+    const data = await postAjax(campUrlEnreg, { action: 'supprimerScenario', id: sceId });
+    if (data.ok) {
+      // Rafraîchit la fiche campagne dans #detail-pp.
+      actualiserPage(campUrlDetail, { id: campId }, _detailPpContext);
+      _pendingListRefresh = true;
+    } else {
+      alert(data.erreur || 'Erreur lors de la suppression.');
+      campSceAnnulerSuppression(sceId);
+    }
+  } catch (err) {
+    alert('Erreur : ' + err);
+    campSceAnnulerSuppression(sceId);
+  }
+}
+
+function campSceAnnulerSuppression(sceId) {
+  const row = document.getElementById('camp-sce-row-' + sceId);
+  if (row && row.dataset.backup) row.innerHTML = row.dataset.backup;
+}
+
+// ============================================================
+// SUPPRESSION INLINE CHAPITRE (depuis detail-pp-sub scénario)
+// ============================================================
+
+function campSccDemanderSuppression(sccId, sceId) {
+  const row     = document.getElementById('camp-scc-row-' + sccId);
+  const confirm = document.getElementById('camp-scc-confirm-' + sccId);
+  if (!row || !confirm) return;
+
+  row.dataset.backup = row.innerHTML;
+  row.dataset.sceId  = sceId;
+  const nbCols = row.querySelectorAll('td').length;
+  row.innerHTML = `<td colspan="${nbCols}" class="comp-confirm-row">${confirm.innerHTML}</td>`;
+}
+
+async function campSccConfirmerSuppression(sccId) {
+  const row   = document.getElementById('camp-scc-row-' + sccId);
+  const sceId = parseInt(row ? row.dataset.sceId : 0);
+  const urlSce = campUrlDetail.replace('/campagne.php', '/scenario.php');
+  try {
+    const data = await postAjax(campUrlEnreg, { action: 'supprimerChapitre', id: sccId });
+    if (data.ok) {
+      // Rafraîchit le sub-panel avec le scénario mis à jour.
+      actualiserPageSub(urlSce, { id: sceId });
+    } else {
+      alert(data.erreur || 'Erreur lors de la suppression.');
+      campSccAnnulerSuppression(sccId);
+    }
+  } catch (err) {
+    alert('Erreur : ' + err);
+    campSccAnnulerSuppression(sccId);
+  }
+}
+
+function campSccAnnulerSuppression(sccId) {
+  const row = document.getElementById('camp-scc-row-' + sccId);
+  if (row && row.dataset.backup) row.innerHTML = row.dataset.backup;
+}
+
+// ============================================================
+// SUPPRESSION CAMPAGNE depuis la fiche détail (#detail-pp)
+// Utilise confirm() natif (pas de ligne à remplacer dans un panel).
+// ============================================================
+
 const campagneListe = {
-
-  // Ouvre la fiche détail (contexte 'liste' → la liste se rafraîchit à la fermeture).
-  ouvrir(id) {
-    actualiserPage(campUrlDetail, { id: id }, 'liste');
-  },
-
-  // Ouvre le formulaire de création.
-  nouvelle() {
-    ouvrirModifier(campUrlModifier, 0);
-  },
-
-  // Supprime une campagne (suppression douce en cascade côté serveur).
   supprimer(id, nom) {
     const message = 'Supprimer la campagne « ' + nom + ' » ?\n\n'
       + 'Ses scénarios, rencontres et oppositions seront également supprimés. '
       + 'Cette action est définitive.';
     confirmer(message, async () => {
       try {
-        const data = await postAjax(campUrlEnreg, {
-          action: 'supprimerCampagne',
-          id: id,
-        });
+        const data = await postAjax(campUrlEnreg, { action: 'supprimerCampagne', id: id });
         if (data.ok) {
           fermerDetailPP();
           rafraichirListe();
@@ -38,5 +165,4 @@ const campagneListe = {
       }
     });
   },
-
 };
