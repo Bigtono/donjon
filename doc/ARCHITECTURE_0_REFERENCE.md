@@ -1,10 +1,10 @@
-<!-- Mis à jour : 2026-05-31 16:39 -->
+<!-- Mis à jour : 2026-06-01 16:55 -->
 
 # Codex DD v2 — Document de référence architecture
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Module Monstres v3 (moteur monstre-parser.php — texte brut + rendu à l'affichage + tags explicites) ; précisions sur le système de thèmes (invariant connexion/remember-me)
+> Dernière mise à jour : Module Campagnes — conception (structure de données validée, schéma v1.1) : hiérarchie Campagne → Scénario → Chapitre → Rencontre → Opposition ; oppositions = copies éditables de monstres (`dd_oppositions`) ; pièces jointes PDF génériques (`dd_fichiers`) ; ruleset hérité de la campagne ; univers 1-1 (`camp_un_id`)
 
 ---
 
@@ -522,9 +522,29 @@ js/
 
 ## 8. Module Campagnes
 
-Hiérarchie : Campagne → Scénarios → Chapitres → Rencontres → Monstres
-Liaison personnages via dd_campagnes_personnages.
-Module NON responsive — usage desktop exclusif.
+> Détails : `ARCHITECTURE_8_CAMPAGNES.md` (technique) et `METIER_10_Campagnes.md` (fonctionnel).
+> Structure de données validée — schéma `SCHEMA_SQL.md` v1.1 (section 7).
+
+Hiérarchie : **Campagne → Scénario → Chapitre → Rencontre → Opposition**
+
+- **Campagne** : 1 propriétaire (`camp_j_id`, le MJ), 1 ruleset (`camp_ruleset_var_id`, **maître**,
+  hérité par tout le contenu), 0–1 univers (`camp_un_id`, univers agnostiques du ruleset).
+- **Sources** : `dd_campagnes_sources` — priorité 1 de la chaîne `getActiveResIds()`.
+- **Personnages** : lien **N-N** via `dd_campagnes_personnages` (source de vérité).
+  `dd_personnages.pe_camp_id` n'est qu'un raccourci « dernière campagne jouée ».
+- **Rencontre** : rattachement à un chapitre **obligatoire** (`re_scc_id` NOT NULL, plus de
+  rencontre orpheline). Effectifs décrits **littéralement** dans `re_composition` (texte).
+- **Opposition** : copie **éditable** d'un monstre du compendium (`dd_oppositions`), propre à une
+  rencontre (lien 1-N `opp_re_id`). Le monstre modèle (`opp_mo_id`) est figé pour traçabilité ;
+  nom, catégorie (texte libre) et stats sont recopiés puis modifiables sans toucher au compendium.
+- **Duplication** : scénario / rencontre / opposition duplicables (suffixe « - copie »), en cascade
+  descendante, **limitée au ruleset courant** (pas de copie inter-ruleset).
+- **Pièces jointes** : PDF uniquement, table générique `dd_fichiers` (campagne / scénario /
+  rencontre). **Images** des descriptions via l'endpoint TinyMCE existant (`upload-image.php`).
+- **Suppression douce** (détail à préciser avant implémentation).
+- Notes MJ (`cp_notes_mj`, `dd_campagnes_notes`) : **réservées, hors UI** cette version.
+
+Module **NON responsive** — usage desktop MJ exclusif. Menu visible si `j_mode_campagne = 1`.
 
 ---
 
@@ -1000,7 +1020,8 @@ donjon/
                    competences.php, objets.php, monstres.php,
                    historiques.php   (DD2024 uniquement)
                    enregistrement.php
-  campagnes/       campagne.php, scenario.php, rencontres.php
+  campagnes/       campagnes.php (liste), campagne.php, scenario.php, rencontre.php
+                   enregistrement.php (POST centralisé du module)
   wiki/            univers.php, articles.php
   regles/          index.php, regle.php, recherche.php, modifier.php, enregistrement.php
   profil/          index.php, mot-de-passe-oublie.php, reinitialisation.php
@@ -1041,13 +1062,19 @@ donjon/
     ajax/
       detail-pp/     sort.php, classe.php, don.php, race.php, historique.php...
                      monstre.php   (Monstres — appelle rendreStatsMonstre())
+                     campagne.php, scenario.php, rencontre.php, opposition.php   (Campagnes)
                      regle.php   (Règles)
                      utilisateur.php, ressource.php   (admin)
       detail-pp-sub/ glossaire.php   (Règles — terme de glossaire DD2024, au-dessus de detail-pp)
       modifier/      sort.php, classe.php, don.php, race.php, historique.php...
                      monstre.php   (Monstres — textarea + autocomplete tags)
                      regle.php   (Règles)
+                     campagne.php, scenario.php, chapitre.php, rencontre.php, opposition.php   (Campagnes)
                      utilisateur.php, ressource.php   (admin)
+      campagne/      monstre-template.php (pré-remplissage opposition), dupliquer.php,
+                     personnage-attach.php, personnage-detach.php   (Campagnes)
+      upload-pdf.php                   (Campagnes — pièces jointes PDF, table dd_fichiers)
+      upload-image.php                 (TinyMCE — images, réutilisé par les descriptions campagnes)
       autocomplete-tags-monstre.php   (Monstres — suggestions tags @ règle / % glossaire)
       regles/        reorder.php, arbre.php   (drag & drop ordre + fragment sommaire)
     insert/
@@ -1057,6 +1084,9 @@ donjon/
     schema.sql
     patch_001_reset_password.sql
     patch_002_theme.sql        ← ALTER TABLE dd_joueurs ADD j_theme
+    doc/sql/2026-06-01_campagnes_v2_etape1.sql   ← Module Campagnes (oppositions, fichiers, pe_camp_id...)
+  uploads/
+    campagnes/             pièces jointes PDF (dd_fichiers) — hors webroot ou protégé
   img/
     uploads/               dépôt fichiers uploadés via TinyMCE (755)
   doc/
@@ -1064,6 +1094,8 @@ donjon/
     DECISIONS_LOG.md
     SCHEMA_SQL.md
     ARCHITECTURE_2_SORTS.md
+    ARCHITECTURE_8_CAMPAGNES.md
+    METIER_10_Campagnes.md
     METIER_*.md
 ```
 
@@ -1103,7 +1135,8 @@ Auth, session, helpers, header/footer, dashboard, profil, reset MDP, CSS design 
 Fiche, classes/niveaux, sorts, compétences, dons, NLS (DD3.5).
 
 ### Phase 4 — Campagnes
-Campagne, scénarios, chapitres, rencontres, monstres, personnages invités.
+Campagne (sources, univers, personnages invités), scénarios, chapitres, rencontres, oppositions
+(copies de monstres), duplication, pièces jointes PDF. Structure de données validée.
 
 ### Phase 5 — Wiki / Univers
 Univers, catégories, articles, délégation, lien univers <-> campagne.
@@ -1172,16 +1205,16 @@ Import SRD 5.2.1 : arbre complet + glossaire + pose des ancres de renvoi.
 ### Campagnes
 | Table | Préfixe | Rôle |
 |---|---|---|
-| dd_campagnes | camp | Campagnes |
-| dd_campagnes_personnages | cp | Lien personnage <-> campagne + notes MJ |
-| dd_campagnes_sources | cs | Sources actives d'une campagne |
-| dd_campagnes_univers | cu | Lien campagne <-> univers |
-| dd_campagnes_notes | cpno | Note rattachée à une campagne |
-| dd_scenarios | sce | Scénarios |
+| dd_campagnes | camp | Campagnes (1 ruleset maître, 0–1 univers via camp_un_id) |
+| dd_campagnes_personnages | cp | Lien N-N personnage <-> campagne (cp_notes_mj réservé) |
+| dd_campagnes_sources | cs | Sources actives d'une campagne (priorité 1) |
+| dd_scenarios | sce | Scénarios (ruleset hérité de la campagne) |
 | dd_scenarios_chapitres | scc | Chapitres |
-| dd_rencontres | re | Rencontres |
-| dd_rencontres_monstres | rem | Monstres d'une rencontre |
-| dd_monstres | mo | Monstres (table principale décrite au §Compendium) |
+| dd_rencontres | re | Rencontres (re_scc_id NOT NULL, re_composition littérale) |
+| dd_oppositions | opp | Copie éditable d'un monstre, propre à une rencontre |
+| dd_fichiers | fi | Pièces jointes PDF génériques (campagne/scénario/rencontre) |
+| dd_campagnes_notes | cpno | RÉSERVÉ — hors UI cette version |
+| dd_monstres | mo | Monstres-modèles (table principale décrite au §Compendium) |
 
 ### Wiki / Univers
 | Table | Préfixe | Rôle |

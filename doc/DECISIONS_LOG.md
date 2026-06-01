@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-05-31 16:39 -->
+<!-- Mis à jour : 2026-06-01 16:55 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -570,6 +570,89 @@ Correctif : ajout de `j_theme` à la liste des colonnes du `SELECT` de login.
 
 ---
 
+## Phase 4 — Campagnes (conception)
+
+**[2026-06-01] Hiérarchie du module**
+Campagne → Scénario → Chapitre → Rencontre → Opposition. La v1 (Campagne → … → Rencontre → Monstres)
+est remplacée : les rencontres ne référencent plus des monstres mais des **oppositions**.
+→ Permet au MJ d'ajuster un adversaire pour sa partie sans toucher au compendium.
+
+**[2026-06-01] Ruleset hérité**
+Le ruleset n'est stocké que sur `camp_ruleset_var_id`. Retrait de `sce_ruleset_var_id`. Scénarios,
+chapitres, rencontres et oppositions héritent du ruleset de la campagne par jointure remontante.
+→ Source unique, pas de divergence possible de ruleset à l'intérieur d'une campagne.
+
+**[2026-06-01] Univers 1-1**
+Une campagne est reliée à au plus un univers. Abandon de la liaison N-N `dd_campagnes_univers` au
+profit d'un champ `camp_un_id` (nullable) sur `dd_campagnes`. Les univers restent agnostiques du ruleset.
+→ Le besoin réel est 1-1 ; la table de liaison était surdimensionnée.
+
+**[2026-06-01] Lien personnage ↔ campagne**
+N-N via `dd_campagnes_personnages` (source de vérité). On conserve en plus `dd_personnages.pe_camp_id`
+comme raccourci « dernière campagne jouée » (campagne en cours). Géré par le module Personnages.
+→ Le raccourci sert l'ouverture de session/fiche ; il ne fait pas autorité sur le rattachement.
+
+**[2026-06-01] Oppositions = copies éditables de monstres**
+Nouvelle table `dd_oppositions`. À la création, le formulaire propose un sélecteur de monstre qui
+pré-remplit nom, libellé de catégorie (texte libre) et stats ; `opp_mo_id` (modèle) est stocké pour
+traçabilité et **non modifiable**. Lien rencontre **1-N** via `opp_re_id`.
+→ Le MJ personnalise/annote un adversaire sans altérer le compendium.
+
+**[2026-06-01] Effectifs en clair, pas de table de liaison**
+Pas de colonne d'effectif chiffrée ni de table `dd_rencontres_oppositions`. Une rencontre porte N
+oppositions (1-N) et un champ texte `re_composition` décrivant littéralement les effectifs et la
+disposition. Abandon de `dd_rencontres_monstres`.
+→ La composition d'une rencontre est plus lisible et plus souple en texte qu'en comptage rigide.
+
+**[2026-06-01] Duplication limitée au ruleset courant**
+Duplication possible d'un scénario, d'une rencontre ou d'une opposition (suffixe « - copie »), en
+cascade descendante, vers le même contexte ou une autre campagne **du même ruleset uniquement**.
+→ Une copie inter-ruleset produirait des références de monstres invalides. Aucune exception en v2.
+
+**[2026-06-01] Rencontres non orphelines**
+`re_scc_id` passe NOT NULL : une rencontre appartient toujours à un chapitre. Le besoin v1 de
+rencontre orpheline est couvert autrement par la duplication inter-scénarios.
+→ Simplifie le modèle et les parcours UI.
+
+**[2026-06-01] Pièces jointes PDF — table générique**
+Table polymorphe unique `dd_fichiers` (`fi_entite` ∈ {campagne, scenario, rencontre}). PDF uniquement,
+validation serveur double (extension + magic bytes), stockage du binaire hors base, téléchargement
+contrôlé par la propriété de la campagne.
+→ Un seul handler d'upload pour les trois entités plutôt que trois tables dédiées.
+
+**[2026-06-01] Images des descriptions**
+Les descriptions campagne/scénario/rencontre (TinyMCE `.tinymce-full`) acceptent des images
+**téléversées serveur**, via l'endpoint existant `upload-image.php`. Pas de nouvel endpoint image.
+→ Réutilisation du socle TinyMCE déjà en place (§16).
+
+**[2026-06-01] Liste des campagnes — moteur dédié**
+`campagnes.php` n'utilise pas `compendium-liste.php` : les campagnes sont scopées par propriétaire
+(`camp_j_id`), pas par sources/ruleset. Liste légère dédiée.
+→ Le moteur compendium filtre par `getActiveResIds()`, inadapté aux campagnes.
+
+**[2026-06-01] Sécurisation des endpoints**
+Tout endpoint d'ajout/édition vérifie la propriété de la campagne (`camp_j_id == utilisateur`) en
+remontant la hiérarchie. Correction de la faille v1 (`*_create.php` sans authentification).
+→ Empêche la manipulation d'entités par injection d'id en POST.
+
+**[2026-06-01] Soft delete — principe acté**
+Suppression douce pour les données de jeu. Topo détaillé (marquage/archive, cascade, sort des PJ,
+effet sur `pe_camp_id`) à produire avant implémentation.
+→ Cohérent avec la politique « jamais de DELETE » du projet.
+
+**[2026-06-01] Notes MJ — réservées**
+`cp_notes_mj` (dans `dd_campagnes_personnages`) et `dd_campagnes_notes` conservées en base mais
+**hors UI** cette version. Le système de notes n'est pas finalisé et empiète sur le module Personnages.
+→ On évite de figer une UI sur un besoin non stabilisé.
+
+**[2026-06-01] Patch SQL étape 1 appliqué**
+`doc/sql/2026-06-01_campagnes_v2_etape1.sql` : + `pe_camp_id`, + `camp_un_id`, DROP
+`dd_campagnes_univers`, retrait `sce_ruleset_var_id`, `re_scc_id` NOT NULL, + `re_composition`,
+CREATE `dd_oppositions`, DROP `dd_rencontres_monstres`, CREATE `dd_fichiers`. Descriptions en LONGTEXT.
+→ Schéma réel aligné sur `SCHEMA_SQL.md` v1.1. Reprise de données v1→v2 = patch étape 2 (à venir).
+
+---
+
 ## Bugs connus — à traiter
 
 - **Admin / liste utilisateurs** : le menu ⋮ (dropdown) ne fonctionne pas correctement sur les lignes `admin-ligne--inactif`. La piste CSS (stacking context créé par `opacity` sur `<td>`) a été explorée sans succès. À investiguer en session dédiée.
@@ -595,3 +678,14 @@ Correctif : ajout de `j_theme` à la liste des colonnes du `SELECT` de login.
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
 - [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
 - [ ] Homebrew profil (recueil maison transversal) — implémentation future si besoin confirmé
+- [x] ~~Campagnes — lien perso↔campagne~~ → N-N (dd_campagnes_personnages) + pe_camp_id (dernière campagne)
+- [x] ~~Campagnes — rencontres : monstres ou copies ?~~ → oppositions (copies éditables, dd_oppositions)
+- [x] ~~Campagnes — effectifs~~ → champ texte re_composition, pas de comptage chiffré ni table de liaison
+- [x] ~~Campagnes — univers 1-1 ou N-N ?~~ → 1-1 (camp_un_id)
+- [x] ~~Campagnes — ruleset par entité ?~~ → hérité de la campagne (source unique camp_ruleset_var_id)
+- [ ] Campagnes — topo détaillé de la suppression douce (cascade + sort des PJ + pe_camp_id)
+- [ ] Campagnes — taille max des pièces jointes PDF (proposition : 20 Mo)
+- [ ] Campagnes — stratégie FK/cascade en base (schema.sql sans contraintes FK actuellement)
+- [ ] Campagnes — harmoniser la numérotation doc (ARCHITECTURE_8 vs METIER_10)
+- [ ] Campagnes — patch SQL étape 2 : reprise de données v1→v2 (pe_camp_id, sc_*→sce_*)
+- [ ] Resynchroniser sql/schema.sql avec le schéma réel (section 7 Campagnes v1.1)
