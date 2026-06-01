@@ -262,7 +262,15 @@ $titre = $id > 0 ? 'Modifier ' . h($camp['camp_nom']) : 'Nouvelle campagne';
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        apresModification(data);
+        fermerModification();
+        // Ouvre la fiche détail en contexte 'liste' pour que fermerDetailPP()
+        // déclenche rafraichirListe() via _pendingListRefresh.
+        if (data.id) {
+          actualiserPage(campUrlDetail, { id: data.id }, 'liste');
+        }
+        // _pendingListRefresh est déclaré avec let au niveau global de main.js
+        // (classic script) : accessible depuis tout autre classic script.
+        _pendingListRefresh = true;
       } else {
         alert(data.erreur || "Erreur lors de l'enregistrement.");
       }

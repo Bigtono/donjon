@@ -146,7 +146,12 @@ $nb_personnages = (int)$stmt_p->fetchColumn();
   <?php if ($est_mj): ?>
     <div class="camp-detail__actions">
       <button class="btn btn-danger btn-sm"
-              onclick="campagneListe.supprimer(<?= $id ?>, <?= json_encode($camp['camp_nom']) ?>)">
+              data-camp-id="<?= $id ?>"
+              data-camp-nom="<?= h($camp['camp_nom']) ?>"
+              onclick="campagneListe.supprimer(
+                parseInt(this.dataset.campId),
+                this.dataset.campNom
+              )">
         <i class="fa fa-trash"></i> Supprimer la campagne
       </button>
     </div>
