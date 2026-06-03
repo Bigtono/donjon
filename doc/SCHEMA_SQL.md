@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-01 10:37 -->
+<!-- Mis à jour : 2026-06-02 14:30 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -14,6 +14,7 @@
 |---|---|---|---|
 | 1.0 | 2025-05 | JM | Création — schéma initial issu du dump XAMPP |
 | 1.1 | 2026-06-01 | JM | Module Campagnes — refonte section 7 : `dd_oppositions` (copie éditable de monstre) + `dd_fichiers` (PJ génériques) ; ruleset hérité de la campagne (retrait `sce_ruleset_var_id`) ; univers 1-1 (`camp_un_id`, retrait `dd_campagnes_univers`) ; abandon `dd_rencontres_monstres` / `dd_rencontres_oppositions` ; `pe_camp_id` (dernière campagne jouée) |
+| 1.2 | 2026-06-02 | JM | dd_sorts : ajout `so_concentration` / `so_rituel` (0/1, DD2024). Import en masse des sorts SRD 5.2.1 (res_id 93) par lots à IDs explicites |
 
 ---
 
@@ -203,17 +204,17 @@ Sorts du compendium.
 | so_focalisateur | tinyint(4) | nn, défaut 0 | Focalisateur requis (0/1) |
 | so_focalisateur_divin | tinyint(4) | nn, défaut 0 | *[DD3.5]* Focalisateur divin requis (0/1) |
 | so_composante | varchar(255) | null | Détail textuel des composantes matérielles nécessaires |
-| so_portee | varchar(100) | nn | |
+| so_portee | varchar(150) | nn | |
 | so_cible | varchar(150) | nn | *[DD3.5]* |
-| so_zone_effet | varchar(100) | nn | *[DD3.5]* |
-| so_duree_incantation | varchar(100) | nn | |
-| so_duree_sort | varchar(100) | null | |
-| so_resistance | varchar(100) | null | *[DD3.5]* Résistance à la magie. Ex : Oui, Non |
-| so_jet_sauvegarde | varchar(50) | null | *[DD3.5]* Ex : Vigueur annule |
+| so_zone_effet | varchar(150) | nn | *[DD3.5]* |
+| so_duree_incantation | varchar(150) | nn | |
+| so_duree_sort | varchar(150) | null | |
+| so_resistance | varchar(150) | null | *[DD3.5]* Résistance à la magie. Ex : Oui, Non |
+| so_jet_sauvegarde | varchar(100) | null | *[DD3.5]* Ex : Vigueur annule |
+| so_concentration | tinyint(4) | nn, défaut 0 | *[DD2024]* Sort à concentration (0/1) |
+| so_rituel | tinyint(4) | nn, défaut 0 | *[DD2024]* Sort lançable en rituel (0/1). Le « ou rituel » reste aussi présent dans `so_duree_incantation` |
 | so_description | text | null | Description complète du sort |
 | so_resume | text | null | Résumé en quelques mots du sort |
-| so_concentration | int unsigned | nn, defaut 0 | *[DD2024]*  |
-| so_rituel | int unsigned | nn, defaut 0 | *[DD2024]* |
 | so_res_id | int unsigned | nn | Source -> dd_ressources |
 | so_camp_id | int unsigned | null | null = compendium global ; sinon homebrew -> dd_campagnes |
 | so_ruleset_var_id | int unsigned | nn | -> dd_variables |

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-01 17:19 -->
+<!-- Mis à jour : 2026-06-02 16:05 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -669,6 +669,16 @@ CREATE `dd_oppositions`, DROP `dd_rencontres_monstres`, CREATE `dd_fichiers`. De
 
 ---
 
+**[2026-06-02] Import en masse des sorts SRD 5.2.1 (DD2024)**
+Import des sorts du SRD officiel dans `dd_sorts` / `dd_sortclasse` via script SQL à IDs explicites (dd_sorts dès 2082, dd_sortclasse dès 7272), livré par lots alphabétiques validés. Mapping : `so_co_id` -> `dd_colleges`, `sc_cla_id` -> `dd_classes`, `so_res_id` = 93 (SRD), `so_ruleset_var_id` = 2. En DD2024 un sort a un niveau unique -> `sc_niveau` identique pour toutes ses classes. Champs DD3.5 neutralisés (`so_cible`/`so_zone_effet` = '', `so_branche`/`so_resistance`/`so_jet_sauvegarde` NULL, focalisateurs 0). Blocs de stats de créatures conservés inline dans `so_description`. `so_resume` laissé NULL. `so_description` est stocké en **HTML** (champ TinyMCE, affiché brut) : un `<p>` par paragraphe du PDF et `<br>` pour les retours à la ligne internes (puces, lignes étiquetées, blocs de stats), afin de respecter la mise en forme du document source.
+-> Compendium DD2024 alimenté sans saisie manuelle ; ré-import d'un lot possible via plage d'IDs (DELETE bornée).
+
+**[2026-06-02] Schéma dd_sorts — colonnes so_concentration / so_rituel**
+Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stocker explicitement ces propriétés DD2024 (auparavant implicites dans le texte de durée/incantation).
+-> Filtrage et affichage dédiés possibles ; le « ou rituel » reste aussi dans `so_duree_incantation` pour la lisibilité.
+
+---
+
 ## À décider
 
 - [x] ~~Gestion des mots de passe oubliés~~ → implémenté (token 1h + DEV_MODE)
@@ -685,6 +695,7 @@ CREATE `dd_oppositions`, DROP `dd_rencontres_monstres`, CREATE `dd_fichiers`. De
 - [ ] Monstres — resynchroniser sql/schema.sql et le dump avec le schéma réel (catégories, groupes, fp, colonnes mo_*)
 - [ ] Monstres — supprimer include/ajax/modifier/monstre-old.php une fois le v3 stabilisé
 - [ ] Monstres — étendre le parsing automatique DD3.5 (actuellement minimal)
+- [ ] Sorts DD2024 — `so_resume` : NULL ou résumé court généré par sort (actuellement NULL)
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
 - [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
 - [ ] Homebrew profil (recueil maison transversal) — implémentation future si besoin confirmé
