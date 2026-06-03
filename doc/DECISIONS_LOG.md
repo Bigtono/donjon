@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-02 16:05 -->
+<!-- Mis à jour : 2026-06-03 20:17 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -660,6 +660,42 @@ Patch SQL : `doc/sql/2026-06-01_campagnes_v2_etape2a.sql`.
 `dd_campagnes_univers`, retrait `sce_ruleset_var_id`, `re_scc_id` NOT NULL, + `re_composition`,
 CREATE `dd_oppositions`, DROP `dd_rencontres_monstres`, CREATE `dd_fichiers`. Descriptions en LONGTEXT.
 → Schéma réel aligné sur `SCHEMA_SQL.md` v1.1. Reprise de données v1→v2 = patch étape 2 (à venir).
+
+---
+
+## Transverse — Éditeur de texte (TinyMCE)
+
+**[2026-06-03] Généralisation du plugin `table`**
+Le plugin `table` (et son bouton de barre d'outils) est ajouté à **tous** les éditeurs TinyMCE du
+compendium qui ne l'avaient pas : `sort`, `don`, `race` (×2 éditeurs), `classe` (×2), `competence`,
+`objet`, `ressource`, ainsi que `scenario`. `regle` et `campagne` le possédaient déjà.
+Position dans la barre : juste après `link` (`… | link table | removeformat`), `h2 h3` conservés.
+→ Les contenus DD comportent fréquemment des tableaux (progressions, modificateurs, listes de prix,
+effets par niveau, tables de difficulté…). L'absence d'outil tableau obligeait à des contournements.
+La référence d'implémentation était déjà en place dans `regle.php`.
+
+**[2026-06-03] Pas de plugin `code` hors module Règles**
+Le plugin `code` (édition HTML brute) reste réservé à `regle.php`. Les éditeurs du compendium et des
+campagnes reçoivent `table` mais **pas** `code`.
+→ L'édition HTML directe n'a de sens que pour les règles (ancres glossaire, mises en forme avancées) ;
+l'exposer partout augmenterait la surface d'erreur de saisie sans bénéfice.
+
+**[2026-06-03] Style d'affichage des tables étendu aux campagnes/scénarios**
+Le rendu en lecture des tables (thème brun DD3.5, en-tête sombre, lignes alternées, gestion `<thead>`
++ fallback `:has()`) existait pour `.sort-detail__description` (conteneur générique du compendium).
+Il est dupliqué pour `.camp-detail__description` dans `css/campagnes-modules.css` (campagnes ET
+scénarios partagent ce conteneur).
+→ `campagne` avait `table` actif côté édition mais aucun style côté affichage (lacune préexistante) ;
+elle devient visible dès que les tables se généralisent. Duplication assumée pour respecter le
+découpage CSS par module (les styles compendium ne sont pas chargés sur les pages campagnes).
+
+**[2026-06-03] Doc §16 réalignée sur le code réel**
+La section §16 d'`ARCHITECTURE_0_REFERENCE.md` décrivait une intégration tiny.cloud 7 avec clé API
+(`TINYMCE_API_KEY`) et des classes partagées `.tinymce-basic` / `.tinymce-full` — état théorique
+jamais retenu. Elle est réécrite : CDN **jsDelivr 6 sans clé API**, **initialisation inline par
+fichier** ciblée sur l'`id` du champ, tableau récapitulatif des éditeurs.
+→ La doc doit refléter le code livré, pas une intention abandonnée. Le pack `fr_FR` non servi par
+jsDelivr génère un avertissement console **non bloquant** (déjà connu).
 
 ---
 

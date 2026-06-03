@@ -207,6 +207,74 @@
   border-radius: var(--radius-sm);
 }
 
+/* ============================================================
+   Tables dans les descriptions TinyMCE — style DD3.5 brun chaud
+   Cibles :
+     .camp-detail__description — descriptions campagnes ET scénarios
+   Aligné sur .sort-detail__description (compendium-modules.css).
+   Deux cas TinyMCE couverts :
+     - table avec <thead> (header row coché dans TinyMCE)
+     - table sans <thead> (fallback via :has, navigateurs modernes)
+   ============================================================ */
+.camp-detail__description table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: 100%;
+  margin: 0.75rem 0;
+  font-size: 0.875em;
+  line-height: 1.4;
+  display: block;
+  overflow-x: auto;
+}
+
+.camp-detail__description table td,
+.camp-detail__description table th {
+  border: none;
+  padding: 3px 8px;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Autoriser le retour à la ligne sur la première colonne (noms longs) */
+.camp-detail__description table td:first-child,
+.camp-detail__description table th:first-child {
+  white-space: normal;
+  min-width: 120px;
+}
+
+/* En-tête — table avec <thead> (cas standard TinyMCE) */
+.camp-detail__description table thead tr {
+  background: #2a1810;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* En-tête — table sans <thead> : premier <tr> avec des <th> */
+.camp-detail__description table:not(:has(thead)) tr:first-child:has(> th) {
+  background: #2a1810;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* Lignes de données — alternance tons chauds (brun DD3.5) */
+.camp-detail__description table tbody tr:nth-child(odd) {
+  background: rgba(180, 140, 90, 0.08);
+}
+
+.camp-detail__description table tbody tr:nth-child(even) {
+  background: rgba(180, 140, 90, 0.17);
+}
+
+/* Fallback sans <thead> — alternance à partir de la 2e ligne */
+.camp-detail__description table:not(:has(thead)) tr:not(:first-child):nth-child(odd) {
+  background: rgba(180, 140, 90, 0.08);
+}
+
+.camp-detail__description table:not(:has(thead)) tr:not(:first-child):nth-child(even) {
+  background: rgba(180, 140, 90, 0.17);
+}
+
 .camp-detail__section {
   margin-top: var(--sp-md);
   padding-top: var(--sp-sm);
