@@ -6,8 +6,8 @@ require_once '../include/helpers.php';
 
 requireAuth();
 
-$page_title = 'Compendium';
-$js_module  = '';
+$page_title  = 'Compendium';
+$js_module   = '';
 $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
 
 require_once '../include/header.php';
@@ -44,6 +44,13 @@ require_once '../include/header.php';
     <i class="fa fa-tools"></i>
     <span>Compétences</span>
   </a>
+
+  <?php if ($ruleset_rep === 'DD2024'): ?>
+    <a href="<?= BASE_URL ?>/compendium/historiques.php" class="dashboard-card">
+      <i class="fa fa-scroll"></i>
+      <span>Historiques</span>
+    </a>
+  <?php endif ?>
 
   <a href="<?= BASE_URL ?>/compendium/objets.php" class="dashboard-card">
     <i class="fa fa-gem"></i>

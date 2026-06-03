@@ -476,12 +476,12 @@ historiques de personnages (*[DD2024]*).
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
-| his_id | int unsigned | PK | |
-| his_nom | varchar(150) | nn | |
-| his_description | text | nn | |
-| his_res_id | int unsigned | nn | Source -> dd_ressources |
-| his_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
-| his_ruleset_var_id | int unsigned | nn | -> dd_variables |
+| hi_id | int unsigned | PK | |
+| hi_nom | varchar(150) | nn | |
+| hi_description | text | nn | |
+| hi_res_id | int unsigned | nn | Source -> dd_ressources |
+| hi_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
+| hi_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
 ---
 

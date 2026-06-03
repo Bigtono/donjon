@@ -169,6 +169,20 @@ switch ($entite):
     endswitch;
     break;
 
+  case 'historique':
+    switch ($action):
+      case 'sauvegarder':
+        enregistrerHistorique($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+      case 'bulk_supprimer':
+        supprimerEntite($db, 'dd_historiques', 'hi_id', $is_ajax, $redirect);
+        break;
+      default:
+        repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+    endswitch;
+    break;
+
   default:
     repondreErreur($is_ajax, 'Entité inconnue : ' . h($entite), $redirect);
 
@@ -1469,6 +1483,75 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
   } catch (Exception $e) {
     $db->rollBack();
     error_log('enregistrerMonstre : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+
+// ============================================================
+// HISTORIQUE — Enregistrement (DD2024 uniquement)
+// ============================================================
+
+function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
+{
+  $hi_id      = intParam($_POST['hi_id']              ?? 0);
+  $nom        = strParam($_POST['hi_nom']             ?? '');
+  $ruleset_id = intParam($_POST['hi_ruleset_var_id']  ?? 2);
+
+  if (!$nom):
+    repondreErreur($is_ajax, "Le nom de l'historique est obligatoire.", $redirect);
+  endif;
+
+  $res_id = intParam($_POST['hi_res_id'] ?? 0);
+  if (!$res_id):
+    repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
+  endif;
+
+  $camp_id     = intParam($_POST['hi_camp_id']     ?? 0) ?: null;
+  $description = $_POST['hi_description'] ?? '';   // HTML TinyMCE — pas de h()
+
+  try {
+    $db->beginTransaction();
+
+    if ($hi_id === 0):
+      $stmt = $db->prepare('
+        INSERT INTO dd_historiques
+          (hi_nom, hi_description, hi_res_id, hi_camp_id, hi_ruleset_var_id)
+        VALUES (?,?,?,?,?)
+      ');
+      $stmt->execute([
+        $nom,
+        $description,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
+      ]);
+      $hi_id = (int)$db->lastInsertId();
+    else:
+      $stmt = $db->prepare('
+        UPDATE dd_historiques SET
+          hi_nom            = ?,
+          hi_description    = ?,
+          hi_res_id         = ?,
+          hi_camp_id        = ?,
+          hi_ruleset_var_id = ?
+        WHERE hi_id = ?
+      ');
+      $stmt->execute([
+        $nom,
+        $description,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
+        $hi_id,
+      ]);
+    endif;
+
+    $db->commit();
+    repondreOk($is_ajax, $hi_id, 'historique', $redirect);
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('enregistrerHistorique : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
   }
 }

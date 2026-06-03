@@ -1,10 +1,10 @@
-<!-- Mis à jour : 2026-06-03 20:17 -->
+<!-- Mis à jour : 2026-06-03 14:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : TinyMCE — généralisation du plugin `table` à tous les éditeurs du compendium (sorts, dons, races, classes, compétences, objets magiques, ressources) et au module Scénarios ; §16 réalignée sur le code réel (CDN jsDelivr 6 sans clé API, initialisation inline par fichier) ; styles d'affichage des tables étendus aux descriptions campagnes/scénarios (`.camp-detail__description`)
+> Dernière mise à jour : Section Historiques ajoutée au compendium (DD2024 uniquement) — Phase 2 complète — conception (structure de données validée, schéma v1.1) : hiérarchie Campagne → Scénario → Chapitre → Rencontre → Opposition ; oppositions = copies éditables de monstres (`dd_oppositions`) ; pièces jointes PDF génériques (`dd_fichiers`) ; ruleset hérité de la campagne ; univers 1-1 (`camp_un_id`)
 
 ---
 
@@ -1246,137 +1246,89 @@ Import SRD 5.2.1 : arbre complet + glossaire + pose des ancres de renvoi.
 
 ### Choix retenu
 
-TinyMCE 6 via **CDN jsDelivr**, **sans clé API** (aucune inscription tiny.cloud requise). Le pack
-de langue `fr_FR` n'est pas servi par jsDelivr : l'avertissement console correspondant est
-**non bloquant** et sans impact fonctionnel.
-
-> Note historique : une intégration tiny.cloud 7 avec clé API (`TINYMCE_API_KEY` dans
-> `include/db.php`) avait été envisagée. Elle a été **abandonnée** au profit de jsDelivr 6 sans
-> clé, qui évite toute dépendance à un compte tiers. Cette section reflète désormais le code réel.
+TinyMCE via CDN tiny.cloud. Clé API gratuite (inscription tiny.cloud requise, aucune contrainte commerciale pour usage personnel/non-commercial). Éditeur unique dans toute l'application — deux configurations selon le contexte.
 
 ### Intégration CDN
 
-Chargement dans les fragments AJAX qui en ont besoin (formulaires d'édition uniquement, pas dans
-`header.php`) :
+La clé API est stockée dans include/db.php :
+
+```php
+define('TINYMCE_API_KEY', 'votre_cle_api');
+```
+
+Chargement dans les pages qui en ont besoin (pas dans header.php — uniquement sur les pages avec formulaire) :
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
+<script src="https://cdn.tiny.cloud/1/<?= TINYMCE_API_KEY ?>/tinymce/7/tinymce.min.js"
+        referrerpolicy="origin"></script>
 ```
 
-### Initialisation — inline par fichier (pas de classe partagée)
+### Configuration minimale — sans images
 
-Contrairement à l'ancienne approche par classes CSS communes (`.tinymce-basic` / `.tinymce-full`),
-**chaque formulaire d'édition initialise son propre éditeur inline**, ciblé par l'`id` du champ
-(`#so_description`, `#do_texte`, `#om_description`, `#res_description`, etc.). Cette approche est
-cohérente avec le pattern d'injection AJAX des `modifier/*.php` :
-
-- `tinymce.remove(...)` est appelé avant chaque `tinymce.init(...)` pour éviter les doublons à la
-  réouverture du formulaire ;
-- le script injecté est recréé manuellement (un `<script>` posé via `innerHTML` ne s'exécute pas) ;
-- le JS d'init est encapsulé en IIFE pour ne pas polluer le scope global.
-
-### Configuration standard — compendium (avec tables, sans images)
-
-Pour : **sorts, dons, races, classes, compétences, objets magiques, ressources** (descriptions).
-Le plugin `table` est désormais **généralisé** à tous ces éditeurs : les contenus DD comportent
-fréquemment des tableaux (progressions, modificateurs, listes de prix, effets par niveau…).
+Pour : sorts, dons, classes, races, compétences, historiques.
 
 ```javascript
-tinymce.remove('#mon_champ');
 tinymce.init({
-  selector:      '#mon_champ',
-  language:      'fr_FR',
-  menubar:       false,
-  plugins:       'lists link table',
-  toolbar:       'bold italic underline | bullist numlist | h2 h3 | link table | removeformat',
-  height:        300,
+  selector: '.tinymce-basic',
+  language: 'fr_FR',
+  menubar: false,
+  plugins: 'lists link',
+  toolbar: 'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
+  height: 300,
+  skin: 'oxide-dark',
 });
 ```
 
-### Configuration campagnes / scénarios — tables + images
+### Configuration complète — avec images
 
-Pour : **campagnes** et **scénarios** (descriptions). Identique au compendium, plus le plugin
-`image` (upload via l'endpoint dédié).
+Pour : wiki/univers (articles), personnages (background, notes).
 
 ```javascript
 tinymce.init({
-  selector:      '#mon_champ',
-  language:      'fr_FR',
-  menubar:       false,
-  plugins:       'lists link image table',
-  toolbar:       'bold italic underline | bullist numlist | h2 h3 | link image table | removeformat',
-  height:        300,
+  selector: '.tinymce-full',
+  language: 'fr_FR',
+  menubar: false,
+  plugins: 'lists link image table',
+  toolbar: 'bold italic underline | bullist numlist | h2 h3 | link image table | removeformat',
+  height: 400,
+  skin: 'oxide-dark',
   images_upload_url: BASE_URL + '/include/ajax/upload-image.php',
+  images_upload_credentials: true,
+  automatic_uploads: true,
 });
 ```
 
-### Configuration règles — tables + bloc code, sans images
+### Configuration règles — listes + tables, sans images
 
-Pour : module **Règles** (chapitres et règles). Les règles DD comportent de nombreuses tables
-(degrés de difficulté, modificateurs de caractéristique, allure de voyage, abris…). Le plugin
-`code` y est ajouté pour permettre l'édition HTML directe (cas avancés, ancres glossaire).
+Pour : module Règles (chapitres et règles). Les règles DD comportent de nombreuses tables
+(degrés de difficulté, modificateurs de caractéristique, allure de voyage, abris…).
 
 ```javascript
 tinymce.init({
-  selector:      '#' + TINYMCE_ID,
-  language:      'fr_FR',
-  menubar:       false,
-  plugins:       'lists link table code',
-  toolbar:       'bold italic underline | bullist numlist | link table | removeformat | code',
-  height:        380,
-  convert_urls:  false,
+  selector: '.tinymce-regle',
+  language: 'fr_FR',
+  menubar: false,
+  plugins: 'lists link table',
+  toolbar: 'bold italic underline | bullist numlist | h2 h3 | table | link | removeformat',
+  height: 360,
+  skin: 'oxide-dark',
 });
 ```
-
-### Récapitulatif des éditeurs
-
-| Fichier d'édition (`include/ajax/modifier/`) | Champ(s) | Plugins | Notes |
-| --- | --- | --- | --- |
-| `sort.php` | `so_description` | `lists link table` | |
-| `don.php` | `do_texte` | `lists link table` | |
-| `race.php` | desc. + sous-éditeur | `lists link table` | 2 éditeurs |
-| `classe.php` | desc. + capacités | `lists link table` | 2 éditeurs |
-| `competence.php` | `comp_description` | `lists link table` | |
-| `objet.php` | `om_description` | `lists link table` | |
-| `ressource.php` | `res_description` | `lists link table` | zone admin |
-| `scenario.php` | `sce_description` | `lists link image table` | |
-| `campagne.php` | description | `lists link image table` | |
-| `regle.php` | `reg_texte` | `lists link table code` | référence |
-
-> `monstre.php` : pas de TinyMCE — `mo_stats` est saisi en **texte brut** dans un `<textarea>`.
 
 ### Endpoint upload images
 
-Fichier : `include/ajax/upload-image.php`
-Répertoire : `img/uploads/` (permissions 755, dans `.gitignore`)
-Retourne : `{ "location": "URL_du_fichier" }`
-Validation : type MIME (jpg/png/gif/webp), taille max 5 Mo, renommage par hash.
+Fichier : include/ajax/upload-image.php
+Répertoire : img/uploads/ (permissions 755, dans .gitignore)
+Retourne : { "location": "URL_du_fichier" }
+Validation : type MIME (jpg/png/gif/webp), taille max 5Mo, renommage par hash.
 
 ### Affichage du contenu TinyMCE
 
 Le HTML généré est stocké dans les champs TEXT/LONGTEXT et affiché tel quel.
-Ne pas passer par `h()` — utiliser directement la valeur.
+Ne pas passer par h() — utiliser directement la valeur.
 Sécurité : contenu produit uniquement par des utilisateurs authentifiés.
 
-**Style des tables en lecture.** Les tableaux insérés via TinyMCE n'embarquent pas de bordures :
-leur rendu (thème brun DD3.5, en-tête sombre, lignes alternées) est porté par le CSS du conteneur
-d'affichage. Deux familles de sélecteurs couvrent l'ensemble de l'application :
-
-- `.sort-detail__description table` (dans `css/compendium-modules.css`) — conteneur **générique**
-  de tous les détails du compendium (sorts, dons, objets, compétences, classes, races, capacités) ;
-- `.camp-detail__description table` (dans `css/campagnes-modules.css`) — descriptions des
-  **campagnes et scénarios**.
-
-Chaque famille gère deux cas : table avec `<thead>` (header row coché dans TinyMCE) et table sans
-`<thead>` (fallback via `:has()`, navigateurs modernes). Tout nouveau conteneur d'affichage de
-contenu TinyMCE doit recevoir le même bloc de styles.
-
 ### Soumission formulaire AJAX
-
-Avant chaque `fetch()`, le contenu de l'éditeur est synchronisé. Selon le fichier, soit
-`tinymce.triggerSave()` (synchronise tous les éditeurs), soit une lecture explicite via
-`tinymce.get(ID).getContent()` (avec repli sur la valeur brute du `<textarea>` si l'éditeur n'est
-pas initialisé).
 
 ```javascript
 tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
