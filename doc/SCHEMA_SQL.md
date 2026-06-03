@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-02 14:30 -->
+<!-- Mis à jour : 2026-06-03 07:00 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -218,9 +218,6 @@ Sorts du compendium.
 | so_res_id | int unsigned | nn | Source -> dd_ressources |
 | so_camp_id | int unsigned | null | null = compendium global ; sinon homebrew -> dd_campagnes |
 | so_ruleset_var_id | int unsigned | nn | -> dd_variables |
-
----
-
 ### dd_colleges
 Collèges de magie (Abjuration, Évocation, Nécromancie...).
 
