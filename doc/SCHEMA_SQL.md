@@ -523,12 +523,14 @@ Objets magiques du compendium.
 | om_com_id | int unsigned | nn | Catégorie -> dd_categorie_objet_magique |
 | om_fom_id | int unsigned | nn, défaut 2 | Format -> dd_format_objet_magique (1=auto, 2=libre) |
 | om_so_id | int unsigned | null | Sort lié (potions/parchemins/baguettes) -> dd_sorts |
-| om_so_niveau | tinyint | nn, défaut 0 | NLS override (0 = calculé auto depuis dd_sortclasse) |
-| om_modificateurs | tinyint | nn, défaut 0 | Bonus magique +1 à +5 (armes/armures) |
+| om_so_niveau | tinyint | nn, défaut 0 | *[DD3.5]*, NLS override (0 = calculé auto depuis dd_sortclasse) |
+| om_modificateurs | tinyint | nn, défaut 0 | *[DD3.5]*, Bonus magique +1 à +5 (armes/armures) |
 | om_variantes | varchar(255) | null | Variantes textuelles (mineur, majeur…) |
+| om_prix | int | null | *[DD3.5]*, prix de l'objet |
+| om_ajustement_prix | int | nn, defaut 0 | *[DD3.5]*, ajustement de prix de l'objet |
 | om_description | text | null | Description HTML TinyMCE (format libre) |
-| om_prix | int | null | prix de l'objet |
-| om_ajustement_prix | int | nn, defaut 0 | ajustement de prix de l'objet |
+| om_harmonisation | tinyint(4) | nn, défaut 0 | *[DD2024]*, 1 : harmonisation requise |
+| om_rarete | int(10) | null | *[DD2024]*, -> dd_objets_magiques_rarete |
 | om_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs |
 | om_res_id | int unsigned | nn | Source -> dd_ressources |
 | om_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
