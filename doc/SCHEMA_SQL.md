@@ -218,6 +218,9 @@ Sorts du compendium.
 | so_res_id | int unsigned | nn | Source -> dd_ressources |
 | so_camp_id | int unsigned | null | null = compendium global ; sinon homebrew -> dd_campagnes |
 | so_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+---
+
 ### dd_colleges
 Collèges de magie (Abjuration, Évocation, Nécromancie...).
 
@@ -529,6 +532,15 @@ Objets magiques du compendium.
 | om_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs |
 | om_res_id | int unsigned | nn | Source -> dd_ressources |
 | om_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
+| om_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+### dd_objets_magiques_rarete
+Rareté des bjets magiques du compendium.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| omr_id | int unsigned | PK | |
+| omr_nom | varchar(150) | nn | |
 | om_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
 
