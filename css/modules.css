@@ -517,3 +517,59 @@
     padding: .3rem .5rem; /* cible tactile plus large */
   }
 }
+
+/* ============================================================
+   RICHTEXT — Tables dans les contenus BDD (TinyMCE)
+   Règle transverse : applicable à tout module affichant du HTML
+   stocké en base (compendium, règles, wiki…).
+   Pas de bordure, padding 3px, alignement gauche.
+   th : gras, pas de fond.
+   td : alternance gris perle (nth-child odd) / transparent.
+   ============================================================ */
+.richtext table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: 100%;
+  margin: .75rem 0;
+  font-size: .9em;
+  line-height: 1.5;
+  display: block;
+  overflow-x: auto;
+}
+
+.richtext table th,
+.richtext table td {
+  border: none;
+  padding: 3px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.richtext table th {
+  font-weight: 700;
+  background: transparent;
+  color: var(--clr-text);
+}
+
+/* Alternance gris perle (impair = 1re ligne) / rien */
+.richtext table tbody tr:nth-child(odd) td {
+  background: rgba(128, 128, 128, .10);
+}
+
+.richtext table tbody tr:nth-child(even) td {
+  background: transparent;
+}
+
+/* Fallback sans <thead> */
+.richtext table:not(:has(thead)) tr:first-child:has(> th) th {
+  font-weight: 700;
+  background: transparent;
+}
+
+.richtext table:not(:has(thead)) tr:not(:first-child):nth-child(odd) td {
+  background: rgba(128, 128, 128, .10);
+}
+
+.richtext table:not(:has(thead)) tr:not(:first-child):nth-child(even) td {
+  background: transparent;
+}

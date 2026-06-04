@@ -540,7 +540,7 @@
   align-items: baseline;
   gap: 0.5em;
   padding: 2px 0;
-  border-bottom: none;
+  border: none;
   flex-wrap: wrap;
 }
 
@@ -565,7 +565,7 @@
   font-size: 0.9rem;
   line-height: 1.7;
   color: var(--clr-text);
-  border-top: none;
+  border: none;
   padding-top: var(--sp-xs);
 }
 
@@ -646,6 +646,15 @@
     display: none !important;
   }
 
+  /* Listes : pleine largeur écran — annule le padding de .site-main */
+  .comp-liste-container {
+    margin-left: calc(-1 * var(--sp-sm, 8px));
+    margin-right: calc(-1 * var(--sp-sm, 8px));
+  }
+
+  .comp-liste-wrapper {
+    border-radius: 0;
+  }
 
 }
 
@@ -780,13 +789,14 @@
      - table sans <thead> (fallback via :has, navigateurs modernes)
    ============================================================ */
 
-/* Conteneur scrollable pour les tables larges dans un panneau étroit */
+/* Tables dans les contenus BDD/TinyMCE — spec unifiée projet */
+/* Cibles : .sort-detail__description + tout autre conteneur richtext compendium */
 .sort-detail__description table {
   border-collapse: collapse;
   border-spacing: 0;
   width: 100%;
-  margin: 0.75rem 0;
-  font-size: 0.875em;
+  margin: .75rem 0;
+  font-size: .875em;
   line-height: 1.4;
   display: block;
   overflow-x: auto;
@@ -795,49 +805,48 @@
 .sort-detail__description table td,
 .sort-detail__description table th {
   border: none;
-  padding: 3px 8px;
+  padding: 3px;
   text-align: left;
   vertical-align: middle;
-  white-space: nowrap;
 }
 
-/* Autoriser le retour à la ligne sur la première colonne (noms longs) */
+/* Première colonne : retour à la ligne autorisé */
 .sort-detail__description table td:first-child,
 .sort-detail__description table th:first-child {
   white-space: normal;
-  min-width: 120px;
+  min-width: 100px;
 }
 
-/* En-tête — table avec <thead> (cas standard TinyMCE) */
-.sort-detail__description table thead tr {
-  background: #2a1810;
-  color: #ffffff;
-  font-weight: 500;
+/* En-tête : gras, pas de fond */
+.sort-detail__description table th {
+  font-weight: 700;
+  background: transparent;
+  color: var(--clr-text);
 }
 
-/* En-tête — table sans <thead> : premier <tr> avec des <th> */
-.sort-detail__description table:not(:has(thead)) tr:first-child:has(> th) {
-  background: #2a1810;
-  color: #ffffff;
-  font-weight: 500;
+/* En-tête sans <thead> : premier <tr> avec des <th> */
+.sort-detail__description table:not(:has(thead)) tr:first-child:has(> th) th {
+  font-weight: 700;
+  background: transparent;
+  color: var(--clr-text);
 }
 
-/* Lignes de données — alternance tons chauds (option A : brun DD3.5) */
-.sort-detail__description table tbody tr:nth-child(odd) {
-  background: rgba(180, 140, 90, 0.08);
+/* Alternance gris perle (1re ligne) / rien */
+.sort-detail__description table tbody tr:nth-child(odd) td {
+  background: rgba(128, 128, 128, .10);
 }
 
-.sort-detail__description table tbody tr:nth-child(even) {
-  background: rgba(180, 140, 90, 0.17);
+.sort-detail__description table tbody tr:nth-child(even) td {
+  background: transparent;
 }
 
 /* Fallback sans <thead> — alternance à partir de la 2e ligne */
-.sort-detail__description table:not(:has(thead)) tr:not(:first-child):nth-child(odd) {
-  background: rgba(180, 140, 90, 0.08);
+.sort-detail__description table:not(:has(thead)) tr:not(:first-child):nth-child(odd) td {
+  background: rgba(128, 128, 128, .10);
 }
 
-.sort-detail__description table:not(:has(thead)) tr:not(:first-child):nth-child(even) {
-  background: rgba(180, 140, 90, 0.17);
+.sort-detail__description table:not(:has(thead)) tr:not(:first-child):nth-child(even) td {
+  background: transparent;
 }
 
 /* ============================================================

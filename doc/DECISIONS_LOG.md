@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-03 14:30 -->
+<!-- Mis à jour : 2026-06-04 10:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -570,32 +570,6 @@ Correctif : ajout de `j_theme` à la liste des colonnes du `SELECT` de login.
 
 ---
 
----
-
-## Phase 2 — Historiques
-
-**[2026-06-03] dd_historiques — section compendium DD2024 uniquement**
-Ajout de la section Historiques dans le compendium, comme entité propre à DD2024 (conforme à la
-décision déjà documentée en Phase 2 : dd_historiques, préfixe hi, dans le périmètre des 7 tables compendium).
-Structure : hi_nom (VARCHAR 150), hi_description (LONGTEXT, TinyMCE avec plugin table), hi_res_id,
-hi_camp_id (homebrew), hi_ruleset_var_id.
-Fichiers : compendium/historiques.php, include/ajax/detail-pp/historique.php,
-include/ajax/modifier/historique.php, case 'historique' dans compendium/enregistrement.php.
-Script SQL : doc/sql/patch_historiques_v1.sql.
-→ Moteur compendium-liste.php réutilisé sans modification — auto-inférence hi_camp_id par convention.
-
-**[2026-06-03] TinyMCE historiques — configuration avec plugin table**
-La description des historiques nécessite des tableaux (caractéristiques octroyées, maîtrises, équipements).
-Configuration TinyMCE : plugins `lists link table`, toolbar avec bouton `table`.
-Classe CSS de l'éditeur : `tinymce-historique` (distincte de tinymce-basic pour différencier la config).
-→ La config règles (tinymce-regle) existante utilise déjà `table` — pattern identique.
-
-**[2026-06-03] Accès conditionné au ruleset DD2024**
-compendium/historiques.php vérifie `$_SESSION['rulesetRep'] === 'DD2024'` dès l'entrée et redirige
-vers compendium/index.php avec flash message si DD3.5 est actif.
-La carte Historiques dans compendium/index.php est conditionnée par le même test.
-→ Cohérent avec la décision initiale ; aucune modification du moteur commun.
-
 ## Phase 4 — Campagnes (conception)
 
 **[2026-06-01] Hiérarchie du module**
@@ -688,6 +662,34 @@ CREATE `dd_oppositions`, DROP `dd_rencontres_monstres`, CREATE `dd_fichiers`. De
 → Schéma réel aligné sur `SCHEMA_SQL.md` v1.1. Reprise de données v1→v2 = patch étape 2 (à venir).
 
 ---
+
+
+**[2026-06-04] Correction bug — Flèche sommaire règles à la ligne**
+Dans `include/regles-arbre.php`, `_rendreSommaireNiveau()` : le lien `regles-sommaire__lien`
+était `display:block`, forçant l'icône `fa-chevron-right` (dans un `<a>` séparé) à passer à la ligne.
+→ Wrapper `<span class="regles-sommaire__ligne">` en flex introduit ; lien en `flex:1` ; flèche placée
+  à l'intérieur du span (présente seulement si enfants, non actif, non ouvert).
+  `css/regles-modules.css` : ajout `.regles-sommaire__ligne` (flex) et `.regles-sommaire__toggle`
+  (flex-shrink:0) ; sélecteurs `--actif` et `--glossaire` mis à jour vers `>ligne>lien`.
+
+**[2026-06-04] Correction bug — Tableaux BDD dans les contenus richtext**
+Spec unifiée pour les tables générées par TinyMCE dans les contenus stockés en base
+(module Règles, module Compendium) :
+- Pas de bordure (border:none)
+- Padding 3 px sur toutes les cellules
+- Alignement gauche (th et td)
+- th : gras, pas de couleur de fond
+- td : alternance gris perle `rgba(128,128,128,.10)` (lignes impaires) / transparent
+→ `css/regles-modules.css` : section `.regles-noeud__texte table` et `.regle-detail__texte table` refaite.
+  `css/compendium-modules.css` : section `.sort-detail__description table` refaite (suppression des tons
+  brun chauds DD3.5 #2a1810 au profit de la spec commune).
+  `css/modules.css` : ajout classe utilitaire `.richtext` (même spec) pour usage futur dans wiki/campagnes.
+
+**[2026-06-04] Correction bug — Listes compendium non pleine largeur en mode smartphone**
+Sur écran ≤ 991 px, le padding de `.site-main` (var(--sp-sm) = 8 px) réduisait la largeur des tableaux
+de liste. Solution : margin négative compensatoire sur `.comp-liste-container` en media query ≤ 991 px.
+→ `css/compendium-modules.css` : ajout dans `@media (max-width: 991px)` de
+  `margin-left/right: calc(-1 * var(--sp-sm, 8px))` sur `.comp-liste-container`.
 
 ## Bugs connus — à traiter
 

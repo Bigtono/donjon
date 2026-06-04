@@ -148,17 +148,20 @@ function _rendreSommaireNiveau(array $ids, array $arbre, array $ancetres, ?int $
     if ($n['reg_type'] === 'glossaire') $cls .= ' regles-sommaire__item--glossaire';
 
     $html .= '<li class="' . $cls . '">';
+    $html .= '<span class="regles-sommaire__ligne">';
     $html .= '<a href="' . BASE_URL . '/regles/regle.php?id=' . (int)$id . '"'
            . ' class="regles-sommaire__lien">'
            . htmlspecialchars($n['reg_nom'], ENT_QUOTES, 'UTF-8')
            . '</a>';
+    if ($hasEnfants && !$estActif && !$estOuvert):
+      $html .= '<a href="' . BASE_URL . '/regles/regle.php?id=' . (int)$id . '"'
+             . ' class="regles-sommaire__toggle" aria-label="Développer" tabindex="-1">'
+             . '<i class="fa fa-chevron-right"></i></a>';
+    endif;
+    $html .= '</span>';
 
     if ($hasEnfants && ($estActif || $estOuvert)):
       $html .= _rendreSommaireNiveau($arbre['enfants'][$id], $arbre, $ancetres, $idCourant, $profondeur + 1);
-    elseif ($hasEnfants):
-      $html .= '<a href="' . BASE_URL . '/regles/regle.php?id=' . (int)$id . '"'
-             . ' class="regles-sommaire__toggle" aria-label="Développer">'
-             . '<i class="fa fa-chevron-right"></i></a>';
     endif;
 
     $html .= '</li>';
