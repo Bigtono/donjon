@@ -108,13 +108,13 @@
   color: var(--clr-accent, #8b2020);
 }
 
-.regles-sommaire__item--actif > .regles-sommaire__ligne > .regles-sommaire__lien {
+.regles-sommaire__item--actif>.regles-sommaire__ligne>.regles-sommaire__lien {
   background: rgba(139, 32, 32, .10);
   color: var(--clr-accent, #8b2020);
   font-weight: 600;
 }
 
-.regles-sommaire__item--glossaire > .regles-sommaire__ligne > .regles-sommaire__lien {
+.regles-sommaire__item--glossaire>.regles-sommaire__ligne>.regles-sommaire__lien {
   font-style: italic;
 }
 
@@ -231,12 +231,32 @@
   color: var(--clr-text, #2a2015);
 }
 
+.regles-noeud__texte h3,
+.regle-detail__texte h3 {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #8b2020;
+  border-bottom: #8b2020 2px solid;
+  margin: .75rem 0 .25rem 0;
+}
+
+.regles-noeud__texte h4,
+.regle-detail__texte h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #8b2020;
+  margin: .75rem 0 0 0;
+}
+
 /* Tableaux dans les textes règles (contenu BDD/TinyMCE) */
+
+
+
 .regles-noeud__texte table,
 .regle-detail__texte table {
   border-collapse: collapse;
-  border-spacing: 0;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
   margin: .75rem 0;
   font-size: .875rem;
   display: block;
@@ -248,16 +268,21 @@
 .regle-detail__texte table th,
 .regle-detail__texte table td {
   border: none;
-  padding: 3px;
+  padding: 3px 0;
   text-align: left;
   vertical-align: middle;
 }
 
-.regles-noeud__texte table th,
-.regle-detail__texte table th {
-  font-weight: 700;
-  background: transparent;
+.regles-noeud__texte table th:not(:first-child),
+.regles-noeud__texte table td:not(:first-child),
+.regle-detail__texte table th:not(:first-child),
+.regle-detail__texte table td:not(:first-child) {
+  padding-left: 2rem;
 }
+
+
+
+
 
 /* Alternance gris perle / rien sur les lignes tbody */
 .regles-noeud__texte table tbody tr:nth-child(odd) td,

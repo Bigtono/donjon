@@ -539,8 +539,8 @@
   display: flex;
   align-items: baseline;
   gap: 0.5em;
-  padding: 2px 0;
-  border: none;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--clr-border);
   flex-wrap: wrap;
 }
 
@@ -565,8 +565,8 @@
   font-size: 0.9rem;
   line-height: 1.7;
   color: var(--clr-text);
-  border: none;
-  padding-top: var(--sp-xs);
+  border-top: 1px solid var(--clr-border);
+  padding-top: var(--sp-md);
 }
 
 .sort-detail__description p {
@@ -646,14 +646,20 @@
     display: none !important;
   }
 
-  /* Listes : pleine largeur écran — annule le padding de .site-main */
-  .comp-liste-container {
-    margin-left: calc(-1 * var(--sp-sm, 8px));
-    margin-right: calc(-1 * var(--sp-sm, 8px));
+  /* Listes : pleine largeur — la table ne doit PAS être en display:block sur mobile
+     (main.css impose display:block à .table-std pour le scroll horizontal,
+      mais en compendium mobile les colonnes secondaires sont cachées —
+      le scroll n'est pas nécessaire et display:block shrink-wrap la table
+      à la largeur minimale du contenu visible). */
+  .comp-liste-wrapper {
+    width: 100%;
   }
 
-  .comp-liste-wrapper {
-    border-radius: 0;
+  .comp-liste-wrapper .comp-liste,
+  .comp-liste-wrapper .table-std {
+    display: table;
+    width: 100%;
+    min-width: 0;
   }
 
 }
@@ -1087,8 +1093,7 @@
 .mo-carac-table {
   border-collapse: collapse;
   width: 100%;
-  table-layout: fixed;
-  /* garantit des largeurs égales entre les 3 groupes */
+  table-layout: fixed; /* garantit des largeurs égales entre les 3 groupes */
 }
 
 /* En-tête : fond transparent — surcharge la règle générique
@@ -1098,7 +1103,6 @@
   background: transparent !important;
   color: var(--clr-text-muted);
 }
-
 .mo-carac-table thead th {
   padding: 0 4px 2px;
   font-size: .65rem;
@@ -1110,25 +1114,13 @@
   border: none;
   background: transparent;
 }
-
 /* Largeurs des colonnes — definies sur <col> pour table-layout:fixed.
    Somme = 100% exact : chaque groupe (abbr+val+mod+js) = 33.333%, les 3 groupes
    sont donc strictement identiques. */
-.mo-col-abbr {
-  width: 10%;
-}
-
-.mo-col-val {
-  width: 8.5%;
-}
-
-.mo-col-mod {
-  width: 7.5%;
-}
-
-.mo-col-js {
-  width: 7.333%;
-}
+.mo-col-abbr { width: 10%;    }
+.mo-col-val  { width: 8.5%;   }
+.mo-col-mod  { width: 7.5%;   }
+.mo-col-js   { width: 7.333%; }
 
 /* Separateur entre les 3 groupes : seulement un trait, sans largeur ajoutee
    (box-sizing:border-box sur les td -> le border n'agrandit pas la colonne) */
@@ -1139,18 +1131,15 @@
 /* Corps */
 .mo-carac-table th,
 .mo-carac-table td {
-  box-sizing: border-box;
-  /* padding/border inclus dans la largeur du <col> */
+  box-sizing: border-box; /* padding/border inclus dans la largeur du <col> */
 }
-
 .mo-carac-table tbody td {
   padding: 3px 4px;
   text-align: center;
   border: none;
   vertical-align: middle;
   white-space: nowrap;
-  overflow: hidden;
-  /* securite si un contenu deborde */
+  overflow: hidden;        /* securite si un contenu deborde */
   text-overflow: ellipsis;
 }
 
@@ -1182,7 +1171,7 @@
    .sort-detail__description table tbody tr:nth-child(odd/even) */
 .sort-detail__description .mo-carac-table tbody tr,
 .mo-carac-table tbody tr {
-  background: rgba(180, 140, 90, .07) !important;
+  background: rgba(180,140,90,.07) !important;
 }
 
 /* ============================================================
