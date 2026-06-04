@@ -385,6 +385,19 @@ CREATE TABLE dd_competences (
   PRIMARY KEY (comp_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE dd_historiques (
+  hi_id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  hi_nom            VARCHAR(150) NOT NULL,
+  hi_description    TEXT         NOT NULL,
+  hi_res_id         INT UNSIGNED NOT NULL COMMENT 'Source -> dd_ressources',
+  hi_camp_id        INT UNSIGNED          DEFAULT NULL COMMENT 'null = global ; sinon homebrew -> dd_campagnes',
+  hi_ruleset_var_id INT UNSIGNED NOT NULL COMMENT '-> dd_variables',
+  PRIMARY KEY (hi_id),
+  KEY idx_hi_res_id (hi_res_id),
+  KEY idx_hi_camp_id (hi_camp_id),
+  KEY idx_hi_ruleset_var_id (hi_ruleset_var_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE dd_personnages_competences (
   pec_id       INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pec_pe_id    INT UNSIGNED NOT NULL COMMENT '-> dd_personnages',

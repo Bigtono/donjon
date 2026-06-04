@@ -206,6 +206,15 @@
   color: var(--clr-text, #2a2015);
 }
 
+.regles-noeud__texte h3 {
+  font-size: 1rem;
+  border-bottom: #8b2020 2px solid;
+  margin: 1rem 0 .4rem 0;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--clr-text-muted, #7a6e5a);
+}
+
 /* Tableaux dans les textes règles */
 .regles-noeud__texte table {
   border-collapse: collapse;
