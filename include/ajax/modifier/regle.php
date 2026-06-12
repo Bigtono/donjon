@@ -210,10 +210,22 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
 
         plugins: 'lists link table code',
 
-        toolbar: 'blocks | bold italic underline | bullist numlist | link table | ' +
+        toolbar: 'blocks styles | bold italic underline | bullist numlist | link table | ' +
           'removeformat | code',
 
         block_formats: 'Paragraphe=p;Titre 1=h1;Titre 2=h2;Titre 3=h3;Titre 4=h4;Titre 5=h5;Titre 6=h6',
+
+        style_formats: [{
+            title: 'Titre de tableau',
+            block: 'p',
+            classes: 'titre-tableau'
+          },
+          {
+            title: 'Encadré',
+            block: 'div',
+            classes: 'regles-encart'
+          }
+        ],
 
         paste_as_text: false,
 
@@ -281,11 +293,16 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
         suffix: '.min',
 
         content_style: 'body { font-family: inherit; font-size: 14px; } ' +
-          '.glossaire-lien { color: #9d7fd3; text-decoration: underline dotted; cursor: pointer; }',
+          '.glossaire-lien { color: #9d7fd3; text-decoration: underline dotted; cursor: pointer; } ' +
+          '.titre-tableau { font-weight: normal; font-size: 1.1rem; margin: 1rem 0 .5rem 0; color: balck; } ' +
+          '.regles-encart { border: thin solid black; padding: .5rem; background-color: rgba(128,128,128,.10); }' +
+          'h3 {font-weight: 700; font-size: 1.2rem; color: #8b2020; border-bottom: #8b2020 2px solid; margin: .75rem 0 .25rem 0; } ' +
+          'h4 {font-size: 1rem; font-weight: 700; color: #8b2020; margin: .75rem 0 0 0;}',
 
         // Pas de conversion automatique des URLs
         convert_urls: false
       });
+      /* Fin init TinyMCE */
     }());
 
     // ---- Enregistrement AJAX ----

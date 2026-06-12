@@ -248,9 +248,20 @@
   margin: .75rem 0 0 0;
 }
 
+.titre-tableau {
+  font-weight: normal;
+  font-size: 1.1rem;
+  margin: 1rem 0 .5rem 0;
+  color: black;
+}
+
+.regles-encart {
+  border: thin solid black;
+  padding: .5rem;
+  background-color: rgba(128, 128, 128, .10);
+}
+
 /* Tableaux dans les textes règles (contenu BDD/TinyMCE) */
-
-
 
 .regles-noeud__texte table,
 .regle-detail__texte table {
@@ -279,9 +290,6 @@
 .regle-detail__texte table td:not(:first-child) {
   padding-left: 2rem;
 }
-
-
-
 
 
 /* Alternance gris perle / rien sur les lignes tbody */
