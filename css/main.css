@@ -314,22 +314,26 @@ button {
   left: var(--sp-sm);
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-xs);
+  gap: 6px;
   background: transparent;
-  border: 1px solid var(--clr-border);
-  color: var(--clr-text-muted);
-  font-size: .85rem;
+  border: none;
+  color: var(--clr-accent-2);
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 3px 10px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
-  line-height: 1.4;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  transition: color 0.15s, background 0.15s;
 }
 
 .overlay-back:hover {
   color: var(--clr-text);
   background: var(--clr-surface-2);
-  border-color: var(--clr-accent-2);
+}
+
+/* Pousse le contenu injecté sous les boutons top (fermer + retour) */
+.overlay-panel .camp-detail {
+  margin-top: calc(var(--sp-sm) + 2rem);
 }
 
 /* ============================================================

@@ -36,18 +36,17 @@ if ($id > 0):
     echo '<p class="erreur">Chapitre introuvable.</p>';
     exit;
   endif;
-  // Contrôle propriété : remonte jusqu'au camp_id.
-  $stmt2 = $db->prepare('
-    SELECT camp.camp_id FROM dd_scenarios sce
-    JOIN   dd_campagnes camp ON camp.camp_id = sce.sce_camp_id
-    WHERE  sce.sce_id = ?
-  ');
-  $stmt2->execute([(int)$row['scc_sce_id']]);
-  $camp_id_check = (int)$stmt2->fetchColumn();
-  if (!isMJ($db, $camp_id_check)):
-    http_response_code(403);
-    echo '<p class="erreur">Accès refusé.</p>';
-    exit;
+  // Contrôle propriété via le scénario parent.
+  if (!isMJ($db, (int)$row['scc_sce_id'])):
+    // isMJ attend un camp_id — on remonte.
+    $stmt2 = $db->prepare('SELECT sce_camp_id FROM dd_scenarios WHERE sce_id = ?');
+    $stmt2->execute([(int)$row['scc_sce_id']]);
+    $camp_id_check = (int)$stmt2->fetchColumn();
+    if (!isMJ($db, $camp_id_check)):
+      http_response_code(403);
+      echo '<p class="erreur">Accès refusé.</p>';
+      exit;
+    endif;
   endif;
   $scc    = $row;
   $sce_id = (int)$row['scc_sce_id'];
@@ -57,6 +56,7 @@ else:
     echo '<p class="erreur">sce_id manquant.</p>';
     exit;
   endif;
+  // Vérifie que le scénario appartient au MJ.
   $stmt = $db->prepare('
     SELECT camp.camp_id FROM dd_scenarios sce
     JOIN   dd_campagnes camp ON camp.camp_id = sce.sce_camp_id
@@ -113,7 +113,7 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
         <div class="form-group modif-grid__full">
           <label for="scc_description">Description</label>
           <textarea id="scc_description" name="scc_description"
-                    rows="4"><?= h($scc['scc_description'] ?? '') ?></textarea>
+                    class="tinymce-full"><?= h($scc['scc_description'] ?? '') ?></textarea>
         </div>
 
       </div>
@@ -131,14 +131,44 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
   </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
 <script>
 (function() {
   'use strict';
 
-  const SCC_ID          = <?= (int)$scc['scc_id'] ?>;
-  const SCE_ID          = <?= $sce_id ?>;
-  const URL_SCC_DETAIL  = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/chapitre.php') ?>;
-  const URL_SCE_DETAIL  = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/scenario.php') ?>;
+  const SCC_ID         = <?= (int)$scc['scc_id'] ?>;
+  const SCE_ID         = <?= $sce_id ?>;
+  const URL_SCC_DETAIL = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/chapitre.php') ?>;
+  const URL_SCE_DETAIL = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/scenario.php') ?>;
+
+  (function initTMCE() {
+    if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
+    var isLight = document.body.classList.contains('theme-light');
+    tinymce.remove('#scc_description');
+    tinymce.init({
+      selector:    '#scc_description',
+      language:    'fr_FR',
+      menubar:     false,
+      plugins:     'lists link',
+      toolbar:     'bold italic underline | bullist numlist | removeformat',
+      height:      240,
+      skin:        isLight ? 'oxide' : 'oxide-dark',
+      content_css: isLight ? 'default' : 'dark',
+      promotion:   false,
+      branding:    false,
+      base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
+      suffix:      '.min',
+    });
+  })();
+
+  function tmceGet(id) {
+    if (typeof tinymce !== 'undefined') {
+      const ed = tinymce.get(id);
+      if (ed && ed.initialized) return ed.getContent();
+    }
+    const el = document.getElementById(id);
+    return el ? el.value : '';
+  }
 
   function soumettre() {
     const form = document.getElementById('form-chapitre');
@@ -146,6 +176,9 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
 
     const nom = document.getElementById('scc_nom').value.trim();
     if (!nom) { alert('Le nom du chapitre est obligatoire.'); return; }
+
+    const descEl = document.getElementById('scc_description');
+    if (descEl) descEl.value = tmceGet('scc_description');
 
     fetch(form.getAttribute('action'), { method: 'POST', body: new FormData(form) })
       .then(r => r.json())

@@ -1,0 +1,261 @@
+/* css/personnages-modules.css
+   Styles du module Personnages — chargé si $css_module = 'personnages'.
+   Réutilise les variables du design system (main.css / modules.css).
+   Reprend les classes .comp-menu-* (compendium-modules.css n'est pas chargé ici).
+
+   SOUS-PHASE 3.0 : socle — barre de filtres + liste responsive.
+   Priorité responsive : usage majoritaire sur tablette / smartphone par les
+   joueurs en cours de partie (breakpoint 991px aligné sur les autres modules).
+*/
+
+/* ============================================================
+   MENU CONTEXTUEL — classes partagées (clone de compendium)
+   ============================================================ */
+
+.comp-menu-ligne {
+  position: relative;
+  display: inline-block;
+}
+
+.comp-menu-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--clr-text-muted);
+  padding: 2px 6px;
+}
+
+.comp-menu-dropdown {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  min-width: 160px;
+  z-index: 200;
+}
+
+.comp-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  width: 100%;
+  padding: var(--sp-sm) var(--sp-md);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--clr-text);
+  font-size: .92em;
+}
+
+.comp-menu-item:hover {
+  background: var(--clr-surface-hover);
+}
+
+.comp-menu-item--danger {
+  color: var(--clr-danger);
+}
+
+.comp-confirm-suppr {
+  /* Caché à l'origine — réinjecté dans la ligne via JS au moment de la suppression */
+}
+
+.comp-confirm-row {
+  background: var(--clr-surface-alt, var(--clr-surface));
+  padding: var(--sp-md);
+}
+
+.comp-confirm-row > span {
+  margin-right: var(--sp-md);
+}
+
+/* ============================================================
+   BARRE DE FILTRES
+   Flex horizontal en desktop, empilée en mobile.
+   ============================================================ */
+
+.per-filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+  align-items: flex-end;
+  margin-bottom: var(--sp-md);
+  padding: var(--sp-md);
+  background: var(--clr-surface-alt, var(--clr-surface));
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+}
+
+.per-filtres__bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.per-filtres__bloc--recherche {
+  flex: 1 1 220px;
+}
+
+.per-filtres__bloc--actions {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.per-filtres__label {
+  font-size: .85em;
+  color: var(--clr-text-muted);
+}
+
+.per-filtres select,
+.per-filtres input[type="text"] {
+  /* Hauteur cible mobile : ≥ 44px (Apple HIG / WCAG cible tactile) */
+  min-height: 40px;
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: .95em;
+}
+
+/* ============================================================
+   LISTE — TABLEAU
+   ============================================================ */
+
+.per-liste {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.per-liste thead th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  font-size: .85em;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 2px solid var(--clr-border);
+}
+
+.per-liste tbody tr {
+  border-bottom: 1px solid var(--clr-border);
+  transition: background .15s ease;
+}
+
+.per-liste tbody tr:hover {
+  background: var(--clr-surface-hover);
+}
+
+.per-liste td {
+  padding: var(--sp-md);
+  vertical-align: middle;
+}
+
+.per-liste .col-action {
+  width: 32px;
+  padding: var(--sp-sm);
+}
+
+.per-liste__nom-libelle {
+  font-weight: 600;
+  color: var(--clr-text);
+}
+
+.per-liste__col-align {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Résumé mobile — caché en desktop, visible en mobile sous le nom */
+.per-liste__resume-mobile {
+  display: none;
+}
+
+/* ============================================================
+   RESPONSIVE — < 992px (tablette / smartphone)
+   - Empilement des filtres
+   - Colonnes secondaires cachées : seul le NOM reste sur la 1re ligne
+   - Résumé sous le nom (race · classes · alignement · campagne)
+   ============================================================ */
+
+@media (max-width: 991px) {
+
+  /* Filtres empilés verticalement */
+  .per-filtres {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .per-filtres__bloc {
+    min-width: 0;
+  }
+
+  .per-filtres__bloc--actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  /* Liste : colonnes secondaires cachées en mobile */
+  .per-liste thead {
+    display: none;
+  }
+
+  .per-liste,
+  .per-liste tbody,
+  .per-liste tr,
+  .per-liste td {
+    display: block;
+    width: 100%;
+  }
+
+  .per-liste tr {
+    position: relative;
+    padding: var(--sp-md) var(--sp-md) var(--sp-md) 48px;
+  }
+
+  /* Bouton ⋮ remonté en haut-gauche de la carte */
+  .per-liste .col-action {
+    position: absolute;
+    top: var(--sp-sm);
+    left: var(--sp-sm);
+    width: auto;
+    padding: 0;
+  }
+
+  /* Toutes les colonnes secondaires : masquées */
+  .per-liste__col-sec {
+    display: none;
+  }
+
+  /* Cellule Nom = seul élément visible sur la 1re ligne */
+  .per-liste__nom {
+    padding: 0;
+  }
+
+  .per-liste__nom-libelle {
+    display: block;
+    font-size: 1.1em;
+  }
+
+  /* Résumé : ligne en dessous du nom */
+  .per-liste__resume-mobile {
+    display: block;
+    color: var(--clr-text-muted);
+    font-size: .88em;
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  /* Cibles tactiles : éviter les écarts trop serrés */
+  .per-liste tbody tr {
+    min-height: 56px;
+  }
+}

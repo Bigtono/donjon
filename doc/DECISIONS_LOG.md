@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-04 10:30 -->
+<!-- Mis à jour : 2026-06-12 15:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -691,6 +691,125 @@ de liste. Solution : margin négative compensatoire sur `.comp-liste-container` 
 → `css/compendium-modules.css` : ajout dans `@media (max-width: 991px)` de
   `margin-left/right: calc(-1 * var(--sp-sm, 8px))` sur `.comp-liste-container`.
 
+---
+
+## Phase 3 — Personnages (conception et sous-phase 3.0)
+
+**[2026-06-12] Finalité du module — aide de jeu, pas moteur de règles**
+La fiche du site ne remplace pas la fiche papier du joueur et n'implémente aucune règle de construction
+de personnage (pas de prérequis de dons, pas de point-buy, pas de contrôle de cohérence niveau/classe).
+C'est une aide de jeu : le joueur et le MJ saisissent certaines données, librement et partiellement, pour
+disposer de liens cliquables vers les règles du compendium pendant la partie.
+→ Objectif : réduire les recherches dans les livres de règles en cours de séance.
+→ Conséquence : tous les éditeurs (classes, dons, compétences, sorts) sont déclaratifs ; aucune validation
+  métier de règle de jeu. Les seules validations serveur portent sur l'intégrité (FK, propriétaire, complétude
+  d'une affectation NLS).
+→ La saisie peut rester incomplète sans erreur (ex : ne saisir que quelques dons).
+
+**[2026-06-12] Abandon des répertoires ruleset `include/insert/DD3.5/` et `DD2024/`**
+Le dispositif de templates ruleset envisagé initialement n'a jamais été implémenté : le compendium V2
+(sorts, classes, dons, compétences, races, objets) gère les spécificités **inline** par conditions
+`if ($ruleset_rep === 'DD3.5')` et filtre via `_ruleset_var_id`. Aucun dossier `insert/` n'existe dans le dépôt.
+→ Décision : abandon définitif des arborescences parallèles par ruleset. Les personnages suivent la même
+  approche inline + helpers PHP ciblés. La divergence ruleset des personnages est faible (historique DD2024,
+  section NLS + archétype DD3.5, sémantique de `pec_maitrise`) et ne justifie pas de templates séparés.
+
+**[2026-06-12] [A] Sexe et alignement — ajoutés pour les deux rulesets, alignements communs**
+`dd_personnages` reçoit `pe_sexe` (VARCHAR(20) libre, descriptif) et `pe_al_id` (FK).
+→ **Alignements communs à tous les rulesets DD** (pas de différenciation par ruleset). Le référentiel
+  `dd_alignements` est créé sans `al_ruleset_var_id` : table simple avec 9 alignements classiques + `al_ordre`.
+→ Sexe et alignement sont des libellés descriptifs : non cliquables (pas d'entité compendium).
+→ Patch livré : `sql/2026-06-12_personnages_socle.sql`.
+
+**[2026-06-12] [B] Campagne en cours — `pe_camp_id` + historique des campagnes**
+Règle métier : un personnage n'est que dans une seule campagne à la fois mais en enchaîne plusieurs (liaison N-N
+conservée dans `dd_campagnes_personnages`). La campagne **en cours** est stockée dans `pe_camp_id` (NULL = aucune,
+ce champ existait déjà via le patch campagnes étape 1).
+→ La fiche affiche un bloc « Campagnes » : campagne en cours + historique (lecture seule) des campagnes traversées.
+→ L'attache / détache et l'édition de `cp_notes_mj` restent du ressort du module Campagnes (Phase 4).
+→ Préférence d'affichage des notes mémorisée sur le perso : `pe_notes_scope` (0 = campagne en cours, 1 = toutes).
+  Le contenu de l'onglet Notes lui-même relève du module Notes (Phase 5) ; seul l'emplacement est réservé en Phase 3.
+
+**[2026-06-12] [C] Notes MJ retirées du formulaire personnage**
+Toute notion de notes MJ disparaît du formulaire personnage. Les notes MJ sont portées exclusivement par
+`dd_campagnes_personnages.cp_notes_mj` et gérées dans le module Campagnes.
+
+**[2026-06-12] [D] Objets magiques du personnage — reportés**
+L'analyse métier n'est pas fiabilisée (dépend de la section compendium Objets magiques). En Phase 3, seule une
+page placeholder `personnages/objets.php` portant la mention « Fonctionnalité à venir » est créée. Aucune table.
+
+**[2026-06-12] [E] Édition par commit global — confirmé pour les personnages**
+Abandon de tous les endpoints d'écriture AJAX immédiate de la V1 (`ajax-valider*ClassePerso.php`,
+`ajax-majNiveauClassePerso.php`, etc.). Toute l'édition (identité, classes, niveaux, NLS, compétences, dons,
+sorts) est locale (DOM/JS) puis persistée en un seul POST transactionnel `personnages/enregistrement.php`.
+→ Conforme à l'architecture V2 (pages modifier sans write BDD).
+
+**[2026-06-12] [F] Fiche unique responsive + vue Magie dédiée + emplacement mode jeu**
+Abandon de la navigation multi-pages V1 (onglets Fiche/Background/…). Une fiche unique `personnages/fiche.php`
+avec sections repliables (`togglePlus`) ; la Magie reste une vue dédiée (`personnages/magie.php`) car plus lourde.
+→ Priorité responsive : usage majoritaire sur tablette / smartphone par les joueurs en cours de partie.
+→ Un emplacement « mode jeu » (suivi PV et autres variables selon ruleset) est réservé dans la fiche
+  **en haut, accessible immédiatement** ; son contenu réel est développé ultérieurement.
+
+**[2026-06-12] [G] Liste des sorts du personnage — chaîne de sources**
+La liste des sorts proposée à un personnage est bornée par `getActiveResIds()` (chaîne campagne → perso → défaut),
+exactement comme le compendium.
+
+**[2026-06-12] Compétences du personnage — chargement complet du ruleset**
+Rupture avec la V1 (ajout une à une via bouton). Le formulaire de modification charge d'emblée **toutes** les
+compétences du ruleset dans un bloc repliable sous forme de tableau.
+→ DD3.5 : input numérique, rangs de 0 à n (`pec_maitrise`).
+→ DD2024 : sélecteur à 3 valeurs (0 = aucune, 1 = maîtrise, 2 = expertise).
+→ Persistance : DELETE + INSERT en bloc, seules les lignes `pec_maitrise > 0` sont enregistrées (pattern identique
+  à la sélection des sources du profil). La fiche n'affiche que les compétences maîtrisées.
+
+**[2026-06-12] Dons du personnage — liste déclarative cliquable**
+`dd_personnages_dons` : le joueur saisit librement les dons de son personnage (saisie partielle autorisée).
+Chaque don affiché est cliquable et ouvre son descriptif via detail-pp. `ped_niveau` optionnel (indicatif).
+
+**[2026-06-12] NLS et emplacements de sorts par jour — calcul conservé (exception assumée)**
+Bien que le module soit une aide de jeu sans moteur de règles, le calcul du NLS et du nombre de sorts par jour
+est **conservé** car les deux sont liés par les règles métier et constituent une aide précieuse en séance.
+Logique portée du helper V1 (`personnage_grimoire_helper.php`), réécrite proprement pour le schéma V2 figé
+(suppression du code défensif `SHOW COLUMNS` / fallbacks de noms de champs).
+→ Calcul : NLS effectif (niveau de classe de base + bonus apportés par les classes de prestige via
+  `dd_personnages_nls`) → lecture `dd_classe_niveau` (`cn_sort_n0..9`) → + sorts bonus de caractéristique
+  (`dd_modificateurs.mod_bonusSort0..9`) → +1 par niveau de sort si la classe choisit des domaines divins (DD3.5).
+→ DD2024 : nombre de sorts préparés via `cn_sortPrepare` ; bonus de maîtrise via `dd_bonus_maitrise`.
+→ L'affectation NLS (DD3.5) reste une saisie déclarative du joueur ; la validation serveur porte uniquement
+  sur la complétude de l'affectation, pas sur une règle de jeu.
+
+**[2026-06-12] Tables réutilisées — consolidation des grimoires V1**
+Les tables V1 `dd_grimoires` / `dd_grimoires_contenu` sont abandonnées au profit des tables V2 déjà figées :
+`dd_personnages_sorts` (connus / compris) et `dd_personnages_sorts_prepares` (préparés, avec métamagie DD3.5).
+
+**[2026-06-12] Liste personnages — filtrage par ruleset actif + filtres ad hoc**
+La liste `personnages/index.php` est dédiée (n'utilise pas le moteur `compendium-liste.php` ; calquée sur
+`campagnes/index.php`). Filtrage strict par propriétaire ET par ruleset actif en session — un joueur ne voit
+que ses personnages du ruleset courant, comme dans le compendium.
+→ Filtres : Campagne (select des campagnes du joueur, sur `pe_camp_id`), Classe (select de toutes les classes
+  du ruleset, sémantique EXISTS sur `dd_personnages_classes`), Recherche libre (LIKE sur `pe_nom`).
+→ Colonnes desktop : ⋮ · Nom · Race · Classes · Alignement · Campagne en cours.
+→ Mobile (< 992px) : seul le nom sur la première ligne ; race · classes · alignement · campagne concaténés
+  en résumé sous le nom. Bouton ⋮ remonté en haut-gauche de la carte.
+
+**[2026-06-12] Ordre des blocs de la fiche — Mode jeu en haut**
+Pour l'accessibilité en cours de partie (le bloc le plus consulté doit être le plus accessible) :
+1. Mode jeu (emplacement réservé) — 2. Identité — 3. Caractéristiques — 4. Combat — 5. Classes —
+6. NLS prestige (DD3.5) — 7. Compétences — 8. Dons — 9. Campagnes.
+
+**[2026-06-12] Sous-phase 3.0 livrée — socle technique**
+Patch SQL `sql/2026-06-12_personnages_socle.sql` (création `dd_alignements` + 9 alignements seedés,
+ALTER `dd_personnages` pour `pe_sexe`/`pe_al_id`/`pe_notes_scope` ; `pe_camp_id` non touché car déjà existant).
+Pages : `personnages/index.php` (liste filtrée responsive) + placeholders pour `fiche.php`, `modifier.php`,
+`magie.php`, `objets.php`. Routeur `personnages/enregistrement.php` (action `supprimerPersonnage` implémentée
+en transaction PDO avec cascade manuelle sur les tables liées). Assets : `js/personnage.js` (menu contextuel
++ suppression inline), `css/personnages-modules.css` (filtres + liste, breakpoint 991px). Helper PHP
+`include/personnage_helpers.php` (getPersonnageContext, getPersonnageClasses, getCampagnesPersonnage,
+getAlignements). Ajax `detail-pp/personnage.php` et `modifier/personnage.php` créés en placeholder.
+
+---
+
 ## Bugs connus — à traiter
 
 - **Admin / liste utilisateurs** : le menu ⋮ (dropdown) ne fonctionne pas correctement sur les lignes `admin-ligne--inactif`. La piste CSS (stacking context créé par `opacity` sur `<td>`) a été explorée sans succès. À investiguer en session dédiée.
@@ -738,3 +857,16 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [ ] Campagnes — harmoniser la numérotation doc (ARCHITECTURE_8 vs METIER_10)
 - [ ] Campagnes — patch SQL étape 2 : reprise de données v1→v2 (pe_camp_id, sc_*→sce_*)
 - [ ] Resynchroniser sql/schema.sql avec le schéma réel (section 7 Campagnes v1.1)
+- [x] ~~Personnages — finalité du module~~ → aide de jeu, pas de moteur de règles de construction
+- [x] ~~Personnages — découpage ruleset par répertoires~~ → abandonné, implémentation inline
+- [x] ~~Personnages — structure de navigation~~ → fiche unique responsive + vue Magie dédiée
+- [x] ~~Personnages — calcul NLS / sorts par jour~~ → conservé (aide de jeu liée aux règles métier)
+- [x] ~~Personnages — saisie des compétences~~ → tableau complet du ruleset, persistance des maîtrises > 0
+- [x] ~~Personnages — campagne en cours~~ → pe_camp_id + bloc historique des campagnes
+- [x] ~~Personnages — référentiel alignements~~ → commun à tous les rulesets, 9 alignements classiques
+- [x] ~~Personnages — filtres de la liste~~ → campagne, classe, recherche libre (ruleset implicite)
+- [x] ~~Personnages — colonnes liste + responsive~~ → nom/race/classes/alignement/campagne ; nom seul en mobile
+- [x] ~~Personnages — position du bloc Mode jeu~~ → en haut (accès rapide en partie)
+- [ ] Personnages — contenu réel du « mode jeu » (variables suivies par ruleset)
+- [ ] Personnages — objets magiques / possessions (analyse métier à fiabiliser)
+- [ ] Personnages — resynchroniser sql/schema.sql avec dd_alignements + nouveaux champs dd_personnages

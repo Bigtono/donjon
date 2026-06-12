@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-03 14:30 -->
+<!-- Mis à jour : 2026-06-12 15:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -513,10 +513,159 @@ js/
 
 ## 7. Module Personnages
 
-- Un personnage possède obligatoirement une race et au moins une classe
-- DD3.5 : race de base + archétype optionnel, classes de prestige, NLS (dd_personnages_nls)
-- DD2024 : pas d'archétype, pas de classes de prestige (pe_arc_id = 0)
-- Notes MJ : dd_campagnes_personnages.cp_notes_mj (perdues si le personnage quitte la campagne)
+### 7.1 Finalité — aide de jeu, pas moteur de règles
+
+La fiche du site **ne remplace pas** la fiche papier du joueur. Le module est une **aide de jeu** : le joueur
+et le MJ y saisissent certaines données du personnage, librement et partiellement, pour disposer de **liens
+cliquables vers les règles du compendium** pendant la partie. Objectif : réduire les recherches dans les livres.
+
+Conséquences directes :
+- Aucune règle de construction n'est implémentée (pas de prérequis de dons, pas de point-buy, pas de contrôle niveau/classe).
+- Tous les éditeurs sont **déclaratifs** ; la saisie peut rester incomplète sans générer d'erreur.
+- Les validations serveur portent uniquement sur l'intégrité (FK, propriétaire, complétude d'une affectation NLS), jamais sur une règle de jeu.
+
+### 7.2 Règles métier conservées
+
+- Un personnage possède obligatoirement une race et au moins une classe.
+- DD3.5 : race de base + archétype optionnel (`pe_arc_id`), classes de prestige, affectation NLS (`dd_personnages_nls`).
+- DD2024 : pas d'archétype (`pe_arc_id = 0`), pas de classe de prestige, historique (`dd_historiques`).
+- La campagne **en cours** est stockée dans `pe_camp_id` (NULL = aucune) ; l'historique des campagnes traversées
+  reste dans `dd_campagnes_personnages` (liaison N-N). Un personnage n'est dans qu'une seule campagne à la fois.
+
+### 7.3 Structure — fiche unique responsive
+
+Abandon de la navigation multi-pages V1. Une **fiche unique** `personnages/fiche.php` regroupe toutes les sections
+en blocs repliables (`togglePlus`). La **Magie** reste une **vue dédiée** (`personnages/magie.php`), plus lourde.
+
+> Priorité absolue : responsive tablette / smartphone. Le module est majoritairement utilisé par les joueurs
+> en cours de partie sur petit écran. Cibles tactiles larges, table des caractéristiques en grille fluide,
+> aucune action critique dépendant du survol. Seuil 992px aligné sur les autres modules.
+
+**Ordre des blocs de la fiche** (de haut en bas — Mode jeu en tête pour accès rapide en séance) :
+
+| Ordre | Bloc | Données | Cliquable → detail-pp |
+|---|---|---|---|
+| 1 | Mode jeu *(emplacement réservé)* | Suivi PV et autres variables selon ruleset — **contenu différé** | — |
+| 2 | Identité | Nom, Race (+ archétype DD3.5), Historique (DD2024), Sexe, Alignement | Race, Historique |
+| 3 | Caractéristiques | 6 caracs + modificateurs | — |
+| 4 | Combat | CA, PV | — |
+| 5 | Classes | Classes + niveaux | Classe |
+| 6 | NLS prestige *(DD3.5)* | Affectation niveaux de prestige → classes de base lanceuses | — |
+| 7 | Compétences | Compétences **maîtrisées** uniquement (maîtrise > 0) | Compétence |
+| 8 | Dons | Dons saisis (liste déclarative) | Don |
+| 9 | Campagnes | Campagne en cours + historique (lecture seule) | Campagne |
+
+Sexe et alignement sont des libellés descriptifs (non cliquables). L'historique n'est cliquable qu'une fois
+la section compendium Historiques et son `detail-pp/historique.php` livrés (fonctionnement calqué sur la race).
+
+### 7.4 Liste des personnages — `personnages/index.php`
+
+Liste dédiée (pas le moteur `compendium-liste.php`) calquée sur `campagnes/index.php`. Filtrage strict par
+propriétaire (`pe_j_id = j_id`) et par **ruleset actif en session** (un joueur ne voit que ses personnages du
+ruleset courant — cohérent avec le sélecteur global de ruleset).
+
+**Filtres** (GET) :
+- **Campagne** — select des campagnes du joueur (ruleset courant). Sémantique : `pe.pe_camp_id = ?` (campagne en cours).
+- **Classe** — select de toutes les classes du ruleset. Sémantique : `EXISTS (… dd_personnages_classes …)` (le perso a au moins cette classe).
+- **Recherche libre** — `pe.pe_nom LIKE ?` (% en début et fin).
+
+**Colonnes desktop** : ⋮ · Nom · Race · Classes · Alignement · Campagne en cours.
+
+**Responsive** (< 992px) : seul le **nom** apparaît sur la première ligne ; race, classes, alignement et campagne
+sont concaténés dans un résumé `text-muted` sur la ligne suivante. Le bouton ⋮ remonte en haut-gauche de la carte.
+Toutes les colonnes secondaires sont masquées via `.per-liste__col-sec { display: none }` au mobile.
+
+### 7.5 Édition — commit global
+
+`personnages/modifier.php` : édition locale (DOM/JS), **zéro écriture BDD**. `personnages/enregistrement.php` :
+un seul POST en transaction PDO. Abandon de tous les endpoints d'écriture immédiate de la V1.
+
+- **Identité** : formulaire classique. Background / notes via TinyMCE (config complète, avec images).
+- **Classes / niveaux** : éditeur DOM déclaratif (nom de classe + niveau), sans validation de règles.
+- **Compétences** : le formulaire charge **toutes** les compétences du ruleset dans un bloc repliable (tableau).
+  DD3.5 : input numérique (rangs 0..n). DD2024 : sélecteur 0 (aucune) / 1 (maîtrise) / 2 (expertise).
+  Persistance DELETE + INSERT en bloc des seules lignes `pec_maitrise > 0`.
+- **Dons** : liste déclarative ajoutable / supprimable localement (`dd_personnages_dons`).
+- **NLS prestige (DD3.5)** : un tableau par classe de prestige influant sur le NLS ; pour chaque niveau, un select
+  des classes de base lanceuses compatibles. Saisie déclarative ; validation serveur = complétude de l'affectation.
+
+### 7.6 Magie — vue dédiée
+
+`personnages/magie.php` affiche, par classe lanceuse de sorts :
+- le **nombre de sorts par jour** par niveau de sort (calcul conservé, cf. 7.7) ;
+- les listes de sorts **connus / compris / préparés**, cliquables → `detail-pp/sort.php` (contexte `externe`).
+
+La liste de sorts proposée est bornée par `getActiveResIds()` (chaîne campagne → perso → défaut, §5).
+
+### 7.7 Calcul NLS et sorts par jour (conservé)
+
+Exception assumée au principe « aide de jeu » : le calcul est conservé car NLS et emplacements sont liés par les
+règles métier et aident réellement en séance. Logique portée du helper V1, réécrite proprement pour le schéma figé
+(plus de `SHOW COLUMNS` ni de fallbacks de noms de champs).
+
+```
+NLS effectif = niveau de classe de base
+             + bonus des classes de prestige (dd_personnages_nls, selon cn_niveauSortArcane/Divin/Effectif)
+Emplacements = dd_classe_niveau.cn_sort_n0..9 (au NLS effectif)
+             + dd_modificateurs.mod_bonusSort0..9 (bonus de la caractéristique de classe)
+             + 1 par niveau de sort > 0 si la classe choisit des domaines divins (DD3.5)
+```
+
+DD2024 : nombre de sorts préparés via `cn_sortPrepare` ; bonus de maîtrise via `dd_bonus_maitrise`.
+
+Affectation NLS (DD3.5) : pour chaque classe de prestige dont au moins un de `cn_niveauSortArcane`,
+`cn_niveauSortDivin`, `cn_niveauSortEffectif` vaut 1, le joueur affecte chaque niveau de prestige à une classe
+de base lanceuse compatible. Filtrage du select :
+- `cn_niveauSortArcane = 1` → classes de base avec `cla_mag_id = 1`
+- `cn_niveauSortDivin = 1` → classes de base avec `cla_mag_id = 2`
+- `cn_niveauSortEffectif = 1` → toutes les classes de base lanceuses
+
+Sur la fiche, un niveau non affecté affiche « À affecter » en rouge.
+
+### 7.8 Stockage des sorts
+
+Les tables V1 `dd_grimoires` / `dd_grimoires_contenu` sont abandonnées. On utilise :
+- `dd_personnages_sorts` : sorts connus (présence de ligne) / compris (`pes_compris = 1`), rattachés à `pes_pc_id`.
+- `dd_personnages_sorts_prepares` : sorts préparés, avec métamagie DD3.5 (`pesp_metamagie`, `pesp_niveau`, `pesp_nb`).
+
+### 7.9 Pages annexes
+
+- `personnages/objets.php` : placeholder « Fonctionnalité à venir » (analyse métier non fiabilisée, aucune table).
+- Onglet Notes : emplacement réservé ; le contenu relève du module Notes (Phase 5). La préférence d'affichage
+  (campagne en cours / toutes les campagnes) est mémorisée sur le personnage (`pe_notes_scope`).
+
+### 7.10 Fichiers du module
+
+```
+personnages/
+  index.php          Liste filtrée (campagne / classe / recherche libre), responsive
+  fiche.php          Fiche unique (sections repliables, Mode jeu en tête)
+  modifier.php       Édition locale DOM/JS (zéro écriture BDD)
+  enregistrement.php Routeur d'actions transactionnelles (commit global)
+  magie.php          Vue dédiée Magie (NLS, emplacements, sorts cliquables)
+  objets.php         Placeholder « Fonctionnalité à venir »
+
+js/personnage.js                Menu contextuel, suppression inline, éditeurs DOM (3.2+)
+css/personnages-modules.css     Styles module — chargé si $css_module = 'personnages'
+
+include/personnage_helpers.php  getPersonnageContext, getPersonnageClasses,
+                                getCampagnesPersonnage, getAlignements
+                                (calcul NLS et emplacements ajoutés en 3.5/3.6)
+
+include/ajax/detail-pp/personnage.php   Vue détail (contexte 'externe' depuis Campagnes)
+include/ajax/modifier/personnage.php    Overlay création / modification
+```
+
+### 7.11 Découpage en sous-phases
+
+- **3.0** Socle + SQL (patch `dd_alignements` + champs `pe_sexe`/`pe_al_id`/`pe_notes_scope`, dossiers, JS/CSS, helpers, liste filtrée) — *livrée*
+- **3.1** Fiche identité (nom, race, historique, sexe, alignement, caracs, combat)
+- **3.2** Classes & niveaux
+- **3.3** Compétences (tableau complet du ruleset)
+- **3.4** Dons
+- **3.5** NLS prestige (DD3.5)
+- **3.6** Vue Magie (calcul NLS + sorts par jour + listes cliquables)
+- **3.7** Emplacement mode jeu + passe responsive < 992px
 
 ---
 
@@ -760,7 +909,7 @@ js/regles.js             repli arbre, recherche, drag & drop ordre, overlay
 | Module | Responsive | Notes |
 |---|---|---|
 | Compendium | Oui | col-primary/secondary/action, pas de boutons action mobile |
-| Personnages | Oui | |
+| Personnages | Oui | **Priorité tablette/smartphone** — fiche unique, sections repliables, cibles tactiles larges, Mode jeu en haut |
 | Wiki / Univers | Oui | |
 | Campagnes | Non | Desktop MJ uniquement |
 | Profil | Oui | |

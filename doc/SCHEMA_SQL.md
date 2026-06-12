@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-03 07:00 -->
+<!-- Mis à jour : 2026-06-12 15:00 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -114,6 +114,19 @@ Types de magie (profane, divin).
 | mag_nom | varchar(50) | nn | Ex : Magie profane |
 | mag_abreviation | varchar(10) | nn | Ex : Arc |
 | mag_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+---
+
+### dd_alignements
+Référentiel des alignements **commun à tous les rulesets DD** (9 alignements classiques).
+Créé par le patch `2026-06-12_personnages_socle.sql`.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| al_id | int unsigned | PK | |
+| al_nom | varchar(60) | nn | Ex : Loyal Bon |
+| al_abreviation | varchar(10) | nn | Ex : LB, NN, CM |
+| al_ordre | tinyint unsigned | nn, défaut 0 | Tri d'affichage |
 
 ---
 
@@ -590,9 +603,11 @@ Rareté des bjets magiques du compendium.
 |---|---|---|---|
 | pe_id | int unsigned | PK | |
 | pe_nom | varchar(100) | nn | |
+| pe_sexe | varchar(20) | null | Libellé libre, descriptif (féminin, masculin, etc.) — *patch 2026-06-12* |
 | pe_j_id | int unsigned | nn | Propriétaire -> dd_joueurs |
 | pe_ra_id | int unsigned | nn, défaut 0 | Race de base -> dd_races |
 | pe_arc_id | int unsigned | nn, défaut 0 | *[DD3.5]* Archétype racial -> dd_races (0 = aucun) |
+| pe_al_id | int unsigned | null | Alignement -> dd_alignements (NULL = non renseigné) — *patch 2026-06-12* |
 | pe_for | tinyint unsigned | nn, défaut 10 | Force |
 | pe_con | tinyint unsigned | nn, défaut 10 | Constitution |
 | pe_dex | tinyint unsigned | nn, défaut 10 | Dextérité |
@@ -603,6 +618,7 @@ Rareté des bjets magiques du compendium.
 | pe_pv | smallint | nn, défaut 0 | Points de vie totaux |
 | pe_background | text | null | Historique du personnage |
 | pe_notes | text | null | Notes privées du joueur (non visibles par le MJ) |
+| pe_notes_scope | tinyint unsigned | nn, défaut 0 | Affichage notes : 0 = campagne en cours, 1 = toutes les campagnes — *patch 2026-06-12* |
 | pe_camp_id | int unsigned | null | Dernière campagne jouée (campagne « en cours ») -> dd_campagnes ; NULL = aucune. Le rattachement réel reste géré par `dd_campagnes_personnages` (N-N) ; ce champ n'est qu'un raccourci de contexte. |
 | pe_ruleset_var_id | int unsigned | nn | -> dd_variables |
 | pe_date_creation | datetime | nn | Horodatage automatique |
