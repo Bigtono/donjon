@@ -419,6 +419,7 @@ function enregistrerChapitre($db, bool $is_ajax, string $redirect): void
   try {
     $db->beginTransaction();
 
+    $scc_id_was_zero = ($scc_id === 0);
     if ($scc_id === 0):
       if (!$sce_id || !checkSceOwner($db, $sce_id)):
         $db->rollBack();
@@ -464,11 +465,18 @@ function enregistrerChapitre($db, bool $is_ajax, string $redirect): void
 
     if ($is_ajax):
       header('Content-Type: application/json');
+      // Modification : url_detail pointe sur la fiche chapitre.
+      // Création    : url_detail pointe sur la fiche scénario (retour au parent).
+      $url_detail = $scc_id_was_zero
+        ? BASE_URL . '/include/ajax/detail-pp/scenario.php'
+        : BASE_URL . '/include/ajax/detail-pp/chapitre.php';
+      $id_retour  = $scc_id_was_zero ? $sce_id : $scc_id;
       echo json_encode([
-        'ok'     => true,
-        'id'     => $scc_id,
-        'sce_id' => $sce_id,
-        'url_detail' => BASE_URL . '/include/ajax/detail-pp/scenario.php',
+        'ok'      => true,
+        'id'      => $id_retour,
+        'scc_id'  => $scc_id,
+        'sce_id'  => $sce_id,
+        'url_detail' => $url_detail,
       ]);
       exit;
     endif;
@@ -516,8 +524,12 @@ function supprimerChapitre($db, bool $is_ajax, string $redirect): void
 
     if ($is_ajax):
       header('Content-Type: application/json');
-      echo json_encode(['ok' => true, 'id' => $sce_id, 'sce_id' => $sce_id,
-                        'url_detail' => BASE_URL . '/include/ajax/detail-pp/scenario.php']);
+      echo json_encode([
+        'ok'         => true,
+        'id'         => $sce_id,
+        'sce_id'     => $sce_id,
+        'url_detail' => BASE_URL . '/include/ajax/detail-pp/scenario.php',
+      ]);
       exit;
     endif;
     $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Chapitre supprimé.'];

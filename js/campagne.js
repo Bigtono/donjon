@@ -124,7 +124,7 @@ async function campSccConfirmerSuppression(sccId) {
   try {
     const data = await postAjax(campUrlEnreg, { action: 'supprimerChapitre', id: sccId });
     if (data.ok) {
-      // Rafraîchit la vue scénario courante dans #detail-pp (navigation interne).
+      // Rafraîchit la vue scénario dans #detail-pp (navigation interne).
       naviguerDetailPP(urlSce, { id: sceId });
     } else {
       alert(data.erreur || 'Erreur lors de la suppression.');
@@ -138,6 +138,45 @@ async function campSccConfirmerSuppression(sccId) {
 
 function campSccAnnulerSuppression(sccId) {
   const row = document.getElementById('camp-scc-row-' + sccId);
+  if (row && row.dataset.backup) row.innerHTML = row.dataset.backup;
+}
+
+// ============================================================
+// SUPPRESSION INLINE RENCONTRE (depuis detail-pp — vue chapitre)
+// ============================================================
+
+function campReDemanderSuppression(reId, sccId) {
+  const row     = document.getElementById('camp-re-row-' + reId);
+  const confirm = document.getElementById('camp-re-confirm-' + reId);
+  if (!row || !confirm) return;
+
+  row.dataset.backup = row.innerHTML;
+  row.dataset.sccId  = sccId;
+  const nbCols = row.querySelectorAll('td').length;
+  row.innerHTML = `<td colspan="${nbCols}" class="comp-confirm-row">${confirm.innerHTML}</td>`;
+}
+
+async function campReConfirmerSuppression(reId) {
+  const row   = document.getElementById('camp-re-row-' + reId);
+  const sccId = parseInt(row ? row.dataset.sccId : 0);
+  const urlScc = campUrlDetail.replace('/campagne.php', '/chapitre.php');
+  try {
+    const data = await postAjax(campUrlEnreg, { action: 'supprimerRencontre', id: reId });
+    if (data.ok) {
+      // Rafraîchit la vue chapitre dans #detail-pp.
+      naviguerDetailPP(urlScc, { id: sccId });
+    } else {
+      alert(data.erreur || 'Erreur lors de la suppression.');
+      campReAnnulerSuppression(reId);
+    }
+  } catch (err) {
+    alert('Erreur : ' + err);
+    campReAnnulerSuppression(reId);
+  }
+}
+
+function campReAnnulerSuppression(reId) {
+  const row = document.getElementById('camp-re-row-' + reId);
   if (row && row.dataset.backup) row.innerHTML = row.dataset.backup;
 }
 

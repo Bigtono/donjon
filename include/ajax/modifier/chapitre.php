@@ -36,17 +36,18 @@ if ($id > 0):
     echo '<p class="erreur">Chapitre introuvable.</p>';
     exit;
   endif;
-  // Contrôle propriété via le scénario parent.
-  if (!isMJ($db, (int)$row['scc_sce_id'])):
-    // isMJ attend un camp_id — on remonte.
-    $stmt2 = $db->prepare('SELECT sce_camp_id FROM dd_scenarios WHERE sce_id = ?');
-    $stmt2->execute([(int)$row['scc_sce_id']]);
-    $camp_id_check = (int)$stmt2->fetchColumn();
-    if (!isMJ($db, $camp_id_check)):
-      http_response_code(403);
-      echo '<p class="erreur">Accès refusé.</p>';
-      exit;
-    endif;
+  // Contrôle propriété : remonte jusqu'au camp_id.
+  $stmt2 = $db->prepare('
+    SELECT camp.camp_id FROM dd_scenarios sce
+    JOIN   dd_campagnes camp ON camp.camp_id = sce.sce_camp_id
+    WHERE  sce.sce_id = ?
+  ');
+  $stmt2->execute([(int)$row['scc_sce_id']]);
+  $camp_id_check = (int)$stmt2->fetchColumn();
+  if (!isMJ($db, $camp_id_check)):
+    http_response_code(403);
+    echo '<p class="erreur">Accès refusé.</p>';
+    exit;
   endif;
   $scc    = $row;
   $sce_id = (int)$row['scc_sce_id'];
@@ -56,7 +57,6 @@ else:
     echo '<p class="erreur">sce_id manquant.</p>';
     exit;
   endif;
-  // Vérifie que le scénario appartient au MJ.
   $stmt = $db->prepare('
     SELECT camp.camp_id FROM dd_scenarios sce
     JOIN   dd_campagnes camp ON camp.camp_id = sce.sce_camp_id
@@ -135,8 +135,10 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
 (function() {
   'use strict';
 
-  const SCE_ID       = <?= $sce_id ?>;
-  const URL_SCE_DETAIL = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/scenario.php') ?>;
+  const SCC_ID          = <?= (int)$scc['scc_id'] ?>;
+  const SCE_ID          = <?= $sce_id ?>;
+  const URL_SCC_DETAIL  = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/chapitre.php') ?>;
+  const URL_SCE_DETAIL  = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/scenario.php') ?>;
 
   function soumettre() {
     const form = document.getElementById('form-chapitre');
@@ -150,8 +152,13 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
       .then(data => {
         if (data.ok) {
           fermerModification();
-          // Rafraîchit le sub-panel avec le scénario mis à jour.
-          actualiserPageSub(URL_SCE_DETAIL, { id: SCE_ID });
+          if (SCC_ID > 0) {
+            // Modification : rafraîchit la vue chapitre courante dans #detail-pp.
+            naviguerDetailPP(URL_SCC_DETAIL, { id: SCC_ID });
+          } else {
+            // Création : remonte à la vue scénario parent.
+            naviguerDetailPP(URL_SCE_DETAIL, { id: SCE_ID });
+          }
         } else {
           alert(data.erreur || "Erreur lors de l'enregistrement.");
         }

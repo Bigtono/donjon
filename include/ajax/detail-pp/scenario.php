@@ -50,7 +50,8 @@ $stmt_scc = $db->prepare('
 $stmt_scc->execute([$id]);
 $chapitres = $stmt_scc->fetchAll();
 
-$base_modifier = BASE_URL . '/include/ajax/modifier';
+$base_modifier  = BASE_URL . '/include/ajax/modifier';
+$base_detail_pp = BASE_URL . '/include/ajax/detail-pp';
 ?>
 
 <div class="camp-detail" data-sce-id="<?= $id ?>" data-camp-id="<?= (int)$sce['camp_id'] ?>">
@@ -60,7 +61,8 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
     <h2 class="camp-detail__nom">
       <?= h($sce['sce_nom']) ?>
       <button class="sort-detail__edit-btn"
-              onclick="actualiserPageModif('<?= $base_modifier ?>/scenario.php', {id:<?= $id ?>, camp_id:<?= (int)$sce['camp_id'] ?>})"
+              onclick="actualiserPageModif('<?= $base_modifier ?>/scenario.php',
+                       {id:<?= $id ?>, camp_id:<?= (int)$sce['camp_id'] ?>})"
               title="Modifier ce scénario">
         <i class="fa fa-edit"></i>
       </button>
@@ -79,7 +81,8 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
     <div class="camp-section__header">
       <h3 class="camp-detail__section-title">Chapitres</h3>
       <button class="btn btn-primary btn-sm"
-              onclick="actualiserPageModif('<?= $base_modifier ?>/chapitre.php', {id:0, sce_id:<?= $id ?>})">
+              onclick="actualiserPageModif('<?= $base_modifier ?>/chapitre.php',
+                       {id:0, sce_id:<?= $id ?>})">
         <i class="fa fa-plus"></i> Nouveau
       </button>
     </div>
@@ -111,7 +114,8 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
                   <div id="comp-menu-scc-<?= $cid ?>" class="comp-menu-dropdown noDisplay">
                     <button class="comp-menu-item"
                             onclick="campToggleMenu('scc-<?= $cid ?>');
-                                     actualiserPageModif('<?= $base_modifier ?>/chapitre.php', {id:<?= $cid ?>, sce_id:<?= $id ?>})">
+                                     actualiserPageModif('<?= $base_modifier ?>/chapitre.php',
+                                     {id:<?= $cid ?>, sce_id:<?= $id ?>})">
                       <i class="fa fa-edit"></i> Modifier
                     </button>
                     <button class="comp-menu-item comp-menu-item--danger"
@@ -131,11 +135,19 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
                 </div>
               </td>
 
-              <td><?= h($scc['scc_nom']) ?></td>
-              <td class="text-muted" style="font-size:.85em;">
+              <!-- Clic → navigation interne vers la fiche chapitre -->
+              <td style="cursor:pointer"
+                  onclick="naviguerDetailPP('<?= $base_detail_pp ?>/chapitre.php', {id:<?= $cid ?>})">
+                <?= h($scc['scc_nom']) ?>
+              </td>
+              <td class="text-muted" style="font-size:.85em; cursor:pointer"
+                  onclick="naviguerDetailPP('<?= $base_detail_pp ?>/chapitre.php', {id:<?= $cid ?>})">
                 <?= $scc['scc_abreviation'] ? h($scc['scc_abreviation']) : '—' ?>
               </td>
-              <td class="camp-liste__col-num"><?= (int)$scc['nb_rencontres'] ?></td>
+              <td class="camp-liste__col-num" style="cursor:pointer"
+                  onclick="naviguerDetailPP('<?= $base_detail_pp ?>/chapitre.php', {id:<?= $cid ?>})">
+                <?= (int)$scc['nb_rencontres'] ?>
+              </td>
 
             </tr>
 
@@ -143,12 +155,6 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
         </tbody>
       </table>
     <?php endif ?>
-  </div>
-
-  <!-- Rencontres — à venir SP3 -->
-  <div class="camp-detail__section">
-    <h3 class="camp-detail__section-title">Rencontres</h3>
-    <p class="text-muted"><em>Gestion des rencontres — à venir.</em></p>
   </div>
 
 </div>
