@@ -1,6 +1,6 @@
 <?php
 // include/ajax/detail-pp/scenario.php
-// Retourne le HTML de détail d'un scénario pour #detail-pp-sub.
+// Retourne le HTML de détail d'un scénario pour #detail-pp (navigation interne).
 // Paramètres GET : id (int) — sce_id
 
 require_once __DIR__ . '/../../db.php';
@@ -50,7 +50,6 @@ $stmt_scc = $db->prepare('
 $stmt_scc->execute([$id]);
 $chapitres = $stmt_scc->fetchAll();
 
-$base_enreg    = BASE_URL . '/campagnes/enregistrement.php?ajax=1';
 $base_modifier = BASE_URL . '/include/ajax/modifier';
 ?>
 
@@ -58,13 +57,10 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
 
   <!-- En-tête -->
   <div class="camp-detail__header">
-    <p class="camp-detail__breadcrumb">
-      <i class="fa fa-scroll"></i> <?= h($sce['camp_nom']) ?>
-    </p>
     <h2 class="camp-detail__nom">
       <?= h($sce['sce_nom']) ?>
       <button class="sort-detail__edit-btn"
-              onclick="ouvrirModifier('<?= $base_modifier ?>/scenario.php?camp_id=<?= (int)$sce['camp_id'] ?>', <?= $id ?>)"
+              onclick="actualiserPageModif('<?= $base_modifier ?>/scenario.php', {id:<?= $id ?>, camp_id:<?= (int)$sce['camp_id'] ?>})"
               title="Modifier ce scénario">
         <i class="fa fa-edit"></i>
       </button>
@@ -83,7 +79,7 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
     <div class="camp-section__header">
       <h3 class="camp-detail__section-title">Chapitres</h3>
       <button class="btn btn-primary btn-sm"
-              onclick="actualiserPageModif('<?= $base_modifier ?>/chapitre.php?sce_id=<?= $id ?>', {id:0})">
+              onclick="actualiserPageModif('<?= $base_modifier ?>/chapitre.php', {id:0, sce_id:<?= $id ?>})">
         <i class="fa fa-plus"></i> Nouveau
       </button>
     </div>
@@ -115,7 +111,7 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
                   <div id="comp-menu-scc-<?= $cid ?>" class="comp-menu-dropdown noDisplay">
                     <button class="comp-menu-item"
                             onclick="campToggleMenu('scc-<?= $cid ?>');
-                                     ouvrirModifier('<?= $base_modifier ?>/chapitre.php?sce_id=<?= $id ?>', <?= $cid ?>)">
+                                     actualiserPageModif('<?= $base_modifier ?>/chapitre.php', {id:<?= $cid ?>, sce_id:<?= $id ?>})">
                       <i class="fa fa-edit"></i> Modifier
                     </button>
                     <button class="comp-menu-item comp-menu-item--danger"

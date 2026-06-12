@@ -110,6 +110,7 @@ $titre = $id > 0 ? 'Modifier ' . h($sce['sce_nom']) : 'Nouveau scénario';
   'use strict';
 
   const CAMP_ID = <?= $camp_id ?>;
+  const SCE_ID  = <?= (int)$sce['sce_id'] ?>;
 
   (function initTMCE() {
     if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
@@ -128,7 +129,7 @@ $titre = $id > 0 ? 'Modifier ' . h($sce['sce_nom']) : 'Nouveau scénario';
       branding:    false,
       base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
       suffix:      '.min',
-      images_upload_url:        '<?= BASE_URL ?>/include/ajax/upload-image.php',
+      images_upload_url:         '<?= BASE_URL ?>/include/ajax/upload-image.php',
       images_upload_credentials: true,
       automatic_uploads:         true,
     });
@@ -158,9 +159,16 @@ $titre = $id > 0 ? 'Modifier ' . h($sce['sce_nom']) : 'Nouveau scénario';
       .then(data => {
         if (data.ok) {
           fermerModification();
-          // Rafraîchit la fiche campagne dans #detail-pp (qui liste les scénarios).
-          actualiserPage(campUrlDetail, { id: CAMP_ID }, _detailPpContext);
-          _pendingListRefresh = true;
+          if (SCE_ID > 0) {
+            // Modification : rafraîchit la vue scénario courante dans #detail-pp.
+            // retourDetailPP() rechargerait la campagne — on veut rester sur le scénario.
+            const urlSce = campUrlDetail.replace('/campagne.php', '/scenario.php');
+            naviguerDetailPP(urlSce, { id: SCE_ID });
+          } else {
+            // Création : remonte à la vue campagne (racine de la pile).
+            actualiserPage(campUrlDetail, { id: CAMP_ID }, _detailPpContext);
+            _pendingListRefresh = true;
+          }
         } else {
           alert(data.erreur || "Erreur lors de l'enregistrement.");
         }

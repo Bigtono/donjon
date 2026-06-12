@@ -74,7 +74,7 @@ $base_detail   = BASE_URL . '/include/ajax/detail-pp';
     <h2 class="camp-detail__nom">
       <?= h($camp['camp_nom']) ?>
       <button class="sort-detail__edit-btn"
-              onclick="ouvrirModifier('<?= $base_modifier ?>/campagne.php', <?= $id ?>)"
+              onclick="actualiserPageModif('<?= $base_modifier ?>/campagne.php', {id:<?= $id ?>})"
               title="Modifier cette campagne">
         <i class="fa fa-edit"></i>
       </button>
@@ -154,18 +154,18 @@ $base_detail   = BASE_URL . '/include/ajax/detail-pp';
                 </div>
               </td>
 
-              <!-- Cellule nom — clic → sub-panel scénario -->
-              <td onclick="actualiserPageSub('<?= $base_detail ?>/scenario.php', {id:<?= $sid ?>})"
+              <!-- Clic → navigation interne vers la fiche scénario -->
+              <td onclick="naviguerDetailPP('<?= $base_detail ?>/scenario.php', {id:<?= $sid ?>})"
                   style="cursor:pointer">
                 <?= h($sce['sce_nom']) ?>
               </td>
               <td class="camp-liste__col-num"
-                  onclick="actualiserPageSub('<?= $base_detail ?>/scenario.php', {id:<?= $sid ?>})"
+                  onclick="naviguerDetailPP('<?= $base_detail ?>/scenario.php', {id:<?= $sid ?>})"
                   style="cursor:pointer">
                 <?= (int)$sce['nb_chapitres'] ?>
               </td>
               <td class="camp-liste__col-num"
-                  onclick="actualiserPageSub('<?= $base_detail ?>/scenario.php', {id:<?= $sid ?>})"
+                  onclick="naviguerDetailPP('<?= $base_detail ?>/scenario.php', {id:<?= $sid ?>})"
                   style="cursor:pointer">
                 <?= (int)$sce['nb_rencontres'] ?>
               </td>

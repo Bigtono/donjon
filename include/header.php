@@ -72,7 +72,7 @@ $theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
 
   <main class="site-main">
     <div id="detail-pp-backdrop" class="overlay-backdrop noDisplay"></div>
-    <div id="modification-backdrop" class="overlay-backdrop noDisplay" onclick="fermerModification()"></div>
+    <div id="modification-backdrop" class="overlay-backdrop overlay-backdrop--edit noDisplay" onclick="fermerModification()"></div>
     <div id="detail-pp" class="overlay-panel noDisplay" style="position:fixed;"></div>
     <div id="modification" class="overlay-panel overlay-panel--edit noDisplay" style="position:fixed;"></div>
     <div id="detail-pp-sub-backdrop" class="overlay-backdrop overlay-backdrop--sub noDisplay" onclick="fermerSubPanel()"></div>

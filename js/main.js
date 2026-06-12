@@ -21,6 +21,11 @@ let _detailPpUrl = '';
 let _detailPpParams = {};
 let _pendingListRefresh = false;
 
+// Pile de navigation interne de #detail-pp.
+// Chaque entrée : { url: string, params: object }
+// Utilisée par naviguerDetailPP() / retourDetailPP().
+let _detailPpStack = [];
+
 // ============================================================
 // BLOCS REPLIABLES (burger)
 // ============================================================
@@ -52,13 +57,41 @@ function togglePlusExclusif(id, groupSelector) {
 // PATTERN DETAIL-PP / MODIFICATION
 // ============================================================
 
-// Charge #detail-pp via GET — lecture seule
+// Charge #detail-pp via GET — lecture seule.
+// Réinitialise la pile : point d'entrée depuis une liste.
 function actualiserPage(url, params = {}, context = 'externe') {
   _detailPpContext = context;
-  _detailPpUrl = url;
-  _detailPpParams = params;
+  _detailPpUrl     = url;
+  _detailPpParams  = params;
+  _detailPpStack   = [{ url, params }];
 
-  const panel = document.getElementById('detail-pp');
+  _chargerDetailPP(url, params, false);
+}
+
+// Navigation interne dans #detail-pp (campagne → scénario → rencontre).
+// Empile l'entrée courante et charge la nouvelle vue.
+// Le bouton ✕ Fermer reste présent ; un bouton ← Retour est ajouté si pile > 1.
+function naviguerDetailPP(url, params = {}) {
+  _detailPpStack.push({ url, params });
+  _chargerDetailPP(url, params, true);
+}
+
+// Retour arrière dans la pile de navigation interne.
+// Dépile l'entrée courante et recharge l'entrée précédente.
+function retourDetailPP() {
+  if (_detailPpStack.length <= 1) {
+    fermerDetailPP();
+    return;
+  }
+  _detailPpStack.pop();
+  const prev = _detailPpStack[_detailPpStack.length - 1];
+  _chargerDetailPP(prev.url, prev.params, _detailPpStack.length > 1);
+}
+
+// Worker interne — construit l'URL, fait le fetch, injecte le HTML.
+// withBack=true → ajoute le bouton ← Retour sous le bouton ✕.
+function _chargerDetailPP(url, params, withBack) {
+  const panel    = document.getElementById('detail-pp');
   const backdrop = document.getElementById('detail-pp-backdrop');
   if (!panel) return;
 
@@ -75,14 +108,18 @@ function actualiserPage(url, params = {}, context = 'externe') {
     .then(html => {
       const closeBtn = '<button class="overlay-close" onclick="fermerDetailPP()" title="Fermer">'
         + '<i class="fa fa-times"></i></button>';
-      panel.innerHTML = closeBtn + html;
+      const backBtn = withBack
+        ? '<button class="overlay-back" onclick="retourDetailPP()" title="Retour">'
+          + '<i class="fa fa-arrow-left"></i> Retour</button>'
+        : '';
+      panel.innerHTML = closeBtn + backBtn + html;
     })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
 }
 
 // Charge #modification via GET — lecture initiale du formulaire
 function actualiserPageModif(url, params = {}) {
-  const panel = document.getElementById('modification');
+  const panel    = document.getElementById('modification');
   const backdrop = document.getElementById('modification-backdrop');
   if (!panel) return;
 
@@ -116,18 +153,19 @@ function ouvrirModifier(url, id) {
 
 // Ferme #modification sans toucher à #detail-pp
 function fermerModification() {
-  const panel = document.getElementById('modification');
+  const panel    = document.getElementById('modification');
   const backdrop = document.getElementById('modification-backdrop');
-  if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+  if (panel)    { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
   if (backdrop) backdrop.classList.add('noDisplay');
 }
 
 // Ferme #detail-pp (et #modification et #detail-pp-sub si ouverts)
 function fermerDetailPP() {
-  const panel = document.getElementById('detail-pp');
+  const panel    = document.getElementById('detail-pp');
   const backdrop = document.getElementById('detail-pp-backdrop');
-  if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+  if (panel)    { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
   if (backdrop) backdrop.classList.add('noDisplay');
+  _detailPpStack = [];
   fermerSubPanel();
   fermerModification();
   if (_pendingListRefresh) {
@@ -140,13 +178,13 @@ function fermerDetailPP() {
 // SOUS-PANEL — detail-pp-sub
 // S'affiche au-dessus du detail-pp courant.
 // Utilisé pour afficher le détail d'un élément référencé
-// dans une fiche (capacité, compétence, sort…) sans fermer
-// le panel principal.
+// dans une fiche (capacité, compétence, sort, opposition…)
+// sans fermer le panel principal.
 // ============================================================
 
 // Charge #detail-pp-sub via GET — lecture seule
 function actualiserPageSub(url, params = {}) {
-  const panel = document.getElementById('detail-pp-sub');
+  const panel    = document.getElementById('detail-pp-sub');
   const backdrop = document.getElementById('detail-pp-sub-backdrop');
   if (!panel) return;
 
@@ -170,9 +208,9 @@ function actualiserPageSub(url, params = {}) {
 
 // Ferme #detail-pp-sub sans toucher au panel principal
 function fermerSubPanel() {
-  const panel = document.getElementById('detail-pp-sub');
+  const panel    = document.getElementById('detail-pp-sub');
   const backdrop = document.getElementById('detail-pp-sub-backdrop');
-  if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+  if (panel)    { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
   if (backdrop) backdrop.classList.add('noDisplay');
 }
 
@@ -197,8 +235,6 @@ function apresModification(data) {
   fermerModification();
   if (data.url_detail) {
     actualiserPage(data.url_detail, { id: data.id }, _detailPpContext);
-    // Pose le flag : liste à recharger à la fermeture de detail-pp
-    // On l'active dès qu'il existe une liste sur la page courante
     if (document.getElementById('comp-liste-' + (typeof compEntite !== 'undefined' ? compEntite : ''))) {
       _pendingListRefresh = true;
     }

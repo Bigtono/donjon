@@ -264,6 +264,13 @@ button {
   border-color: var(--clr-accent);
   max-width: 1040px;
   /* anciennement 860px */
+  /* z-index relevé au-dessus de #detail-pp (200) mais sous #detail-pp-sub (300) */
+  z-index: 250;
+}
+
+/* Backdrop spécifique au formulaire de modification */
+.overlay-backdrop--edit {
+  z-index: 249;
 }
 
 /* Sous-panel */
@@ -298,6 +305,31 @@ button {
 .overlay-close:hover {
   color: var(--clr-danger);
   background: rgba(231, 76, 60, 0.1);
+}
+
+/* Bouton retour arrière dans #detail-pp (navigation interne campagnes) */
+.overlay-back {
+  position: absolute;
+  top: var(--sp-sm);
+  left: var(--sp-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  background: transparent;
+  border: 1px solid var(--clr-border);
+  color: var(--clr-text-muted);
+  font-size: .85rem;
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.overlay-back:hover {
+  color: var(--clr-text);
+  background: var(--clr-surface-2);
+  border-color: var(--clr-accent-2);
 }
 
 /* ============================================================

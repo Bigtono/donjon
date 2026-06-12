@@ -64,7 +64,7 @@ function campAnnulerSuppression(id) {
 }
 
 // ============================================================
-// SUPPRESSION INLINE SCÉNARIO (depuis detail-pp campagne)
+// SUPPRESSION INLINE SCÉNARIO (depuis detail-pp — vue campagne)
 // ============================================================
 
 function campSceDemanderSuppression(sceId, campId) {
@@ -72,8 +72,8 @@ function campSceDemanderSuppression(sceId, campId) {
   const confirm = document.getElementById('camp-sce-confirm-' + sceId);
   if (!row || !confirm) return;
 
-  row.dataset.backup  = row.innerHTML;
-  row.dataset.campId  = campId;
+  row.dataset.backup = row.innerHTML;
+  row.dataset.campId = campId;
   const nbCols = row.querySelectorAll('td').length;
   row.innerHTML = `<td colspan="${nbCols}" class="comp-confirm-row">${confirm.innerHTML}</td>`;
 }
@@ -84,7 +84,7 @@ async function campSceConfirmerSuppression(sceId) {
   try {
     const data = await postAjax(campUrlEnreg, { action: 'supprimerScenario', id: sceId });
     if (data.ok) {
-      // Rafraîchit la fiche campagne dans #detail-pp.
+      // Retour à la racine de la pile (vue campagne) et refresh liste.
       actualiserPage(campUrlDetail, { id: campId }, _detailPpContext);
       _pendingListRefresh = true;
     } else {
@@ -103,7 +103,7 @@ function campSceAnnulerSuppression(sceId) {
 }
 
 // ============================================================
-// SUPPRESSION INLINE CHAPITRE (depuis detail-pp-sub scénario)
+// SUPPRESSION INLINE CHAPITRE (depuis detail-pp — vue scénario)
 // ============================================================
 
 function campSccDemanderSuppression(sccId, sceId) {
@@ -124,8 +124,8 @@ async function campSccConfirmerSuppression(sccId) {
   try {
     const data = await postAjax(campUrlEnreg, { action: 'supprimerChapitre', id: sccId });
     if (data.ok) {
-      // Rafraîchit le sub-panel avec le scénario mis à jour.
-      actualiserPageSub(urlSce, { id: sceId });
+      // Rafraîchit la vue scénario courante dans #detail-pp (navigation interne).
+      naviguerDetailPP(urlSce, { id: sceId });
     } else {
       alert(data.erreur || 'Erreur lors de la suppression.');
       campSccAnnulerSuppression(sccId);
