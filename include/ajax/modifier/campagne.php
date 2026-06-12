@@ -215,6 +215,7 @@ $titre = $id > 0 ? 'Modifier ' . h($camp['camp_nom']) : 'Nouvelle campagne';
   // ---- TinyMCE : configuration complète (images autorisées) ----
   (function initTMCE() {
     if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
+    var isLight = document.body.classList.contains('theme-light');
     tinymce.remove('#camp_description');
     tinymce.init({
       selector:    '#camp_description',
@@ -223,8 +224,8 @@ $titre = $id > 0 ? 'Modifier ' . h($camp['camp_nom']) : 'Nouvelle campagne';
       plugins:     'lists link image table',
       toolbar:     'bold italic underline | bullist numlist | h2 h3 | link image table | removeformat',
       height:      360,
-      skin:        'oxide-dark',
-      content_css: 'dark',
+      skin:        isLight ? 'oxide' : 'oxide-dark',
+      content_css: isLight ? 'default' : 'dark',
       promotion:   false,
       branding:    false,
       base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',

@@ -97,26 +97,12 @@ $base_detail   = BASE_URL . '/include/ajax/detail-pp';
     <div class="camp-detail__description"><?= $camp['camp_description'] ?></div>
   <?php endif ?>
 
-  <!-- Sources -->
-  <div class="camp-detail__section">
-    <h3 class="camp-detail__section-title">Sources</h3>
-    <?php if (empty($sources)): ?>
-      <p class="text-muted">Aucune source spécifique — la sélection personnelle s'applique.</p>
-    <?php else: ?>
-      <ul class="camp-detail__sources">
-        <?php foreach ($sources as $src_nom): ?>
-          <li><i class="fa fa-book"></i> <?= h($src_nom) ?></li>
-        <?php endforeach ?>
-      </ul>
-    <?php endif ?>
-  </div>
-
   <!-- Scénarios -->
   <div class="camp-detail__section">
     <div class="camp-section__header">
       <h3 class="camp-detail__section-title">Scénarios</h3>
       <button class="btn btn-primary btn-sm"
-              onclick="actualiserPageModif('<?= $base_modifier ?>/scenario.php?camp_id=<?= $id ?>', {id:0})">
+              onclick="actualiserPageModif('<?= $base_modifier ?>/scenario.php', {id:0, camp_id:<?= $id ?>})">
         <i class="fa fa-plus"></i> Nouveau
       </button>
     </div>
@@ -148,7 +134,7 @@ $base_detail   = BASE_URL . '/include/ajax/detail-pp';
                   <div id="comp-menu-sce-<?= $sid ?>" class="comp-menu-dropdown noDisplay">
                     <button class="comp-menu-item"
                             onclick="campToggleMenu('sce-<?= $sid ?>');
-                                     ouvrirModifier('<?= $base_modifier ?>/scenario.php?camp_id=<?= $id ?>', <?= $sid ?>)">
+                                     actualiserPageModif('<?= $base_modifier ?>/scenario.php', {id:<?= $sid ?>, camp_id:<?= $id ?>})">
                       <i class="fa fa-edit"></i> Modifier
                     </button>
                     <button class="comp-menu-item comp-menu-item--danger"
@@ -189,6 +175,20 @@ $base_detail   = BASE_URL . '/include/ajax/detail-pp';
           <?php endforeach ?>
         </tbody>
       </table>
+    <?php endif ?>
+  </div>
+
+  <!-- Sources -->
+  <div class="camp-detail__section">
+    <h3 class="camp-detail__section-title">Sources</h3>
+    <?php if (empty($sources)): ?>
+      <p class="text-muted">Aucune source spécifique — la sélection personnelle s'applique.</p>
+    <?php else: ?>
+      <ul class="camp-detail__sources">
+        <?php foreach ($sources as $src_nom): ?>
+          <li><i class="fa fa-book"></i> <?= h($src_nom) ?></li>
+        <?php endforeach ?>
+      </ul>
     <?php endif ?>
   </div>
 

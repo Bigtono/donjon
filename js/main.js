@@ -91,7 +91,7 @@ function actualiserPageModif(url, params = {}) {
   panel.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
 
   const fullUrl = Object.keys(params).length > 0
-    ? url + '?' + new URLSearchParams(params).toString()
+    ? url + (url.includes('?') ? '&' : '?') + new URLSearchParams(params).toString()
     : url;
 
   fetch(fullUrl)

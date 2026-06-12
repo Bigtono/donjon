@@ -113,16 +113,17 @@ $titre = $id > 0 ? 'Modifier ' . h($sce['sce_nom']) : 'Nouveau scénario';
 
   (function initTMCE() {
     if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
+    var isLight = document.body.classList.contains('theme-light');
     tinymce.remove('#sce_description');
     tinymce.init({
       selector:    '#sce_description',
       language:    'fr_FR',
       menubar:     false,
-      plugins:     'lists link image table',
-      toolbar:     'bold italic underline | bullist numlist | h2 h3 | link image table | removeformat',
+      plugins:     'lists link image',
+      toolbar:     'bold italic underline | bullist numlist | h2 h3 | link image | removeformat',
       height:      300,
-      skin:        'oxide-dark',
-      content_css: 'dark',
+      skin:        isLight ? 'oxide' : 'oxide-dark',
+      content_css: isLight ? 'default' : 'dark',
       promotion:   false,
       branding:    false,
       base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
