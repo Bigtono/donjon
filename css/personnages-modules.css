@@ -259,3 +259,375 @@
     min-height: 56px;
   }
 }
+
+/* ============================================================
+   SOUS-PHASE 3.1 — Fiche personnage (vue unique responsive)
+   Vue dédiée — pas un detail-pp. Conteneur direct dans .site-main.
+   ============================================================ */
+
+.per-fiche {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* --- En-tête de la fiche --- */
+
+.per-fiche__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-lg, var(--sp-md));
+}
+
+.per-fiche__header-titre {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.per-fiche__nom {
+  margin: 0 0 4px 0;
+  font-size: 1.6em;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.per-fiche__meta {
+  color: var(--clr-text-muted);
+  font-size: .9em;
+}
+
+.per-fiche__ruleset {
+  background: var(--clr-surface-alt, var(--clr-surface));
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: .85em;
+}
+
+.per-fiche__header-actions {
+  display: flex;
+  gap: var(--sp-sm);
+  flex-shrink: 0;
+}
+
+/* --- Blocs de la fiche --- */
+
+.per-fiche__bloc {
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--sp-md);
+  overflow: hidden;
+}
+
+.per-fiche__bloc-header {
+  background: var(--clr-surface-alt, var(--clr-surface));
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.per-fiche__bloc-titre {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--clr-text);
+  letter-spacing: .02em;
+}
+
+.per-fiche__bloc-titre i {
+  color: var(--clr-text-muted);
+  margin-right: 4px;
+}
+
+.per-fiche__bloc-body {
+  padding: var(--sp-md);
+}
+
+/* Bloc "Mode jeu" mis en évidence (priorité accès) */
+.per-fiche__bloc--mode-jeu .per-fiche__bloc-header {
+  background: var(--clr-accent-bg, var(--clr-surface-alt, var(--clr-surface)));
+}
+
+.per-fiche__bloc--avenir {
+  opacity: .85;
+}
+
+/* --- Bloc Identité (liste descriptive) --- */
+
+.per-identite {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--sp-sm) var(--sp-md);
+}
+
+.per-identite__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--clr-border);
+}
+
+.per-identite__row:last-child {
+  border-bottom: none;
+}
+
+.per-identite dt {
+  flex: 0 0 110px;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  font-size: .9em;
+}
+
+.per-identite dd {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--clr-text);
+}
+
+/* --- Bloc Caractéristiques (grille de 6) --- */
+
+.per-caracs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--sp-sm);
+}
+
+.per-carac {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--clr-surface-alt, var(--clr-surface));
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-sm);
+  text-align: center;
+}
+
+.per-carac__abr {
+  font-size: .85em;
+  color: var(--clr-text-muted);
+  font-weight: 600;
+  letter-spacing: .05em;
+}
+
+.per-carac__val {
+  font-size: 1.6em;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--clr-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.per-carac__mod {
+  font-size: 1em;
+  color: var(--clr-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Bloc Combat --- */
+
+.per-combat {
+  display: flex;
+  gap: var(--sp-md);
+  flex-wrap: wrap;
+}
+
+.per-combat__stat {
+  flex: 1 1 140px;
+  background: var(--clr-surface-alt, var(--clr-surface));
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-md);
+  text-align: center;
+  min-width: 140px;
+}
+
+.per-combat__lbl {
+  font-size: .85em;
+  color: var(--clr-text-muted);
+  font-weight: 600;
+  letter-spacing: .05em;
+}
+
+.per-combat__val {
+  font-size: 2em;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--clr-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.per-combat__hint {
+  font-size: .8em;
+  color: var(--clr-text-muted);
+  margin-top: 2px;
+}
+
+/* --- Bloc Classes (liste simple) --- */
+
+.per-classes {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--sp-sm) 0;
+}
+
+.per-classes__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px dashed var(--clr-border);
+}
+
+.per-classes__item:last-child {
+  border-bottom: none;
+}
+
+.per-classes__niveau {
+  color: var(--clr-text-muted);
+  font-size: .9em;
+}
+
+/* --- Bloc À venir --- */
+
+.per-avenir-liste {
+  margin: 0;
+  padding-left: 1.2em;
+  color: var(--clr-text-muted);
+}
+
+.per-avenir-liste li {
+  padding: 2px 0;
+}
+
+/* ============================================================
+   FORMULAIRE MODIFICATION — Grille caracs et hint
+   (s'ajoute aux classes .modif-grid déjà existantes)
+   ============================================================ */
+
+.modif-grid--carac {
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--sp-sm);
+}
+
+.form-group--carac {
+  text-align: center;
+}
+
+.form-group--carac label {
+  font-size: .85em;
+  color: var(--clr-text-muted);
+  font-weight: 600;
+  letter-spacing: .05em;
+}
+
+.form-group--carac input {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* ============================================================
+   VUE detail-pp PERSONNAGE
+   Réutilise per-identite, per-caracs, per-combat, per-classes
+   définis ci-dessus.
+   ============================================================ */
+
+.per-detail {
+  /* Conteneur dans le panel detail-pp — pas de max-width ici */
+}
+
+.per-detail__header {
+  border-bottom: 1px solid var(--clr-border);
+  padding-bottom: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+}
+
+.per-detail__nom {
+  margin: 0 0 4px 0;
+  font-size: 1.4em;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.per-detail__meta {
+  color: var(--clr-text-muted);
+  font-size: .9em;
+}
+
+.per-detail__section {
+  margin-bottom: var(--sp-md);
+}
+
+.per-detail__section-titre {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  margin: 0 0 var(--sp-sm) 0;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.per-detail__actions {
+  margin-top: var(--sp-md);
+}
+
+/* ============================================================
+   RESPONSIVE — < 992px (tablette / smartphone)
+   - Caracs en grille 3x2 au lieu de 6x1
+   - Identité passe en colonne unique
+   - En-tête de fiche : actions sous le nom
+   ============================================================ */
+
+@media (max-width: 991px) {
+
+  .per-fiche__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .per-fiche__header-actions {
+    justify-content: flex-end;
+  }
+
+  .per-identite {
+    grid-template-columns: 1fr;
+  }
+
+  .per-identite dt {
+    flex: 0 0 90px;
+  }
+
+  .per-caracs {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .per-carac__val {
+    font-size: 1.8em;     /* lisible en partie sur smartphone */
+  }
+
+  /* Formulaire modification — caracs aussi en 3x2 */
+  .modif-grid--carac {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Inputs caracs : cibles tactiles plus larges */
+  .form-group--carac input {
+    min-height: 44px;
+    font-size: 1.1em;
+  }
+}
+
+/* < 480px : caracs en 2x3 pour très petits écrans */
+@media (max-width: 479px) {
+
+  .per-caracs,
+  .modif-grid--carac {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

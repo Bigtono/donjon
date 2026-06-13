@@ -35,6 +35,7 @@ function getPersonnageContext(PDO $db, int $pe_id): ?array {
     SELECT pe.*,
            ra_base.ra_nom    AS race_nom,
            ra_arc.ra_nom     AS archetype_nom,
+           hi.hi_nom         AS historique_nom,
            al.al_nom         AS alignement_nom,
            al.al_abreviation AS alignement_abr,
            camp.camp_nom     AS campagne_courante_nom,
@@ -42,6 +43,7 @@ function getPersonnageContext(PDO $db, int $pe_id): ?array {
       FROM dd_personnages pe
       LEFT JOIN dd_races       ra_base ON ra_base.ra_id = pe.pe_ra_id
       LEFT JOIN dd_races       ra_arc  ON ra_arc.ra_id  = pe.pe_arc_id AND pe.pe_arc_id > 0
+      LEFT JOIN dd_historiques hi      ON hi.hi_id      = pe.pe_hi_id
       LEFT JOIN dd_alignements al      ON al.al_id      = pe.pe_al_id
       LEFT JOIN dd_campagnes   camp    ON camp.camp_id  = pe.pe_camp_id
       LEFT JOIN dd_variables   var     ON var.var_id    = pe.pe_ruleset_var_id
@@ -129,4 +131,32 @@ function getAlignements(PDO $db): array {
      ORDER BY al_ordre
   ');
   return $stmt->fetchAll();
+}
+
+// ============================================================
+// CALCULS LÉGERS (aide d'affichage — pas du moteur de règles)
+// ============================================================
+
+/**
+ * Modificateur d'une caractéristique (formule DD standard : floor((val - 10) / 2)).
+ * Affichage uniquement — aucune règle de génération.
+ *
+ * Exemples : 10 → 0, 11 → 0, 12 → +1, 8 → -1, 18 → +4.
+ *
+ * @param  int  $valeur  Valeur brute de la caractéristique
+ * @return int           Modificateur (peut être négatif)
+ */
+function modCarac(int $valeur): int {
+  // PHP : intdiv tronque vers zéro, donc on utilise floor pour les valeurs < 10.
+  return (int) floor(($valeur - 10) / 2);
+}
+
+/**
+ * Formate un modificateur signé pour affichage : 0 → "+0", 3 → "+3", -1 → "-1".
+ *
+ * @param  int  $modificateur
+ * @return string
+ */
+function formatMod(int $modificateur): string {
+  return ($modificateur >= 0 ? '+' : '') . $modificateur;
 }

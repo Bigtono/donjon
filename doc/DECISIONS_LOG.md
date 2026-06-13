@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-12 15:00 -->
+<!-- Mis à jour : 2026-06-12 17:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -808,6 +808,54 @@ en transaction PDO avec cascade manuelle sur les tables liées). Assets : `js/pe
 `include/personnage_helpers.php` (getPersonnageContext, getPersonnageClasses, getCampagnesPersonnage,
 getAlignements). Ajax `detail-pp/personnage.php` et `modifier/personnage.php` créés en placeholder.
 
+**[2026-06-12] Correction doc — `personnages/modifier.php` n'existe pas**
+La doc d'architecture mentionnait une page `personnages/modifier.php` qui n'a jamais existé : aucun module
+de la V2 (compendium, campagnes, admin…) ne suit ce pattern. L'édition passe **toujours** par l'overlay
+AJAX `include/ajax/modifier/X.php` (modèle exemplaire : `include/ajax/modifier/campagne.php`).
+→ Archi §7.4 et §7.10 corrigées en conséquence (suppression de la référence à `modifier.php`).
+→ Ce n'est pas une nouvelle décision : c'est la convention réelle du projet qui n'avait pas été reflétée correctement.
+
+**[2026-06-12] Sous-phase 3.1 — option 1 retenue pour la première classe à la création**
+Règle métier (archi §7.2) : un personnage doit avoir au moins une classe. Comme l'éditeur multi-classes
+arrive en 3.2, le formulaire identité 3.1 impose un select **« Première classe » + niveau** à la création.
+En mode édition, ces champs disparaissent (la modification des classes passera par l'éditeur 3.2 sur la fiche).
+→ Permet de respecter la règle dès la 3.1 sans dépendance à la 3.2.
+→ Avantage : la 3.2 transformera ce simple select en éditeur multi-lignes sans toucher au formulaire identité.
+
+**[2026-06-12] Ajout colonne `pe_hi_id` — patch SQL 3.1**
+La colonne `pe_hi_id` (historique DD2024 → `dd_historiques`) manquait dans le schéma. Ajoutée par le patch
+`sql/2026-06-12_personnages_identite.sql` (idempotent via `information_schema.COLUMNS`).
+→ Type : `INT UNSIGNED DEFAULT NULL`, position `AFTER pe_arc_id`.
+→ NULL = aucun historique ; sémantique cohérente avec `pe_al_id` (FK logique, NULL = non renseigné).
+→ Inutilisée par DD3.5 (toujours NULL).
+
+**[2026-06-12] Sous-phase 3.1 livrée — fiche identité responsive**
+Overlay `include/ajax/modifier/personnage.php` complet : formulaire identité (nom, sexe, race + archétype DD3.5,
+historique DD2024 conditionnel, alignement, 6 caractéristiques, CA, PV, background TinyMCE) + première classe
++ niveau obligatoires à la création. IIFE pour isolation du scope (formulaire injecté via innerHTML).
+Action `enregistrerPersonnage` ajoutée à `personnages/enregistrement.php` (création + mise à jour, transaction PDO,
+INSERT initial dans `dd_personnages_classes`). Vue détail `include/ajax/detail-pp/personnage.php` complète
+(synthèse cliquable race / archétype / historique / classes). Fiche unique `personnages/fiche.php` avec
+4 blocs livrés (Mode jeu placeholder en tête, Identité, Caractéristiques 6+modificateurs, Combat) + bloc Classes
+en lecture seule + bloc « À venir ». Helpers `modCarac()` et `formatMod()` ajoutés. CSS étendu (`.per-fiche__*`,
+`.per-identite`, `.per-caracs`, `.per-combat`, `.per-classes`, formulaire `.modif-grid--carac`), avec
+responsive en deux paliers : caracs en grille 3x2 sous 992px, 2x3 sous 480px ; identité en colonne unique ;
+cibles tactiles élargies (inputs caracs min-height 44px en mobile).
+
+**[2026-06-12] Correctif 3.1 — select Race vide dans l'overlay (filtrage incorrect)**
+La requête de chargement des races (idem archétypes et historiques) de l'overlay 3.1 contenait deux erreurs :
+1. La condition `(ra_res_id IN (?) OR ra_camp_id IS NOT NULL)` faisait apparaître les races homebrew de
+   **toutes** les campagnes du système (fuite + bruit + sémantique erronée). Le pattern compendium réel
+   (`include/compendium-liste.php`) filtre au contraire le compendium global uniquement (`camp_id IS NULL`).
+2. Si `getActiveResIds()` renvoyait un tableau vide (joueur sans sources personnelles ET aucune source globale
+   `res_selection = 1`), le `IN ()` était syntaxiquement invalide → requête en échec → 0 résultat → select vide
+   sans message d'erreur (cas observé).
+→ Trois requêtes corrigées (races base, archétypes DD3.5, historiques DD2024) :
+  `AND ra.ra_camp_id IS NULL AND ra.ra_res_id IN ($placeholders)`.
+→ Garde-fou : si `$res_ids` est vide, on injecte `[0]` (sentinelle) — `IN (0)` est valide et ne ramène rien.
+→ UX : si aucune source n'est active, un message d'avertissement explicite est affiché en tête de l'overlay,
+  avec un lien vers `/profil/` pour aller configurer les sources.
+
 ---
 
 ## Bugs connus — à traiter
@@ -869,4 +917,4 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~Personnages — position du bloc Mode jeu~~ → en haut (accès rapide en partie)
 - [ ] Personnages — contenu réel du « mode jeu » (variables suivies par ruleset)
 - [ ] Personnages — objets magiques / possessions (analyse métier à fiabiliser)
-- [ ] Personnages — resynchroniser sql/schema.sql avec dd_alignements + nouveaux champs dd_personnages
+- [ ] Personnages — resynchroniser sql/schema.sql avec dd_alignements + nouveaux champs dd_personnages (pe_sexe, pe_al_id, pe_notes_scope, pe_hi_id)

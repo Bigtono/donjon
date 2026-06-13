@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-12 15:00 -->
+<!-- Mis à jour : 2026-06-12 16:00 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -607,6 +607,7 @@ Rareté des bjets magiques du compendium.
 | pe_j_id | int unsigned | nn | Propriétaire -> dd_joueurs |
 | pe_ra_id | int unsigned | nn, défaut 0 | Race de base -> dd_races |
 | pe_arc_id | int unsigned | nn, défaut 0 | *[DD3.5]* Archétype racial -> dd_races (0 = aucun) |
+| pe_hi_id | int unsigned | null | *[DD2024]* Historique -> dd_historiques (NULL = aucun) — *patch 2026-06-12 (3.1)* |
 | pe_al_id | int unsigned | null | Alignement -> dd_alignements (NULL = non renseigné) — *patch 2026-06-12* |
 | pe_for | tinyint unsigned | nn, défaut 10 | Force |
 | pe_con | tinyint unsigned | nn, défaut 10 | Constitution |

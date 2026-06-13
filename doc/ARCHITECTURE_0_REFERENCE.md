@@ -1,10 +1,10 @@
-<!-- Mis à jour : 2026-06-12 15:00 -->
+<!-- Mis à jour : 2026-06-12 16:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Section Historiques ajoutée au compendium (DD2024 uniquement) — Phase 2 complète — conception (structure de données validée, schéma v1.1) : hiérarchie Campagne → Scénario → Chapitre → Rencontre → Opposition ; oppositions = copies éditables de monstres (`dd_oppositions`) ; pièces jointes PDF génériques (`dd_fichiers`) ; ruleset hérité de la campagne ; univers 1-1 (`camp_un_id`)
+> Dernière mise à jour : Phase 3 — sous-phase 3.1 livrée (fiche identité responsive : nom, race+archétype DD3.5, historique DD2024, sexe, alignement, caracs+modificateurs, combat ; overlay modifier complet ; première classe obligatoire à la création ; patch SQL `pe_hi_id`)
 
 ---
 
@@ -577,8 +577,7 @@ Toutes les colonnes secondaires sont masquées via `.per-liste__col-sec { displa
 
 ### 7.5 Édition — commit global
 
-`personnages/modifier.php` : édition locale (DOM/JS), **zéro écriture BDD**. `personnages/enregistrement.php` :
-un seul POST en transaction PDO. Abandon de tous les endpoints d'écriture immédiate de la V1.
+L'édition passe par l'**overlay AJAX** `include/ajax/modifier/personnage.php` (pattern projet, pas de page `modifier.php` dédiée). L'overlay est **local** (DOM/JS), **zéro écriture BDD**. Toute la persistance est centralisée dans `personnages/enregistrement.php` : un seul POST en transaction PDO. Abandon de tous les endpoints d'écriture immédiate de la V1.
 
 - **Identité** : formulaire classique. Background / notes via TinyMCE (config complète, avec images).
 - **Classes / niveaux** : éditeur DOM déclaratif (nom de classe + niveau), sans validation de règles.
@@ -640,7 +639,7 @@ Les tables V1 `dd_grimoires` / `dd_grimoires_contenu` sont abandonnées. On util
 personnages/
   index.php          Liste filtrée (campagne / classe / recherche libre), responsive
   fiche.php          Fiche unique (sections repliables, Mode jeu en tête)
-  modifier.php       Édition locale DOM/JS (zéro écriture BDD)
+  modifier.php       — n'existe pas : l'édition passe par include/ajax/modifier/personnage.php (overlay)
   enregistrement.php Routeur d'actions transactionnelles (commit global)
   magie.php          Vue dédiée Magie (NLS, emplacements, sorts cliquables)
   objets.php         Placeholder « Fonctionnalité à venir »
@@ -649,7 +648,8 @@ js/personnage.js                Menu contextuel, suppression inline, éditeurs D
 css/personnages-modules.css     Styles module — chargé si $css_module = 'personnages'
 
 include/personnage_helpers.php  getPersonnageContext, getPersonnageClasses,
-                                getCampagnesPersonnage, getAlignements
+                                getCampagnesPersonnage, getAlignements,
+                                modCarac, formatMod
                                 (calcul NLS et emplacements ajoutés en 3.5/3.6)
 
 include/ajax/detail-pp/personnage.php   Vue détail (contexte 'externe' depuis Campagnes)
@@ -659,8 +659,8 @@ include/ajax/modifier/personnage.php    Overlay création / modification
 ### 7.11 Découpage en sous-phases
 
 - **3.0** Socle + SQL (patch `dd_alignements` + champs `pe_sexe`/`pe_al_id`/`pe_notes_scope`, dossiers, JS/CSS, helpers, liste filtrée) — *livrée*
-- **3.1** Fiche identité (nom, race, historique, sexe, alignement, caracs, combat)
-- **3.2** Classes & niveaux
+- **3.1** Fiche identité (nom, race, archétype DD3.5, historique DD2024, sexe, alignement, caracs, combat) + première classe à la création — *livrée*
+- **3.2** Classes & niveaux (éditeur multi-classes complet sur la fiche)
 - **3.3** Compétences (tableau complet du ruleset)
 - **3.4** Dons
 - **3.5** NLS prestige (DD3.5)
@@ -1164,7 +1164,7 @@ Le fond reste toujours "clair" dans les deux thèmes (beige #f3f3ef en dark, #f9
 donjon/
   index.php
   .htaccess
-  personnages/     fiche.php, modifier.php, enregistrement.php
+  personnages/     fiche.php, enregistrement.php, magie.php, objets.php, index.php
   compendium/      sorts.php, classes.php, dons.php, races.php,
                    competences.php, objets.php, monstres.php,
                    historiques.php   (DD2024 uniquement)
