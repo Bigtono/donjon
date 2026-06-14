@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-14 12:00 -->
+<!-- Mis à jour : 2026-06-14 15:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -1521,4 +1521,7 @@ tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
 - [ ] img/uploads/ exclu du repo (.gitignore)
 - [ ] Thèmes : toute nouvelle variable CSS définie dans body.theme-dark ET body.theme-light
 - [ ] Thèmes : aucun fallback de couleur hardcodé dans les composants (ex: #f5efe6) — utiliser uniquement des var()
+- [ ] CSS AJAX : tout style utilisé par un fragment injecté via AJAX (detail-pp, overlay) hors-compendium doit être dans modules.css, pas dans un CSS module-spécifique
+- [ ] CSS AJAX : .sort-detail__edit-btn et tout composant partagé entre pages → modules.css uniquement
+- [ ] Couleurs composants partagés : jamais de valeur hardcodée (#fff, #333…) — toujours var(--clr-*)
 - [ ] Thèmes : --clr-surface-alt défini dans les deux thèmes si utilisé dans un composant

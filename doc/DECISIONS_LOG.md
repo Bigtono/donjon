@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-14 14:00 -->
+<!-- Mis à jour : 2026-06-14 15:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -883,23 +883,24 @@ Décisions prises et implémentées :
 → `getPersonnageClasses()` étendu : JOIN sur `dd_domaines` pour `domaine1_nom`/`domaine2_nom`.
 → CSRF lu depuis `<meta name="csrf-token">` (pattern `postAjax` de main.js).
 
-**[2026-06-14] Correctifs 3.2b — fiche personnage + bouton edit**
-Quatre corrections appliquées après test :
-1. **Niveau global** du personnage (somme des niveaux de toutes les classes) affiché dans le header de la
-   fiche (`· Niveau N`) et dans le header du bloc Classes (`— niveau N`). Calculé via `array_sum(array_column())`.
-2. **Bloc Classes remonté** juste après le bloc Identité (était après Caracs/Combat) pour lecture rapide en partie.
-3. **Bloc Background ajouté** dans la fiche — affiché en HTML brut (contenu TinyMCE, `<?= $perso['pe_background'] ?>`)
-   conditionnel (`if (!empty(…))`). Styles `.per-fiche__bloc-body--html` ajoutés pour la typographie du contenu riche.
-4. **Bouton edit gris sur fond clair** — bug global : `.sort-detail__edit-btn { color: #fff }` codé en dur dans
-   `compendium-modules.css`, invisible sur le thème Parchemin (fond clair). Corrigé en `color: var(--clr-text)`.
-   Ce bouton est utilisé dans **15 detail-pp** — la correction bénéficie à tout le projet.
+**[2026-06-14] Correctif 3.2c — bouton Modifier gris sur fiche personnage (classe, race, historique)**
+Cause racine : `.sort-detail__edit-btn` était défini dans `compendium-modules.css`, qui n'est pas chargé sur
+la fiche personnage (seul `personnages-modules.css` l'est). Les detail-pp (race, classe, historique) étant
+des fragments AJAX injectés dans `#detail-pp`, ils héritent du CSS de la page hôte — sans
+`compendium-modules.css`, le bouton recevait le style navigateur par défaut (fond gris).
+→ **Solution** : déplacement de `.sort-detail__edit-btn` et `:hover` dans `modules.css` (chargé sur
+  toutes les pages via `header.php`), avec suppression de la définition dans `compendium-modules.css`
+  (commentaire de renvoi laissé pour traçabilité).
+→ Hover corrigé en même temps : `rgba(255,255,255,0.08)` (invisible sur fond clair) → `var(--clr-surface-alt)`.
 
-**[2026-06-14] Règle permanente — boutons edit dans les detail-pp**
-Les boutons d'édition (`.sort-detail__edit-btn`) doivent toujours utiliser `color: var(--clr-text)` (jamais de
-couleur hardcodée comme `#fff`). Ils s'affichent sur le fond du panel detail-pp qui peut être clair (thème
-Parchemin) ou sombre (thème dark). Toute nouvelle occurrence de ce bouton doit utiliser la variable CSS.
-**À mémoriser en consigne de développement** : ne jamais hardcoder une couleur de texte dans les composants
-partagés entre les deux thèmes — toujours utiliser les variables `--clr-*`.
+**[2026-06-14] Règle permanente — CSS des composants injectés via AJAX**
+Tout style utilisé par un fragment HTML injecté via AJAX (detail-pp, modifier overlay) dans un contexte
+hors-compendium **doit être dans `modules.css`** (chargé par `header.php` sur toutes les pages), jamais dans
+un CSS module-spécifique (`compendium-modules.css`, `personnages-modules.css`, etc.) qui ne sera pas disponible
+sur toutes les pages hôtes.
+→ Corollaire : toutes les couleurs de ces composants doivent utiliser `var(--clr-*)` — jamais de valeurs
+  hardcodées (`#fff`, `#333`…) car les composants s'affichent sur des fonds variables selon le thème.
+→ **Application immédiate** : `.sort-detail__edit-btn` déplacé de `compendium-modules.css` vers `modules.css`.
 
 ## Bugs connus — à traiter
 
