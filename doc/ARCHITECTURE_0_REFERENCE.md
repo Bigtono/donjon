@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-12 16:00 -->
+<!-- Mis à jour : 2026-06-14 12:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -658,9 +658,9 @@ include/ajax/modifier/personnage.php    Overlay création / modification
 
 ### 7.11 Découpage en sous-phases
 
-- **3.0** Socle + SQL (patch `dd_alignements` + champs `pe_sexe`/`pe_al_id`/`pe_notes_scope`, dossiers, JS/CSS, helpers, liste filtrée) — *livrée*
+- **3.0** Socle + SQL — *livrée*
 - **3.1** Fiche identité (nom, race, archétype DD3.5, historique DD2024, sexe, alignement, caracs, combat) + première classe à la création — *livrée*
-- **3.2** Classes & niveaux (éditeur multi-classes complet sur la fiche)
+- **3.2** Classes & niveaux (éditeur multi-classes complet inline sur la fiche, domaines divins DD3.5) — *livrée*
 - **3.3** Compétences (tableau complet du ruleset)
 - **3.4** Dons
 - **3.5** NLS prestige (DD3.5)

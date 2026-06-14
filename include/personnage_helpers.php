@@ -78,11 +78,17 @@ function getPersonnageClasses(PDO $db, int $pe_id): array {
            pc.pc_do_id_2,
            cla.cla_nom,
            cla.cla_clt_id,
-           cla.cla_mag_id
+           cla.cla_mag_id,
+           cla.cla_niveauMax,
+           cla.cla_domaine_divin,
+           do1.do_nom AS domaine1_nom,
+           do2.do_nom AS domaine2_nom
       FROM dd_personnages_classes pc
       JOIN dd_classes cla ON cla.cla_id = pc.pc_cla_id
+      LEFT JOIN dd_domaines do1 ON do1.do_id = pc.pc_do_id_1
+      LEFT JOIN dd_domaines do2 ON do2.do_id = pc.pc_do_id_2
      WHERE pc.pc_pe_id = ?
-     ORDER BY cla.cla_nom
+     ORDER BY cla.cla_clt_id ASC, cla.cla_nom ASC
   ');
   $stmt->execute([$pe_id]);
   return $stmt->fetchAll();

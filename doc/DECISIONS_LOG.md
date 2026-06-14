@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-12 17:00 -->
+<!-- Mis à jour : 2026-06-14 14:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -858,6 +858,49 @@ La requête de chargement des races (idem archétypes et historiques) de l'overl
 
 ---
 
+**[2026-06-14] Correctif 3.1 — select Race vide (ra_rat_id mal filtré)**
+La requête de l'overlay de modification filtrait `ra_rat_id = 1` pour les « races de base ». Or la table
+réelle utilise `ra_rat_id = 3` pour les races DD2024 (1 = race DD3.5, 2 = archétype DD3.5, 3 = race DD2024).
+Toutes les races DD2024 étaient exclues silencieusement.
+→ Correction : filtre `ra_rat_id != 2` (exclure uniquement les archétypes DD3.5, laisser passer 1 et 3).
+→ SCHEMA_SQL.md à corriger : documenter que `ra_rat_id` prend les valeurs 1, 2 et 3 (pas seulement 1 et 2).
+
+**[2026-06-14] Sous-phase 3.2 — éditeur Classes inline**
+Décisions prises et implémentées :
+→ L'éditeur Classes est **inline dans la fiche** (pas un overlay) — deux modes : lecture (liste cliquable
+  detail-pp) et édition (activé par bouton « Modifier » dans le header du bloc).
+→ Éditeur DOM local : ajout/suppression/modification de niveau par lignes dynamiques construites en JS.
+  Commit global via `action=enregistrerClasses` en transaction PDO (DELETE + INSERT sur `dd_personnages_classes`).
+→ **Domaines divins DD3.5 inclus dès 3.2** (champs `pc_do_id_1`/`pc_do_id_2`) : deux selects conditionnels
+  apparaissent sur chaque ligne si la classe a `cla_domaine_divin = 1`. Table `dd_domaines` vide pour l'instant
+  (les selects seront peuplés lors de l'import des domaines).
+→ Classes groupées par type (base / prestige) dans le select via `<optgroup>`.
+→ En mode lecture, badge « P » pour les classes de prestige DD3.5.
+→ Règle métier : au moins une classe obligatoire, validée côté client ET serveur.
+→ Sur suppression d'une classe, cascade manuelle sur `dd_personnages_sorts` et `dd_personnages_nls`
+  (FK logiques — pas de CASCADE SQL).
+→ Premier éditeur DOM dynamique du projet (pattern réutilisable pour dons 3.4).
+→ `getPersonnageClasses()` étendu : JOIN sur `dd_domaines` pour `domaine1_nom`/`domaine2_nom`.
+→ CSRF lu depuis `<meta name="csrf-token">` (pattern `postAjax` de main.js).
+
+**[2026-06-14] Correctifs 3.2b — fiche personnage + bouton edit**
+Quatre corrections appliquées après test :
+1. **Niveau global** du personnage (somme des niveaux de toutes les classes) affiché dans le header de la
+   fiche (`· Niveau N`) et dans le header du bloc Classes (`— niveau N`). Calculé via `array_sum(array_column())`.
+2. **Bloc Classes remonté** juste après le bloc Identité (était après Caracs/Combat) pour lecture rapide en partie.
+3. **Bloc Background ajouté** dans la fiche — affiché en HTML brut (contenu TinyMCE, `<?= $perso['pe_background'] ?>`)
+   conditionnel (`if (!empty(…))`). Styles `.per-fiche__bloc-body--html` ajoutés pour la typographie du contenu riche.
+4. **Bouton edit gris sur fond clair** — bug global : `.sort-detail__edit-btn { color: #fff }` codé en dur dans
+   `compendium-modules.css`, invisible sur le thème Parchemin (fond clair). Corrigé en `color: var(--clr-text)`.
+   Ce bouton est utilisé dans **15 detail-pp** — la correction bénéficie à tout le projet.
+
+**[2026-06-14] Règle permanente — boutons edit dans les detail-pp**
+Les boutons d'édition (`.sort-detail__edit-btn`) doivent toujours utiliser `color: var(--clr-text)` (jamais de
+couleur hardcodée comme `#fff`). Ils s'affichent sur le fond du panel detail-pp qui peut être clair (thème
+Parchemin) ou sombre (thème dark). Toute nouvelle occurrence de ce bouton doit utiliser la variable CSS.
+**À mémoriser en consigne de développement** : ne jamais hardcoder une couleur de texte dans les composants
+partagés entre les deux thèmes — toujours utiliser les variables `--clr-*`.
+
 ## Bugs connus — à traiter
 
 - **Admin / liste utilisateurs** : le menu ⋮ (dropdown) ne fonctionne pas correctement sur les lignes `admin-ligne--inactif`. La piste CSS (stacking context créé par `opacity` sur `<td>`) a été explorée sans succès. À investiguer en session dédiée.
@@ -915,6 +958,7 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~Personnages — filtres de la liste~~ → campagne, classe, recherche libre (ruleset implicite)
 - [x] ~~Personnages — colonnes liste + responsive~~ → nom/race/classes/alignement/campagne ; nom seul en mobile
 - [x] ~~Personnages — position du bloc Mode jeu~~ → en haut (accès rapide en partie)
+- [x] ~~Personnages — éditeur classes 3.2~~ → inline dans la fiche, avec domaines divins DD3.5 inclus
 - [ ] Personnages — contenu réel du « mode jeu » (variables suivies par ruleset)
 - [ ] Personnages — objets magiques / possessions (analyse métier à fiabiliser)
 - [ ] Personnages — resynchroniser sql/schema.sql avec dd_alignements + nouveaux champs dd_personnages (pe_sexe, pe_al_id, pe_notes_scope, pe_hi_id)

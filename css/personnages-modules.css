@@ -631,3 +631,216 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ============================================================
+   SOUS-PHASE 3.2 — Éditeur Classes inline
+   ============================================================ */
+
+/* Header avec bouton Modifier aligné à droite */
+.per-fiche__bloc-header--flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Badge prestige (mode lecture) */
+.per-classes__badge-prestige {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--clr-accent-bg, var(--clr-surface-alt, #555));
+  color: var(--clr-text-muted);
+  font-size: .75em;
+  font-weight: 700;
+  margin-right: 4px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.per-classes__domaines {
+  font-size: .88em;
+}
+
+/* ---- Liste éditeur ---- */
+
+.per-classes-editor__liste {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--sp-sm) 0;
+}
+
+.per-classes-editor__ligne {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px dashed var(--clr-border);
+}
+
+.per-classes-editor__ligne:last-child {
+  border-bottom: none;
+}
+
+.per-classes-editor__select-classe {
+  flex: 1 1 200px;
+  min-height: 38px;
+  padding: 4px var(--sp-sm);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: .95em;
+}
+
+.per-classes-editor__niv-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  color: var(--clr-text-muted);
+  font-size: .9em;
+}
+
+.per-classes-editor__input-niv {
+  width: 56px;
+  min-height: 38px;
+  text-align: center;
+  padding: 4px;
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.per-classes-editor__domaines {
+  display: flex;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+}
+
+.per-classes-editor__select-domaine {
+  flex: 1 1 140px;
+  min-height: 38px;
+  padding: 4px var(--sp-sm);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: .88em;
+}
+
+.per-classes-editor__btn-del {
+  flex-shrink: 0;
+  color: var(--clr-danger);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 1em;
+}
+
+/* ---- Barre d'actions éditeur ---- */
+
+.per-classes-actions {
+  margin: var(--sp-sm) 0;
+}
+
+.per-classes-commit {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+  margin-top: var(--sp-sm);
+  padding-top: var(--sp-sm);
+  border-top: 1px solid var(--clr-border);
+}
+
+.per-classes-commit__msg {
+  font-size: .9em;
+  padding: 2px 8px;
+}
+
+.per-classes-commit__msg--ok {
+  color: var(--clr-success, #4caf50);
+}
+
+.per-classes-commit__msg--erreur {
+  color: var(--clr-danger);
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 991px) {
+
+  .per-classes-editor__ligne {
+    gap: var(--sp-sm);
+  }
+
+  .per-classes-editor__select-classe {
+    flex: 1 1 100%;  /* pleine largeur sur mobile */
+  }
+
+  /* Cibles tactiles */
+  .per-classes-editor__select-classe,
+  .per-classes-editor__select-domaine,
+  .per-classes-editor__input-niv {
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+   CORRECTIFS 3.2b
+   ============================================================ */
+
+/* Niveau global dans le header du bloc Classes */
+.per-fiche__niveau-global {
+  font-size: .85em;
+  font-weight: 400;
+  color: var(--clr-text-muted);
+  margin-left: 4px;
+}
+
+/* Niveau global dans le header général de la fiche */
+.per-fiche__niveau {
+  font-size: .9em;
+  color: var(--clr-text-muted);
+}
+
+/* Bloc Background — contenu HTML TinyMCE (affiché brut, pas échappé) */
+.per-fiche__bloc-body--html {
+  line-height: 1.65;
+}
+
+.per-fiche__bloc-body--html p {
+  margin: 0 0 .6em 0;
+}
+
+.per-fiche__bloc-body--html h1,
+.per-fiche__bloc-body--html h2,
+.per-fiche__bloc-body--html h3 {
+  margin: .8em 0 .3em;
+  color: var(--clr-text);
+}
+
+.per-fiche__bloc-body--html table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: .5em 0;
+  font-size: .92em;
+}
+
+.per-fiche__bloc-body--html table td,
+.per-fiche__bloc-body--html table th {
+  border: 1px solid var(--clr-border);
+  padding: 4px 8px;
+}
+
+.per-fiche__bloc-body--html table th {
+  background: var(--clr-surface-alt, var(--clr-surface));
+  font-weight: 600;
+}

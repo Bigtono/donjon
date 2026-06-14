@@ -124,6 +124,10 @@ switch ($action):
     enregistrerPersonnage($db, $is_ajax, $j_id);
     break;
 
+  case 'enregistrerClasses':
+    enregistrerClasses($db, $is_ajax, $j_id);
+    break;
+
   default:
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Action inconnue.']);
 
@@ -268,4 +272,108 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
     'id'        => $pe_id,
     'url_fiche' => BASE_URL . '/personnages/fiche.php?id=' . $pe_id,
   ]);
+}
+
+// ============================================================
+// ENREGISTREMENT DES CLASSES (3.2)
+// ============================================================
+// Reçoit en POST :
+//   pe_id          int
+//   classes[][cla_id]   int   — id de la classe
+//   classes[][niveau]   int   — niveau dans cette classe
+//   classes[][do_id_1]  int   — domaine divin 1 (DD3.5, 0=aucun)
+//   classes[][do_id_2]  int   — domaine divin 2 (DD3.5, 0=aucun)
+//
+// Pattern DELETE + INSERT en transaction (comme la sélection des sources).
+// Contrainte métier : au moins une classe obligatoire.
+
+function enregistrerClasses(PDO $db, bool $is_ajax, int $j_id): void {
+  $pe_id = intParam($_POST['pe_id'] ?? 0);
+  if ($pe_id <= 0):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Identifiant manquant.']);
+  endif;
+
+  // Contrôle propriétaire
+  $stmt = $db->prepare('SELECT pe_j_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt->execute([$pe_id]);
+  $row = $stmt->fetch();
+  if (!$row || !canAccess((int)$row['pe_j_id'])):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
+  endif;
+
+  // Lecture et validation de la liste postée
+  $classes_post = $_POST['classes'] ?? [];
+  if (!is_array($classes_post)):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Format de données invalide.']);
+  endif;
+
+  // Dédoublonnage et validation ligne par ligne
+  $lignes   = [];
+  $cla_vus  = [];
+  foreach ($classes_post as $row_post):
+    $cla_id  = intParam($row_post['cla_id']  ?? 0);
+    $niveau  = max(1, min(40, intParam($row_post['niveau']  ?? 1)));
+    $do_id_1 = intParam($row_post['do_id_1'] ?? 0);
+    $do_id_2 = intParam($row_post['do_id_2'] ?? 0);
+
+    if ($cla_id <= 0) continue; // ligne vide ignorée
+    if (isset($cla_vus[$cla_id])):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Une classe ne peut figurer qu\'une seule fois.']);
+    endif;
+    $cla_vus[$cla_id] = true;
+    $lignes[] = [
+      'cla_id'  => $cla_id,
+      'niveau'  => $niveau,
+      'do_id_1' => $do_id_1 > 0 ? $do_id_1 : null,
+      'do_id_2' => $do_id_2 > 0 ? $do_id_2 : null,
+    ];
+  endforeach;
+
+  if (empty($lignes)):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Au moins une classe est obligatoire.']);
+  endif;
+
+  // Transaction : DELETE + INSERT
+  try {
+    $db->beginTransaction();
+
+    // Suppression des sorts rattachés aux classes supprimées
+    // (pes_pc_id -> dd_personnages_classes : cascade manuelle)
+    $db->prepare('
+      DELETE pes FROM dd_personnages_sorts pes
+        JOIN dd_personnages_classes pc ON pc.pc_id = pes.pes_pc_id
+       WHERE pc.pc_pe_id = ?
+    ')->execute([$pe_id]);
+
+    // Suppression des NLS rattachés
+    $db->prepare('
+      DELETE penl FROM dd_personnages_nls penl
+        JOIN dd_personnages_classes pc ON pc.pc_id = penl.penl_pc_id_base
+       WHERE pc.pc_pe_id = ?
+    ')->execute([$pe_id]);
+
+    // Suppression de toutes les classes du personnage
+    $db->prepare('DELETE FROM dd_personnages_classes WHERE pc_pe_id = ?')
+       ->execute([$pe_id]);
+
+    // Réinsertion
+    $stmt_ins = $db->prepare('
+      INSERT INTO dd_personnages_classes (pc_pe_id, pc_cla_id, pc_niveau, pc_do_id_1, pc_do_id_2)
+      VALUES (?, ?, ?, ?, ?)
+    ');
+    foreach ($lignes as $l):
+      $stmt_ins->execute([$pe_id, $l['cla_id'], $l['niveau'], $l['do_id_1'], $l['do_id_2']]);
+    endforeach;
+
+    // Mettre à jour la date de modification du personnage
+    $db->prepare('UPDATE dd_personnages SET pe_date_modif = NOW() WHERE pe_id = ?')
+       ->execute([$pe_id]);
+
+    $db->commit();
+  } catch (PDOException $e) {
+    $db->rollBack();
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  repondre($is_ajax, ['ok' => true]);
 }

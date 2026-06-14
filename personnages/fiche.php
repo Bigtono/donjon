@@ -1,14 +1,11 @@
 <?php
 // personnages/fiche.php — Fiche personnage unique, responsive.
 //
-// SOUS-PHASE 3.1 : blocs livrés
-//   1. Mode jeu       (placeholder)
-//   2. Identité       (nom, race+archétype, historique, sexe, alignement)
-//   3. Caractéristiques (6 caracs + modificateurs)
-//   4. Combat         (CA, PV)
+// SOUS-PHASE 3.1 : blocs Mode jeu (placeholder), Identité, Caracs, Combat.
+// SOUS-PHASE 3.2 : bloc Classes — éditeur DOM inline (ajout / suppression /
+//                  modification de niveau + domaines divins DD3.5).
 //
-// Blocs à venir : 5. Classes (3.2), 6. NLS (3.5), 7. Compétences (3.3),
-//                 8. Dons (3.4), 9. Campagnes.
+// Blocs à venir : 6. NLS (3.5), 7. Compétences (3.3), 8. Dons (3.4), 9. Campagnes.
 require_once '../include/db.php';
 require_once '../include/auth.php';
 require_once '../include/helpers.php';
@@ -24,13 +21,38 @@ if (!$perso):
   exit;
 endif;
 
-// Mémoriser ce perso comme "dernier consulté"
 setLastPersonnage((int)$perso['pe_id']);
 
-$ruleset_rep = ((int)$perso['pe_ruleset_var_id'] === 2) ? 'DD2024' : 'DD3.5';
+$ruleset_id  = (int)$perso['pe_ruleset_var_id'];
+$ruleset_rep = ($ruleset_id === 2) ? 'DD2024' : 'DD3.5';
 
-// Classes (pour le bloc 5 — affichage simple en 3.1, éditeur réel en 3.2)
+// Classes actuelles du personnage (avec domaines si DD3.5)
 $classes = getPersonnageClasses($db, (int)$perso['pe_id']);
+
+// Niveau global = somme des niveaux de toutes les classes
+$niveau_global = array_sum(array_column($classes, 'pc_niveau'));
+
+// Toutes les classes du ruleset pour le select de l'éditeur
+$res_ids    = getActiveResIds($db);
+$filtre_res = !empty($res_ids);
+$ph         = $filtre_res ? resIdsPlaceholders($res_ids) : '';
+$sql_cla    = "
+  SELECT cla.cla_id, cla.cla_nom, cla.cla_clt_id, cla.cla_niveauMax,
+         cla.cla_domaine_divin, cla.cla_mag_id
+    FROM dd_classes cla
+   WHERE cla.cla_ruleset_var_id = ?"
+  . ($filtre_res ? " AND cla.cla_res_id IN ($ph)" : '') . "
+   ORDER BY cla.cla_clt_id ASC, cla.cla_nom ASC";
+$stmt_cla = $db->prepare($sql_cla);
+$stmt_cla->execute($filtre_res ? array_merge([$ruleset_id], $res_ids) : [$ruleset_id]);
+$toutes_classes = $stmt_cla->fetchAll();
+
+// Domaines divins (DD3.5 uniquement)
+$domaines = [];
+if ($ruleset_rep === 'DD3.5'):
+  $stmt_do = $db->query('SELECT do_id, do_nom FROM dd_domaines ORDER BY do_nom');
+  $domaines = $stmt_do->fetchAll();
+endif;
 
 $page_title = $perso['pe_nom'];
 $js_module  = 'personnage';
@@ -40,21 +62,55 @@ require_once '../include/header.php';
 ?>
 
 <script>
-  var perUrlDetail   = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/personnage.php') ?>;
-  var perUrlModifier = <?= json_encode(BASE_URL . '/include/ajax/modifier/personnage.php') ?>;
-  var perUrlEnreg    = <?= json_encode(BASE_URL . '/personnages/enregistrement.php?ajax=1') ?>;
+  var perUrlDetail    = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/personnage.php') ?>;
+  var perUrlModifier  = <?= json_encode(BASE_URL . '/include/ajax/modifier/personnage.php') ?>;
+  var perUrlEnreg     = <?= json_encode(BASE_URL . '/personnages/enregistrement.php?ajax=1') ?>;
+  var perRuleset      = <?= json_encode($ruleset_rep) ?>;
+  var perPeId         = <?= (int)$perso['pe_id'] ?>;
+
+  // Données classes disponibles injectées en JS pour l'éditeur DOM
+  var perClassesDisponibles = <?= json_encode(array_map(function($c) {
+    return [
+      'id'            => (int)$c['cla_id'],
+      'nom'           => $c['cla_nom'],
+      'clt_id'        => (int)$c['cla_clt_id'],
+      'niveauMax'     => (int)$c['cla_niveauMax'],
+      'domaineDivin'  => (bool)$c['cla_domaine_divin'],
+    ];
+  }, $toutes_classes), JSON_UNESCAPED_UNICODE) ?>;
+
+  // Domaines disponibles (DD3.5)
+  var perDomaines = <?= json_encode(array_map(function($d) {
+    return ['id' => (int)$d['do_id'], 'nom' => $d['do_nom']];
+  }, $domaines), JSON_UNESCAPED_UNICODE) ?>;
+
+  // Classes actuelles du personnage (état initial de l'éditeur)
+  var perClassesInitiales = <?= json_encode(array_map(function($c) {
+    return [
+      'pc_id'      => (int)$c['pc_id'],
+      'cla_id'     => (int)$c['pc_cla_id'],
+      'cla_nom'    => $c['cla_nom'],
+      'clt_id'     => (int)$c['cla_clt_id'],
+      'niveau'     => (int)$c['pc_niveau'],
+      'niveauMax'  => (int)($c['cla_niveauMax'] ?? 20),
+      'domaineDivin' => (bool)($c['cla_domaine_divin'] ?? false),
+      'do_id_1'    => (int)($c['pc_do_id_1'] ?? 0),
+      'do_id_2'    => (int)($c['pc_do_id_2'] ?? 0),
+    ];
+  }, $classes), JSON_UNESCAPED_UNICODE) ?>;
 </script>
 
 <div class="per-fiche">
 
-  <!-- ============================================================
-       EN-TÊTE
-       ============================================================ -->
+  <!-- EN-TÊTE -->
   <div class="per-fiche__header">
     <div class="per-fiche__header-titre">
       <h1 class="per-fiche__nom"><?= h($perso['pe_nom']) ?></h1>
       <div class="per-fiche__meta">
         <span class="per-fiche__ruleset"><?= h($perso['ruleset_label']) ?></span>
+        <?php if ($niveau_global > 0): ?>
+          · <span class="per-fiche__niveau">Niveau <?= $niveau_global ?></span>
+        <?php endif ?>
         <?php if ($perso['campagne_courante_nom']): ?>
           · <span class="per-fiche__campagne">
               <i class="fa fa-map"></i> <?= h($perso['campagne_courante_nom']) ?>
@@ -73,12 +129,7 @@ require_once '../include/header.php';
     </div>
   </div>
 
-  <!-- ============================================================
-       BLOC 1 — MODE JEU (placeholder)
-       Position prioritaire en haut pour accès rapide en partie.
-       Contenu réel : 3.7 — variables de jeu suivies (PV courants,
-       conditions, emplacements de sorts utilisés, etc.).
-       ============================================================ -->
+  <!-- BLOC 1 — MODE JEU (placeholder 3.7) -->
   <section class="per-fiche__bloc per-fiche__bloc--mode-jeu">
     <header class="per-fiche__bloc-header">
       <h2 class="per-fiche__bloc-titre">
@@ -93,9 +144,7 @@ require_once '../include/header.php';
     </div>
   </section>
 
-  <!-- ============================================================
-       BLOC 2 — IDENTITÉ
-       ============================================================ -->
+  <!-- BLOC 2 — IDENTITÉ -->
   <section class="per-fiche__bloc">
     <header class="per-fiche__bloc-header">
       <h2 class="per-fiche__bloc-titre">
@@ -133,7 +182,7 @@ require_once '../include/header.php';
               <?php if (!empty($perso['pe_hi_id'])): ?>
                 <a href="javascript:void(0)"
                    onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/historique.php', {id: <?= (int)$perso['pe_hi_id'] ?>}, 'externe')"
-                   title="Le détail des historiques sera disponible lors de la livraison du compendium Historiques">
+                   title="Disponible lors de la livraison du compendium Historiques">
                   <?= h($perso['historique_nom'] ?? '—') ?>
                 </a>
               <?php else: ?>
@@ -145,9 +194,7 @@ require_once '../include/header.php';
 
         <div class="per-identite__row">
           <dt>Sexe</dt>
-          <dd>
-            <?= $perso['pe_sexe'] ? h($perso['pe_sexe']) : '<span class="text-muted">—</span>' ?>
-          </dd>
+          <dd><?= $perso['pe_sexe'] ? h($perso['pe_sexe']) : '<span class="text-muted">—</span>' ?></dd>
         </div>
 
         <div class="per-identite__row">
@@ -167,9 +214,78 @@ require_once '../include/header.php';
   </section>
 
   <!-- ============================================================
-       BLOC 3 — CARACTÉRISTIQUES (grille fluide)
-       Valeurs brutes + modificateurs calculés (affichage uniquement).
+       BLOC 3 — CLASSES (éditeur DOM inline — 3.2)
+       Remonté après Identité pour lecture rapide en partie.
+       Deux modes : lecture (défaut) et édition (activé par bouton).
        ============================================================ -->
+  <section class="per-fiche__bloc" id="bloc-classes">
+    <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
+      <h2 class="per-fiche__bloc-titre">
+        <i class="fa fa-users"></i> Classes
+        <?php if ($niveau_global > 0): ?>
+          <span class="per-fiche__niveau-global">— niveau <?= $niveau_global ?></span>
+        <?php endif ?>
+      </h2>
+      <button class="btn btn-link btn-sm" id="btn-editer-classes"
+              onclick="classesEditor.basculerEdition()">
+        <i class="fa fa-edit"></i> Modifier
+      </button>
+    </header>
+
+    <!-- Mode lecture -->
+    <div class="per-fiche__bloc-body" id="classes-lecture">
+      <?php if (empty($classes)): ?>
+        <p class="text-muted">Aucune classe définie.</p>
+      <?php else: ?>
+        <ul class="per-classes">
+          <?php foreach ($classes as $c): ?>
+            <li class="per-classes__item">
+              <?php if ((int)$c['cla_clt_id'] === 2): ?>
+                <span class="per-classes__badge-prestige" title="Classe de prestige">P</span>
+              <?php endif ?>
+              <a href="javascript:void(0)"
+                 onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/classe.php', {id: <?= (int)$c['pc_cla_id'] ?>}, 'externe')">
+                <?= h($c['cla_nom']) ?>
+              </a>
+              <span class="per-classes__niveau">niv. <?= (int)$c['pc_niveau'] ?></span>
+              <?php if ($ruleset_rep === 'DD3.5' && ($c['pc_do_id_1'] || $c['pc_do_id_2'])): ?>
+                <span class="per-classes__domaines text-muted">
+                  — domaines :
+                  <?= h($c['domaine1_nom'] ?? '') ?>
+                  <?php if ($c['pc_do_id_1'] && $c['pc_do_id_2']): ?>,<?php endif ?>
+                  <?= h($c['domaine2_nom'] ?? '') ?>
+                </span>
+              <?php endif ?>
+            </li>
+          <?php endforeach ?>
+        </ul>
+      <?php endif ?>
+    </div>
+
+    <!-- Mode édition (caché par défaut, activé par JS) -->
+    <div class="per-fiche__bloc-body noDisplay" id="classes-edition">
+      <div id="classes-editor-lignes">
+        <!-- Les lignes sont générées par classesEditor.init() en JS -->
+      </div>
+      <div class="per-classes-actions">
+        <button class="btn btn-link btn-sm" onclick="classesEditor.ajouterLigne()">
+          <i class="fa fa-plus"></i> Ajouter une classe
+        </button>
+      </div>
+      <div class="per-classes-commit">
+        <button class="btn btn-primary btn-sm" onclick="classesEditor.enregistrer()">
+          <i class="fa fa-save"></i> Enregistrer
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="classesEditor.annuler()">
+          Annuler
+        </button>
+        <span class="per-classes-commit__msg noDisplay" id="classes-msg"></span>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- BLOC 4 — CARACTÉRISTIQUES -->
   <section class="per-fiche__bloc">
     <header class="per-fiche__bloc-header">
       <h2 class="per-fiche__bloc-titre">
@@ -199,9 +315,7 @@ require_once '../include/header.php';
     </div>
   </section>
 
-  <!-- ============================================================
-       BLOC 4 — COMBAT
-       ============================================================ -->
+  <!-- BLOC 5 — COMBAT -->
   <section class="per-fiche__bloc">
     <header class="per-fiche__bloc-header">
       <h2 class="per-fiche__bloc-titre">
@@ -224,40 +338,21 @@ require_once '../include/header.php';
     </div>
   </section>
 
-  <!-- ============================================================
-       BLOC 5 — CLASSES (affichage simple — éditeur en 3.2)
-       ============================================================ -->
+  <!-- BLOC 6 — BACKGROUND -->
+  <?php if (!empty($perso['pe_background'])): ?>
   <section class="per-fiche__bloc">
     <header class="per-fiche__bloc-header">
       <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-users"></i> Classes
+        <i class="fa fa-book-open"></i> Background
       </h2>
     </header>
-    <div class="per-fiche__bloc-body">
-      <?php if (empty($classes)): ?>
-        <p class="text-muted">Aucune classe.</p>
-      <?php else: ?>
-        <ul class="per-classes">
-          <?php foreach ($classes as $c): ?>
-            <li class="per-classes__item">
-              <a href="javascript:void(0)"
-                 onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/classe.php', {id: <?= (int)$c['pc_cla_id'] ?>}, 'externe')">
-                <?= h($c['cla_nom']) ?>
-              </a>
-              <span class="per-classes__niveau">niveau <?= (int)$c['pc_niveau'] ?></span>
-            </li>
-          <?php endforeach ?>
-        </ul>
-      <?php endif ?>
-      <p class="text-muted text-sm">
-        L'éditeur multi-classes complet (ajout / suppression / modification de niveau) arrive en sous-phase 3.2.
-      </p>
+    <div class="per-fiche__bloc-body per-fiche__bloc-body--html">
+      <?= $perso['pe_background'] ?>
     </div>
   </section>
+  <?php endif ?>
 
-  <!-- ============================================================
-       BLOCS 6–9 — À VENIR
-       ============================================================ -->
+  <!-- BLOCS À VENIR -->
   <section class="per-fiche__bloc per-fiche__bloc--avenir">
     <header class="per-fiche__bloc-header">
       <h2 class="per-fiche__bloc-titre">
