@@ -77,12 +77,16 @@ $res_ids      = getActiveResIds($db);
 $filtre_res   = !empty($res_ids);
 $placeholders = $filtre_res ? resIdsPlaceholders($res_ids) : '';
 
-// Races de BASE (ra_rat_id = 1)
+// Races jouables (toutes sauf les archétypes DD3.5 ra_rat_id = 2).
+// ra_rat_id = 1 → races de base DD3.5
+// ra_rat_id = 2 → archétypes DD3.5 (exclus ici, listés séparément ci-dessous)
+// ra_rat_id = 3 → races de base DD2024
+// On filtre par ruleset_var_id ; les archétypes sont toujours ra_rat_id = 2.
 $sql_races = "
   SELECT ra.ra_id, ra.ra_nom
     FROM dd_races ra
    WHERE ra.ra_ruleset_var_id = ?
-     AND ra.ra_rat_id = 1
+     AND ra.ra_rat_id != 2
      AND ra.ra_camp_id IS NULL"
   . ($filtre_res ? " AND ra.ra_res_id IN ($placeholders)" : '') . "
    ORDER BY ra.ra_nom";
@@ -90,7 +94,7 @@ $stmt = $db->prepare($sql_races);
 $stmt->execute($filtre_res ? array_merge([$ruleset_id], $res_ids) : [$ruleset_id]);
 $races_base = $stmt->fetchAll();
 
-// Archétypes (DD3.5 uniquement)
+// Archétypes (DD3.5 uniquement — ra_rat_id = 2)
 $archetypes = [];
 if ($ruleset_rep === 'DD3.5'):
   $sql_arc = "
