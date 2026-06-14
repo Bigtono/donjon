@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-14 15:00 -->
+<!-- Mis à jour : 2026-06-14 17:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -1524,4 +1524,8 @@ tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
 - [ ] CSS AJAX : tout style utilisé par un fragment injecté via AJAX (detail-pp, overlay) hors-compendium doit être dans modules.css, pas dans un CSS module-spécifique
 - [ ] CSS AJAX : .sort-detail__edit-btn et tout composant partagé entre pages → modules.css uniquement
 - [ ] Couleurs composants partagés : jamais de valeur hardcodée (#fff, #333…) — toujours var(--clr-*)
+- [ ] Tableaux structurés (tables de progression, listes de données) : utiliser .table-dd + .table-dd-wrap
+- [ ] Tableaux à 2 lignes d'en-tête (lanceurs de sorts) : thead avec <tr class="thead-groupes"> pour la ligne groupe + <tr> standard pour les labels
+- [ ] Tableaux dans descriptions TinyMCE compendium : .sort-detail__description table (automatique, pas de classe manuelle)
+- [ ] Style tableau : jamais de border sur th/td — alternance fond gris perle / transparent sur tbody uniquement
 - [ ] Thèmes : --clr-surface-alt défini dans les deux thèmes si utilisé dans un composant

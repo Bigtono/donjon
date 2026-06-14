@@ -606,3 +606,134 @@
   color: var(--clr-accent-2);
   background: var(--clr-surface-alt);
 }
+
+/* ============================================================
+   STYLE DD — classe utilitaire .table-dd
+   À appliquer sur tout tableau structuré du site (tables de
+   progression de classes, tableaux de données dans les detail-pp,
+   etc.) pour assurer un rendu homogène conforme au style DD.
+
+   Caractéristiques :
+   - Pas de bordures de cellule
+   - En-têtes (<th>) : gras, fond surface-alt, couleur texte standard
+   - En-têtes de groupe (thead-groupes, ex: "Nombre de sorts par jour") :
+     fond surface-alt, séparateur accentué à gauche du groupe sorts
+   - Lignes tbody : alternance gris perle (impair) / transparent (pair)
+   - Scroll horizontal sur petits écrans
+   - Compatible deux thèmes (toutes couleurs via var(--clr-*))
+
+   Table de progression de classe :
+   - col-niv, col-stat, col-sort : largeur fixe compacte
+   - col-pouvoir : largeur fixe, retour à la ligne autorisé
+   - col-aptitudes : flexible, prend tout l'espace restant
+   ============================================================ */
+
+.table-dd {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: .875rem;
+  width: 100%;
+  table-layout: auto;
+  margin: .75rem 0;
+}
+
+/* Wrapper scrollable */
+.table-dd-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Cellules générales */
+.table-dd th,
+.table-dd td {
+  border: none;
+  padding: 3px 6px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* En-tête ligne de labels (dernière ligne du <thead>) */
+.table-dd thead tr:last-child th {
+  background: var(--clr-surface-alt);
+  font-weight: 600;
+  font-size: .82rem;
+  color: var(--clr-text);
+}
+
+/* En-tête de groupe (1re ligne thead quand il y en a 2 :
+   ex "Nombre de sorts par jour") */
+.table-dd .thead-groupes th {
+  background: var(--clr-surface-alt);
+  font-size: .78rem;
+  font-weight: 400;
+  color: var(--clr-text-muted);
+  border-bottom: none;
+  padding: 2px 6px;
+}
+
+/* Séparateur visuel avant le groupe sorts */
+.table-dd .th-groupe-sorts {
+  border-left: 2px solid var(--clr-accent);
+  font-weight: 600;
+  color: var(--clr-text);
+}
+
+/* Alternance lignes tbody */
+.table-dd tbody tr:nth-child(odd) td {
+  background: rgba(128, 128, 128, .08);
+}
+.table-dd tbody tr:nth-child(even) td {
+  background: transparent;
+}
+
+/* Survol */
+.table-dd tbody tr:hover td {
+  background: rgba(128, 128, 128, .16);
+}
+
+/* ---- Colonnes de la table de progression de classe ---- */
+
+/* Colonne Niveau */
+.table-dd .col-niv {
+  width: 32px;
+  min-width: 28px;
+  font-weight: 700;
+}
+
+/* Colonnes stats (BBA, jets de sauvegarde, bonus maîtrise) */
+.table-dd .col-stat {
+  width: 46px;
+  min-width: 36px;
+}
+
+/* Colonnes sorts — compactes */
+.table-dd .col-sort {
+  width: 26px;
+  min-width: 20px;
+}
+
+/* Séparateur accentué avant la première colonne sorts */
+.table-dd td.col-sort:first-of-type,
+.table-dd th.col-sort:first-of-type {
+  border-left: 2px solid var(--clr-accent);
+}
+
+/* Colonnes pouvoirs — largeur fixe, retour à la ligne autorisé */
+.table-dd .col-pouvoir {
+  width: 70px;
+  min-width: 55px;
+  max-width: 100px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Colonne aptitudes — flexible, prend tout l'espace restant */
+.table-dd .col-aptitudes {
+  text-align: left;
+  white-space: normal;
+  width: auto;        /* s'étire avec table-layout:auto */
+  min-width: 160px;
+  word-break: break-word;
+}

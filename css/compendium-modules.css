@@ -794,44 +794,51 @@
 .sort-detail__description table td,
 .sort-detail__description table th {
   border: none;
-  padding: 3px;
+  padding: 3px 6px;
   text-align: left;
   vertical-align: middle;
 }
 
-/* Première colonne : retour à la ligne autorisé */
-.sort-detail__description table td:first-child,
-.sort-detail__description table th:first-child {
-  white-space: normal;
-  min-width: 100px;
-}
-
-/* En-tête : gras, pas de fond */
+/* En-tête : gras, fond surface-alt */
 .sort-detail__description table th {
   font-weight: 700;
-  background: transparent;
+  background: var(--clr-surface-alt);
   color: var(--clr-text);
 }
 
 /* En-tête sans <thead> : premier <tr> avec des <th> */
 .sort-detail__description table:not(:has(thead)) tr:first-child:has(> th) th {
   font-weight: 700;
-  background: transparent;
+  background: var(--clr-surface-alt);
   color: var(--clr-text);
 }
 
-/* Alternance gris perle (1re ligne) / rien */
+/* En-tête de groupe (1re ligne : "Nombre de sorts par jour") */
+.sort-detail__description table .thead-groupes th {
+  background: var(--clr-surface-alt);
+  font-size: .82em;
+  font-weight: 400;
+  color: var(--clr-text-muted);
+  border-bottom: none;
+}
+.sort-detail__description table .th-groupe-sorts {
+  border-left: 2px solid var(--clr-accent);
+  font-weight: 600;
+  color: var(--clr-text);
+}
+
+/* Alternance gris perle / transparent */
 .sort-detail__description table tbody tr:nth-child(odd) td {
-  background: rgba(128, 128, 128, .10);
+  background: rgba(128, 128, 128, .08);
 }
 
 .sort-detail__description table tbody tr:nth-child(even) td {
   background: transparent;
 }
 
-/* Fallback sans <thead> — alternance à partir de la 2e ligne */
+/* Fallback sans <thead> */
 .sort-detail__description table:not(:has(thead)) tr:not(:first-child):nth-child(odd) td {
-  background: rgba(128, 128, 128, .10);
+  background: rgba(128, 128, 128, .08);
 }
 
 .sort-detail__description table:not(:has(thead)) tr:not(:first-child):nth-child(even) td {

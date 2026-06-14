@@ -295,12 +295,12 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
     // Colonnes avant les sorts : Niv + stats + Aptitudes + Pouvoirs
     $colsBefore = 1 + $nbColsStats + 1 + $nbColsPouvoirs;
     ?>
-    <div class="classe-detail__niveaux" style="margin-top:1rem; overflow-x:auto;">
+    <div class="classe-detail__niveaux table-dd-wrap" style="margin-top:1rem;">
       <p class="classe-detail__table-titre">
         <strong>Table de progression : <?= h($cla['cla_nom']) ?></strong>
       </p>
 
-      <table class="table-classe-niv" id="classe-niv-table">
+      <table class="table-dd" id="classe-niv-table">
         <thead>
           <?php if ($isLanceurSorts): ?>
           <tr class="thead-groupes">
@@ -410,7 +410,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
       <p class="classe-detail__table-titre">
         <strong>Sorts connus : <?= h($cla['cla_nom']) ?></strong>
       </p>
-      <table class="table-classe-niv">
+      <table class="table-dd">
         <thead>
           <tr class="thead-groupes">
             <th></th>
@@ -500,7 +500,11 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
 
 <style>
 /* ============================================================
-   Styles locaux au panel classe — injectés avec le HTML
+   Styles locaux au panel classe
+   Les colonnes de la table de progression (.col-niv, .col-stat,
+   .col-sort, .col-pouvoir, .col-aptitudes) et les en-têtes
+   (.thead-groupes, .th-groupe-sorts) sont gérés par .table-dd
+   dans modules.css (chargé sur toutes les pages).
    ============================================================ */
 
 /* Titre de table */
@@ -509,87 +513,10 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
   font-size: .9rem;
 }
 
-/* Table pleine largeur */
-.table-classe-niv {
-  border-collapse: collapse;
-  font-size: .82rem;
-  width: 100%;
-  table-layout: auto;
-}
-
-.table-classe-niv th,
-.table-classe-niv td {
-  border: 1px solid var(--clr-border);
-  padding: 3px 5px;
-  text-align: center;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-/* En-tête de groupe (ligne 1 : "Nombre de sorts par jour") */
-.table-classe-niv .thead-groupes th {
-  background: var(--clr-surface-alt, #2a2a2a);
-  font-size: .78rem;
-  border-bottom: none;
-  padding: 2px 4px;
-}
-.table-classe-niv .th-groupe-sorts {
-  border-left: 2px solid var(--clr-accent, #8b6914);
-}
-
-/* En-tête ligne 2 (labels de colonnes) */
-.table-classe-niv thead tr:last-child th {
-  background: var(--clr-surface-alt, #1e1e1e);
-  font-size: .8rem;
-  font-weight: 600;
-}
-
-/* Colonne niveau */
-.table-classe-niv .col-niv {
-  width: 28px;
-  min-width: 28px;
-  font-weight: 700;
-}
-
-/* Colonnes stats — taille fixe compacte */
-.table-classe-niv .col-stat {
-  width: 44px;
-  min-width: 36px;
-}
-
-/* Colonnes sorts — compactes */
-.table-classe-niv .col-sort {
-  width: 24px;
-  min-width: 20px;
-  border-left-color: var(--clr-border-muted, var(--clr-border));
-}
-/* Séparation visuelle avant le groupe sorts */
-.table-classe-niv td.col-sort:first-of-type,
-.table-classe-niv th.col-sort:first-of-type {
-  border-left: 2px solid var(--clr-accent, #8b6914);
-}
-
-/* Colonnes pouvoirs — taille adaptée */
-.table-classe-niv .col-pouvoir {
-  min-width: 48px;
-  max-width: 80px;
-  white-space: normal;
-  word-break: break-word;
-}
-
-/* Colonne aptitudes — flexible, prend le reste de la largeur */
-.table-classe-niv .col-aptitudes {
-  text-align: left;
-  white-space: normal;
-  min-width: 25%;   /* garantit au moins 25% de la largeur totale */
-  width: 100%;      /* avec table-layout:auto, s'étire pour combler le reste */
-  word-break: break-word;
-}
-
 /* Liens cliquables vers le sous-panel */
 .lien-sub {
   cursor: pointer;
-  color: var(--clr-accent, #c8a84b);
+  color: var(--clr-accent);
   text-decoration: underline dotted;
 }
 .lien-sub:hover {

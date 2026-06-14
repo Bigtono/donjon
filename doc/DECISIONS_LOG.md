@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-14 15:00 -->
+<!-- Mis à jour : 2026-06-14 17:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -901,6 +901,33 @@ sur toutes les pages hôtes.
 → Corollaire : toutes les couleurs de ces composants doivent utiliser `var(--clr-*)` — jamais de valeurs
   hardcodées (`#fff`, `#333`…) car les composants s'affichent sur des fonds variables selon le thème.
 → **Application immédiate** : `.sort-detail__edit-btn` déplacé de `compendium-modules.css` vers `modules.css`.
+
+**[2026-06-14] Style DD (`.table-dd`) — classe utilitaire universelle pour les tableaux**
+Création de la classe `.table-dd` dans `modules.css` (chargé sur toutes les pages) comme style de tableau
+de référence du site, aligné sur le style du module Règles. Caractéristiques :
+- Sans bordures de cellule, padding 3 px 6 px, alignement centré par défaut
+- En-têtes `<th>` : gras, fond `--clr-surface-alt`, couleur `--clr-text`
+- En-tête de groupe (`.thead-groupes`) : fond `--clr-surface-alt`, texte muted, sans bordure basse
+- Groupe sorts (`.th-groupe-sorts`) : séparateur accentué `2px solid --clr-accent`
+- Alternance tbody : gris perle `rgba(128,128,128,.08)` (impair) / transparent (pair)
+- Colonnes standardisées : `.col-niv` (32px), `.col-stat` (46px), `.col-sort` (26px),
+  `.col-pouvoir` (70px fixe, retour à la ligne), `.col-aptitudes` (flexible, tout l'espace restant)
+- Wrapper `.table-dd-wrap` pour le scroll horizontal sur mobile
+→ La table de progression des classes (`detail-pp/classe.php`) migre de `.table-classe-niv` vers `.table-dd`.
+  Le bloc `<style>` inline est réduit aux seules règles non couvertes (titre + `.lien-sub`).
+→ `.sort-detail__description table` dans `compendium-modules.css` aligné sur le même style
+  (fond `--clr-surface-alt` sur `<th>`, même alternance).
+→ Tous les tableaux dans les descriptions de compendium (TinyMCE) bénéficient du style via
+  `.sort-detail__description table` ou `.richtext table` selon le contexte.
+
+**[2026-06-14] Consigne permanente — style tableau dans le site**
+Le style DD (sans bordures, alternance gris/transparent, en-têtes sur fond `--clr-surface-alt`) est le style
+de référence pour tous les tableaux du site. Pour appliquer ce style :
+- Tableaux structurés (tables de progression, listes de données) : classe `.table-dd` + wrapper `.table-dd-wrap`
+- Tableaux dans du contenu HTML TinyMCE injecté via compendium : `.sort-detail__description table` (automatique)
+- Tableaux dans du contenu richtext : `.richtext table` (automatique)
+Les tableaux à deux lignes d'en-tête (ex: lanceurs de sorts) utilisent `<thead>` avec une `<tr class="thead-groupes">`
+pour la ligne de groupe et une `<tr>` standard pour les labels — les deux sont stylés par `.table-dd`.
 
 ## Bugs connus — à traiter
 
