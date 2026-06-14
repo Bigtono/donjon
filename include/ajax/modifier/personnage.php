@@ -68,65 +68,56 @@ $mode        = $id > 0 ? 'edition' : 'creation';
 // Listes de référence pour les selects
 // ============================================================
 //
-// Filtrage races / archétypes / historiques : on suit le pattern du
-// compendium V2 (cf. include/compendium-liste.php) — affichage du compendium
-// **global** uniquement (camp_id IS NULL), borné par les sources actives du
-// joueur. Les homebrew de campagne (camp_id IS NOT NULL) seront accessibles
-// plus tard via la campagne active du personnage, mais ne sont pas pertinents
-// à la création (le perso n'a pas encore de campagne).
-//
-// Garde-fou : si getActiveResIds() renvoie un tableau vide (joueur sans
-// sources personnelles ET aucune source globale par défaut sélectionnée),
-// `IN ()` serait invalide ; on ajoute un id sentinelle (0) pour produire
-// un IN (0) qui ne ramène rien plutôt que de planter.
+// Pattern identique à compendium-liste.php :
+//   - Si getActiveResIds() renvoie des ids → filtre sur ra_res_id IN (...)
+//   - Si tableau vide → pas de filtre source (afficher tout le compendium global)
+// Le compendium global = camp_id IS NULL.
 
-$res_ids = getActiveResIds($db);
-if (empty($res_ids)):
-  $res_ids = [0]; // sentinelle : IN (0) — ne ramène aucune ligne, mais SQL valide
-endif;
-$placeholders = resIdsPlaceholders($res_ids);
+$res_ids      = getActiveResIds($db);
+$filtre_res   = !empty($res_ids);
+$placeholders = $filtre_res ? resIdsPlaceholders($res_ids) : '';
 
 // Races de BASE (ra_rat_id = 1)
-$stmt = $db->prepare("
+$sql_races = "
   SELECT ra.ra_id, ra.ra_nom
     FROM dd_races ra
    WHERE ra.ra_ruleset_var_id = ?
      AND ra.ra_rat_id = 1
-     AND ra.ra_camp_id IS NULL
-     AND ra.ra_res_id IN ($placeholders)
-   ORDER BY ra.ra_nom
-");
-$stmt->execute(array_merge([$ruleset_id], $res_ids));
+     AND ra.ra_camp_id IS NULL"
+  . ($filtre_res ? " AND ra.ra_res_id IN ($placeholders)" : '') . "
+   ORDER BY ra.ra_nom";
+$stmt = $db->prepare($sql_races);
+$stmt->execute($filtre_res ? array_merge([$ruleset_id], $res_ids) : [$ruleset_id]);
 $races_base = $stmt->fetchAll();
 
 // Archétypes (DD3.5 uniquement)
 $archetypes = [];
 if ($ruleset_rep === 'DD3.5'):
-  $stmt = $db->prepare("
+  $sql_arc = "
     SELECT ra.ra_id, ra.ra_nom
       FROM dd_races ra
      WHERE ra.ra_ruleset_var_id = ?
        AND ra.ra_rat_id = 2
-       AND ra.ra_camp_id IS NULL
-       AND ra.ra_res_id IN ($placeholders)
-     ORDER BY ra.ra_nom
-  ");
-  $stmt->execute(array_merge([$ruleset_id], $res_ids));
+       AND ra.ra_camp_id IS NULL"
+    . ($filtre_res ? " AND ra.ra_res_id IN ($placeholders)" : '') . "
+     ORDER BY ra.ra_nom";
+  $stmt = $db->prepare($sql_arc);
+  $stmt->execute($filtre_res ? array_merge([$ruleset_id], $res_ids) : [$ruleset_id]);
   $archetypes = $stmt->fetchAll();
 endif;
 
 // Historiques (DD2024 uniquement)
 $historiques = [];
 if ($ruleset_rep === 'DD2024'):
-  $stmt = $db->prepare("
+  $sql_hi = "
     SELECT hi.hi_id, hi.hi_nom
       FROM dd_historiques hi
      WHERE hi.hi_ruleset_var_id = ?
-       AND hi.hi_camp_id IS NULL
-       AND hi.hi_res_id IN ($placeholders)
-     ORDER BY hi.hi_nom
-  ");
-  $stmt->execute(array_merge([$ruleset_id], $res_ids));
+       AND hi.hi_camp_id IS NULL"
+    . ($filtre_res ? " AND hi.hi_res_id IN ($placeholders)" : '') . "
+     ORDER BY hi.hi_nom";
+  $stmt = $db->prepare($sql_hi);
+  $stmt->execute($filtre_res ? array_merge([$ruleset_id], $res_ids) : [$ruleset_id]);
   $historiques = $stmt->fetchAll();
 endif;
 
@@ -159,24 +150,10 @@ if ($mode === 'edition'):
 endif;
 
 $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['pe_nom']);
-
-// Avertissement si aucune source de compendium active : les selects race /
-// archétype / historique seront vides ou réduits. On le signale clairement
-// pour que le joueur sache où aller configurer ses sources.
-$aucune_source = ($res_ids === [0]);
 ?>
 
 <div class="modif-form">
   <h3 class="modif-form__title"><?= $titre ?></h3>
-
-  <?php if ($aucune_source): ?>
-    <div class="alert alert-warning">
-      <strong>Aucune source de compendium n'est active.</strong>
-      Les listes de races, archétypes et historiques sont vides. Configure tes
-      sources dans <a href="<?= BASE_URL ?>/profil/">ton profil</a>
-      (ou demande à l'administrateur d'activer des sources par défaut).
-    </div>
-  <?php endif ?>
 
   <form id="form-personnage" method="POST"
         action="<?= BASE_URL ?>/personnages/enregistrement.php?ajax=1">
