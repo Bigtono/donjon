@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-14 17:00 -->
+<!-- Mis à jour : 2026-06-15 14:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -159,7 +159,8 @@ Classes CSS définies une fois dans modules.css :
 Le HTML de detail-pp contient le bouton Modifier si canEditCompendium() — vérification serveur.
 Il appelle ouvrirModifier(url, id). Le contexte est déjà mémorisé dans _detailPpContext.
 Ce pattern s'applique à toute ouverture de detail-pp depuis n'importe quelle page du site.
-→ Droits vérifiés serveur, pas exposés au JS.
+→ **Affiné par la décision [2026-06-15] canEditCompendiumEntry() — le bouton Modifier dans detail-pp
+  du compendium est maintenant conditionné par canEditCompendiumEntry() (per-entry) et non canEditCompendium() (global).**
 
 **[2025] Pattern detail-pp — contexte d'ouverture**
 actualiserPage(url, params, context) mémorise le contexte dans _detailPpContext :
@@ -304,6 +305,7 @@ Le périmètre officiel des entités du compendium filtrées par ressource est :
 dd_classes (cla_res_id), dd_races (ra_res_id), dd_sorts (so_res_id), dd_dons (do_res_id),
 dd_competences (comp_res_id), dd_historiques (hi_res_id), dd_objets_magiques (om_res_id).
 Ce périmètre est la référence pour toute vérification de dépendances (admin ressources).
+**Nota : dd_monstres est exclu de ce périmètre — les monstres ne sont pas filtrés par resource dans le moteur de liste standard.**
 → Référence explicite pour éviter les oublis lors des vérifications de suppression.
 
 **[2025] Mot de passe utilisateur en mode ajout**
@@ -328,7 +330,7 @@ Seules les ressources globales du ruleset actif sont proposées :
   WHERE res_ruleset_var_id = :ruleset_var_id AND res_j_id IS NULL
 Le ruleset est lu depuis $_SESSION['ruleset_var_id'] côté serveur (pas depuis le formulaire).
 → Isolation par ruleset conforme à la structure de dd_joueurs_sources (js_ruleset_var_id).
-→ Les ressources homebrew (res_j_id IS NOT NULL) ne sont pas gérées depuis le profil.
+→ **Affiné par [2026-06-15] : les suppléments publics d'autres utilisateurs sont désormais également affichés dans "Mes sources", dans une section distincte.**
 
 **[2025-05] Sélection des sources — zéro sélection autorisé**
 Si l'utilisateur décoche toutes les ressources, les lignes dd_joueurs_sources sont supprimées.
@@ -341,21 +343,10 @@ Chaque res_id reçu en POST est revalidé contre la liste des ressources globale
 Aucun res_id étranger (autre ruleset, homebrew) ne peut être inséré via manipulation du formulaire.
 → Sécurité : pas de confiance implicite dans les valeurs POST.
 
-**[2025-05] Homebrew campagne vs homebrew profil — décision d'architecture**
-Le contenu homebrew reste exclusivement rattaché à une campagne (res_j_id NOT NULL, res_camp_id NOT NULL).
-Aucun homebrew "profil" (res_j_id NOT NULL, res_camp_id IS NULL) n'est implémenté à ce stade.
-
-Le combinaison res_j_id NOT NULL AND res_camp_id IS NULL est **réservée** pour un futur homebrew profil.
-Elle ne doit pas être utilisée à d'autres fins.
-
-Si ce besoin est implémenté ultérieurement, les impacts seront :
-- getActiveResIds() : merge additionnel du homebrew profil (res_j_id = j_id AND res_camp_id IS NULL)
-  dans le résultat, en complément des sources globales actives, quelle que soit la priorité.
-- compendium-liste.php : assouplissement du filtre champ_camp IS NULL pour inclure
-  les ressources homebrew profil du joueur connecté.
-- UI profil : nouvelle section de gestion du recueil personnel (création / suppression).
-- UI création : point d'entrée sans campagne associée (res_camp_id = NULL).
-→ Schéma BDD déjà compatible. Effort estimé : modéré, risque principal sur compendium-liste.php.
+~~**[2025-05] Homebrew campagne vs homebrew profil — décision d'architecture** — SUPERSÉDÉ par [2026-06-15]~~
+~~Le contenu homebrew reste exclusivement rattaché à une campagne (res_j_id NOT NULL, res_camp_id NOT NULL).~~
+~~Aucun homebrew "profil" (res_j_id NOT NULL, res_camp_id IS NULL) n'est implémenté à ce stade.~~
+→ **Décision levée. Le homebrew profil est maintenant implémenté sous le nom de "supplément utilisateur". Voir [2026-06-15].**
 
 ---
 
@@ -485,11 +476,10 @@ en frappant `@` (règle) ou `%` (glossaire), l'utilisateur reçoit des suggestio
 fil d'Ariane), scopées au ruleset courant. Les tags `#`/`$` (don/sort) sont résolus par nom au rendu.
 → Saisie des renvois par id fiabilisée sans quitter le champ.
 
-**[2026-05] Visibilité portée par `mo_j_id` (pattern propre au module)**
-`mo_j_id IS NULL` = monstre public (visible de tous) ; sinon visible du seul propriétaire
-(case « Monstre privé » du formulaire). Clause de liste
-`(mo.mo_j_id IS NULL OR mo.mo_j_id = <uid>)` injectée via `extra_where` ; `ownerFilter()` n'est
-**pas** utilisé (il masquerait les monstres publics à NULL). Les éditeurs voient tout.
+~~**[2026-05] Visibilité portée par `mo_j_id` (pattern propre au module)** — SUPERSÉDÉ par [2026-06-15]~~
+~~`mo_j_id IS NULL` = monstre public (visible de tous) ; sinon visible du seul propriétaire.~~
+~~Clause de liste `(mo.mo_j_id IS NULL OR mo.mo_j_id = <uid>)` injectée via `extra_where`.~~
+→ **Décision levée. `mo_j_id` est supprimé. La visibilité des monstres est gérée via le mécanisme supplément (`mo_res_id`, `mo_public`, `mo_visible`). Voir [2026-06-15].**
 
 **[2026-05] FP en libellé (varchar), `dd_fp` comme référentiel**
 `mo_fp_id` conserve le **libellé** alphanumérique (« 1/2 », « 13 »…) ; `dd_fp` peuple et **ordonne**
@@ -506,6 +496,137 @@ le `<select>` du filtre via `fp_valeur`. `mo_mocat_id` (catégorie, obligatoire)
 **[2026-05] `modifier/monstre-old.php` — ancienne version conservée**
 Une version antérieure du formulaire (`include/ajax/modifier/monstre-old.php`) reste dans le dépôt.
 À supprimer une fois le v3 stabilisé.
+
+---
+
+## Phase 2 — Supplément utilisateur (SP-C)
+
+**[2026-06-15] Activation de la réserve d'architecture — supplément utilisateur**
+La réserve `res_j_id NOT NULL AND res_camp_id IS NULL` (posée en [2025-05]) est maintenant activée.
+Le "homebrew profil" est implémenté sous le nom de **supplément utilisateur**.
+Le supplément est une entrée `dd_ressources` avec `res_j_id = j_id` (propriétaire) et `res_camp_id IS NULL`.
+**1 supplément par utilisateur par ruleset** (2 max par utilisateur : DD3.5 + DD2024).
+Nommage : `res_nom = 'Supplément de {pseudo}'`, `res_abreviation = 'Supp.'`, `res_selection = 0`.
+Créé automatiquement à la première sauvegarde d'une entrée de supplément.
+Droit de création : tout `j_compendium_manager` (accès identique à l'édition du compendium global).
+→ La décision "[2025-05] Homebrew campagne vs homebrew profil" est supersédée.
+
+**[2026-06-15] Champs `_public` et `_visible` — sémantiques distinctes**
+Deux champs `tinyint(1)` contrôlent la visibilité des entrées de supplément :
+- **`_public`** (défaut 0) : partage vers autres utilisateurs ayant le supplément sélectionné.
+  N'a de sens QUE pour les entrées de supplément. Les entrées officielles sont toujours publiques.
+- **`_visible`** (défaut 1) : présence dans les listes standard du compendium.
+  `_visible = 0` = brouillon masqué — n'apparaît pas dans la liste même pour le propriétaire.
+  Accessible via toggle "Afficher mes brouillons" dans la barre de filtre (visible uniquement
+  pour le propriétaire du supplément).
+  N'a de sens QUE pour les entrées non partagées (`_public = 0`).
+- **Contrainte** : `_public = 1` implique `_visible = 1` (forcé serveur au save + contrainte UI).
+  Une entrée partagée est forcément visible. Combinaison `_public=1, _visible=0` impossible.
+
+Matrice des états valides :
+
+| `_public` | `_visible` | Qui voit l'entrée dans la liste |
+|---|---|---|
+| 0 | 1 | Propriétaire uniquement (privé normal) |
+| 0 | 0 | Brouillon — visible via toggle "Afficher mes brouillons" (propriétaire seul) |
+| 1 | 1 | Tous les utilisateurs ayant le supplément sélectionné |
+| 1 | 0 | INTERDIT |
+
+Ajoutés sur **8 entités** (sorts, dons, compétences, races, classes, historiques, monstres) + `om_public` seul pour objets_magiques (`om_visible` existant conservé avec sa sémantique propre).
+
+**[2026-06-15] Suppression de `mo_j_id` — alignement monstres sur le mécanisme supplement**
+`dd_monstres.mo_j_id` (NULL = public, sinon visible du seul propriétaire) est **supprimé**.
+La propriété et la visibilité des monstres sont désormais gérées exclusivement via :
+- `mo_res_id` → ressource supplément de l'utilisateur (monstres personnels)
+- `mo_camp_id` → homebrew de campagne (inchangé)
+- `mo_public` / `mo_visible` (nouveaux champs, mêmes règles que les autres entités)
+Patch SQL `patch_004_supplements.sql` inclut la **migration des monstres existants** :
+pour chaque `mo_j_id IS NOT NULL`, création du supplément utilisateur si absent, UPDATE `mo_res_id`,
+SET `mo_public=0, mo_visible=1`, puis `ALTER TABLE DROP COLUMN mo_j_id`.
+Le `extra_where` de `monstres.php` (`mo.mo_j_id IS NULL OR mo.mo_j_id = $uid`) est supprimé.
+Le moteur de liste prend le relai via le filtre visibilité supplément.
+→ Unification complète du mécanisme de visibilité dans tout le compendium.
+
+**[2026-06-15] `canEditCompendiumEntry()` — garde per-entry**
+Nouvelle fonction dans `helpers.php` pour valider le droit d'édition d'une entrée spécifique :
+```php
+function canEditCompendiumEntry($db, ?int $res_j_id): bool {
+  if (isAdmin()) return true;
+  // Supplément : seul le propriétaire
+  if ($res_j_id !== null) {
+    return (int)($_SESSION['j_id'] ?? 0) === $res_j_id;
+  }
+  // Ressource officielle : gestionnaire compendium
+  return !empty($_SESSION['j_compendium_manager']);
+}
+```
+Utilisée dans : `compendium-liste.php` (menu ⋮ per-row), `detail-pp/*.php` × 8 (bouton Modifier),
+`enregistrement.php` (garde de save par entité). Le paramètre `$res_j_id` est issu de
+`res.res_j_id AS _res_j_id` ajouté automatiquement dans le SELECT par le moteur.
+`canEditCompendium()` (dans `auth.php`) reste inchangée — contrôle le bouton "Ajouter" et la barre bulk.
+
+**[2026-06-15] Filtre visibilité dans `compendium-liste.php` — JOIN automatique**
+Quand `champ_public` et `champ_visible` sont déclarés dans `$listConfig`, le moteur :
+1. Ajoute `JOIN dd_ressources res ON res.res_id = {champ_res}` au FROM
+2. Ajoute `res.res_j_id AS _res_j_id` dans le SELECT (pour per-entry auth)
+3. Ajoute le fragment WHERE :
+```sql
+AND (
+  res.res_j_id IS NULL
+  OR res.res_j_id = :uid
+  OR ({champ_public} = 1 AND {champ_visible} = 1)
+)
+```
+4. Adapte l'affichage du menu ⋮ par ligne (canEditCompendiumEntry basé sur `_res_j_id`)
+5. Ajoute la classe `comp-ligne--homebrew` sur les lignes avec `_res_j_id IS NOT NULL`
+
+Nouvelles clés dans `$listConfig` :
+- `'champ_public'`  → référence SQL de la colonne (ex: `'so.so_public'`) ou `false`
+- `'champ_visible'` → référence SQL de la colonne (ex: `'so.so_visible'`) ou `false`
+Si absentes ou à `false` : aucune modification du comportement existant (rétro-compatible).
+Toutes les 8 pages contrôleurs du compendium déclarent ces clés.
+
+**[2026-06-15] Source dropdown dans les formulaires modifier — 2 groupes**
+Dans chaque formulaire `modifier/*.php`, le `<select>` Source est restructuré en deux groupes :
+- `<optgroup label="Sources officielles">` : ressources officielles du ruleset actif
+- `<optgroup label="Mon supplément">` : ressource supplément de l'utilisateur (créée si absente)
+Les champs `_public` / `_visible` n'apparaissent (via JS) que lorsqu'une source de supplément est sélectionnée.
+Pour les entrées officielles, ces champs sont masqués et non soumis.
+→ L'utilisateur ne peut pas marquer une entrée officielle comme publique/privée.
+
+**[2026-06-15] Auto-sélection du supplément dans les sources personnelles**
+Lors de la première sauvegarde d'une entrée de supplément :
+1. La ressource supplément est créée automatiquement si absente (`getOrCreateUserSupplement($db, $j_id, $ruleset_var_id)`).
+2. Elle est auto-ajoutée dans `dd_joueurs_sources` pour le propriétaire (priorité 2 de `getActiveResIds()`).
+→ **Pas d'auto-ajout aux campagnes** — le MJ ajoute son supplément aux sources d'une campagne manuellement via la configuration de la campagne.
+→ La chaîne `getActiveResIds()` (priorité 2 = `dd_joueurs_sources`) suffit ; la fonction reste inchangée.
+
+**[2026-06-15] Supplément sélectionnable par d'autres utilisateurs**
+La ressource supplément d'un utilisateur devient visible dans "Mes sources" (profil) pour les autres
+uniquement si **au moins une entrée est publique et visible** (`_public = 1 AND _visible = 1`)
+dans n'importe quelle section. Vérification par sous-requête UNION sur les 8 tables concernées.
+Le profil "Mes sources" est étendu : une section "Suppléments d'autres utilisateurs" liste
+les suppléments disponibles avec le pseudo du propriétaire et le nombre d'entrées publiques.
+→ Le propriétaire voit son propre supplément sans cet affichage (il est auto-sélectionné).
+
+**[2026-06-15] Badge homebrew dans les listes**
+Toute ligne de supplément (`_res_j_id IS NOT NULL`) dans une liste compendium reçoit un badge visuel :
+classe CSS `comp-ligne--homebrew` sur le `<tr>` et icône indicateur dans `col-primary`.
+Styles dans `compendium-modules.css`.
+→ Distinction visuelle immédiate entre contenu officiel et contenu de supplément.
+
+**[2026-06-15] Plan de développement SP-C — 8 sous-phases**
+
+| Phase | Contenu | Complexité |
+|---|---|---|
+| SP-C0 | SQL : 8 ALTER TABLE + migration mo_j_id + `patch_004_supplements.sql` | Modérée |
+| SP-C1 | Socle : `getOrCreateUserSupplement`, `getUserSupplementResId`, `canEditCompendiumEntry` | Faible |
+| SP-C2 | Moteur : `compendium-liste.php` + 8 contrôleurs (`champ_public`/`champ_visible`) | Élevée |
+| SP-C3 | `detail-pp/*.php` × 8 : bouton Modifier per-entry | Modérée |
+| SP-C4 | `modifier/*.php` × 8 : source dropdown 2 groupes + champs `_public`/`_visible` | Modérée |
+| SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément | Modérée |
+| SP-C6 | `profil/index.php` : "Mes sources" — suppléments publics d'autres utilisateurs | Faible |
+| SP-C7 | Monstres : nettoyage `monstres.php` + `monstre-parser.php` (rm refs `mo_j_id`) | Faible |
 
 ---
 
@@ -662,7 +783,6 @@ CREATE `dd_oppositions`, DROP `dd_rencontres_monstres`, CREATE `dd_fichiers`. De
 → Schéma réel aligné sur `SCHEMA_SQL.md` v1.1. Reprise de données v1→v2 = patch étape 2 (à venir).
 
 ---
-
 
 **[2026-06-04] Correction bug — Flèche sommaire règles à la ligne**
 Dans `include/regles-arbre.php`, `_rendreSommaireNiveau()` : le lien `regles-sommaire__lien`
@@ -952,19 +1072,19 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~Zone admin — nombre de blocs~~ → 2 blocs (Utilisateurs + Ressources) ; Variables via phpMyAdmin
 - [x] ~~Suppression utilisateur~~ → désactivation j_visible=0, jamais DELETE
 - [x] ~~Sélection sources profil — zéro sélection~~ → autorisé, retour au défaut, message explicatif
-- [x] ~~Homebrew profil vs campagne~~ → homebrew reste campagne uniquement ; res_camp_id IS NULL réservé
+- [x] ~~Homebrew profil vs campagne~~ → **IMPLÉMENTÉ** sous le nom de supplément utilisateur (SP-C) — voir [2026-06-15]
 - [x] ~~Thèmes visuels~~ → dark (défaut) + light "Parchemin" via j_theme en BDD + classe body
 - [x] ~~Monstres — où analyser le bloc de stats~~ → à l'affichage, stockage texte brut (moteur monstre-parser.php v3)
 - [x] ~~Monstres — TinyMCE pour mo_stats ?~~ → non, `<textarea>` brut
 - [x] ~~Monstres — mécanisme de liens~~ → tags explicites `#`/`$`/`@`/`%` + liaison auto sorts/glossaire
-- [x] ~~Monstres — visibilité~~ → mo_j_id (NULL = public, sinon propriétaire)
-- [ ] Monstres — resynchroniser sql/schema.sql et le dump avec le schéma réel (catégories, groupes, fp, colonnes mo_*)
+- [x] ~~Monstres — visibilité~~ → **SUPERSÉDÉ** par supplément utilisateur — `mo_j_id` supprimé, `mo_public`/`mo_visible` ajoutés, migration via `patch_004_supplements.sql`
+- [ ] Monstres — resynchroniser sql/schema.sql et le dump avec le schéma réel (catégories, groupes, fp, colonnes mo_* incluant la suppression de mo_j_id et l'ajout de mo_public/mo_visible)
 - [ ] Monstres — supprimer include/ajax/modifier/monstre-old.php une fois le v3 stabilisé
 - [ ] Monstres — étendre le parsing automatique DD3.5 (actuellement minimal)
 - [ ] Sorts DD2024 — `so_resume` : NULL ou résumé court généré par sort (actuellement NULL)
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
 - [ ] Taille maximale des contenus wiki (LONGTEXT = ~4Go, probablement suffisant)
-- [ ] Homebrew profil (recueil maison transversal) — implémentation future si besoin confirmé
+- [x] ~~Homebrew profil (recueil maison transversal)~~ → implémenté : supplément utilisateur (SP-C)
 - [x] ~~Campagnes — lien perso↔campagne~~ → N-N (dd_campagnes_personnages) + pe_camp_id (dernière campagne)
 - [x] ~~Campagnes — rencontres : monstres ou copies ?~~ → oppositions (copies éditables, dd_oppositions)
 - [x] ~~Campagnes — effectifs~~ → champ texte re_composition, pas de comptage chiffré ni table de liaison
@@ -990,3 +1110,11 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [ ] Personnages — contenu réel du « mode jeu » (variables suivies par ruleset)
 - [ ] Personnages — objets magiques / possessions (analyse métier à fiabiliser)
 - [ ] Personnages — resynchroniser sql/schema.sql avec dd_alignements + nouveaux champs dd_personnages (pe_sexe, pe_al_id, pe_notes_scope, pe_hi_id)
+- [ ] SP-C0 — Produire `sql/patch_004_supplements.sql` (8 ALTER TABLE + migration mo_j_id)
+- [ ] SP-C1 — Produire fonctions socle dans helpers.php + canEditCompendiumEntry dans auth.php
+- [ ] SP-C2 — Mettre à jour compendium-liste.php + 8 contrôleurs (champ_public/champ_visible)
+- [ ] SP-C3 — Mettre à jour detail-pp/*.php × 8 (bouton Modifier per-entry)
+- [ ] SP-C4 — Mettre à jour modifier/*.php × 8 (source dropdown 2 groupes + _public/_visible)
+- [ ] SP-C5 — Mettre à jour enregistrement.php (ownership + auto-create supplément)
+- [ ] SP-C6 — Mettre à jour profil/index.php (Mes sources — suppléments tiers)
+- [ ] SP-C7 — Nettoyage monstres post-migration (monstres.php, monstre-parser.php)
