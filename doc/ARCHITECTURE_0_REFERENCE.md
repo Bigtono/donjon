@@ -1,12 +1,12 @@
-<!-- Mis à jour : 2026-06-17 17:40 -->
+<!-- Mis à jour : 2026-06-17 18:05 -->
 
 # Codex DD v2 — Document de référence architecture
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Compendium Classes — gestion des sous-classes DD2024 (réutilisation de
-> `dd_classes`/`cla_cla_id`, bascule d'affichage par type, Phase 2 SP-C — conception supplément
-> utilisateur validée (plan SP-C0→SP-C7) ; Phase 3 sous-phase 3.2 livrée (éditeur Classes inline +
+> Dernière mise à jour : Compendium Classes — sous-classes DD2024, affichage des capacités
+> spéciales en « Niveau XX : Nom » ; Phase 2 SP-C — conception supplément utilisateur validée
+> (plan SP-C0→SP-C7) ; Phase 3 sous-phase 3.2 livrée (éditeur Classes inline +
 > domaines divins DD3.5)
 
 ---
@@ -515,8 +515,15 @@ référencent via `cla_cla_id`, en plus du contrôle existant sur les personnage
 sous-classe et affiche à la place une ligne "Classe parente" cliquable, qui ouvre la fiche de la
 classe de base dans le même `#detail-pp` via `naviguerDetailPP()` (réutilisation de la pile de
 navigation interne déjà utilisée pour Campagne→Scénario, bouton ← Retour). Le reste de la fiche
-(compétences, armes, description, capacités spéciales) est déjà conditionné par la présence de
-données et n'affiche donc rien de superflu pour une sous-classe sans changement supplémentaire.
+(compétences, armes, description) est déjà conditionné par la présence de données et n'affiche
+donc rien de superflu pour une sous-classe sans changement supplémentaire.
+
+La section "Capacités spéciales" utilise une requête et un titre dédiés pour une sous-classe :
+une ligne par affectation niveau/capacité (`dd_classe_capacite`, triée par `cc_niveau`), avec pour
+titre **« Niveau XX : Nom de la capacité »** plutôt que le simple nom utilisé pour une classe
+normale (qui s'appuie elle sur la table de progression pour le contexte de niveau, absente pour
+une sous-classe). Si une même capacité est affectée à plusieurs niveaux, elle apparaît une fois
+par niveau.
 
 #### Fichiers du module
 

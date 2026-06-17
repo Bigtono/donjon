@@ -107,15 +107,34 @@ $niveaux = $stmt_niv->fetchAll();
 // Capacités spéciales complètes (pour la section descriptions)
 // ============================================================
 
-$stmt_cap = $db->prepare('
-  SELECT DISTINCT cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type
-  FROM   dd_classe_capacite cc
-  JOIN   dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
-  WHERE  cc.cc_cla_id = ?
-  ORDER  BY cap.cap_nom
-');
-$stmt_cap->execute([$id]);
-$capacites = $stmt_cap->fetchAll();
+// Classe normale : une ligne par capacité (regroupe ses éventuelles affectations
+// multi-niveaux), inchangé — le niveau est déjà visible dans la table de progression.
+// Sous-classe DD2024 : pas de table de progression, donc une ligne par affectation
+// niveau/capacité, triée par niveau, pour afficher "Niveau XX : Nom".
+$capacites          = [];
+$capacitesParNiveau = [];
+
+if ($isSousClasse):
+  $stmt_capn = $db->prepare('
+    SELECT cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type, cc.cc_niveau
+    FROM   dd_classe_capacite cc
+    JOIN   dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
+    WHERE  cc.cc_cla_id = ?
+    ORDER  BY cc.cc_niveau, cap.cap_nom
+  ');
+  $stmt_capn->execute([$id]);
+  $capacitesParNiveau = $stmt_capn->fetchAll();
+else:
+  $stmt_cap = $db->prepare('
+    SELECT DISTINCT cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type
+    FROM   dd_classe_capacite cc
+    JOIN   dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
+    WHERE  cc.cc_cla_id = ?
+    ORDER  BY cap.cap_nom
+  ');
+  $stmt_cap->execute([$id]);
+  $capacites = $stmt_cap->fetchAll();
+endif;
 
 // Bonus de maîtrise DD2024 — commun à toutes les classes, par niveau
 // Table : dd_bonus_matrise (orthographe exacte en base, filtrée par ruleset)
@@ -480,7 +499,29 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
   <?php endif ?>
 
   <?php // ---- Descriptions des capacités spéciales ?>
-  <?php if (!empty($capacites)): ?>
+  <?php if ($isSousClasse): ?>
+    <?php if (!empty($capacitesParNiveau)): ?>
+      <div class="classe-detail__capacites" style="margin-top:1rem;">
+        <div class="sort-detail__label" style="margin-bottom:.5rem;">Capacités spéciales</div>
+        <?php foreach ($capacitesParNiveau as $cap): ?>
+          <div class="classe-detail__capacite" id="capacite-<?= (int)$cap['cap_id'] ?>"
+               style="margin-bottom:.75rem;">
+            <div class="classe-detail__capacite-nom">
+              <strong>Niveau <?= (int)$cap['cc_niveau'] ?> : <?= h($cap['cap_nom']) ?></strong>
+              <?php if ($cap['cap_type']): ?>
+                <span class="cap-type">(<?= h($cap['cap_type']) ?>)</span>
+              <?php endif ?>
+            </div>
+            <?php if ($cap['cap_description']): ?>
+              <div class="classe-detail__capacite-desc">
+                <?= $cap['cap_description'] ?>
+              </div>
+            <?php endif ?>
+          </div>
+        <?php endforeach ?>
+      </div>
+    <?php endif ?>
+  <?php elseif (!empty($capacites)): ?>
     <div class="classe-detail__capacites" style="margin-top:1rem;">
       <div class="sort-detail__label" style="margin-bottom:.5rem;">Capacités spéciales</div>
       <?php foreach ($capacites as $cap): ?>

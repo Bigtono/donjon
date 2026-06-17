@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-17 17:40 -->
+<!-- Mis à jour : 2026-06-17 18:05 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -247,6 +247,15 @@ bloque désormais la suppression d'une classe référencée comme parente par de
 → Alternative écartée : table dd_sousclasses dédiée (+ dd_sousclasse_capacite). La réutilisation
 de dd_classes évite toute migration et tout nouveau module compendium, conformément au principe
 projet de réutilisation maximale des patterns existants.
+
+**[2026-06-17] Sous-classes DD2024 — titre des capacités spéciales « Niveau XX : Nom »**
+Pour une sous-classe, la section "Capacités spéciales" de detail-pp/classe.php affiche une ligne
+par affectation niveau/capacité (dd_classe_capacite, triée par cc_niveau), avec pour titre
+"Niveau XX : Nom de la capacité" — une même capacité affectée à plusieurs niveaux apparaît donc
+plusieurs fois. Pour une classe normale, l'affichage reste inchangé (simple nom, niveau déjà
+visible dans la table de progression).
+→ Une sous-classe n'a pas de table de progression ; le niveau doit donc être porté par le titre
+de chaque capacité plutôt que par un tableau absent.
 
 ---
 
