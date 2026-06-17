@@ -1,10 +1,13 @@
-<!-- Mis à jour : 2026-06-15 14:30 -->
+<!-- Mis à jour : 2026-06-17 17:40 -->
 
 # Codex DD v2 — Document de référence architecture
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Phase 2 SP-C — conception supplément utilisateur validée (plan SP-C0→SP-C7) ; Phase 3 sous-phase 3.2 livrée (éditeur Classes inline + domaines divins DD3.5)
+> Dernière mise à jour : Compendium Classes — gestion des sous-classes DD2024 (réutilisation de
+> `dd_classes`/`cla_cla_id`, bascule d'affichage par type, Phase 2 SP-C — conception supplément
+> utilisateur validée (plan SP-C0→SP-C7) ; Phase 3 sous-phase 3.2 livrée (éditeur Classes inline +
+> domaines divins DD3.5)
 
 ---
 
@@ -450,6 +453,79 @@ include/ajax/modifier/monstre.php           # formulaire (textarea + autocomplet
 include/ajax/autocomplete-tags-monstre.php  # suggestions tags @ (règle) / % (glossaire)
 js/compendium.js                            # gestionnaire délégué .mo-lien (résolution data-*)
 css/compendium-modules.css                  # styles .mo-stats / .mo-lien / grille carac / .comp-ligne--homebrew
+```
+
+---
+
+### Module Classes — sous-classes (DD2024)
+
+#### Principe — réutilisation de `dd_classes`, pas de table dédiée
+
+Une sous-classe DD2024 (ex. domaine divin du clerc, voie du barbare) est stockée comme une ligne
+ordinaire de `dd_classes`, avec `cla_clt_id` pointant vers le type `dd_classe_type` dédié :
+
+| clt_id | Nom | Ruleset |
+|---|---|---|
+| 4 | Base | DD2024 |
+| 5 | Sous-classe | DD2024 |
+
+> ⚠️ Ces `clt_id` sont des valeurs concrètes confirmées en base (dev/prod), pas des constantes
+> normalisées par le code — à l'image du `cla_clt_id === 2` déjà utilisé pour le prestige DD3.5.
+> Si l'ID de la ligne « Sous-classe » diffère un jour entre environnements, mettre à jour le
+> littéral `5` dans les trois fichiers listés ci-dessous (Fichiers du module).
+
+Le champ `cla_cla_id` (déjà présent en base, jusque-là inutilisé par le code) porte désormais la
+classe parente d'une sous-classe — liaison N sous-classes → 1 classe. Il reste `NULL` pour toute
+classe Base ou Prestige.
+
+Le mécanisme de capacités spéciales par niveau (`dd_classe_capacite`) est réutilisé sans aucune
+modification de schéma : une sous-classe étant une ligne `dd_classes` comme une autre, `cc_cla_id`
+pointe directement sur son propre `cla_id`.
+
+#### Formulaire — bascule d'affichage selon le type
+
+`include/ajax/modifier/classe.php` affiche un sélecteur "Classe parente" (`cla_cla_id`, classes du
+ruleset hors sous-classes et hors la classe en cours d'édition), visible uniquement quand
+`cla_clt_id = 5`. À l'inverse, tous les champs propres à une classe "normale" — dé de vie,
+niveaux max, type de magie, caractéristique LS, table de progression (Section 2), blocs DD3.5/
+DD2024 de la Section 1b, intitulés de pouvoirs 1-5 — sont masqués pour ce type. Ces blocs sont
+marqués par la classe CSS `.classe-champ-normal` (l'inverse, `.classe-champ-sousclasse`, pour le
+champ "Classe parente"), basculée en JS par `appliquerVisibiliteType()` sur le `change` du select
+`cla_clt_id`. Seuls nom, abréviation, source, campagne homebrew, description et la Section 3
+(capacités spéciales) restent communs aux deux types. Le niveau max d'une sous-classe DD2024 va
+toujours jusqu'à 20 comme n'importe quelle classe Base — aucune synchronisation dynamique avec la
+classe parente n'est donc nécessaire pour borner l'éditeur de capacités.
+
+#### Enregistrement — neutralisation serveur + validation
+
+`enregistrerClasse()` (`compendium/enregistrement.php`) valide que `cla_cla_id` est renseigné si
+`cla_clt_id = 5`, et neutralise côté serveur tous les champs "classe normale" (type de magie,
+caractéristique LS, sorts, armes/armures/outils/équipement, points de compétences, alignement,
+conditions, etc.) quand le type est Sous-classe — qu'ils aient été soumis ou non par le
+formulaire — afin d'éviter des données résiduelles en base. La Section 2 (table de progression
+`dd_classe_niveau`) est entièrement ignorée pour une sous-classe ; toute ligne déjà présente est
+purgée (cas d'une classe Base reclassée en Sous-classe).
+
+`supprimerClasse()` bloque désormais la suppression d'une classe si des sous-classes la
+référencent via `cla_cla_id`, en plus du contrôle existant sur les personnages utilisant la classe.
+
+#### Visualisation
+
+`include/ajax/detail-pp/classe.php` masque les lignes "Dé de vie" et "Niveaux" pour une
+sous-classe et affiche à la place une ligne "Classe parente" cliquable, qui ouvre la fiche de la
+classe de base dans le même `#detail-pp` via `naviguerDetailPP()` (réutilisation de la pile de
+navigation interne déjà utilisée pour Campagne→Scénario, bouton ← Retour). Le reste de la fiche
+(compétences, armes, description, capacités spéciales) est déjà conditionné par la présence de
+données et n'affiche donc rien de superflu pour une sous-classe sans changement supplémentaire.
+
+#### Fichiers du module
+
+```
+include/ajax/modifier/classe.php   # + select cla_cla_id, classes .classe-champ-normal/-sousclasse,
+                                    #   appliquerVisibiliteType() (JS)
+include/ajax/detail-pp/classe.php  # + jointure classe parente, ligne "Classe parente" cliquable
+compendium/enregistrement.php      # enregistrerClasse() : validation + neutralisation des champs,
+                                    #   purge dd_classe_niveau ; supprimerClasse() : dépendance sous-classes
 ```
 
 ---

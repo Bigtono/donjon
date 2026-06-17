@@ -872,6 +872,13 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
 
   // Champs scalaires
   $clt_id      = intParam($_POST['cla_clt_id']          ?? 1);
+  $estSousClasse = ($clt_id === 5); // clt_id=5 → 'Sous-classe' (DD2024)
+  $cla_cla_id  = $estSousClasse ? intParam($_POST['cla_cla_id'] ?? 0) : null;
+
+  if ($estSousClasse && !$cla_cla_id):
+    repondreErreur($is_ajax, 'La classe parente est obligatoire pour une sous-classe.', $redirect);
+  endif;
+
   $dV          = intParam($_POST['cla_dV']              ?? 8);
   $niveauMax   = intParam($_POST['cla_niveauMax']       ?? 20);
   $mag_id      = intParam($_POST['cla_mag_id']          ?? 0);
@@ -907,6 +914,35 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
   for ($p = 1; $p <= 5; $p++):
     $pouvoirs[$p] = strParam($_POST['cla_pouvoir' . $p] ?? '');
   endfor;
+
+  // Sous-classe (DD2024) : seuls nom/source/classe parente/capacités spéciales sont
+  // pertinents. On neutralise les champs "classe normale" pour ne pas laisser de
+  // données résiduelles en base, qu'ils aient été soumis ou non par le formulaire.
+  if ($estSousClasse):
+    $mag_id           = 0;
+    $car_id           = 0;
+    $alignement       = '';
+    $ptsComp          = 0;
+    $poNiv1           = 0;
+    $sortConnu        = 0;
+    $sortCompris      = 0;
+    $sortPrepare      = 0;
+    $domaineDivin     = 0;
+    $armes            = '';
+    $armures          = '';
+    $outils           = '';
+    $sauvegardes      = '';
+    $equipement       = '';
+    $competences      = '';
+    $sorts            = '';
+    $conditions       = '';
+    $caracteristiques = '';
+    $traits           = '';
+    $critere_rec      = '';
+    for ($p = 1; $p <= 5; $p++):
+      $pouvoirs[$p] = '';
+    endfor;
+  endif;
 
   // Payloads capacités
   $capacites_payload    = json_decode($_POST['capacites_payload']    ?? '[]', true) ?: [];
@@ -952,6 +988,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
       ':cla_pouvoir5'         => $pouvoirs[5],
       ':cla_res_id'           => $res_id,
       ':cla_camp_id'          => $camp_id,
+      ':cla_cla_id'           => $cla_cla_id,
     ];
 
     if ($cla_id === 0):
@@ -965,7 +1002,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           cla_sauvegardes, cla_equipement, cla_competences, cla_sorts,
           cla_caracteristiques, cla_traits, cla_critere_rec,
           cla_pouvoir1, cla_pouvoir2, cla_pouvoir3, cla_pouvoir4, cla_pouvoir5,
-          cla_res_id, cla_camp_id, cla_ruleset_var_id
+          cla_res_id, cla_camp_id, cla_cla_id, cla_ruleset_var_id
         ) VALUES (
           :cla_nom, :cla_abreviation, :cla_clt_id, :cla_dV, :cla_niveauMax,
           :cla_mag_id, :cla_car_id, :cla_sort_connu, :cla_sort_compris, :cla_sort_prepare,
@@ -974,7 +1011,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           :cla_sauvegardes, :cla_equipement, :cla_competences, :cla_sorts,
           :cla_caracteristiques, :cla_traits, :cla_critere_rec,
           :cla_pouvoir1, :cla_pouvoir2, :cla_pouvoir3, :cla_pouvoir4, :cla_pouvoir5,
-          :cla_res_id, :cla_camp_id, :cla_ruleset_var_id
+          :cla_res_id, :cla_camp_id, :cla_cla_id, :cla_ruleset_var_id
         )
       ');
       $stmt->execute($params);
@@ -1015,13 +1052,21 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           cla_pouvoir4         = :cla_pouvoir4,
           cla_pouvoir5         = :cla_pouvoir5,
           cla_res_id           = :cla_res_id,
-          cla_camp_id          = :cla_camp_id
+          cla_camp_id          = :cla_camp_id,
+          cla_cla_id           = :cla_cla_id
         WHERE cla_id = :cla_id
       ');
       $stmt->execute($params);
     endif;
 
     // ---- 2. Table de progression (UPSERT niveau par niveau) ----
+    // Une sous-classe (DD2024) n'a pas de table de progression propre :
+    // on purge d'éventuelles données issues d'un changement de type
+    // (ex. une classe Base reclassée en Sous-classe) plutôt que de les conserver.
+
+    if ($estSousClasse):
+      $db->prepare('DELETE FROM dd_classe_niveau WHERE cn_cla_id = ?')->execute([$cla_id]);
+    else:
 
     $niveaux_post = isset($_POST['niveaux']) && is_array($_POST['niveaux'])
       ? $_POST['niveaux']
@@ -1141,6 +1186,8 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
       endforeach;
     endif;
 
+    endif; // fin else ($estSousClasse) — Section 2
+
     // ---- 3. Capacités spéciales (payload JS) ----
 
     if ($payload_ready && !empty($capacites_payload)):
@@ -1236,11 +1283,26 @@ function supprimerClasse($db, bool $is_ajax, string $redirect): void
     $stmt->execute([$cla_id]);
     $nb = (int)$stmt->fetchColumn();
 
-    if ($nb > 0):
+    // Vérification : sous-classes rattachées à cette classe (cla_cla_id)
+    $stmt_sc = $db->prepare('
+      SELECT GROUP_CONCAT(cla_nom SEPARATOR \', \') FROM dd_classes WHERE cla_cla_id = ?
+    ');
+    $stmt_sc->execute([$cla_id]);
+    $sousClassesNoms = $stmt_sc->fetchColumn();
+
+    if ($nb > 0 || $sousClassesNoms):
       $stmt_nom = $db->prepare('SELECT cla_nom FROM dd_classes WHERE cla_id = ?');
       $stmt_nom->execute([$cla_id]);
-      $nom    = $stmt_nom->fetchColumn() ?: "classe #$cla_id";
-      $refus[] = "« $nom » : $nb personnage(s) associé(s)";
+      $nom = $stmt_nom->fetchColumn() ?: "classe #$cla_id";
+
+      $raisons = [];
+      if ($nb > 0):
+        $raisons[] = "$nb personnage(s) associé(s)";
+      endif;
+      if ($sousClassesNoms):
+        $raisons[] = "sous-classe(s) rattachée(s) : $sousClassesNoms";
+      endif;
+      $refus[] = "« $nom » : " . implode(' ; ', $raisons);
     else:
       $ok_ids[] = $cla_id;
     endif;

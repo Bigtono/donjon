@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-12 16:00 -->
+<!-- Mis à jour : 2026-06-17 17:40 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -294,7 +294,7 @@ Classes de personnage (base et prestige).
 | cla_id | int unsigned | PK | |
 | cla_nom | varchar(100) | nn | |
 | cla_abreviation | varchar(20) | nn | |
-| cla_clt_id | tinyint unsigned | nn, défaut 1 | Type : 1=base, 2=prestige *[DD3.5]* |
+| cla_clt_id | tinyint unsigned | nn, défaut 1 | Type -> dd_classe_type (1=base/2=prestige *[DD3.5]* historique ; 4=Base/5=Sous-classe *[DD2024]*) |
 | cla_dV | tinyint unsigned | nn, défaut 6 | Dé de vie (4, 6, 8, 10, 12) |
 | cla_alignement | varchar(100) | null | Restrictions d'alignement |
 | cla_car_id | int unsigned | nn, défaut 0 | Caractéristique principale -> dd_caracteristiques (0=aucune) |
@@ -319,7 +319,7 @@ Classes de personnage (base et prestige).
 | cla_caracteristiques | text | null | Caractéristiques importantes |
 | cla_critere_rec | text | null | Critères recommandés |
 | cla_pouvoir1 … cla_pouvoir5 | varchar(100) | null | Intitulé des pouvoirs spécifiques (colonnes de la table de bonus) |
-| cla_cla_id | int unsigned | null | Classe parente éventuelle -> dd_classes |
+| cla_cla_id | int unsigned | null | *[DD2024]* Classe parente d'une sous-classe (cla_clt_id=5) -> dd_classes ; null pour Base/Prestige |
 | cla_res_id | int unsigned | nn | Source -> dd_ressources |
 | cla_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | cla_ruleset_var_id | int unsigned | nn | -> dd_variables |
@@ -374,12 +374,17 @@ Affectation d'une compétence à une classe. Pour DD3.5 : il s'agit des compéte
 ---
 
 ### dd_classe_type
-Type de classe 
+Type de classe — une ligne par ruleset (`clt_ruleset_var_id`), ID non normalisés entre rulesets.
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | clt_id | int unsigned | PK | |
 | clt_nom | varchar(50) | nn | |
 | clt_ruleset_var_id | int unsigned | nn | -> dd_variables| |
+
+> Valeurs confirmées en base : DD2024 → clt_id=4 « Base », clt_id=5 « Sous-classe ».
+> DD3.5 utilise historiquement clt_id=1 « Base », clt_id=2 « Prestige » (voir code legacy
+> `cla_clt_id === 2`). Ces littéraux sont dupliqués dans le code (pas de constante partagée) —
+> voir « Module Classes — sous-classes (DD2024) » dans ARCHITECTURE_0_REFERENCE.md.
 
 ---
 

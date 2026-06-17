@@ -33,7 +33,8 @@ $stmt = $db->prepare('
          car.car_nom    AS car_ls_nom,
          res.res_nom,
          camp.camp_nom,
-         var.var_valeur AS ruleset_label
+         var.var_valeur AS ruleset_label,
+         clapar.cla_nom AS cla_parente_nom
   FROM   dd_classes cla
   LEFT JOIN dd_classe_type   clt  ON clt.clt_id   = cla.cla_clt_id
   LEFT JOIN dd_typemagie     mag  ON mag.mag_id    = cla.cla_mag_id
@@ -41,6 +42,7 @@ $stmt = $db->prepare('
   LEFT JOIN dd_ressources    res  ON res.res_id    = cla.cla_res_id
   LEFT JOIN dd_campagnes     camp ON camp.camp_id  = cla.cla_camp_id
   LEFT JOIN dd_variables     var  ON var.var_id    = cla.cla_ruleset_var_id
+  LEFT JOIN dd_classes       clapar ON clapar.cla_id = cla.cla_cla_id
   WHERE  cla.cla_id = ?
 ');
 $stmt->execute([$id]);
@@ -54,6 +56,7 @@ endif;
 
 $niveauMax      = (int)$cla['cla_niveauMax'];
 $isLanceurSorts = (int)$cla['cla_mag_id'] > 0;
+$isSousClasse   = ((int)$cla['cla_clt_id'] === 5); // clt_id=5 → 'Sous-classe' (DD2024)
 
 // Pouvoirs actifs (intitulé non nul)
 $activePouvoirs = [];
@@ -164,6 +167,21 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
   <?php // ---- Données de base ?>
   <div class="sort-detail__body">
 
+    <?php if ($isSousClasse): ?>
+      <?php if ((int)$cla['cla_cla_id'] > 0): ?>
+        <div class="sort-detail__row">
+          <span class="sort-detail__label">Classe parente</span>
+          <span class="sort-detail__value">
+            <span class="lien-sub"
+                  onclick="naviguerDetailPP('<?= BASE_URL ?>/include/ajax/detail-pp/classe.php', {id:<?= (int)$cla['cla_cla_id'] ?>})"
+                  title="Voir la classe parente">
+              <?= h($cla['cla_parente_nom'] ?? '') ?>
+            </span>
+          </span>
+        </div>
+      <?php endif ?>
+    <?php else: ?>
+
     <div class="sort-detail__row">
       <span class="sort-detail__label">Dé de vie</span>
       <span class="sort-detail__value">d<?= (int)$cla['cla_dV'] ?></span>
@@ -173,6 +191,9 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
       <span class="sort-detail__label">Niveaux</span>
       <span class="sort-detail__value"><?= $niveauMax ?></span>
     </div>
+
+    <?php endif ?>
+
 
     <?php if ($cla['mag_nom']): ?>
       <div class="sort-detail__row">

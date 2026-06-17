@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-17 15:10 -->
+<!-- Mis à jour : 2026-06-17 17:40 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -230,6 +230,23 @@ La table dd_historiques (préfixe hi, champ hi_res_id) est intégrée au périm�
 La page compendium/historiques.php et ses endpoints AJAX ne sont accessibles et affichés
 dans la navigation que si $_SESSION['rulesetRep'] === 'DD2024'.
 → Le moteur compendium-liste.php reste générique ; le conditionnel est géré dans le contrôleur.
+
+**[2026-06-17] Sous-classes DD2024 — réutilisation de dd_classes**
+Une sous-classe (DD2024) est stockée comme une ligne ordinaire de dd_classes plutôt que dans une
+table dédiée. Le champ cla_cla_id, présent en base mais jusque-là inexploité par le code, porte la
+classe parente (liaison N sous-classes → 1 classe, NULL pour Base/Prestige). Le type de classe
+distingue les deux cas via dd_classe_type : clt_id=4 « Base » et clt_id=5 « Sous-classe » (DD2024,
+valeurs confirmées en base — pas de constante partagée, à l'image de cla_clt_id===2 pour le
+prestige DD3.5). Le mécanisme de capacités spéciales par niveau (dd_classe_capacite) est réutilisé
+sans changement de schéma, une sous-classe étant une ligne dd_classes comme une autre. Le
+formulaire masque dynamiquement (JS, classe .classe-champ-normal) tous les champs propres à une
+classe complète (dé de vie, table de progression, type de magie, etc.) quand le type Sous-classe
+est sélectionné ; le serveur neutralise ces mêmes champs à l'enregistrement pour éviter des
+données résiduelles, et purge dd_classe_niveau en cas de changement de type. supprimerClasse()
+bloque désormais la suppression d'une classe référencée comme parente par des sous-classes.
+→ Alternative écartée : table dd_sousclasses dédiée (+ dd_sousclasse_capacite). La réutilisation
+de dd_classes évite toute migration et tout nouveau module compendium, conformément au principe
+projet de réutilisation maximale des patterns existants.
 
 ---
 
@@ -1135,6 +1152,9 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~Personnages — éditeur classes 3.2~~ → inline dans la fiche, avec domaines divins DD3.5 inclus
 - [ ] Personnages — contenu réel du « mode jeu » (variables suivies par ruleset)
 - [ ] Personnages — objets magiques / possessions (analyse métier à fiabiliser)
+- [ ] Personnages — sélection de sous-classe au niveau 3 (DD2024) : prévoir un champ type
+      pc_scla_id sur dd_personnages_classes lors du découpage des sous-phases Personnages
+      (sous-classes désormais gérées comme dd_classes.cla_clt_id=5, voir Phase 2 — Compendium)
 - [ ] Personnages — resynchroniser sql/schema.sql avec dd_alignements + nouveaux champs dd_personnages (pe_sexe, pe_al_id, pe_notes_scope, pe_hi_id)
 - [x] ~~SP-C0 — Produire sql/patch_004_supplements.sql~~ → livré (15 ALTER TABLE idempotents + migration mo_j_id)
 - [x] ~~SP-C1 — Produire fonctions socle helpers.php~~ → livré (getUserSupplementResId, getOrCreateUserSupplement, canEditCompendiumEntry — toutes dans helpers.php)

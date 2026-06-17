@@ -38,6 +38,7 @@ $cla = [
   'cla_nom'              => '',
   'cla_abreviation'      => '',
   'cla_clt_id'           => 1,
+  'cla_cla_id'           => 0,
   'cla_dV'               => 8,
   'cla_niveauMax'        => 20,
   'cla_mag_id'           => 0,
@@ -191,7 +192,21 @@ endif;
 
 $titre = $id > 0 ? 'Modifier ' . h($cla['cla_nom']) : 'Nouvelle classe';
 
-$isPrestige = ((int)$cla['cla_clt_id'] === 2);
+$isPrestige   = ((int)$cla['cla_clt_id'] === 2);
+$isSousClasse = ((int)$cla['cla_clt_id'] === 5); // clt_id=5 → 'Sous-classe' (DD2024)
+
+// Classes parentes possibles pour une sous-classe : toute classe du ruleset,
+// hors sous-classes elles-mêmes et hors la classe en cours d'édition.
+$stmt_par = $db->prepare('
+  SELECT cla_id, cla_nom
+  FROM   dd_classes
+  WHERE  cla_ruleset_var_id = ?
+    AND  cla_clt_id <> 5
+    AND  cla_id <> ?
+  ORDER  BY cla_nom
+');
+$stmt_par->execute([$ruleset_id, $id]);
+$classesParentes = $stmt_par->fetchAll();
 ?>
 
 <div class="modif-form">
@@ -241,7 +256,20 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group classe-champ-sousclasse">
+          <label for="cla_cla_id">Classe parente <span class="required">*</span></label>
+          <select id="cla_cla_id" name="cla_cla_id">
+            <option value="0">— Choisir —</option>
+            <?php foreach ($classesParentes as $par): ?>
+              <option value="<?= (int)$par['cla_id'] ?>"
+                <?= (int)$cla['cla_cla_id'] === (int)$par['cla_id'] ? 'selected' : '' ?>>
+                <?= h($par['cla_nom']) ?>
+              </option>
+            <?php endforeach ?>
+          </select>
+        </div>
+
+        <div class="form-group classe-champ-normal">
           <label for="cla_dV">Dé de vie</label>
           <select id="cla_dV" name="cla_dV">
             <?php foreach ([4, 6, 8, 10, 12] as $dv): ?>
@@ -252,7 +280,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group classe-champ-normal">
           <label for="cla_niveauMax">Niveaux max</label>
           <select id="cla_niveauMax" name="cla_niveauMax">
             <?php foreach ([3, 5, 10, 20] as $nmax): ?>
@@ -263,7 +291,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group classe-champ-normal">
           <label for="cla_mag_id">Type de magie</label>
           <select id="cla_mag_id" name="cla_mag_id">
             <option value="0">— Aucune —</option>
@@ -276,7 +304,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group classe-champ-normal">
           <label for="cla_car_id">Caractéristique LS</label>
           <select id="cla_car_id" name="cla_car_id">
             <option value="0">— Aucune —</option>
@@ -320,7 +348,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
       </div><!-- .modif-grid -->
 
       <?php // ---- Intitulés des pouvoirs 1-5 ?>
-      <div class="modif-grid" style="margin-top:.5rem;">
+      <div class="modif-grid classe-champ-normal" style="margin-top:.5rem;">
         <?php for ($p = 1; $p <= 5; $p++): ?>
           <div class="form-group">
             <label for="cla_pouvoir<?= $p ?>">Pouvoir <?= $p ?> (intitulé colonne)</label>
@@ -343,7 +371,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
          SECTION 1b — DD3.5 uniquement
          ==================================================== -->
     <?php if ($ruleset === 'DD3.5'): ?>
-    <div class="modif-section">
+    <div class="modif-section classe-champ-normal">
       <div class="modif-section__header">
         <span class="modif-section__label">Données DD3.5</span>
       </div>
@@ -437,7 +465,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
     <!-- ====================================================
          SECTION 1b — DD2024 uniquement
          ==================================================== -->
-    <div class="modif-section">
+    <div class="modif-section classe-champ-normal">
       <div class="modif-section__header">
         <span class="modif-section__label">Données DD2024</span>
       </div>
@@ -485,7 +513,7 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
     <!-- ====================================================
          SECTION 2 — Table de progression
          ==================================================== -->
-    <div class="modif-section">
+    <div class="modif-section classe-champ-normal">
       <div class="modif-section__header">
         <span class="modif-section__label">Section 2 — Table de progression</span>
       </div>
@@ -738,6 +766,23 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
 
   const CLASSE_ID  = <?= $id ?>;
   const NIVEAU_MAX = <?= $niveauMax ?>;
+
+  // ---- Bascule d'affichage selon le type de classe ----
+  // clt_id=5 → 'Sous-classe' (DD2024) : seuls nom/source/classe parente/
+  // capacités spéciales sont pertinents, le reste des champs "classe normale" est masqué.
+  const SOUSCLASSE_CLT_ID = 5;
+
+  function appliquerVisibiliteType() {
+    const select = document.getElementById('cla_clt_id');
+    if (!select) return;
+    const estSousClasse = parseInt(select.value, 10) === SOUSCLASSE_CLT_ID;
+    document.querySelectorAll('.classe-champ-normal').forEach(function(el) {
+      el.style.display = estSousClasse ? 'none' : '';
+    });
+    document.querySelectorAll('.classe-champ-sousclasse').forEach(function(el) {
+      el.style.display = estSousClasse ? '' : 'none';
+    });
+  }
 
   // ---- État des capacités spéciales ----
   // Structure : { cap_key, cap_id, cap_nom, cap_description, cap_type, affectations[] }
@@ -1111,6 +1156,10 @@ $isPrestige = ((int)$cla['cla_clt_id'] === 2);
   // ============================================================
 
   if (CLASSE_ID > 0) rendreTableau();
+
+  const _selectType = document.getElementById('cla_clt_id');
+  if (_selectType) _selectType.addEventListener('change', appliquerVisibiliteType);
+  appliquerVisibiliteType();
 
 })(); // fin IIFE
 </script>
