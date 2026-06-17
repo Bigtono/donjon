@@ -166,3 +166,101 @@ function setLastPersonnage(int $pe_id) {
 function getLastPersonnage(): int {
   return (int)($_SESSION['last_pe_id'] ?? 0);
 }
+
+// ============================================================
+// SUPPLÉMENT UTILISATEUR
+// ============================================================
+// Le supplément d'un utilisateur est une entrée dd_ressources avec
+// res_j_id = j_id et res_camp_id IS NULL (réserve d'architecture activée —
+// voir DECISIONS_LOG [2026-06-15]). Un supplément par utilisateur par ruleset.
+
+// Retourne le res_id du supplément de l'utilisateur pour ce ruleset, ou null
+// s'il n'a encore jamais créé d'entrée de supplément.
+function getUserSupplementResId($db, int $j_id, int $ruleset_var_id): ?int {
+  $stmt = $db->prepare('
+    SELECT res_id
+    FROM   dd_ressources
+    WHERE  res_j_id = ? AND res_ruleset_var_id = ?
+  ');
+  $stmt->execute([$j_id, $ruleset_var_id]);
+  $res_id = $stmt->fetchColumn();
+  return $res_id !== false ? (int)$res_id : null;
+}
+
+// Crée le supplément de l'utilisateur s'il n'existe pas encore, puis retourne
+// son res_id (création idempotente — un utilisateur n'a qu'un seul supplément
+// par ruleset). Appelée depuis enregistrement.php au premier save d'une entrée
+// de supplément ; ne gère pas sa propre transaction (le caller doit englober
+// l'appel dans la transaction PDO de l'enregistrement).
+function getOrCreateUserSupplement($db, int $j_id, int $ruleset_var_id): int {
+  $res_id = getUserSupplementResId($db, $j_id, $ruleset_var_id);
+  if ($res_id !== null) {
+    return $res_id;
+  }
+
+  // Avant de créer le supplément : si l'utilisateur n'a encore aucune
+  // sélection personnelle pour ce ruleset (dd_joueurs_sources vide), il
+  // dépend du défaut absolu (priorité 3 de getActiveResIds() — toutes les
+  // sources officielles res_selection=1). Ajouter le supplément SEUL dans
+  // dd_joueurs_sources transformerait sa sélection personnelle en "supplément
+  // seul" (priorité 2 non vide = court-circuit de la priorité 3), masquant
+  // alors toutes les ressources officielles par défaut. On reproduit donc
+  // ce défaut dans sa sélection personnelle avant d'y ajouter le supplément.
+  $stmt = $db->prepare('
+    SELECT COUNT(*) FROM dd_joueurs_sources
+    WHERE js_j_id = ? AND js_ruleset_var_id = ?
+  ');
+  $stmt->execute([$j_id, $ruleset_var_id]);
+  $a_deja_une_selection = (int)$stmt->fetchColumn() > 0;
+
+  if (!$a_deja_une_selection) {
+    $stmt = $db->prepare('
+      INSERT INTO dd_joueurs_sources (js_j_id, js_res_id, js_ruleset_var_id)
+      SELECT ?, res_id, ?
+      FROM   dd_ressources
+      WHERE  res_ruleset_var_id = ? AND res_selection = 1 AND res_j_id IS NULL
+    ');
+    $stmt->execute([$j_id, $ruleset_var_id, $ruleset_var_id]);
+  }
+
+  // Création de la ressource supplément
+  $stmt = $db->prepare('SELECT j_pseudo FROM dd_joueurs WHERE j_id = ?');
+  $stmt->execute([$j_id]);
+  $pseudo = $stmt->fetchColumn();
+  $nom    = 'Supplément de ' . ($pseudo !== false ? $pseudo : 'utilisateur');
+
+  $stmt = $db->prepare('
+    INSERT INTO dd_ressources (res_nom, res_abreviation, res_selection, res_ruleset_var_id, res_j_id)
+    VALUES (?, ?, 0, ?, ?)
+  ');
+  $stmt->execute([$nom, 'Supp.', $ruleset_var_id, $j_id]);
+  $res_id = (int)$db->lastInsertId();
+
+  // Auto-ajout du supplément lui-même à la sélection personnelle
+  // (priorité 2 de getActiveResIds() — getActiveResIds() reste inchangée)
+  $stmt = $db->prepare('
+    INSERT INTO dd_joueurs_sources (js_j_id, js_res_id, js_ruleset_var_id)
+    VALUES (?, ?, ?)
+  ');
+  $stmt->execute([$j_id, $res_id, $ruleset_var_id]);
+
+  return $res_id;
+}
+
+// Vrai si l'utilisateur courant peut modifier une entrée de compendium liée
+// à la ressource $res_j_id (null = ressource officielle, sinon propriétaire
+// du supplément). Contrôle PER-ENTRY — distinct de canEditCompendium()
+// (auth.php) qui ne contrôle que l'accès global (bouton Ajouter, barre bulk).
+// $db non utilisé actuellement, conservé pour cohérence de signature avec
+// les autres fonctions can*() du projet qui interrogent la base.
+function canEditCompendiumEntry($db, ?int $res_j_id): bool {
+  if (isAdmin()) {
+    return true;
+  }
+  if ($res_j_id !== null) {
+    // Entrée de supplément : seul son propriétaire peut la modifier
+    return (int)($_SESSION['j_id'] ?? 0) === $res_j_id;
+  }
+  // Entrée officielle : réservée aux gestionnaires du compendium
+  return !empty($_SESSION['j_compendium_manager']);
+}

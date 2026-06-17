@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-15 14:30 -->
+<!-- Mis à jour : 2026-06-17 15:10 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -601,6 +601,32 @@ Lors de la première sauvegarde d'une entrée de supplément :
 → **Pas d'auto-ajout aux campagnes** — le MJ ajoute son supplément aux sources d'une campagne manuellement via la configuration de la campagne.
 → La chaîne `getActiveResIds()` (priorité 2 = `dd_joueurs_sources`) suffit ; la fonction reste inchangée.
 
+**[2026-06-17] Garde-fou anti-régression — `getOrCreateUserSupplement()` et la priorité 2**
+Problème identifié en codant SP-C1 : `getActiveResIds()` court-circuite dès que la priorité 2
+(`dd_joueurs_sources` non vide) renvoie un résultat — elle ne fusionne jamais avec la priorité 3.
+Si un utilisateur n'a **jamais** personnalisé "Mes sources" (0 ligne en base, il dépend donc du
+défaut absolu — priorité 3, toutes les ressources `res_selection=1`), le premier ajout automatique
+de son supplément dans `dd_joueurs_sources` ferait basculer sa priorité 2 sur **"supplément seul"**,
+masquant alors silencieusement toutes les ressources officielles par défaut qu'il voyait jusque-là.
+→ **Correctif intégré dans `getOrCreateUserSupplement()`** : avant d'insérer le supplément, la
+fonction vérifie si l'utilisateur a déjà une sélection personnelle pour ce ruleset. Si non, elle
+reproduit d'abord le défaut (`res_selection=1 AND res_j_id IS NULL`) dans `dd_joueurs_sources`,
+puis ajoute le supplément. L'utilisateur retrouve exactement la même vue qu'avant + son supplément.
+→ `getActiveResIds()` elle-même **reste inchangée** (cf. [2026-06-15] Auto-sélection du supplément) —
+le correctif est entièrement contenu dans la fonction de création du supplément.
+
+**[2026-06-17] SP-C0 et SP-C1 livrées**
+`sql/patch_004_supplements.sql` : 15 `ALTER TABLE` idempotents (`_public`/`_visible` sur sorts, dons,
+compétences, races, classes, historiques, monstres ; `_public` seul sur objets magiques) + migration
+des monstres privés (`mo_j_id` → supplément, 4 étapes idempotentes basées sur `INSERT...SELECT` /
+`UPDATE...JOIN`, sans procédure stockée ni curseur) + `DROP COLUMN mo_j_id` idempotent.
+`include/helpers.php` : `getUserSupplementResId()`, `getOrCreateUserSupplement()` (avec le
+garde-fou ci-dessus), `canEditCompendiumEntry()` — toutes trois dans `helpers.php` (pas `auth.php`),
+cohérent avec les autres fonctions de ce fichier qui interrogent la base (`ownerFilter()`,
+`getActiveResIds()`). Vérifié au passage : `res_j_id` n'est actuellement positionné nulle part dans
+le code existant (`admin/enregistrement.php`, `modifier/ressource.php`) — aucun risque de collision
+entre un futur supplément et une ressource homebrew-campagne préexistante.
+
 **[2026-06-15] Supplément sélectionnable par d'autres utilisateurs**
 La ressource supplément d'un utilisateur devient visible dans "Mes sources" (profil) pour les autres
 uniquement si **au moins une entrée est publique et visible** (`_public = 1 AND _visible = 1`)
@@ -1110,8 +1136,8 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [ ] Personnages — contenu réel du « mode jeu » (variables suivies par ruleset)
 - [ ] Personnages — objets magiques / possessions (analyse métier à fiabiliser)
 - [ ] Personnages — resynchroniser sql/schema.sql avec dd_alignements + nouveaux champs dd_personnages (pe_sexe, pe_al_id, pe_notes_scope, pe_hi_id)
-- [ ] SP-C0 — Produire `sql/patch_004_supplements.sql` (8 ALTER TABLE + migration mo_j_id)
-- [ ] SP-C1 — Produire fonctions socle dans helpers.php + canEditCompendiumEntry dans auth.php
+- [x] ~~SP-C0 — Produire sql/patch_004_supplements.sql~~ → livré (15 ALTER TABLE idempotents + migration mo_j_id)
+- [x] ~~SP-C1 — Produire fonctions socle helpers.php~~ → livré (getUserSupplementResId, getOrCreateUserSupplement, canEditCompendiumEntry — toutes dans helpers.php)
 - [ ] SP-C2 — Mettre à jour compendium-liste.php + 8 contrôleurs (champ_public/champ_visible)
 - [ ] SP-C3 — Mettre à jour detail-pp/*.php × 8 (bouton Modifier per-entry)
 - [ ] SP-C4 — Mettre à jour modifier/*.php × 8 (source dropdown 2 groupes + _public/_visible)
