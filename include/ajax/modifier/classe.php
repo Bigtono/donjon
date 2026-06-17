@@ -794,17 +794,20 @@ $classesParentes = $stmt_par->fetchAll();
   // ---- TinyMCE init ----
   (function initTMCE() {
     if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
+    var isLight = document.body.classList.contains('theme-light');
     tinymce.remove('.tinymce-basic');
     tinymce.init({
       selector:      '.tinymce-basic',
       language:      'fr_FR',
       menubar:       false,
-      plugins:       'lists link table',
-      toolbar:       'bold italic underline | bullist numlist | h2 h3 | link table | removeformat',
+      plugins:       'lists link table code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
       height:        220,
-      skin:          'oxide',
-      content_css:   'default',
-      content_style: 'body { background: #eae6dd; color: #1a1a1a; font-family: Segoe UI, system-ui, sans-serif; font-size: 14px; margin: 8px; }',
+      skin:          isLight ? 'oxide' : 'oxide-dark',
+      content_css:   isLight ? 'default' : 'dark',
+      content_style: isLight
+        ? 'body { background:#eae6dd; color:#2a2015; font-family:inherit; font-size:14px; }'
+        : 'body { background:#0f3460; color:#e0e0e0; font-family:inherit; font-size:14px; }',
       promotion:     false,
       branding:      false,
       base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
@@ -984,19 +987,23 @@ $classesParentes = $stmt_par->fetchAll();
 
     setTimeout(function() {
       if (typeof tinymce !== 'undefined') {
+        var isLight = document.body.classList.contains('theme-light');
         tinymce.init({
-          selector:    '#ov_cap_description',
-          language:    'fr_FR',
-          menubar:     false,
-          plugins:     'lists link table',
-          toolbar:     'bold italic underline | bullist numlist | link table | removeformat',
-          height:      180,
-          skin:        'oxide-dark',
-          content_css: 'dark',
-          promotion:   false,
-          branding:    false,
-          base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
-          suffix:      '.min',
+          selector:      '#ov_cap_description',
+          language:      'fr_FR',
+          menubar:       false,
+          plugins:       'lists link table code',
+          toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+          height:        180,
+          skin:          isLight ? 'oxide' : 'oxide-dark',
+          content_css:   isLight ? 'default' : 'dark',
+          content_style: isLight
+            ? 'body { background:#eae6dd; color:#2a2015; font-family:inherit; font-size:14px; }'
+            : 'body { background:#0f3460; color:#e0e0e0; font-family:inherit; font-size:14px; }',
+          promotion:     false,
+          branding:      false,
+          base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
+          suffix:        '.min',
           setup: function(ed) {
             ed.on('init', function() { ed.setContent(desc); });
           },

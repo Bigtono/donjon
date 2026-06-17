@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-17 18:05 -->
+<!-- Mis à jour : 2026-06-17 20:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -1275,46 +1275,147 @@ recherche FULLTEXT, glossaire DD2024 (nœuds reg_type='glossaire' + ancres .glos
 
 ### Choix retenu
 
-TinyMCE via CDN tiny.cloud. Clé API dans include/db.php (TINYMCE_API_KEY).
+TinyMCE 6 via CDN **jsDelivr** (`https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js`), sans clé API
+(pas de compte tiny.cloud). `base_url`/`suffix` pointent vers le même CDN pour le chargement des plugins
+et du skin. Chaque formulaire d'édition charge sa propre instance via le pattern `initTMCE()` (pas de
+script global partagé) car les sélecteurs, hauteurs et plugins varient par module.
 
-### Configuration minimale — sans images
+### Pattern d'initialisation — `initTMCE()`
 
-Pour : sorts, dons, classes, races, compétences, historiques.
+Obligatoire pour tout nouveau champ TinyMCE, sans exception :
 
 ```javascript
-tinymce.init({
-  selector: '.tinymce-basic',
-  language: 'fr_FR',
-  menubar: false,
-  plugins: 'lists link',
-  toolbar: 'bold italic underline | bullist numlist | h2 h3 | link | removeformat',
-  height: 300,
-  skin: 'oxide-dark',
-});
+(function initTMCE() {
+  if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
+  var isLight = document.body.classList.contains('theme-light');
+  tinymce.remove('#mon_champ'); // évite les doublons sur réouverture du formulaire
+  tinymce.init({
+    selector:      '#mon_champ',
+    language:      'fr_FR',
+    menubar:       false,
+    plugins:       'lists link table code',
+    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+    height:        300,
+    skin:          isLight ? 'oxide' : 'oxide-dark',
+    content_css:   isLight ? 'default' : 'dark',
+    content_style: isLight
+      ? 'body { background:#eae6dd; color:#2a2015; font-family:inherit; font-size:14px; }'
+      : 'body { background:#0f3460; color:#e0e0e0; font-family:inherit; font-size:14px; }',
+    promotion:     false,
+    branding:      false,
+    base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
+    suffix:        '.min',
+  });
+})();
 ```
 
-### Configuration complète — avec images
+Pour un overlay ouvert après le chargement initial de la page (ex. capacité spéciale d'une classe/race),
+`tinymce` est déjà chargé : on omet le test `typeof tinymce === 'undefined'` mais on conserve la
+détection `isLight` et l'intégralité de la configuration ci-dessus.
 
-Pour : wiki/univers (articles), personnages (background, notes).
+### Thème dynamique — fond aligné sur le thème actif
 
-### Configuration règles — listes + tables, sans images
+**Règle impérative** : `skin` et `content_css` ne sont **jamais** codés en dur. Ils dépendent toujours de
+`document.body.classList.contains('theme-light')`, calculé à chaque `initTMCE()` (le thème peut changer
+entre deux ouvertures du même formulaire dans la session).
 
-Pour : module Règles.
+| Thème | skin | content_css | Fond éditeur (`content_style`) | Texte |
+|---|---|---|---|---|
+| dark (défaut) | `oxide-dark` | `dark` | `#0f3460` (= `--clr-surface-2` thème sombre) | `#e0e0e0` |
+| light (Parchemin) | `oxide` | `default` | `#eae6dd` (= `--clr-surface-2` thème clair) | `#2a2015` |
+
+Le fond de la zone d'édition est explicitement fixé via `content_style` plutôt que de se fier au rendu
+par défaut des feuilles `content_css: 'default'/'dark'` fournies par TinyMCE : ces dernières ne
+correspondent pas aux teintes du design system du projet (notamment en thème clair, où le rendu par
+défaut de `oxide`/`default` ne reprend pas le ton parchemin `--clr-surface-2: #eae6dd`). Les valeurs
+hexadécimales ci-dessus sont la copie figée des variables CSS `--clr-surface-2` / `--clr-text` de
+`main.css` (l'iframe TinyMCE est un document séparé, les `var(--clr-*)` du document parent n'y sont pas
+accessibles — il faut donc dupliquer les valeurs, pas les variables).
+
+> **Anti-pattern corrigé (2026-06-17)** : plusieurs formulaires codaient `skin: 'oxide-dark'` /
+> `content_css: 'dark'` sans condition de thème. Résultat : en thème clair (Parchemin), l'éditeur
+> affichait le fond bleu nuit du thème sombre au lieu du fond parchemin attendu. Tout nouveau champ
+> TinyMCE doit utiliser la détection `isLight` ci-dessus.
+
+### Barre d'outils standard
+
+Barre d'outils de référence pour tout nouveau champ TinyMCE (à adapter uniquement par retrait de
+`table`/`image` si la fonctionnalité ne s'applique pas au champ — jamais par ajout de boutons hors
+liste sans mise à jour de cette doc) :
+
+| Bouton toolbar | Fonction | Plugin requis |
+|---|---|---|
+| `styles` | Sélecteur de style (Normal, Titre 1, Titre 2…) | aucun (natif TinyMCE 6) |
+| `bold` | Gras | aucun |
+| `italic` | Italique | aucun |
+| `underline` | Souligné | aucun |
+| `bullist` | Liste à puces | `lists` |
+| `numlist` | Liste numérotée | `lists` |
+| `link` | Insérer un lien | `link` |
+| `unlink` | Enlever le(s) lien(s) | `link` |
+| `table` | Insérer/éditer un tableau (omis si non pertinent) | `table` |
+| `image` | Insérer une image (uniquement si `images_upload_url` configuré) | `image` |
+| `removeformat` | Effacer tous les styles | aucun |
+| `code` | Afficher/éditer le code source HTML | `code` |
+
+Chaîne `toolbar` canonique (sans images) :
+```
+styles | bold italic underline | bullist numlist | link unlink table | removeformat | code
+```
+Chaîne `plugins` canonique (sans images) :
+```
+lists link table code
+```
+
+Le bouton `styles` est natif (aucun plugin requis) et expose par défaut Paragraphe + Titres 1 à 6 sans
+configuration supplémentaire. Un module peut enrichir ce sélecteur via `style_formats` (voir module
+Règles ci-dessous) ; dans ce cas la liste par défaut est remplacée par la liste personnalisée — si les
+niveaux de titre restent nécessaires en plus des styles personnalisés, ajouter aussi le bouton `blocks`
+avec `block_formats` (cf. exemple Règles).
+
+### Configuration avec upload d'images
+
+Pour : Campagnes, Scénarios, Personnages (background/notes).
+
+```javascript
+toolbar: 'styles | bold italic underline | bullist numlist | link unlink image table | removeformat | code',
+plugins: 'lists link image table code',
+// ...
+images_upload_url:         '<?= BASE_URL ?>/include/ajax/upload-image.php',
+images_upload_credentials: true,
+automatic_uploads:         true,
+```
+
+### Configuration module Règles — styles personnalisés + nettoyage du collage
+
+Pour : module Règles uniquement (`reg_texte`). S'ajoute au pattern standard :
+- `blocks` (titres `block_formats`) + `styles` (styles personnalisés `style_formats` : `Titre de
+  tableau`, `Encadré`) cumulés dans la toolbar : `'blocks styles | ...'`.
+- `paste_postprocess` : nettoyage des attributs hérités du collage Word (class, style, width, height,
+  lang, valign, align, cellpadding, cellspacing, border), suppression des `<p>` à l'intérieur des
+  tableaux, suppression des balises `<font>`, suppression des éléments vides résiduels.
+- `content_style` : le fond thème (`isLight ? ... : ...`) est concaténé devant les règles spécifiques au
+  module (`.glossaire-lien`, `.titre-tableau`, `.regles-encart`, `h3`/`h4`) — jamais en remplacement.
 
 ### Endpoint upload images
 
-Fichier : include/ajax/upload-image.php
-Répertoire : img/uploads/ (permissions 755, dans .gitignore)
-Retourne : { "location": "URL_du_fichier" }
+Fichier : `include/ajax/upload-image.php`
+Répertoire : `img/uploads/` (permissions 755, dans `.gitignore`)
+Retourne : `{ "location": "URL_du_fichier" }`
 
 ### Affichage du contenu TinyMCE
 
-Le HTML généré est stocké et affiché **tel quel** (sans h()).
+Le HTML généré est stocké et affiché **tel quel** (sans `h()`).
 
 ### Soumission formulaire AJAX
 
 ```javascript
-tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
+tmceGet(id); // lit ed.getContent() si l'éditeur est initialisé, sinon repli sur textarea.value
+// ou, pour synchroniser tous les éditeurs d'un formulaire avant FormData :
+document.querySelectorAll('.tinymce-basic').forEach(function(el) {
+  const ed = tinymce.get(el.id);
+  if (ed && ed.initialized) el.value = ed.getContent();
+});
 ```
 
 ---
@@ -1350,6 +1451,9 @@ tinymce.triggerSave(); // synchronise tous les éditeurs avant fetch()
 - [ ] Admin : suppression ressource = vérification préalable sur les 7 tables compendium
 - [ ] TinyMCE : triggerSave() appelé avant tout submit AJAX
 - [ ] TinyMCE : champs description/contenu affichés sans h()
+- [ ] **TinyMCE : `skin`/`content_css` jamais codés en dur — toujours `isLight ? 'oxide'/'default' : 'oxide-dark'/'dark'` via `document.body.classList.contains('theme-light')`**
+- [ ] **TinyMCE : `content_style` fixe le fond/texte par thème (`#eae6dd`/`#2a2015` clair, `#0f3460`/`#e0e0e0` sombre) — alignement obligatoire sur `--clr-surface-2`/`--clr-text`**
+- [ ] **TinyMCE : toolbar canonique présente — `styles | bold italic underline | bullist numlist | link unlink [table] [image] | removeformat | code`**
 - [ ] Règles : module n'utilise PAS compendium-liste.php (scoping ruleset seul, pas de sources)
 - [ ] Règles : Précédent/Suivant calculés par reglesOrdreLecture() (DFS), pas de colonne globale
 - [ ] Règles : parent validé anti-cycle (≠ soi-même, ≠ descendant) à l'enregistrement

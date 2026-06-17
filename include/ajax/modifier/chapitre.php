@@ -146,18 +146,21 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
     var isLight = document.body.classList.contains('theme-light');
     tinymce.remove('#scc_description');
     tinymce.init({
-      selector:    '#scc_description',
-      language:    'fr_FR',
-      menubar:     false,
-      plugins:     'lists link',
-      toolbar:     'bold italic underline | bullist numlist | removeformat',
-      height:      240,
-      skin:        isLight ? 'oxide' : 'oxide-dark',
-      content_css: isLight ? 'default' : 'dark',
-      promotion:   false,
-      branding:    false,
-      base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
-      suffix:      '.min',
+      selector:      '#scc_description',
+      language:      'fr_FR',
+      menubar:       false,
+      plugins:       'lists link code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink | removeformat | code',
+      height:        240,
+      skin:          isLight ? 'oxide' : 'oxide-dark',
+      content_css:   isLight ? 'default' : 'dark',
+      content_style: isLight
+        ? 'body { background:#eae6dd; color:#2a2015; font-family:inherit; font-size:14px; }'
+        : 'body { background:#0f3460; color:#e0e0e0; font-family:inherit; font-size:14px; }',
+      promotion:     false,
+      branding:      false,
+      base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
+      suffix:        '.min',
     });
   })();
 

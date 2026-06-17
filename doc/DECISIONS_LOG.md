@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-17 18:05 -->
+<!-- Mis à jour : 2026-06-17 20:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -1100,6 +1100,44 @@ de référence pour tous les tableaux du site. Pour appliquer ce style :
 - Tableaux dans du contenu richtext : `.richtext table` (automatique)
 Les tableaux à deux lignes d'en-tête (ex: lanceurs de sorts) utilisent `<thead>` avec une `<tr class="thead-groupes">`
 pour la ligne de groupe et une `<tr>` standard pour les labels — les deux sont stylés par `.table-dd`.
+
+**[2026-06-17] Standardisation TinyMCE — thème dynamique, toolbar canonique, fond aligné**
+Audit de tous les champs TinyMCE du projet (15 blocs `tinymce.init()` répartis sur 13 fichiers
+`include/ajax/modifier/*.php`). Constat : plusieurs formulaires (ressource, objet, sort, regle,
+historique, competence, don, l'overlay capacité de classe, race et son overlay) codaient en dur
+`skin: 'oxide-dark'` / `content_css: 'dark'` sans condition de thème — en thème clair (Parchemin),
+l'éditeur affichait donc le fond bleu nuit du thème sombre au lieu du fond parchemin attendu. À
+l'inverse, `classe.php` codait en dur le thème clair (`oxide`/`default` + `content_style` parchemin
+manuel) sans variante sombre. `personnage.php`, `scenario.php`, `campagne.php` et `chapitre.php`
+détectaient déjà le thème (`isLight`) mais sans fond explicite aligné sur `--clr-surface-2`.
+Harmonisation appliquée aux 15 blocs :
+- Détection systématique `var isLight = document.body.classList.contains('theme-light');` en tête de
+  chaque `initTMCE()` (et de chaque init d'overlay TinyMCE ouvert après coup).
+- `skin`/`content_css` toujours `isLight ? 'oxide'/'default' : 'oxide-dark'/'dark'`.
+- `content_style` ajouté partout pour fixer explicitement fond/texte (`#eae6dd`/`#2a2015` en clair,
+  `#0f3460`/`#e0e0e0` en sombre — copies figées de `--clr-surface-2`/`--clr-text`, l'iframe TinyMCE
+  n'ayant pas accès aux variables CSS du document parent). `regle.php` conserve son `content_style`
+  spécifique (`.glossaire-lien`, `.titre-tableau`, `.regles-encart`, `h3`/`h4`) : le fond thème est
+  désormais concaténé devant ces règles, pas remplacé (et la coquille `color: balck` corrigée en
+  `black` au passage).
+- Toolbar harmonisée sur le standard `styles | bold italic underline | bullist numlist | link unlink
+  [table] [image] | removeformat | code` : remplacement des boutons `h2 h3` (incohérents avec le
+  sélecteur de style) par le bouton natif `styles` (Normal, Titre 1 à 6 — aucune config requise),
+  ajout du bouton `unlink` partout où `link` est présent, ajout du bouton `code` (et du plugin
+  associé) pour afficher/éditer le HTML source. `regle.php` conserve en plus son bouton `blocks`
+  (titres) et ses `style_formats` personnalisés (Titre de tableau, Encadré), désormais cumulés avec
+  `styles` dans la même toolbar.
+- `chapitre.php` chargeait le plugin `link` sans bouton toolbar correspondant : bouton `link unlink`
+  ajouté pour rendre le plugin réellement utilisable.
+- `classe.php` perd son `content_style` ad hoc (`font-family: Segoe UI…`, `margin: 8px`) au profit du
+  standard (`font-family: inherit`) — alignement visuel avec le reste du site plutôt qu'une police
+  spécifique à ce module.
+-> Tous les champs TinyMCE du projet partagent désormais le même contrat visuel et fonctionnel quel
+  que soit le thème actif. Section 16 de `ARCHITECTURE_0_REFERENCE.md` réécrite intégralement (pattern
+  `initTMCE()`, tableau thème dynamique, toolbar canonique avec tableau des boutons/plugins, variante
+  images, variante Règles) ; section 17 (checklist) complétée de 3 points TinyMCE dédiés.
+-> Tout nouveau champ TinyMCE doit reprendre ce pattern à l'identique — toute dérogation (boutons hors
+  liste, fond codé en dur) doit être documentée ici au même titre qu'une décision d'architecture.
 
 ## Bugs connus — à traiter
 

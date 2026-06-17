@@ -182,20 +182,24 @@ $titre = $id > 0 ? 'Modifier ' . h($don['do_nom']) : 'Nouveau don';
 <script>
 (function initTMCE() {
   if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
+  var isLight = document.body.classList.contains('theme-light');
   tinymce.remove('#do_texte');
   tinymce.init({
-    selector:    '#do_texte',
-    language:    'fr_FR',
-    menubar:     false,
-    plugins:     'lists link table',
-    toolbar:     'bold italic underline | bullist numlist | h2 h3 | link table | removeformat',
-    height:      400,
-    skin:        'oxide-dark',
-    content_css: 'dark',
-    promotion:   false,
-    branding:    false,
-    base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
-    suffix:      '.min',
+    selector:      '#do_texte',
+    language:      'fr_FR',
+    menubar:       false,
+    plugins:       'lists link table code',
+    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+    height:        400,
+    skin:          isLight ? 'oxide' : 'oxide-dark',
+    content_css:   isLight ? 'default' : 'dark',
+    content_style: isLight
+      ? 'body { background:#eae6dd; color:#2a2015; font-family:inherit; font-size:14px; }'
+      : 'body { background:#0f3460; color:#e0e0e0; font-family:inherit; font-size:14px; }',
+    promotion:     false,
+    branding:      false,
+    base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
+    suffix:        '.min',
   });
 })();
 </script>

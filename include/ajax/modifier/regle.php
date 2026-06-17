@@ -202,6 +202,7 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
         setTimeout(initTMCE, 100);
         return;
       }
+      var isLight = document.body.classList.contains('theme-light');
       tinymce.remove('#' + TINYMCE_ID);
       tinymce.init({
         selector: '#' + TINYMCE_ID,
@@ -210,7 +211,7 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
 
         plugins: 'lists link table code',
 
-        toolbar: 'blocks styles | bold italic underline | bullist numlist | link table | ' +
+        toolbar: 'blocks styles | bold italic underline | bullist numlist | link unlink table | ' +
           'removeformat | code',
 
         block_formats: 'Paragraphe=p;Titre 1=h1;Titre 2=h2;Titre 3=h3;Titre 4=h4;Titre 5=h5;Titre 6=h6',
@@ -285,16 +286,18 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
         },
 
         height: 380,
-        skin: 'oxide-dark',
-        content_css: 'dark',
+        skin: isLight ? 'oxide' : 'oxide-dark',
+        content_css: isLight ? 'default' : 'dark',
         promotion: false,
         branding: false,
         base_url: 'https://cdn.jsdelivr.net/npm/tinymce@6',
         suffix: '.min',
 
-        content_style: 'body { font-family: inherit; font-size: 14px; } ' +
+        content_style: (isLight
+          ? 'body { background:#eae6dd; color:#2a2015; font-family: inherit; font-size: 14px; } '
+          : 'body { background:#0f3460; color:#e0e0e0; font-family: inherit; font-size: 14px; } ') +
           '.glossaire-lien { color: #9d7fd3; text-decoration: underline dotted; cursor: pointer; } ' +
-          '.titre-tableau { font-weight: normal; font-size: 1.1rem; margin: 1rem 0 .5rem 0; color: balck; } ' +
+          '.titre-tableau { font-weight: normal; font-size: 1.1rem; margin: 1rem 0 .5rem 0; color: black; } ' +
           '.regles-encart { border: thin solid black; padding: .5rem; background-color: rgba(128,128,128,.10); }' +
           'h3 {font-weight: 700; font-size: 1.2rem; color: #8b2020; border-bottom: #8b2020 2px solid; margin: .75rem 0 .25rem 0; } ' +
           'h4 {font-size: 1rem; font-weight: 700; color: #8b2020; margin: .75rem 0 0 0;}',

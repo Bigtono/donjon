@@ -422,18 +422,21 @@ $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['p
     var isLight = document.body.classList.contains('theme-light');
     tinymce.remove('#pe_background');
     tinymce.init({
-      selector:    '#pe_background',
-      language:    'fr_FR',
-      menubar:     false,
-      plugins:     'lists link image table',
-      toolbar:     'bold italic underline | bullist numlist | h2 h3 | link image table | removeformat',
-      height:      360,
-      skin:        isLight ? 'oxide' : 'oxide-dark',
-      content_css: isLight ? 'default' : 'dark',
-      promotion:   false,
-      branding:    false,
-      base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
-      suffix:      '.min',
+      selector:      '#pe_background',
+      language:      'fr_FR',
+      menubar:       false,
+      plugins:       'lists link image table code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink image table | removeformat | code',
+      height:        360,
+      skin:          isLight ? 'oxide' : 'oxide-dark',
+      content_css:   isLight ? 'default' : 'dark',
+      content_style: isLight
+        ? 'body { background:#eae6dd; color:#2a2015; font-family:inherit; font-size:14px; }'
+        : 'body { background:#0f3460; color:#e0e0e0; font-family:inherit; font-size:14px; }',
+      promotion:     false,
+      branding:      false,
+      base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
+      suffix:        '.min',
       images_upload_url: '<?= BASE_URL ?>/include/ajax/upload-image.php',
       images_upload_credentials: true,
       automatic_uploads: true,
