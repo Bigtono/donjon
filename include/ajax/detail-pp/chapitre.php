@@ -41,8 +41,6 @@ if (!isMJ($db, (int)$scc['camp_id'])):
   exit;
 endif;
 
-setLastChapitre((int)$scc['camp_id'], $scc['camp_nom'], (int)$scc['sce_id'], $scc['sce_nom'], $id, $scc['scc_nom']);
-
 // Rencontres du chapitre
 $stmt_re = $db->prepare('
   SELECT re_id, re_nom, re_code,
@@ -83,7 +81,7 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
   </div>
 
   <?php if (!empty($scc['scc_description'])): ?>
-    <div class="camp-detail__description"><?= h($scc['scc_description']) ?></div>
+    <div class="camp-detail__description"><?= $scc['scc_description'] ?></div>
   <?php endif ?>
 
   <!-- Rencontres -->
