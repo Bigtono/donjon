@@ -41,6 +41,8 @@ if (!isMJ($db, (int)$scc['camp_id'])):
   exit;
 endif;
 
+setLastChapitre((int)$scc['camp_id'], $scc['camp_nom'], (int)$scc['sce_id'], $scc['sce_nom'], $id, $scc['scc_nom']);
+
 // Rencontres du chapitre
 $stmt_re = $db->prepare('
   SELECT re_id, re_nom, re_code,

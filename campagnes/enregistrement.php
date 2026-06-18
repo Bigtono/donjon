@@ -237,6 +237,8 @@ function supprimerCampagne($db, bool $is_ajax, string $redirect): void
 
     $db->commit();
 
+    invalidateLastCampagneContext('campagne', $camp_id);
+
     if ($is_ajax):
       header('Content-Type: application/json');
       echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
@@ -378,6 +380,8 @@ function supprimerScenario($db, bool $is_ajax, string $redirect): void
        ->execute([$now, $sce_id]);
 
     $db->commit();
+
+    invalidateLastCampagneContext('scenario', $sce_id);
 
     if ($is_ajax):
       header('Content-Type: application/json');
@@ -521,6 +525,8 @@ function supprimerChapitre($db, bool $is_ajax, string $redirect): void
        ->execute([$now, $scc_id]);
 
     $db->commit();
+
+    invalidateLastCampagneContext('chapitre', $scc_id);
 
     if ($is_ajax):
       header('Content-Type: application/json');

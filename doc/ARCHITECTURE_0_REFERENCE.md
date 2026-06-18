@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-17 20:30 -->
+<!-- Mis à jour : 2026-06-17 21:45 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -816,6 +816,8 @@ Hiérarchie : **Campagne → Scénario → Chapitre → Rencontre → Opposition
   descendante, **limitée au ruleset courant**.
 - **Pièces jointes** : PDF uniquement, table générique `dd_fichiers`.
 - **Suppression douce** (flag `_supprime`, cascade application, unlink PDF, pas d'UI restauration).
+- **Contexte de navigation (header)** : derniers campagne/scénario/chapitre consultés mémorisés en
+  session, raccourcis affichés dans le header sur toutes les pages — voir §12.
 
 Module **NON responsive** — usage desktop MJ exclusif. Menu visible si `j_mode_campagne = 1`.
 
@@ -1019,6 +1021,137 @@ function apresModification(data) {
   }
 }
 ```
+
+### Navigation interne dans #detail-pp — pile `_detailPpStack`
+
+Au sein d'un même panneau `#detail-pp`, la hiérarchie Campagne → Scénario → Chapitre (→ Rencontre,
+SP3) s'enchaîne sans rechargement de page, via une pile JS tenue dans `main.js` :
+
+```javascript
+let _detailPpStack = []; // [{ url, params }, ...] du plus ancien au plus récent
+
+actualiserPage(url, params, context);   // réinitialise la pile à [{url, params}] — point d'entrée
+naviguerDetailPP(url, params);          // empile et charge la vue suivante
+retourDetailPP();                       // dépile et recharge la vue précédente (ferme si pile vide)
+```
+
+`_chargerDetailPP()` est le worker unique utilisé par les trois fonctions ci-dessus : c'est le seul
+point de passage pour tout changement de panneau affiché dans `#detail-pp`.
+
+### Mémorisation du contexte de navigation (header)
+
+Reprise et généralisation, côté Campagnes, du mécanisme déjà initié pour les Personnages
+(`setLastPersonnage()` / `getLastPersonnage()`, session uniquement, voir §7 et la chaîne de
+sélection des sources). Objectif : afficher dans le header, sur **toutes** les pages, un raccourci
+vers les derniers niveaux de campagne consultés, comme en v1, sans réintroduire le bricolage v1
+(double écriture session page + header sur `$_GET`).
+
+**Écriture — dans `helpers.php`, appelée depuis chaque handler `include/ajax/detail-pp/*.php`
+juste après son contrôle `isMJ()` :**
+
+```php
+function setLastCampagne(int $camp_id, string $camp_nom): void {
+  $_SESSION['last_camp_id']  = $camp_id;
+  $_SESSION['last_camp_nom'] = $camp_nom;
+  unset($_SESSION['last_sce_id'], $_SESSION['last_sce_nom']);
+  unset($_SESSION['last_scc_id'], $_SESSION['last_scc_nom']);
+  unset($_SESSION['last_re_id'],  $_SESSION['last_re_nom']);
+}
+
+function setLastScenario(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom): void {
+  setLastCampagne($camp_id, $camp_nom);
+  $_SESSION['last_sce_id']  = $sce_id;
+  $_SESSION['last_sce_nom'] = $sce_nom;
+}
+
+function setLastChapitre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
+                          int $scc_id, string $scc_nom): void {
+  setLastScenario($camp_id, $camp_nom, $sce_id, $sce_nom);
+  $_SESSION['last_scc_id']  = $scc_id;
+  $_SESSION['last_scc_nom'] = $scc_nom;
+}
+
+// SP3 (à venir) : setLastRencontre(...) sur le même schéma, appelle setLastChapitre()
+// puis pose last_re_id / last_re_nom.
+```
+
+Chaque handler dispose déjà, via sa jointure remontante, de tous les id/nom nécessaires (ex. :
+`detail-pp/chapitre.php` joint `dd_scenarios_chapitres` → `dd_scenarios` → `dd_campagnes` et obtient
+`camp_id`, `camp_nom`, `sce_id`, `sce_nom` en plus de ses propres champs) — aucune requête
+supplémentaire n'est nécessaire pour la mémorisation. L'écriture en cascade efface systématiquement
+les niveaux enfants : remonter à un ancêtre nettoie proprement les niveaux plus profonds mémorisés
+(contrairement au v1, où ce nettoyage n'était fait que par `campagne.php`/`scenario.php`).
+
+**Lecture — `getHeaderCampagneContext(): array`**, appelée depuis `include/header.php` à chaque
+rendu de page complète, sans requête base (tout est déjà en session) :
+
+```php
+function getHeaderCampagneContext(): array {
+  $niveaux = [];
+  if (!empty($_SESSION['last_camp_id'])):
+    $niveaux[] = ['type' => 'campagne', 'id' => (int)$_SESSION['last_camp_id'], 'nom' => $_SESSION['last_camp_nom'] ?? ''];
+  endif;
+  if (!empty($_SESSION['last_sce_id'])):
+    $niveaux[] = ['type' => 'scenario', 'id' => (int)$_SESSION['last_sce_id'], 'nom' => $_SESSION['last_sce_nom'] ?? ''];
+  endif;
+  if (!empty($_SESSION['last_scc_id'])):
+    $niveaux[] = ['type' => 'chapitre', 'id' => (int)$_SESSION['last_scc_id'], 'nom' => $_SESSION['last_scc_nom'] ?? ''];
+  endif;
+  return $niveaux;
+}
+```
+
+Si `getHeaderCampagneContext()` est vide, `header.php` retombe sur `getLastPersonnage()` (déjà posée
+mais jusqu'ici jamais consommée) pour proposer un raccourci vers la dernière fiche personnage
+consultée — un unique `SELECT pe_nom FROM dd_personnages WHERE pe_id = ?`, déclenché seulement dans
+ce cas de repli, pas à chaque page.
+
+**Invalidation au soft delete** — chaque fonction `supprimer*()` de `campagnes/enregistrement.php`
+appelle, juste après son `$db->commit()`, `invalidateLastCampagneContext($niveau, $id)` :
+
+```php
+function invalidateLastCampagneContext(string $niveau, int $id): void {
+  $prefixes = ['campagne' => 'camp', 'scenario' => 'sce', 'chapitre' => 'scc', 'rencontre' => 're'];
+  if (!isset($prefixes[$niveau])) return;
+  if ((int)($_SESSION['last_' . $prefixes[$niveau] . '_id'] ?? 0) !== $id) return;
+
+  $chaine = array_keys($prefixes);
+  $depart = array_search($niveau, $chaine);
+  foreach (array_slice($chaine, $depart) as $n):
+    unset($_SESSION['last_' . $prefixes[$n] . '_id'], $_SESSION['last_' . $prefixes[$n] . '_nom']);
+  endforeach;
+}
+```
+
+Efface le niveau supprimé et tout ce qui est en dessous, conserve les ancêtres — un lien mémorisé ne
+peut donc jamais pointer vers une fiche supprimée.
+
+**Affichage** — un bouton par niveau actif (pas de regroupement en `<select>` comme en v1), dans un
+bloc dédié sous la barre de header principale, absent du DOM si la liste est vide :
+
+```html
+<div class="site-header__context">
+  <button onclick="ouvrirContextePP([...])">Campagne : Les Mines Perdues</button>
+  <button onclick="ouvrirContextePP([...])">Scénario : L'Antre du Kobold</button>
+  <button onclick="ouvrirContextePP([...])">Chapitre : L'Embuscade</button>
+</div>
+```
+
+Chaque bouton reconstruit la chaîne complète d'ancêtres dans `_detailPpStack` avant de charger le
+niveau visé, pour que le bouton **← Retour** du panneau reste cohérent une fois revenu dedans :
+
+```javascript
+function ouvrirContextePP(chain) {
+  _detailPpContext = 'externe';
+  _detailPpStack = chain; // [{url, params}, ...] du niveau racine jusqu'au niveau cible
+  const cible = chain[chain.length - 1];
+  _chargerDetailPP(cible.url, cible.params, chain.length > 1);
+}
+```
+
+Le bouton « Personnage » (repli, aucune campagne active) reste un lien simple vers
+`personnages/fiche.php?id=…` — cette page n'est pas un panneau `#detail-pp`, c'est un rechargement
+complet classique.
 
 ### Système d'overlays empilés — #detail-pp, #modification, #detail-pp-sub
 

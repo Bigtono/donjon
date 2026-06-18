@@ -37,6 +37,8 @@ if (!isMJ($db, (int)$sce['camp_id'])):
   exit;
 endif;
 
+setLastScenario((int)$sce['camp_id'], $sce['camp_nom'], $id, $sce['sce_nom']);
+
 // Chapitres avec compteur rencontres
 $stmt_scc = $db->prepare('
   SELECT scc.scc_id, scc.scc_nom, scc.scc_abreviation, scc.scc_ordre,

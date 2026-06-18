@@ -54,6 +54,23 @@ function togglePlusExclusif(id, groupSelector) {
 }
 
 // ============================================================
+// CONTEXTE DE NAVIGATION (HEADER)
+// ============================================================
+
+// Ouvre directement un niveau de la hiérarchie Campagne → Scénario → Chapitre
+// depuis un bouton du header, en reconstruisant toute la chaîne d'ancêtres
+// dans _detailPpStack — pour que le bouton ← Retour reste cohérent une fois
+// revenu dans le panneau. `chain` = [{url, params}, ...] du niveau racine
+// jusqu'au niveau cible (fourni côté serveur par include/header.php).
+function ouvrirContextePP(chain) {
+  if (!Array.isArray(chain) || chain.length === 0) return;
+  _detailPpContext = 'externe';
+  _detailPpStack    = chain;
+  const cible = chain[chain.length - 1];
+  _chargerDetailPP(cible.url, cible.params, chain.length > 1);
+}
+
+// ============================================================
 // PATTERN DETAIL-PP / MODIFICATION
 // ============================================================
 

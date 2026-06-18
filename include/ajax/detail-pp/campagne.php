@@ -38,6 +38,8 @@ if (!isMJ($db, $id)):
   exit;
 endif;
 
+setLastCampagne($id, $camp['camp_nom']);
+
 // Sources
 $stmt_src = $db->prepare('
   SELECT res.res_nom FROM dd_campagnes_sources cs

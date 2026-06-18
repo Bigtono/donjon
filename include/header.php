@@ -16,6 +16,24 @@ $theme_valides = ['dark', 'light'];
 $theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
   ? $_SESSION['j_theme']
   : 'dark';
+
+// Contexte de navigation (header) — derniers niveaux campagne consultés, ou
+// repli sur le dernier personnage si aucune campagne n'est active (cf. doc §12).
+$header_context_niveaux = [];
+if (!empty($_SESSION['j_id'])):
+  $header_context_niveaux = getHeaderCampagneContext();
+  if (empty($header_context_niveaux)):
+    $last_pe_id = getLastPersonnage();
+    if ($last_pe_id > 0):
+      $stmt_ctx_pe = $db->prepare('SELECT pe_nom FROM dd_personnages WHERE pe_id = ?');
+      $stmt_ctx_pe->execute([$last_pe_id]);
+      $ctx_pe_nom = $stmt_ctx_pe->fetchColumn();
+      if ($ctx_pe_nom !== false):
+        $header_context_niveaux[] = ['type' => 'personnage', 'id' => $last_pe_id, 'nom' => $ctx_pe_nom];
+      endif;
+    endif;
+  endif;
+endif;
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -69,6 +87,37 @@ $theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
       <? endif ?>
     </nav>
   </header>
+
+  <? if (!empty($header_context_niveaux)): ?>
+    <div class="site-header__context">
+      <?
+      $ctx_base_detail = BASE_URL . '/include/ajax/detail-pp';
+      $ctx_urls = [
+        'campagne' => $ctx_base_detail . '/campagne.php',
+        'scenario' => $ctx_base_detail . '/scenario.php',
+        'chapitre' => $ctx_base_detail . '/chapitre.php',
+      ];
+      $ctx_labels = ['campagne' => 'Campagne', 'scenario' => 'Scénario', 'chapitre' => 'Chapitre'];
+      $ctx_chain  = [];
+      foreach ($header_context_niveaux as $ctx_niveau):
+        if ($ctx_niveau['type'] === 'personnage'):
+      ?>
+        <a class="site-header__context-btn"
+           href="<?= BASE_URL ?>/personnages/fiche.php?id=<?= (int)$ctx_niveau['id'] ?>">
+          <i class="fa fa-user"></i> <?= h($ctx_niveau['nom']) ?>
+        </a>
+      <?
+          continue;
+        endif;
+        $ctx_chain[] = ['url' => $ctx_urls[$ctx_niveau['type']], 'params' => ['id' => $ctx_niveau['id']]];
+      ?>
+        <button type="button" class="site-header__context-btn"
+                onclick="ouvrirContextePP(<?= h(json_encode($ctx_chain)) ?>)">
+          <?= h($ctx_labels[$ctx_niveau['type']]) ?> : <?= h($ctx_niveau['nom']) ?>
+        </button>
+      <? endforeach ?>
+    </div>
+  <? endif ?>
 
   <main class="site-main">
     <div id="detail-pp-backdrop" class="overlay-backdrop noDisplay"></div>

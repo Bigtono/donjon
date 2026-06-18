@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-17 20:30 -->
+<!-- Mis à jour : 2026-06-17 21:45 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -834,6 +834,28 @@ Patch SQL : `doc/sql/2026-06-01_campagnes_v2_etape2a.sql`.
 CREATE `dd_oppositions`, DROP `dd_rencontres_monstres`, CREATE `dd_fichiers`. Descriptions en LONGTEXT.
 → Schéma réel aligné sur `SCHEMA_SQL.md` v1.1. Reprise de données v1→v2 = patch étape 2 (à venir).
 
+**[2026-06-17] Mémorisation du contexte de navigation (header) — réintégration v1**
+Reprise de la fonctionnalité v1 (boutons de retour rapide dans le header vers les derniers
+campagne/scénario/chapitre consultés), adaptée au fonctionnement en panneaux AJAX empilés de la v2
+(plus de rechargement de page entre niveaux, contrairement à la v1). Quatre arbitrages tranchés :
+- **Persistance en session uniquement** (pas en base) — généralisation du pattern déjà posé pour
+  les personnages (`setLastPersonnage()`/`getLastPersonnage()`, jusqu'ici jamais consommé côté
+  header). Écriture dans `helpers.php` (`setLastCampagne()`/`setLastScenario()`/`setLastChapitre()`,
+  cascade descendante), appelée depuis chaque `include/ajax/detail-pp/*.php` qui dispose déjà de la
+  chaîne d'ancêtres via sa jointure. Lecture (`getHeaderCampagneContext()`) sans requête base.
+- **Repli sur le dernier personnage consulté** quand aucune campagne n'est active, comme en v1 —
+  `getLastPersonnage()` est enfin branché dans le header (une requête `dd_personnages` seulement
+  dans ce cas de repli, pas à chaque page).
+- **Invalidation au soft delete** : chaque `supprimer*()` de `campagnes/enregistrement.php` appelle
+  `invalidateLastCampagneContext($niveau, $id)` après son commit, pour qu'un contexte mémorisé ne
+  pointe jamais vers une fiche supprimée.
+- **Affichage en boutons distincts**, un par niveau actif (Campagne / Scénario / Chapitre), plutôt
+  que le `<select>` unique de v1. Chaque bouton reconstruit la chaîne complète dans
+  `_detailPpStack` avant de charger le niveau visé, pour que le bouton ← Retour du panneau reste
+  cohérent une fois revenu dedans.
+→ Détail technique complet : `ARCHITECTURE_0_REFERENCE.md` §12 (nouvelle sous-section). Niveau
+Rencontre ajouté au même schéma lors de SP3, sans rien changer côté header.
+
 ---
 
 **[2026-06-04] Correction bug — Flèche sommaire règles à la ligne**
@@ -1181,6 +1203,7 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~Campagnes — univers 1-1 ou N-N ?~~ → 1-1 (camp_un_id)
 - [x] ~~Campagnes — ruleset par entité ?~~ → hérité de la campagne (source unique camp_ruleset_var_id)
 - [x] ~~Campagnes — topo détaillé de la suppression douce (cascade + sort des PJ + pe_camp_id)~~ → stratégie validée (flag + cascade application + unlink PDF + pas d'UI restauration)
+- [x] ~~Campagnes — contexte de navigation (header)~~ → session uniquement (réutilise le pattern last_pe_id), repli personnage, invalidation au soft delete, un bouton par niveau
 - [ ] Campagnes — taille max des pièces jointes PDF (proposition : 20 Mo)
 - [ ] Campagnes — stratégie FK/cascade en base (schema.sql sans contraintes FK actuellement)
 - [ ] Campagnes — harmoniser la numérotation doc (ARCHITECTURE_8 vs METIER_10)

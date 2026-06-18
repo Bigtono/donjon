@@ -208,6 +208,34 @@ button {
   color: var(--clr-danger) !important;
 }
 
+.site-header__context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-lg);
+  background: var(--clr-surface-2);
+  border-bottom: 1px solid var(--clr-border);
+  font-size: 0.85rem;
+}
+
+.site-header__context-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+}
+
+.site-header__context-btn:hover {
+  border-color: var(--clr-accent-2);
+  color: var(--clr-accent-2);
+  text-decoration: none;
+}
+
 /* ============================================================
    LAYOUT PRINCIPAL
    ============================================================ */
@@ -599,6 +627,11 @@ textarea {
     flex-wrap: wrap;
     gap: var(--sp-sm);
     font-size: 0.85rem;
+  }
+
+  .site-header__context {
+    padding: var(--sp-sm) var(--sp-sm);
+    font-size: 0.8rem;
   }
 
   .site-main {

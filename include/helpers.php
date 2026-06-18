@@ -168,6 +168,94 @@ function getLastPersonnage(): int {
 }
 
 // ============================================================
+// CONTEXTE CAMPAGNE (last_camp_id / last_sce_id / last_scc_id)
+// ============================================================
+// Mémorisation en cascade des derniers niveaux consultés dans la hiérarchie
+// Campagne → Scénario → Chapitre (→ Rencontre, SP3), pour les boutons de
+// retour rapide affichés dans le header sur toutes les pages. Appelée depuis
+// include/ajax/detail-pp/{campagne,scenario,chapitre}.php, qui disposent déjà
+// de la chaîne d'ancêtres via leur jointure remontante.
+
+// Mémorise la campagne et efface tout niveau enfant mémorisé précédemment.
+function setLastCampagne(int $camp_id, string $camp_nom): void {
+  $_SESSION['last_camp_id']  = $camp_id;
+  $_SESSION['last_camp_nom'] = $camp_nom;
+  unset($_SESSION['last_sce_id'], $_SESSION['last_sce_nom']);
+  unset($_SESSION['last_scc_id'], $_SESSION['last_scc_nom']);
+  unset($_SESSION['last_re_id'],  $_SESSION['last_re_nom']);
+}
+
+// Mémorise le scénario (et sa campagne) ; efface chapitre/rencontre mémorisés.
+function setLastScenario(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom): void {
+  setLastCampagne($camp_id, $camp_nom);
+  $_SESSION['last_sce_id']  = $sce_id;
+  $_SESSION['last_sce_nom'] = $sce_nom;
+}
+
+// Mémorise le chapitre (et sa campagne + son scénario) ; efface la rencontre mémorisée.
+function setLastChapitre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
+                          int $scc_id, string $scc_nom): void {
+  setLastScenario($camp_id, $camp_nom, $sce_id, $sce_nom);
+  $_SESSION['last_scc_id']  = $scc_id;
+  $_SESSION['last_scc_nom'] = $scc_nom;
+}
+
+// SP3 (à venir) : setLastRencontre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
+//                  int $scc_id, string $scc_nom, int $re_id, string $re_nom) — appelle
+//                  setLastChapitre() puis pose last_re_id / last_re_nom sur le même schéma.
+
+// Retourne la liste ordonnée des niveaux campagne actifs (du plus haut au plus
+// profond), prête à afficher dans le header. Aucune requête base — tout est en
+// session, écrit au moment de la consultation par les handlers detail-pp.
+function getHeaderCampagneContext(): array {
+  $niveaux = [];
+
+  if (!empty($_SESSION['last_camp_id'])):
+    $niveaux[] = [
+      'type' => 'campagne',
+      'id'   => (int)$_SESSION['last_camp_id'],
+      'nom'  => $_SESSION['last_camp_nom'] ?? '',
+    ];
+  endif;
+
+  if (!empty($_SESSION['last_sce_id'])):
+    $niveaux[] = [
+      'type' => 'scenario',
+      'id'   => (int)$_SESSION['last_sce_id'],
+      'nom'  => $_SESSION['last_sce_nom'] ?? '',
+    ];
+  endif;
+
+  if (!empty($_SESSION['last_scc_id'])):
+    $niveaux[] = [
+      'type' => 'chapitre',
+      'id'   => (int)$_SESSION['last_scc_id'],
+      'nom'  => $_SESSION['last_scc_nom'] ?? '',
+    ];
+  endif;
+
+  return $niveaux;
+}
+
+// Invalide le contexte mémorisé quand l'élément supprimé (soft delete) est
+// celui actuellement mémorisé à ce niveau — efface ce niveau et tout ce qui
+// est en dessous, conserve les ancêtres. Appelée depuis campagnes/enregistrement.php
+// juste après le commit de chaque supprimer*().
+function invalidateLastCampagneContext(string $niveau, int $id): void {
+  $prefixes = ['campagne' => 'camp', 'scenario' => 'sce', 'chapitre' => 'scc', 'rencontre' => 're'];
+  if (!isset($prefixes[$niveau])) return;
+
+  $cle_id = 'last_' . $prefixes[$niveau] . '_id';
+  if ((int)($_SESSION[$cle_id] ?? 0) !== $id) return;
+
+  $chaine = array_keys($prefixes);
+  $depart = array_search($niveau, $chaine);
+  foreach (array_slice($chaine, $depart) as $n):
+    unset($_SESSION['last_' . $prefixes[$n] . '_id'], $_SESSION['last_' . $prefixes[$n] . '_nom']);
+  endforeach;
+}
+
+// ============================================================
 // SUPPLÉMENT UTILISATEUR
 // ============================================================
 // Le supplément d'un utilisateur est une entrée dd_ressources avec
