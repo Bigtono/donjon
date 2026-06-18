@@ -856,6 +856,25 @@ campagne/scénario/chapitre consultés), adaptée au fonctionnement en panneaux 
 → Détail technique complet : `ARCHITECTURE_0_REFERENCE.md` §12 (nouvelle sous-section). Niveau
 Rencontre ajouté au même schéma lors de SP3, sans rien changer côté header.
 
+**[2026-06-18] Correction bug — boutons de contexte muets sans F5**
+Symptôme : `last_camp_id`/`last_sce_id`/`last_scc_id` bien posés en session par les handlers
+`detail-pp/*.php`, mais aucun bouton n'apparaissait dans le header après consultation d'une
+campagne/scénario/chapitre — seul un F5 les faisait apparaître. Cause : `getHeaderCampagneContext()`
+n'était lue qu'au rendu de page complète (`include/header.php`) ; consulter un niveau se fait via le
+panneau AJAX `#detail-pp`, qui ne touche jamais au header déjà rendu dans le navigateur.
+→ Factorisation de la lecture (campagne/scénario/chapitre + repli personnage) dans
+  `getHeaderContextNiveaux(PDO $db): array` (`helpers.php`), et du rendu HTML dans un fragment
+  partagé `include/header-context.php`, tous deux consommés à la fois par `header.php` (rendu
+  initial) et par un nouvel endpoint `include/ajax/header-context.php` (rafraîchissement à chaud).
+  `header.php` enveloppe le fragment dans un conteneur d'ID fixe et toujours présent dans le DOM
+  (`#site-header-context-zone`), que `main.js` recible via `actualiserContexteHeader()`, appelée
+  depuis `_chargerDetailPP()` — donc après tout chargement de panneau, sans dupliquer l'appel par
+  fonction de navigation. Nécessite `BASE_URL` en variable JS globale, désormais posée une fois dans
+  `include/footer.php` plutôt que dupliquée par page.
+→ Piège de validation à ne pas reproduire en debug : un onglet déjà ouvert avant le déploiement du
+  correctif garde l'ancien DOM/JS en cache — `actualiserContexteHeader()` ne trouve alors rien à
+  mettre à jour. Toujours valider un changement de `header.php`/`main.js` après un Ctrl+F5.
+
 ---
 
 **[2026-06-04] Correction bug — Flèche sommaire règles à la ligne**

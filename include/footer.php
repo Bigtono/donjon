@@ -7,6 +7,9 @@
   <p>Codex DD v2 — <?= date('Y') ?></p>
 </footer>
 
+<script>
+  var BASE_URL = <?= json_encode(BASE_URL) ?>;
+</script>
 <script src="<?= BASE_URL ?>/js/main.js"></script>
 <? if (!empty($js_module)): ?>
   <script src="<?= BASE_URL ?>/js/<?= $js_module ?>.js"></script>

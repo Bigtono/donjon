@@ -237,6 +237,29 @@ function getHeaderCampagneContext(): array {
   return $niveaux;
 }
 
+// Calcule les niveaux de contexte à afficher dans le header : la chaîne
+// campagne/scénario/chapitre active, ou à défaut le dernier personnage
+// consulté (cf. include/header.php et include/ajax/header-context.php, qui
+// partagent cette fonction pour rester synchronisés sans recharger la page).
+function getHeaderContextNiveaux(PDO $db): array {
+  $niveaux = getHeaderCampagneContext();
+  if (!empty($niveaux)):
+    return $niveaux;
+  endif;
+
+  $last_pe_id = getLastPersonnage();
+  if ($last_pe_id > 0):
+    $stmt = $db->prepare('SELECT pe_nom FROM dd_personnages WHERE pe_id = ?');
+    $stmt->execute([$last_pe_id]);
+    $pe_nom = $stmt->fetchColumn();
+    if ($pe_nom !== false):
+      $niveaux[] = ['type' => 'personnage', 'id' => $last_pe_id, 'nom' => $pe_nom];
+    endif;
+  endif;
+
+  return $niveaux;
+}
+
 // Invalide le contexte mémorisé quand l'élément supprimé (soft delete) est
 // celui actuellement mémorisé à ce niveau — efface ce niveau et tout ce qui
 // est en dessous, conserve les ancêtres. Appelée depuis campagnes/enregistrement.php

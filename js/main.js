@@ -130,8 +130,22 @@ function _chargerDetailPP(url, params, withBack) {
           + '<i class="fa fa-arrow-left"></i> Retour</button>'
         : '';
       panel.innerHTML = closeBtn + backBtn + html;
+      actualiserContexteHeader();
     })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
+}
+
+// Recharge le bloc de contexte du header (boutons retour rapide) sans
+// recharger la page — appelé après chaque consultation dans #detail-pp,
+// puisque la session (last_camp_id / last_sce_id / ...) vient d'être mise à
+// jour côté serveur par ce même chargement.
+function actualiserContexteHeader() {
+  const zone = document.getElementById('site-header-context-zone');
+  if (!zone) return;
+  fetch(BASE_URL + '/include/ajax/header-context.php')
+    .then(r => r.text())
+    .then(html => { zone.innerHTML = html; })
+    .catch(() => {});
 }
 
 // Charge #modification via GET — lecture initiale du formulaire

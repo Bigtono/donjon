@@ -1082,8 +1082,7 @@ supplémentaire n'est nécessaire pour la mémorisation. L'écriture en cascade 
 les niveaux enfants : remonter à un ancêtre nettoie proprement les niveaux plus profonds mémorisés
 (contrairement au v1, où ce nettoyage n'était fait que par `campagne.php`/`scenario.php`).
 
-**Lecture — `getHeaderCampagneContext(): array`**, appelée depuis `include/header.php` à chaque
-rendu de page complète, sans requête base (tout est déjà en session) :
+**Lecture — `getHeaderCampagneContext(): array`**, sans requête base (tout est déjà en session) :
 
 ```php
 function getHeaderCampagneContext(): array {
@@ -1101,10 +1100,34 @@ function getHeaderCampagneContext(): array {
 }
 ```
 
-Si `getHeaderCampagneContext()` est vide, `header.php` retombe sur `getLastPersonnage()` (déjà posée
-mais jusqu'ici jamais consommée) pour proposer un raccourci vers la dernière fiche personnage
-consultée — un unique `SELECT pe_nom FROM dd_personnages WHERE pe_id = ?`, déclenché seulement dans
-ce cas de repli, pas à chaque page.
+Cette fonction est enveloppée par `getHeaderContextNiveaux(PDO $db): array`, qui ajoute le repli
+personnage et constitue le point d'entrée unique consommé par les deux appelants (rendu de page
+complète et rafraîchissement à chaud, voir plus bas) :
+
+```php
+function getHeaderContextNiveaux(PDO $db): array {
+  $niveaux = getHeaderCampagneContext();
+  if (!empty($niveaux)):
+    return $niveaux;
+  endif;
+
+  $last_pe_id = getLastPersonnage();
+  if ($last_pe_id > 0):
+    $stmt = $db->prepare('SELECT pe_nom FROM dd_personnages WHERE pe_id = ?');
+    $stmt->execute([$last_pe_id]);
+    $pe_nom = $stmt->fetchColumn();
+    if ($pe_nom !== false):
+      $niveaux[] = ['type' => 'personnage', 'id' => $last_pe_id, 'nom' => $pe_nom];
+    endif;
+  endif;
+
+  return $niveaux;
+}
+```
+
+Le repli personnage (`getLastPersonnage()`, déjà posée mais jusqu'ici jamais consommée) ne déclenche
+qu'un unique `SELECT pe_nom FROM dd_personnages WHERE pe_id = ?`, seulement quand aucune campagne
+n'est active — pas à chaque page.
 
 **Invalidation au soft delete** — chaque fonction `supprimer*()` de `campagnes/enregistrement.php`
 appelle, juste après son `$db->commit()`, `invalidateLastCampagneContext($niveau, $id)` :
@@ -1127,13 +1150,25 @@ Efface le niveau supprimé et tout ce qui est en dessous, conserve les ancêtres
 peut donc jamais pointer vers une fiche supprimée.
 
 **Affichage** — un bouton par niveau actif (pas de regroupement en `<select>` comme en v1), dans un
-bloc dédié sous la barre de header principale, absent du DOM si la liste est vide :
+bloc dédié sous la barre de header principale. Le rendu HTML (le `foreach` sur les niveaux, les
+boutons, le lien personnage) est factorisé dans un fragment partagé, `include/header-context.php`,
+qui attend la variable `$header_context_niveaux` déjà calculée par l'appelant et n'affiche rien si
+elle est vide :
 
 ```html
 <div class="site-header__context">
   <button onclick="ouvrirContextePP([...])">Campagne : Les Mines Perdues</button>
   <button onclick="ouvrirContextePP([...])">Scénario : L'Antre du Kobold</button>
   <button onclick="ouvrirContextePP([...])">Chapitre : L'Embuscade</button>
+</div>
+```
+
+`include/header.php` inclut ce fragment dans un conteneur d'ID fixe, **toujours présent dans le DOM**
+même quand il est vide — c'est ce conteneur que cible le rafraîchissement à chaud décrit ci-dessous :
+
+```html
+<div id="site-header-context-zone">
+  <?php include __DIR__ . '/header-context.php'; ?>
 </div>
 ```
 
@@ -1152,6 +1187,55 @@ function ouvrirContextePP(chain) {
 Le bouton « Personnage » (repli, aucune campagne active) reste un lien simple vers
 `personnages/fiche.php?id=…` — cette page n'est pas un panneau `#detail-pp`, c'est un rechargement
 complet classique.
+
+#### Rafraîchissement à chaud (sans rechargement de page)
+
+Premier jet bugué : `getHeaderContextNiveaux()` n'était lu qu'au rendu de page complète
+(`include/header.php`), alors que consulter une campagne/scénario/chapitre se fait via le panneau
+AJAX `#detail-pp` — la session est bien mise à jour côté serveur, mais le header déjà rendu dans le
+navigateur ne le sait jamais sans F5.
+
+Correction : un endpoint dédié recalcule et renvoie le même fragment, et `main.js` l'appelle après
+chaque chargement réussi dans `#detail-pp` :
+
+```php
+// include/ajax/header-context.php
+require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../auth.php';
+require_once __DIR__ . '/../helpers.php';
+requireAuth();
+$header_context_niveaux = getHeaderContextNiveaux($db);
+include __DIR__ . '/../header-context.php';
+```
+
+```javascript
+// js/main.js
+function actualiserContexteHeader() {
+  const zone = document.getElementById('site-header-context-zone');
+  if (!zone) return;
+  fetch(BASE_URL + '/include/ajax/header-context.php')
+    .then(r => r.text())
+    .then(html => { zone.innerHTML = html; })
+    .catch(() => {});
+}
+```
+
+L'appel est placé dans `_chargerDetailPP()` (le worker unique du panneau, voir plus haut), donc
+couvre automatiquement `actualiserPage`, `naviguerDetailPP`, `retourDetailPP` et `ouvrirContextePP`
+sans dupliquer l'appel à chacun. `BASE_URL` doit être exposé en variable JS globale pour que
+`main.js` puisse construire l'URL — posé une fois pour toutes dans `include/footer.php` :
+
+```php
+<script>
+  var BASE_URL = <?= json_encode(BASE_URL) ?>;
+</script>
+<script src="<?= BASE_URL ?>/js/main.js"></script>
+```
+
+→ Piège rencontré en validation : après une modification de `header.php`/`main.js`, un onglet déjà
+ouvert garde l'ancien DOM (pas de `#site-header-context-zone`) et l'ancien `main.js` en cache —
+`actualiserContexteHeader()` ne trouve alors rien à mettre à jour. Un rechargement forcé (Ctrl+F5)
+suffit ; ne pas confondre avec une régression du mécanisme lui-même.
 
 ### Système d'overlays empilés — #detail-pp, #modification, #detail-pp-sub
 
