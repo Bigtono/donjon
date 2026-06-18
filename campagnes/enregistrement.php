@@ -78,6 +78,14 @@ switch ($action):
     supprimerChapitre($db, $is_ajax, $redirect);
     break;
 
+  case 'enregistrerRencontre':
+    enregistrerRencontre($db, $is_ajax, $redirect);
+    break;
+
+  case 'supprimerRencontre':
+    supprimerRencontre($db, $is_ajax, $redirect);
+    break;
+
   default:
     campErreur($is_ajax, 'Action inconnue.', $redirect);
 
@@ -237,8 +245,6 @@ function supprimerCampagne($db, bool $is_ajax, string $redirect): void
 
     $db->commit();
 
-    invalidateLastCampagneContext('campagne', $camp_id);
-
     if ($is_ajax):
       header('Content-Type: application/json');
       echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
@@ -380,8 +386,6 @@ function supprimerScenario($db, bool $is_ajax, string $redirect): void
        ->execute([$now, $sce_id]);
 
     $db->commit();
-
-    invalidateLastCampagneContext('scenario', $sce_id);
 
     if ($is_ajax):
       header('Content-Type: application/json');
@@ -526,8 +530,6 @@ function supprimerChapitre($db, bool $is_ajax, string $redirect): void
 
     $db->commit();
 
-    invalidateLastCampagneContext('chapitre', $scc_id);
-
     if ($is_ajax):
       header('Content-Type: application/json');
       echo json_encode([
@@ -622,4 +624,117 @@ function checkSccOwner($db, int $scc_id): bool
   $stmt->execute([$scc_id]);
   $row = $stmt->fetch();
   return $row && isMJ($db, (int)$row['camp_id']);
+}
+
+// ============================================================
+// RENCONTRE — Sauvegarde
+// ============================================================
+
+function enregistrerRencontre(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $re_id          = intParam($_POST['re_id']   ?? 0);
+  $scc_id         = intParam($_POST['scc_id']  ?? 0);
+  $re_nom         = trim($_POST['re_nom']         ?? '');
+  $re_code        = trim($_POST['re_code']        ?? '');
+  $re_composition = trim($_POST['re_composition'] ?? '');
+  $re_description = trim($_POST['re_description'] ?? '');
+
+  if (!$re_nom)  campErreur($is_ajax, 'Le nom est obligatoire.', $redirect);
+  if (!$scc_id)  campErreur($is_ajax, 'Chapitre manquant.', $redirect);
+  if (!checkSccOwner($db, $scc_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  $re_id_was_zero = ($re_id === 0);
+
+  $db->beginTransaction();
+  try {
+    if ($re_id === 0):
+      $stmt = $db->prepare('
+        INSERT INTO dd_rencontres
+          (re_nom, re_code, re_scc_id, re_description, re_composition, re_supprime)
+        VALUES (?, ?, ?, ?, ?, 0)
+      ');
+      $stmt->execute([$re_nom, $re_code ?: null, $scc_id, $re_description ?: null, $re_composition ?: null]);
+      $re_id = (int)$db->lastInsertId();
+    else:
+      // Vérification propriété sur la rencontre existante
+      $stmt_chk = $db->prepare('SELECT re_scc_id FROM dd_rencontres WHERE re_id = ? AND re_supprime = 0');
+      $stmt_chk->execute([$re_id]);
+      $row_chk = $stmt_chk->fetch();
+      if (!$row_chk || !checkSccOwner($db, (int)$row_chk['re_scc_id'])):
+        $db->rollBack();
+        campErreur($is_ajax, 'Accès refusé.', $redirect);
+      endif;
+      $stmt = $db->prepare('
+        UPDATE dd_rencontres
+        SET    re_nom = ?, re_code = ?, re_description = ?, re_composition = ?
+        WHERE  re_id = ? AND re_supprime = 0
+      ');
+      $stmt->execute([$re_nom, $re_code ?: null, $re_description ?: null, $re_composition ?: null, $re_id]);
+    endif;
+    $db->commit();
+  } catch (Exception $e) {
+    $db->rollBack();
+    campErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+
+  $url_detail = $re_id_was_zero
+    ? BASE_URL . '/include/ajax/detail-pp/chapitre.php'
+    : BASE_URL . '/include/ajax/detail-pp/rencontre.php';
+  $id_retour  = $re_id_was_zero ? $scc_id : $re_id;
+
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode([
+      'ok'         => true,
+      'id'         => $id_retour,
+      're_id'      => $re_id,
+      'scc_id'     => $scc_id,
+      'url_detail' => $url_detail,
+    ]);
+    exit;
+  endif;
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Rencontre enregistrée.'];
+  header('Location: ' . $redirect);
+  exit;
+}
+
+// ============================================================
+// RENCONTRE — Suppression (soft-delete)
+// ============================================================
+
+function supprimerRencontre(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $re_id = intParam($_POST['id'] ?? 0);
+  if (!$re_id) campErreur($is_ajax, 'Identifiant manquant.', $redirect);
+
+  $stmt = $db->prepare('SELECT re_scc_id FROM dd_rencontres WHERE re_id = ? AND re_supprime = 0');
+  $stmt->execute([$re_id]);
+  $row = $stmt->fetch();
+  if (!$row) campErreur($is_ajax, 'Rencontre introuvable.', $redirect);
+
+  $scc_id = (int)$row['re_scc_id'];
+  if (!checkSccOwner($db, $scc_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  $db->beginTransaction();
+  try {
+    softDeleteIds($db, 'dd_rencontres', 're_supprime', 're_date_supprime', 're_id', [$re_id]);
+    $db->commit();
+  } catch (Exception $e) {
+    $db->rollBack();
+    campErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode([
+      'ok'         => true,
+      'id'         => $scc_id,
+      'scc_id'     => $scc_id,
+      'url_detail' => BASE_URL . '/include/ajax/detail-pp/chapitre.php',
+    ]);
+    exit;
+  endif;
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Rencontre supprimée.'];
+  header('Location: ' . $redirect);
+  exit;
 }

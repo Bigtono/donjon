@@ -294,3 +294,17 @@
   color: var(--clr-accent-2);
   background: var(--clr-surface-2);
 }
+
+/* ============================================================
+   RENCONTRE — Composition (champ mis en évidence)
+   ============================================================ */
+
+.camp-rencontre__composition {
+  margin: var(--sp-md) 0;
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--clr-surface-2);
+  border-left: 3px solid var(--clr-accent-2);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: .95rem;
+  line-height: 1.6;
+}
