@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-17 21:45 -->
+<!-- Mis à jour : 2026-06-18 11:30 -->
 
 # Codex DD v2 — Journal des décisions
 
