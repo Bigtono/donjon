@@ -10,11 +10,17 @@
     <?
     $ctx_base_detail = BASE_URL . '/include/ajax/detail-pp';
     $ctx_urls = [
-      'campagne' => $ctx_base_detail . '/campagne.php',
-      'scenario' => $ctx_base_detail . '/scenario.php',
-      'chapitre' => $ctx_base_detail . '/chapitre.php',
+      'campagne'  => $ctx_base_detail . '/campagne.php',
+      'scenario'  => $ctx_base_detail . '/scenario.php',
+      'chapitre'  => $ctx_base_detail . '/chapitre.php',
+      'rencontre' => $ctx_base_detail . '/rencontre.php',
     ];
-    $ctx_labels = ['campagne' => 'Campagne', 'scenario' => 'Scénario', 'chapitre' => 'Chapitre'];
+    $ctx_labels = [
+      'campagne'  => 'Campagne',
+      'scenario'  => 'Scénario',
+      'chapitre'  => 'Chapitre',
+      'rencontre' => 'Rencontre',
+    ];
     $ctx_chain  = [];
     foreach ($header_context_niveaux as $ctx_niveau):
       if ($ctx_niveau['type'] === 'personnage'):

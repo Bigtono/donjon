@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-18 11:30 -->
+<!-- Mis à jour : 2026-06-19 17:20 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -1071,8 +1071,12 @@ function setLastChapitre(int $camp_id, string $camp_nom, int $sce_id, string $sc
   $_SESSION['last_scc_nom'] = $scc_nom;
 }
 
-// SP3 (à venir) : setLastRencontre(...) sur le même schéma, appelle setLastChapitre()
-// puis pose last_re_id / last_re_nom.
+function setLastRencontre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
+                           int $scc_id, string $scc_nom, int $re_id, string $re_nom): void {
+  setLastChapitre($camp_id, $camp_nom, $sce_id, $sce_nom, $scc_id, $scc_nom);
+  $_SESSION['last_re_id']  = $re_id;
+  $_SESSION['last_re_nom'] = $re_nom;
+}
 ```
 
 Chaque handler dispose déjà, via sa jointure remontante, de tous les id/nom nécessaires (ex. :
@@ -1095,6 +1099,9 @@ function getHeaderCampagneContext(): array {
   endif;
   if (!empty($_SESSION['last_scc_id'])):
     $niveaux[] = ['type' => 'chapitre', 'id' => (int)$_SESSION['last_scc_id'], 'nom' => $_SESSION['last_scc_nom'] ?? ''];
+  endif;
+  if (!empty($_SESSION['last_re_id'])):
+    $niveaux[] = ['type' => 'rencontre', 'id' => (int)$_SESSION['last_re_id'], 'nom' => $_SESSION['last_re_nom'] ?? ''];
   endif;
   return $niveaux;
 }
@@ -1236,6 +1243,29 @@ sans dupliquer l'appel à chacun. `BASE_URL` doit être exposé en variable JS g
 ouvert garde l'ancien DOM (pas de `#site-header-context-zone`) et l'ancien `main.js` en cache —
 `actualiserContexteHeader()` ne trouve alors rien à mettre à jour. Un rechargement forcé (Ctrl+F5)
 suffit ; ne pas confondre avec une régression du mécanisme lui-même.
+
+#### Niveau Rencontre (SP3) — intégration complète
+
+Le module Rencontres/Oppositions (SP3) a été construit après la mise en place initiale du mécanisme
+ci-dessus, sans reprendre son intégration au niveau Chapitre/Rencontre — deux pièces manquaient :
+
+- `include/ajax/detail-pp/chapitre.php` avait perdu son appel `setLastChapitre(...)`, écrasé lors de
+  l'ajout de la section "Rencontres" à ce même fichier (régression, pas un oubli initial).
+- `include/ajax/detail-pp/rencontre.php`, créé pour SP3, n'a jamais appelé `setLastRencontre(...)` —
+  cette fonction elle-même n'existait que sous forme de commentaire (« SP3 à venir ») dans
+  `helpers.php`, jamais implémentée au moment où SP3 a réellement été développé.
+
+Le fragment `include/header-context.php` (tableaux `$ctx_urls`/`$ctx_labels`) ne connaissait pas non
+plus le type `'rencontre'` — un contexte Rencontre actif y aurait provoqué une clé de tableau
+indéfinie.
+
+→ Règle à retenir : toute nouvelle sous-phase qui ajoute un niveau à la hiérarchie Campagnes (ou
+modifie un handler `detail-pp/*.php` existant) doit systématiquement vérifier les quatre points
+d'intégration du contexte de navigation : la fonction `setLast*()` dans `helpers.php`, son appel
+dans le handler `detail-pp/*.php` correspondant, l'entrée dans `getHeaderCampagneContext()`, et
+l'entrée dans `$ctx_urls`/`$ctx_labels` du fragment `header-context.php` — plus l'appel
+`invalidateLastCampagneContext()` dans `campagnes/enregistrement.php` au moment de la suppression.
+Cette checklist est reprise dans §17.
 
 ### Système d'overlays empilés — #detail-pp, #modification, #detail-pp-sub
 
@@ -1663,6 +1693,10 @@ document.querySelectorAll('.tinymce-basic').forEach(function(el) {
 - [ ] **Supplément : auto-création ressource supplément + auto-add `dd_joueurs_sources` sur premier save**
 - [ ] **Supplément : badge `.comp-ligne--homebrew` sur toutes les lignes de supplément dans les listes**
 - [ ] **Monstres : `mo_j_id` absent de toutes les requêtes (colonne supprimée via `patch_004_supplements.sql`)**
+- [ ] **Campagnes : tout nouveau niveau hiérarchique (ou handler `detail-pp/*.php` modifié) vérifie
+      les 4 points d'intégration du contexte de navigation — `setLast*()` dans `helpers.php`, appel
+      dans le handler, entrée dans `getHeaderCampagneContext()`, entrée dans `$ctx_urls`/`$ctx_labels`
+      de `include/header-context.php` — plus `invalidateLastCampagneContext()` au moment du delete**
 - [ ] Admin : requireAdmin() en tête de chaque page admin/
 - [ ] Admin : suppression utilisateur = désactivation j_visible=0, jamais DELETE
 - [ ] Admin : suppression ressource = vérification préalable sur les 7 tables compendium

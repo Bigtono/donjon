@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-18 11:30 -->
+<!-- Mis à jour : 2026-06-19 17:20 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -874,6 +874,30 @@ panneau AJAX `#detail-pp`, qui ne touche jamais au header déjà rendu dans le n
 → Piège de validation à ne pas reproduire en debug : un onglet déjà ouvert avant le déploiement du
   correctif garde l'ancien DOM/JS en cache — `actualiserContexteHeader()` ne trouve alors rien à
   mettre à jour. Toujours valider un changement de `header.php`/`main.js` après un Ctrl+F5.
+
+**[2026-06-19] Correction régression — boutons Chapitre/Rencontre absents du header**
+Symptôme signalé : seuls les boutons Campagne et Scénario apparaissaient dans le header après
+navigation ; Chapitre et Rencontre restaient muets. Deux causes distinctes identifiées par diff
+avec la dernière livraison connue :
+- `include/ajax/detail-pp/chapitre.php` avait perdu son appel `setLastChapitre(...)` — écrasé sans
+  intention lors de l'ajout de la section "Rencontres" à ce même fichier (développement SP3).
+  Régression pure, pas un oubli de conception.
+- `include/ajax/detail-pp/rencontre.php`, créé pendant SP3, n'a jamais appelé `setLastRencontre(...)` :
+  cette fonction n'existait encore que sous forme de commentaire (« SP3 à venir ») dans `helpers.php`
+  au moment où SP3 a réellement été codé — l'intégration au mécanisme de contexte n'a pas suivi.
+- `getHeaderCampagneContext()` ne lisait pas `last_re_id`/`last_re_nom` (aucune branche `rencontre`).
+- Le fragment `include/header-context.php` ne connaissait pas le type `'rencontre'` dans ses tableaux
+  `$ctx_urls`/`$ctx_labels` — un contexte Rencontre actif aurait provoqué une clé indéfinie.
+- `supprimerRencontre()` dans `campagnes/enregistrement.php` n'appelait pas
+  `invalidateLastCampagneContext('rencontre', $re_id)`, contrairement aux trois autres `supprimer*()`.
+→ Les 5 points corrigés : `setLastRencontre()` implémentée dans `helpers.php` (cascade depuis
+  `setLastChapitre()`) ; branche `rencontre` ajoutée à `getHeaderCampagneContext()` ; appel
+  `setLastChapitre()` réintégré dans `detail-pp/chapitre.php` ; appel `setLastRencontre()` ajouté
+  dans `detail-pp/rencontre.php` ; `$ctx_urls`/`$ctx_labels` complétés dans `header-context.php` ;
+  `invalidateLastCampagneContext('rencontre', ...)` ajouté dans `supprimerRencontre()`.
+→ Checklist ajoutée en §17 de `ARCHITECTURE_0_REFERENCE.md` : toute sous-phase Campagnes qui ajoute
+  un niveau ou modifie un handler `detail-pp/*.php` doit revérifier ces 5 points d'intégration —
+  c'est leur absence de suivi systématique qui a permis cette régression silencieuse.
 
 ---
 

@@ -732,6 +732,8 @@ function supprimerRencontre(PDO $db, bool $is_ajax, string $redirect): void
     campErreur($is_ajax, 'Erreur base de données.', $redirect);
   }
 
+  invalidateLastCampagneContext('rencontre', $re_id);
+
   if ($is_ajax):
     header('Content-Type: application/json');
     echo json_encode([

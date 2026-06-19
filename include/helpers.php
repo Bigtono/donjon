@@ -224,9 +224,13 @@ function setLastChapitre(int $camp_id, string $camp_nom, int $sce_id, string $sc
   $_SESSION['last_scc_nom'] = $scc_nom;
 }
 
-// SP3 (à venir) : setLastRencontre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
-//                  int $scc_id, string $scc_nom, int $re_id, string $re_nom) — appelle
-//                  setLastChapitre() puis pose last_re_id / last_re_nom sur le même schéma.
+// Mémorise la rencontre (et toute sa chaîne d'ancêtres).
+function setLastRencontre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
+                           int $scc_id, string $scc_nom, int $re_id, string $re_nom): void {
+  setLastChapitre($camp_id, $camp_nom, $sce_id, $sce_nom, $scc_id, $scc_nom);
+  $_SESSION['last_re_id']  = $re_id;
+  $_SESSION['last_re_nom'] = $re_nom;
+}
 
 // Retourne la liste ordonnée des niveaux campagne actifs (du plus haut au plus
 // profond), prête à afficher dans le header. Aucune requête base — tout est en
@@ -255,6 +259,14 @@ function getHeaderCampagneContext(): array {
       'type' => 'chapitre',
       'id'   => (int)$_SESSION['last_scc_id'],
       'nom'  => $_SESSION['last_scc_nom'] ?? '',
+    ];
+  endif;
+
+  if (!empty($_SESSION['last_re_id'])):
+    $niveaux[] = [
+      'type' => 'rencontre',
+      'id'   => (int)$_SESSION['last_re_id'],
+      'nom'  => $_SESSION['last_re_nom'] ?? '',
     ];
   endif;
 

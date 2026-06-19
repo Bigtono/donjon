@@ -45,6 +45,9 @@ if (!isMJ($db, (int)$re['camp_id'])):
   exit;
 endif;
 
+setLastRencontre((int)$re['camp_id'], $re['camp_nom'], (int)$re['sce_id'], $re['sce_nom'],
+                  (int)$re['scc_id'], $re['scc_nom'], $id, $re['re_nom']);
+
 // Oppositions de la rencontre
 $stmt_opp = $db->prepare('
   SELECT opp_id, opp_nom, opp_mocat_nom
