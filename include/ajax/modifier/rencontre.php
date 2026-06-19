@@ -143,39 +143,44 @@ $titre = $id > 0 ? 'Modifier ' . h($re['re_nom']) : 'Nouvelle rencontre';
   (function initTMCE() {
     if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
     var isLight = document.body.classList.contains('theme-light');
+    var contentStyle = isLight
+      ? 'body { background:#eae6dd; color:#2a2015; font-family:inherit; font-size:14px; }'
+      : 'body { background:#0f3460; color:#e0e0e0; font-family:inherit; font-size:14px; }';
 
-    // Composition — toolbar légère (texte structuré, pas d'image)
+    // Composition — toolbar légère (texte structuré, pas d'image ni de table)
     tinymce.remove('#re_composition');
     tinymce.init({
-      selector:    '#re_composition',
-      language:    'fr_FR',
-      menubar:     false,
-      plugins:     'lists',
-      toolbar:     'bold italic underline | bullist numlist | removeformat',
-      height:      180,
-      skin:        isLight ? 'oxide' : 'oxide-dark',
-      content_css: isLight ? 'default' : 'dark',
-      promotion:   false,
-      branding:    false,
-      base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
-      suffix:      '.min',
+      selector:      '#re_composition',
+      language:      'fr_FR',
+      menubar:       false,
+      plugins:       'lists link code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink | removeformat | code',
+      height:        180,
+      skin:          isLight ? 'oxide' : 'oxide-dark',
+      content_css:   isLight ? 'default' : 'dark',
+      content_style: contentStyle,
+      promotion:     false,
+      branding:      false,
+      base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
+      suffix:        '.min',
     });
 
     // Description — toolbar complète avec image et table
     tinymce.remove('#re_description');
     tinymce.init({
-      selector:    '#re_description',
-      language:    'fr_FR',
-      menubar:     false,
-      plugins:     'lists link image table',
-      toolbar:     'bold italic underline | bullist numlist | h2 h3 | link image table | removeformat',
-      height:      320,
-      skin:        isLight ? 'oxide' : 'oxide-dark',
-      content_css: isLight ? 'default' : 'dark',
-      promotion:   false,
-      branding:    false,
-      base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
-      suffix:      '.min',
+      selector:      '#re_description',
+      language:      'fr_FR',
+      menubar:       false,
+      plugins:       'lists link image table code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink image table | removeformat | code',
+      height:        320,
+      skin:          isLight ? 'oxide' : 'oxide-dark',
+      content_css:   isLight ? 'default' : 'dark',
+      content_style: contentStyle,
+      promotion:     false,
+      branding:      false,
+      base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
+      suffix:        '.min',
       images_upload_url:         '<?= BASE_URL ?>/include/ajax/upload-image.php',
       images_upload_credentials: true,
       automatic_uploads:         true,

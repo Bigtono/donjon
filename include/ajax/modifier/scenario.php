@@ -117,21 +117,21 @@ $titre = $id > 0 ? 'Modifier ' . h($sce['sce_nom']) : 'Nouveau scénario';
     var isLight = document.body.classList.contains('theme-light');
     tinymce.remove('#sce_description');
     tinymce.init({
-      selector:      '#sce_description',
-      language:      'fr_FR',
-      menubar:       false,
-      plugins:       'lists link image code',
-      toolbar:       'styles | bold italic underline | bullist numlist | link unlink image | removeformat | code',
+      selector:    '#sce_description',
+      language:    'fr_FR',
+      menubar:     false,
+      plugins:       'lists link image table code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink image table | removeformat | code',
       height:        300,
       skin:          isLight ? 'oxide' : 'oxide-dark',
       content_css:   isLight ? 'default' : 'dark',
       content_style: isLight
         ? 'body { background:#eae6dd; color:#2a2015; font-family:inherit; font-size:14px; }'
         : 'body { background:#0f3460; color:#e0e0e0; font-family:inherit; font-size:14px; }',
-      promotion:     false,
-      branding:      false,
-      base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
-      suffix:        '.min',
+      promotion:   false,
+      branding:    false,
+      base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
+      suffix:      '.min',
       images_upload_url:         '<?= BASE_URL ?>/include/ajax/upload-image.php',
       images_upload_credentials: true,
       automatic_uploads:         true,
