@@ -45,13 +45,7 @@ if (!$mo):
   exit;
 endif;
 
-// Monstre privé (mo_j_id renseigné) : visible du seul propriétaire ou d'un éditeur
 $uid = (int)($_SESSION['j_id'] ?? 0);
-if ($mo['mo_j_id'] !== null && (int)$mo['mo_j_id'] !== $uid && !canEditCompendium()):
-  http_response_code(403);
-  echo '<p class="erreur">Accès refusé.</p>';
-  exit;
-endif;
 
 $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
 $est_dd2024  = (int)$mo['mo_ruleset_var_id'] !== 1;
@@ -77,11 +71,6 @@ $detail_base = BASE_URL . '/include/ajax/detail-pp/';
   <div class="sort-detail__header">
     <h2 class="sort-detail__nom">
       <?= h($mo['mo_nom']) ?>
-      <?php if ($mo['mo_j_id'] !== null): ?>
-        <span class="badge-invisible" title="Monstre privé (visible de vous seul)">
-          <i class="fa fa-eye-slash"></i>
-        </span>
-      <?php endif ?>
       <?php if (canEditCompendium()): ?>
         <button class="sort-detail__edit-btn"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/monstre.php', <?= $id ?>)"

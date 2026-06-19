@@ -45,11 +45,11 @@ if (!isMJ($db, (int)$re['camp_id'])):
   exit;
 endif;
 
-// Oppositions de la rencontre (SP3 — affichage simple pour l'instant)
+// Oppositions de la rencontre
 $stmt_opp = $db->prepare('
   SELECT opp_id, opp_nom, opp_mocat_nom
   FROM   dd_oppositions
-  WHERE  opp_re_id = ?
+  WHERE  opp_re_id = ? AND opp_supprime = 0
   ORDER  BY opp_nom ASC
 ');
 $stmt_opp->execute([$id]);
@@ -95,24 +95,63 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
 
   <!-- Oppositions -->
   <div class="camp-detail__section">
-    <h3 class="camp-detail__section-title">Oppositions</h3>
+    <div class="camp-section__header">
+      <h3 class="camp-detail__section-title">Oppositions</h3>
+      <button class="btn btn-primary btn-sm"
+              onclick="actualiserPageModif('<?= $base_modifier ?>/opposition.php', {id:0, re_id:<?= $id ?>})">
+        <i class="fa fa-plus"></i> Nouvelle
+      </button>
+    </div>
     <?php if (empty($oppositions)): ?>
-      <p class="text-muted">Aucune opposition — à venir (SP3).</p>
+      <p class="text-muted">Aucune opposition pour le moment.</p>
     <?php else: ?>
       <table class="camp-sous-liste">
         <thead>
           <tr>
+            <th class="col-action"></th>
             <th>Nom</th>
             <th>Type</th>
           </tr>
         </thead>
         <tbody>
           <?php foreach ($oppositions as $opp): ?>
-            <tr onclick="actualiserPageSub('<?= BASE_URL ?>/include/ajax/detail-pp-sub/opposition.php',
-                         {id:<?= (int)$opp['opp_id'] ?>})"
-                style="cursor:pointer">
-              <td><?= h($opp['opp_nom']) ?></td>
-              <td class="text-muted"><?= $opp['opp_mocat_nom'] ? h($opp['opp_mocat_nom']) : '—' ?></td>
+            <?php $oid = (int)$opp['opp_id'] ?>
+            <tr id="camp-opp-row-<?= $oid ?>">
+              <td class="col-action">
+                <div class="comp-menu-ligne">
+                  <button class="btn btn-icon btn-sm comp-menu-btn"
+                          onclick="campToggleMenu('opp-<?= $oid ?>')" title="Actions">⋮</button>
+                  <div id="comp-menu-opp-<?= $oid ?>" class="comp-menu-dropdown noDisplay">
+                    <button class="comp-menu-item"
+                            onclick="campToggleMenu('opp-<?= $oid ?>');
+                                     actualiserPageModif('<?= $base_modifier ?>/opposition.php',
+                                     {id:<?= $oid ?>, re_id:<?= $id ?>})">
+                      <i class="fa fa-edit"></i> Modifier
+                    </button>
+                    <button class="comp-menu-item comp-menu-item--danger"
+                            onclick="campToggleMenu('opp-<?= $oid ?>');
+                                     campOppDemanderSuppression(<?= $oid ?>, <?= $id ?>)">
+                      <i class="fa fa-trash"></i> Supprimer
+                    </button>
+                  </div>
+                </div>
+                <div id="camp-opp-confirm-<?= $oid ?>" class="comp-confirm-suppr noDisplay">
+                  <span>Supprimer « <?= h($opp['opp_nom']) ?> » ?</span>
+                  <button class="btn btn-danger btn-sm"
+                          onclick="campOppConfirmerSuppression(<?= $oid ?>)">Oui</button>
+                  <button class="btn btn-secondary btn-sm"
+                          onclick="campOppAnnulerSuppression(<?= $oid ?>)">Non</button>
+                </div>
+              </td>
+              <td onclick="actualiserPageSub('<?= BASE_URL ?>/include/ajax/detail-pp-sub/opposition.php',
+                           {id:<?= $oid ?>})" style="cursor:pointer">
+                <?= h($opp['opp_nom']) ?>
+              </td>
+              <td class="text-muted"
+                  onclick="actualiserPageSub('<?= BASE_URL ?>/include/ajax/detail-pp-sub/opposition.php',
+                           {id:<?= $oid ?>})" style="cursor:pointer">
+                <?= $opp['opp_mocat_nom'] ? h($opp['opp_mocat_nom']) : '—' ?>
+              </td>
             </tr>
           <?php endforeach ?>
         </tbody>

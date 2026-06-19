@@ -58,10 +58,11 @@ $filtres[] = [
 ];
 
 // ============================================================
-// Visibilité : un monstre « privé » (mo_j_id renseigné) n'est visible
-// que de son propriétaire. $uid est un entier de session -> inline sûr.
+// Visibilité : gérée par le moteur générique via champ_res / champ_camp
+// (mo_res_id, mo_camp_id) — l'ancienne colonne mo_j_id a été supprimée
+// de dd_monstres lors de la migration vers le mécanisme de supplément
+// utilisateur commun à toutes les entités du compendium.
 // ============================================================
-$extra_where = '(mo.mo_j_id IS NULL OR mo.mo_j_id = ' . $uid . ')';
 
 // ============================================================
 // Colonnes
@@ -89,7 +90,6 @@ $listConfig = [
   'champ_res'     => 'mo.mo_res_id',
   'champ_ruleset' => 'mo.mo_ruleset_var_id',
   'champ_camp'    => 'mo.mo_camp_id',
-  'extra_where'   => $extra_where,
   'colonnes'      => $colonnes,
   'filtres'       => $filtres,
   'url_detail'    => BASE_URL . '/include/ajax/detail-pp/monstre.php',

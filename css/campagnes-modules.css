@@ -308,3 +308,78 @@
   font-size: .95rem;
   line-height: 1.6;
 }
+
+/* ============================================================
+   OPPOSITION — bloc stats brut + sélecteur monstre d'origine
+   ============================================================ */
+
+.opp-stats {
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: .85rem;
+  line-height: 1.5;
+  background: var(--clr-surface-2);
+  padding: var(--sp-md);
+  border-radius: var(--radius-sm);
+  margin: var(--sp-md) 0;
+}
+
+.opp-mo-origine {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-sm);
+}
+
+/* ============================================================
+   SOUS-PANNEAU — Recherche de monstre (autocomplétion)
+   ============================================================ */
+
+.rech-mo__filtres {
+  display: flex;
+  gap: var(--sp-sm);
+  margin: var(--sp-md) 0;
+}
+
+.rech-mo__input {
+  flex: 1 1 auto;
+}
+
+.rech-mo__select {
+  flex: 0 0 220px;
+}
+
+.rech-mo__resultats {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+}
+
+.rech-mo__ligne {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-sm) var(--sp-md);
+  cursor: pointer;
+  border-bottom: 1px solid var(--clr-border);
+  transition: background 0.15s;
+}
+
+.rech-mo__ligne:last-child {
+  border-bottom: none;
+}
+
+.rech-mo__ligne:hover {
+  background: var(--clr-surface-2);
+}
+
+.rech-mo__nom {
+  font-weight: 600;
+}
+
+.rech-mo__meta {
+  font-size: .85rem;
+  color: var(--clr-text-muted);
+}

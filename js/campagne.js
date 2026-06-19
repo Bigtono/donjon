@@ -181,6 +181,45 @@ function campReAnnulerSuppression(reId) {
 }
 
 // ============================================================
+// SUPPRESSION INLINE OPPOSITION (depuis detail-pp — vue rencontre)
+// ============================================================
+
+function campOppDemanderSuppression(oppId, reId) {
+  const row     = document.getElementById('camp-opp-row-' + oppId);
+  const confirm = document.getElementById('camp-opp-confirm-' + oppId);
+  if (!row || !confirm) return;
+
+  row.dataset.backup = row.innerHTML;
+  row.dataset.reId   = reId;
+  const nbCols = row.querySelectorAll('td').length;
+  row.innerHTML = `<td colspan="${nbCols}" class="comp-confirm-row">${confirm.innerHTML}</td>`;
+}
+
+async function campOppConfirmerSuppression(oppId) {
+  const row  = document.getElementById('camp-opp-row-' + oppId);
+  const reId = parseInt(row ? row.dataset.reId : 0);
+  const urlRe = campUrlDetail.replace('/campagne.php', '/rencontre.php');
+  try {
+    const data = await postAjax(campUrlEnreg, { action: 'supprimerOpposition', id: oppId });
+    if (data.ok) {
+      // Rafraîchit la vue rencontre dans #detail-pp.
+      naviguerDetailPP(urlRe, { id: reId });
+    } else {
+      alert(data.erreur || 'Erreur lors de la suppression.');
+      campOppAnnulerSuppression(oppId);
+    }
+  } catch (err) {
+    alert('Erreur : ' + err);
+    campOppAnnulerSuppression(oppId);
+  }
+}
+
+function campOppAnnulerSuppression(oppId) {
+  const row = document.getElementById('camp-opp-row-' + oppId);
+  if (row && row.dataset.backup) row.innerHTML = row.dataset.backup;
+}
+
+// ============================================================
 // SUPPRESSION CAMPAGNE depuis la fiche détail (#detail-pp)
 // Utilise confirm() natif (pas de ligne à remplacer dans un panel).
 // ============================================================

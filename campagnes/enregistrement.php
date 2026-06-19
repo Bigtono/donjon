@@ -86,6 +86,14 @@ switch ($action):
     supprimerRencontre($db, $is_ajax, $redirect);
     break;
 
+  case 'enregistrerOpposition':
+    enregistrerOpposition($db, $is_ajax, $redirect);
+    break;
+
+  case 'supprimerOpposition':
+    supprimerOpposition($db, $is_ajax, $redirect);
+    break;
+
   default:
     campErreur($is_ajax, 'Action inconnue.', $redirect);
 
@@ -737,4 +745,138 @@ function supprimerRencontre(PDO $db, bool $is_ajax, string $redirect): void
   $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Rencontre supprimée.'];
   header('Location: ' . $redirect);
   exit;
+}
+
+// ============================================================
+// OPPOSITION — Sauvegarde
+// ============================================================
+
+function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $opp_id        = intParam($_POST['opp_id']        ?? 0);
+  $re_id         = intParam($_POST['re_id']          ?? 0);
+  $opp_mo_id     = intParam($_POST['opp_mo_id']       ?? 0);
+  $opp_nom       = trim($_POST['opp_nom']             ?? '');
+  $opp_mocat_nom = trim($_POST['opp_mocat_nom']       ?? '');
+  $opp_stats     = trim($_POST['opp_stats']           ?? '');
+
+  if (!$opp_nom) campErreur($is_ajax, 'Le nom est obligatoire.', $redirect);
+  if (!$re_id)   campErreur($is_ajax, 'Rencontre manquante.', $redirect);
+  if (!checkReOwner($db, $re_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  $opp_id_was_zero = ($opp_id === 0);
+
+  if ($opp_id_was_zero && !$opp_mo_id) {
+    campErreur($is_ajax, 'Choisissez un monstre d\'origine.', $redirect);
+  }
+
+  $db->beginTransaction();
+  try {
+    if ($opp_id === 0):
+      $stmt = $db->prepare('
+        INSERT INTO dd_oppositions
+          (opp_nom, opp_mocat_nom, opp_stats, opp_re_id, opp_mo_id, opp_supprime)
+        VALUES (?, ?, ?, ?, ?, 0)
+      ');
+      $stmt->execute([$opp_nom, $opp_mocat_nom ?: null, $opp_stats ?: null, $re_id, $opp_mo_id]);
+      $opp_id = (int)$db->lastInsertId();
+    else:
+      // Vérification propriété sur l'opposition existante
+      $stmt_chk = $db->prepare('SELECT opp_re_id FROM dd_oppositions WHERE opp_id = ? AND opp_supprime = 0');
+      $stmt_chk->execute([$opp_id]);
+      $row_chk = $stmt_chk->fetch();
+      if (!$row_chk || !checkReOwner($db, (int)$row_chk['opp_re_id'])):
+        $db->rollBack();
+        campErreur($is_ajax, 'Accès refusé.', $redirect);
+      endif;
+      // opp_mo_id n'est jamais modifié après création (traçabilité figée)
+      $stmt = $db->prepare('
+        UPDATE dd_oppositions
+        SET    opp_nom = ?, opp_mocat_nom = ?, opp_stats = ?
+        WHERE  opp_id = ? AND opp_supprime = 0
+      ');
+      $stmt->execute([$opp_nom, $opp_mocat_nom ?: null, $opp_stats ?: null, $opp_id]);
+    endif;
+    $db->commit();
+  } catch (Exception $e) {
+    $db->rollBack();
+    campErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+
+  $url_detail = $opp_id_was_zero
+    ? BASE_URL . '/include/ajax/detail-pp/rencontre.php'
+    : BASE_URL . '/include/ajax/detail-pp-sub/opposition.php';
+  $id_retour  = $opp_id_was_zero ? $re_id : $opp_id;
+
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode([
+      'ok'         => true,
+      'id'         => $id_retour,
+      'opp_id'     => $opp_id,
+      're_id'      => $re_id,
+      'url_detail' => $url_detail,
+    ]);
+    exit;
+  endif;
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Opposition enregistrée.'];
+  header('Location: ' . $redirect);
+  exit;
+}
+
+// ============================================================
+// OPPOSITION — Suppression (soft-delete)
+// ============================================================
+
+function supprimerOpposition(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $opp_id = intParam($_POST['id'] ?? 0);
+  if (!$opp_id) campErreur($is_ajax, 'Identifiant manquant.', $redirect);
+
+  $stmt = $db->prepare('SELECT opp_re_id FROM dd_oppositions WHERE opp_id = ? AND opp_supprime = 0');
+  $stmt->execute([$opp_id]);
+  $row = $stmt->fetch();
+  if (!$row) campErreur($is_ajax, 'Opposition introuvable.', $redirect);
+
+  $re_id = (int)$row['opp_re_id'];
+  if (!checkReOwner($db, $re_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  $db->beginTransaction();
+  try {
+    softDeleteIds($db, 'dd_oppositions', 'opp_supprime', 'opp_date_supprime', 'opp_id', [$opp_id]);
+    $db->commit();
+  } catch (Exception $e) {
+    $db->rollBack();
+    campErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode([
+      'ok'         => true,
+      'id'         => $re_id,
+      're_id'      => $re_id,
+      'url_detail' => BASE_URL . '/include/ajax/detail-pp/rencontre.php',
+    ]);
+    exit;
+  endif;
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Opposition supprimée.'];
+  header('Location: ' . $redirect);
+  exit;
+}
+
+// Vérifie que l'utilisateur courant est MJ de la campagne porteuse de la rencontre.
+function checkReOwner(PDO $db, int $re_id): bool
+{
+  $stmt = $db->prepare('
+    SELECT camp.camp_id FROM dd_rencontres re
+    JOIN   dd_scenarios_chapitres scc ON scc.scc_id = re.re_scc_id
+    JOIN   dd_scenarios sce  ON sce.sce_id  = scc.scc_sce_id
+    JOIN   dd_campagnes camp ON camp.camp_id = sce.sce_camp_id
+    WHERE  re.re_id = ? AND re.re_supprime = 0
+      AND  scc.scc_supprime = 0 AND sce.sce_supprime = 0 AND camp.camp_supprime = 0
+  ');
+  $stmt->execute([$re_id]);
+  $row = $stmt->fetch();
+  return $row && isMJ($db, (int)$row['camp_id']);
 }

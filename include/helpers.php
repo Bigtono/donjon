@@ -100,6 +100,25 @@ function resIdsPlaceholders(array $ids): string {
   return implode(',', array_fill(0, count($ids), '?'));
 }
 
+// Retourne le tableau des res_id actifs pour le contexte MJ d'une campagne
+// (module Campagnes — recherche de monstre pour les oppositions).
+// Distinct de getActiveResIds() qui est scopé personnage/joueur.
+//   1. Sélection propre à la campagne (dd_campagnes_sources)
+//   2. Repli : toutes les sources actives du ruleset
+function getActiveResIdsCampagne(PDO $db, int $camp_id, int $ruleset_var_id): array {
+  $stmt = $db->prepare('SELECT cs_res_id FROM dd_campagnes_sources WHERE cs_camp_id = ?');
+  $stmt->execute([$camp_id]);
+  $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+  if (!empty($ids)) return $ids;
+
+  $stmt = $db->prepare('
+    SELECT res_id FROM dd_ressources
+    WHERE res_ruleset_var_id = ? AND res_selection = 1 AND res_j_id IS NULL
+  ');
+  $stmt->execute([$ruleset_var_id]);
+  return $stmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
 // ============================================================
 // VARIABLES DD (libellés et selects)
 // ============================================================
