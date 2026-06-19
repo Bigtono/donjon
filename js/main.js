@@ -233,6 +233,13 @@ function actualiserPageSub(url, params = {}) {
       const closeBtn = '<button class="overlay-close" onclick="fermerSubPanel()" title="Fermer">'
         + '<i class="fa fa-times"></i></button>';
       panel.innerHTML = closeBtn + html;
+      // Les <script> injectés via innerHTML ne s'exécutent pas — on les recrée
+      panel.querySelectorAll('script').forEach(ancien => {
+        const nouveau = document.createElement('script');
+        Array.from(ancien.attributes).forEach(a => nouveau.setAttribute(a.name, a.value));
+        nouveau.textContent = ancien.textContent;
+        ancien.parentNode.replaceChild(nouveau, ancien);
+      });
     })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
 }
