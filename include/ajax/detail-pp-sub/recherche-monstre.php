@@ -94,8 +94,7 @@ $url_recherche = BASE_URL . '/include/ajax/recherche-monstre.php';
           return;
         }
         resEl.innerHTML = data.resultats.map(mo => `
-          <div class="rech-mo__ligne" data-mo-id="${mo.mo_id}"
-               onclick="rechMoSelectionner(${mo.mo_id}, ${JSON.stringify(mo.mo_nom)})">
+          <div class="rech-mo__ligne" data-mo-id="${mo.mo_id}" data-mo-nom="${escHtml(mo.mo_nom)}">
             <span class="rech-mo__nom">${escHtml(mo.mo_nom)}</span>
             <span class="rech-mo__meta">
               ${mo.mocat_nom ? escHtml(mo.mocat_nom) : ''}
@@ -120,6 +119,16 @@ $url_recherche = BASE_URL . '/include/ajax/recherche-monstre.php';
     debounceTimer = setTimeout(lancerRecherche, 300);
   });
   catEl.addEventListener('change', lancerRecherche);
+
+  // Délégation : un seul listener pour toutes les lignes résultats,
+  // même celles ajoutées après une recherche ultérieure.
+  resEl.addEventListener('click', (e) => {
+    const ligne = e.target.closest('.rech-mo__ligne');
+    if (!ligne) return;
+    const moId  = parseInt(ligne.dataset.moId, 10);
+    const moNom = ligne.dataset.moNom;
+    rechMoSelectionner(moId, moNom);
+  });
 
   qEl.focus();
 
