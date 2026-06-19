@@ -80,8 +80,15 @@ $url_recherche = BASE_URL . '/include/ajax/recherche-monstre.php';
     const params = new URLSearchParams({ camp_id: CAMP_ID, q: q, mocat_id: mocatId });
 
     fetch(URL_RECH + '?' + params.toString())
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Erreur serveur (' + r.status + ')');
+        return r.json();
+      })
       .then(data => {
+        if (data.erreur) {
+          resEl.innerHTML = '<p class="erreur">' + escHtml(data.erreur) + '</p>';
+          return;
+        }
         if (!data.resultats || data.resultats.length === 0) {
           resEl.innerHTML = '<p class="text-muted">Aucun monstre trouvé.</p>';
           return;
@@ -97,8 +104,8 @@ $url_recherche = BASE_URL . '/include/ajax/recherche-monstre.php';
           </div>
         `).join('');
       })
-      .catch(() => {
-        resEl.innerHTML = '<p class="erreur">Erreur lors de la recherche.</p>';
+      .catch(err => {
+        resEl.innerHTML = '<p class="erreur">Erreur lors de la recherche : ' + escHtml(err.message) + '</p>';
       });
   }
 

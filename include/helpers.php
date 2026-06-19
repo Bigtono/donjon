@@ -104,7 +104,12 @@ function resIdsPlaceholders(array $ids): string {
 // (module Campagnes — recherche de monstre pour les oppositions).
 // Distinct de getActiveResIds() qui est scopé personnage/joueur.
 //   1. Sélection propre à la campagne (dd_campagnes_sources)
-//   2. Repli : toutes les sources actives du ruleset
+//   2. Repli : TOUTES les sources officielles du ruleset (res_j_id IS NULL).
+//      Volontairement plus large que getActiveResIds() priorité 3 :
+//      res_selection ne signifie « cochée par défaut à la création d'un
+//      compte joueur », pas « source valide » — un MJ sans sélection
+//      explicite doit voir l'intégralité du compendium du ruleset, y
+//      compris les suppléments ajoutés après coup avec res_selection=0.
 function getActiveResIdsCampagne(PDO $db, int $camp_id, int $ruleset_var_id): array {
   $stmt = $db->prepare('SELECT cs_res_id FROM dd_campagnes_sources WHERE cs_camp_id = ?');
   $stmt->execute([$camp_id]);
@@ -113,7 +118,7 @@ function getActiveResIdsCampagne(PDO $db, int $camp_id, int $ruleset_var_id): ar
 
   $stmt = $db->prepare('
     SELECT res_id FROM dd_ressources
-    WHERE res_ruleset_var_id = ? AND res_selection = 1 AND res_j_id IS NULL
+    WHERE res_ruleset_var_id = ? AND res_j_id IS NULL
   ');
   $stmt->execute([$ruleset_var_id]);
   return $stmt->fetchAll(PDO::FETCH_COLUMN);
