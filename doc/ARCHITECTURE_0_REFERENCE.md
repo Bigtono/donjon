@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-19 17:20 -->
+<!-- Mis à jour : 2026-06-19 18:45 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -1540,8 +1540,8 @@ Obligatoire pour tout nouveau champ TinyMCE, sans exception :
     selector:      '#mon_champ',
     language:      'fr_FR',
     menubar:       false,
-    plugins:       'lists link table code',
-    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+    plugins:       'lists link image table code',
+    toolbar:       'styles | bold italic underline | bullist numlist | link unlink image table | removeformat | code',
     height:        300,
     skin:          isLight ? 'oxide' : 'oxide-dark',
     content_css:   isLight ? 'default' : 'dark',
@@ -1552,6 +1552,9 @@ Obligatoire pour tout nouveau champ TinyMCE, sans exception :
     branding:      false,
     base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
     suffix:        '.min',
+    images_upload_url:         '<?= BASE_URL ?>/include/ajax/upload-image.php',
+    images_upload_credentials: true,
+    automatic_uploads:         true,
   });
 })();
 ```
@@ -1586,9 +1589,12 @@ accessibles — il faut donc dupliquer les valeurs, pas les variables).
 
 ### Barre d'outils standard
 
-Barre d'outils de référence pour tout nouveau champ TinyMCE (à adapter uniquement par retrait de
-`table`/`image` si la fonctionnalité ne s'applique pas au champ — jamais par ajout de boutons hors
-liste sans mise à jour de cette doc) :
+**Référence canonique (2026-06-19)** : la barre d'outils du champ Description (module Rencontres) est
+la référence pour **tout** nouveau champ TinyMCE de l'application — `image` et `table` en font partie
+par défaut, upload d'images compris. Un champ peut retirer `table`/`image` (et les plugins associés)
+uniquement si la fonctionnalité n'a structurellement aucun sens pour ce contenu (ex. un champ de
+quelques mots) — jamais par défaut, et jamais par ajout de boutons hors liste sans mise à jour de
+cette doc.
 
 | Bouton toolbar | Fonction | Plugin requis |
 |---|---|---|
@@ -1600,18 +1606,18 @@ liste sans mise à jour de cette doc) :
 | `numlist` | Liste numérotée | `lists` |
 | `link` | Insérer un lien | `link` |
 | `unlink` | Enlever le(s) lien(s) | `link` |
-| `table` | Insérer/éditer un tableau (omis si non pertinent) | `table` |
-| `image` | Insérer une image (uniquement si `images_upload_url` configuré) | `image` |
+| `image` | Insérer une image (upload via `images_upload_url`) | `image` |
+| `table` | Insérer/éditer un tableau | `table` |
 | `removeformat` | Effacer tous les styles | aucun |
 | `code` | Afficher/éditer le code source HTML | `code` |
 
-Chaîne `toolbar` canonique (sans images) :
+Chaîne `toolbar` canonique :
 ```
-styles | bold italic underline | bullist numlist | link unlink table | removeformat | code
+styles | bold italic underline | bullist numlist | link unlink image table | removeformat | code
 ```
-Chaîne `plugins` canonique (sans images) :
+Chaîne `plugins` canonique :
 ```
-lists link table code
+lists link image table code
 ```
 
 Le bouton `styles` est natif (aucun plugin requis) et expose par défaut Paragraphe + Titres 1 à 6 sans
@@ -1620,9 +1626,18 @@ Règles ci-dessous) ; dans ce cas la liste par défaut est remplacée par la lis
 niveaux de titre restent nécessaires en plus des styles personnalisés, ajouter aussi le bouton `blocks`
 avec `block_formats` (cf. exemple Règles).
 
-### Configuration avec upload d'images
+> **Anti-pattern corrigé (2026-06-19)** : avant cette date, la référence canonique omettait `image` et
+> `table` par défaut (variante « sans images »), avec une configuration séparée « avec upload d'images »
+> traitée comme cas particulier pour Campagnes/Scénarios/Personnages. Ce découpage a créé des
+> incohérences entre formulaires d'un même module (ex. `re_composition` avec une toolbar allégée
+> pendant que `re_description` du même formulaire avait la toolbar complète). Désormais : un seul
+> standard, avec retrait explicite et justifié si nécessaire — jamais d'allègement par défaut.
 
-Pour : Campagnes, Scénarios, Personnages (background/notes).
+### Configuration standard (image + table incluses)
+
+Pour tout champ TinyMCE sans restriction métier particulière — c'est le cas par défaut, applicable à
+Campagnes, Scénarios, Chapitres, Rencontres (Description **et** Composition), Personnages
+(background/notes), etc. :
 
 ```javascript
 toolbar: 'styles | bold italic underline | bullist numlist | link unlink image table | removeformat | code',

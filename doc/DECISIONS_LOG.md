@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-19 17:20 -->
+<!-- Mis à jour : 2026-06-19 18:45 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -1203,6 +1203,32 @@ Harmonisation appliquée aux 15 blocs :
   images, variante Règles) ; section 17 (checklist) complétée de 3 points TinyMCE dédiés.
 -> Tout nouveau champ TinyMCE doit reprendre ce pattern à l'identique — toute dérogation (boutons hors
   liste, fond codé en dur) doit être documentée ici au même titre qu'une décision d'architecture.
+
+**[2026-06-19] TinyMCE — `image`+`table` intégrés à la référence canonique (plus de variante « sans »)**
+Constat sur le formulaire Rencontre (`modifier/rencontre.php`) : `re_description` avait la toolbar
+complète (`link unlink image table`) tandis que `re_composition`, dans le même formulaire, avait une
+toolbar allégée (`link unlink`, sans `image`/`table`) — incohérence visuelle au sein d'un même écran,
+héritée du découpage doc antérieur qui traitait « avec upload d'images » comme une variante optionnelle
+au-dessus d'un standard « sans images ».
+→ La toolbar complète devient la référence canonique unique pour tout nouveau champ TinyMCE de
+  l'application, upload d'images compris (`images_upload_url`/`images_upload_credentials`/
+  `automatic_uploads`). Le retrait de `table`/`image` reste possible mais doit être un choix explicite
+  et justifié au cas par cas (champ trop court pour qu'un tableau ou une image ait un sens), jamais un
+  allègement par défaut.
+→ `re_composition` aligné sur `re_description` : même `toolbar`, mêmes `plugins`, upload d'images
+  ajouté. Les deux éditeurs du formulaire Rencontre partagent désormais une configuration `setup`
+  commune (`Object.assign` sur un objet de config partagé) qui notifie la fin d'initialisation de
+  chaque éditeur via l'événement TinyMCE `init` ; le bouton Enregistrer reste désactivé tant que les
+  deux instances ne sont pas confirmées prêtes — corrige une suspicion de perte de saisie sur
+  `re_composition` en cas de clic sur Enregistrer avant la fin du chargement asynchrone de l'éditeur
+  (le filet `tmceGet()` retombant sur `textarea.value`, qui peut être la valeur brute non éditée si
+  l'utilisateur a tapé avant que TinyMCE ait fini de s'attacher).
+→ Ordre d'affichage Description / Composition inversé (Description avant Composition) dans le
+  formulaire de saisie et dans la fiche de lecture `detail-pp/rencontre.php`, par cohérence avec la
+  hiérarchie de lecture attendue (résumé narratif avant détail tactique).
+→ Section 16 de `ARCHITECTURE_0_REFERENCE.md` réécrite : le tableau de boutons et les chaînes
+  `toolbar`/`plugins` canoniques incluent désormais `image`/`table` nativement ; l'ancienne section
+  « Configuration avec upload d'images » a fusionné avec la section « Barre d'outils standard ».
 
 ## Bugs connus — à traiter
 

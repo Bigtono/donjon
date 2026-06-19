@@ -644,8 +644,8 @@ function enregistrerRencontre(PDO $db, bool $is_ajax, string $redirect): void
   $scc_id         = intParam($_POST['scc_id']  ?? 0);
   $re_nom         = trim($_POST['re_nom']         ?? '');
   $re_code        = trim($_POST['re_code']        ?? '');
-  $re_composition = trim($_POST['re_composition'] ?? '');
-  $re_description = trim($_POST['re_description'] ?? '');
+  $re_composition = $_POST['re_composition'] ?? '';
+  $re_description = $_POST['re_description'] ?? '';
 
   if (!$re_nom)  campErreur($is_ajax, 'Le nom est obligatoire.', $redirect);
   if (!$scc_id)  campErreur($is_ajax, 'Chapitre manquant.', $redirect);

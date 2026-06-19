@@ -82,9 +82,6 @@ $titre = $id > 0 ? 'Modifier ' . h($re['re_nom']) : 'Nouvelle rencontre';
     <input type="hidden" name="scc_id"  value="<?= $scc_id ?>">
 
     <div class="modif-section">
-      <div class="modif-section__header">
-        <span class="modif-section__label">Données de la rencontre</span>
-      </div>
 
       <div class="modif-grid">
 
@@ -103,17 +100,17 @@ $titre = $id > 0 ? 'Modifier ' . h($re['re_nom']) : 'Nouvelle rencontre';
       </div>
 
       <div class="form-group">
+        <label for="re_description">Description</label>
+        <textarea id="re_description" name="re_description"
+                  class="tinymce-full"><?= h($re['re_description'] ?? '') ?></textarea>
+      </div>
+
+      <div class="form-group">
         <label for="re_composition">Composition
           <span class="form-hint">— effectifs, disposition, vagues…</span>
         </label>
         <textarea id="re_composition" name="re_composition"
                   class="tinymce-full"><?= h($re['re_composition'] ?? '') ?></textarea>
-      </div>
-
-      <div class="form-group">
-        <label for="re_description">Description</label>
-        <textarea id="re_description" name="re_description"
-                  class="tinymce-full"><?= h($re['re_description'] ?? '') ?></textarea>
       </div>
 
     </div>
@@ -147,33 +144,22 @@ $titre = $id > 0 ? 'Modifier ' . h($re['re_nom']) : 'Nouvelle rencontre';
       ? 'body { background:#eae6dd; color:#2a2015; font-family:inherit; font-size:14px; }'
       : 'body { background:#0f3460; color:#e0e0e0; font-family:inherit; font-size:14px; }';
 
-    // Composition — toolbar légère (texte structuré, pas d'image ni de table)
-    tinymce.remove('#re_composition');
-    tinymce.init({
-      selector:      '#re_composition',
-      language:      'fr_FR',
-      menubar:       false,
-      plugins:       'lists link code',
-      toolbar:       'styles | bold italic underline | bullist numlist | link unlink | removeformat | code',
-      height:        180,
-      skin:          isLight ? 'oxide' : 'oxide-dark',
-      content_css:   isLight ? 'default' : 'dark',
-      content_style: contentStyle,
-      promotion:     false,
-      branding:      false,
-      base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
-      suffix:        '.min',
-    });
+    var btnEnregistrer = document.querySelector('.modif-actions .btn-primary');
+    if (btnEnregistrer) btnEnregistrer.disabled = true;
 
-    // Description — toolbar complète avec image et table
-    tinymce.remove('#re_description');
-    tinymce.init({
-      selector:      '#re_description',
+    var prets = { re_composition: false, re_description: false };
+    function marquerPret(id) {
+      prets[id] = true;
+      if (prets.re_composition && prets.re_description && btnEnregistrer) {
+        btnEnregistrer.disabled = false;
+      }
+    }
+
+    var configCommune = {
       language:      'fr_FR',
       menubar:       false,
       plugins:       'lists link image table code',
       toolbar:       'styles | bold italic underline | bullist numlist | link unlink image table | removeformat | code',
-      height:        320,
       skin:          isLight ? 'oxide' : 'oxide-dark',
       content_css:   isLight ? 'default' : 'dark',
       content_style: contentStyle,
@@ -184,7 +170,23 @@ $titre = $id > 0 ? 'Modifier ' . h($re['re_nom']) : 'Nouvelle rencontre';
       images_upload_url:         '<?= BASE_URL ?>/include/ajax/upload-image.php',
       images_upload_credentials: true,
       automatic_uploads:         true,
-    });
+    };
+
+    // Composition — même toolbar canonique que Description
+    tinymce.remove('#re_composition');
+    tinymce.init(Object.assign({}, configCommune, {
+      selector: '#re_composition',
+      height:   220,
+      setup:    function(ed) { ed.on('init', function() { marquerPret('re_composition'); }); },
+    }));
+
+    // Description — toolbar canonique (référence pour toute l'application)
+    tinymce.remove('#re_description');
+    tinymce.init(Object.assign({}, configCommune, {
+      selector: '#re_description',
+      height:   320,
+      setup:    function(ed) { ed.on('init', function() { marquerPret('re_description'); }); },
+    }));
   })();
 
   function tmceGet(id) {

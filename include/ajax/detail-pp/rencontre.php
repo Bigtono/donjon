@@ -84,16 +84,16 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
     </h2>
   </div>
 
+  <!-- Description -->
+  <?php if (!empty($re['re_description'])): ?>
+    <div class="camp-detail__description"><?= $re['re_description'] ?></div>
+  <?php endif ?>
+
   <!-- Composition (champ texte mis en évidence) -->
   <?php if (!empty($re['re_composition'])): ?>
     <div class="camp-rencontre__composition">
       <?= $re['re_composition'] ?>
     </div>
-  <?php endif ?>
-
-  <!-- Description -->
-  <?php if (!empty($re['re_description'])): ?>
-    <div class="camp-detail__description"><?= $re['re_description'] ?></div>
   <?php endif ?>
 
   <!-- Oppositions -->
