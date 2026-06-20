@@ -4,6 +4,14 @@
    Reprend les classes .comp-menu-* de compendium-modules.css
    (non chargé sur les pages campagnes). */
 
+
+blockquote {
+  font-style: italic;
+  padding-left: 1rem;
+  margin: 0 0 1rem 1rem;
+  border-left: thin solid black;
+}
+
 /* ============================================================
    MENU CONTEXTUEL — classes partagées avec compendium
    (compendium-modules.css n'est pas chargé ici)
@@ -31,7 +39,7 @@
   background: var(--clr-surface);
   border: 1px solid var(--clr-border);
   border-radius: var(--radius-sm);
-  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
   min-width: 160px;
   z-index: 200;
 }
@@ -54,8 +62,13 @@
   background: var(--clr-surface-2);
 }
 
-.comp-menu-item--danger { color: var(--clr-danger); }
-.comp-menu-item--danger:hover { background: color-mix(in srgb, var(--clr-danger) 10%, transparent); }
+.comp-menu-item--danger {
+  color: var(--clr-danger);
+}
+
+.comp-menu-item--danger:hover {
+  background: color-mix(in srgb, var(--clr-danger) 10%, transparent);
+}
 
 .comp-confirm-row {
   padding: var(--sp-sm) var(--sp-md);
@@ -268,7 +281,9 @@
   font-size: .92em;
 }
 
-.camp-source-item input { flex: 0 0 auto; }
+.camp-source-item input {
+  flex: 0 0 auto;
+}
 
 /* ============================================================
    BOUTON MODIFIER DANS EN-TÊTE DE FICHE
