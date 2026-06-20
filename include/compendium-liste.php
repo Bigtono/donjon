@@ -19,6 +19,14 @@
 //   url_modifier  string   — URL endpoint AJAX modifier ('' = pas de modification)
 //   url_enreg     string   — URL enregistrement.php
 //   bulk_actions  array    — [{valeur, label}]
+//
+//   --- Supplément utilisateur (SP-C2) — les 3 clés suivantes sont optionnelles,
+//       et doivent être déclarées ENSEMBLE pour activer le mécanisme :
+//   champ_public     string — champ _public avec alias table ('mo.mo_public')
+//   champ_visible    string — champ _visible avec alias table ('mo.mo_visible')
+//   champ_res_owner  string — champ res_j_id de la ressource liée ('res.res_j_id'),
+//                             nécessite que 'from' joigne déjà dd_ressources sous cet alias.
+//   Si absentes : comportement strictement inchangé (rétro-compatible).
 
 // ============================================================
 // 1. PARAMÈTRES GET — tri, filtres, page
@@ -56,6 +64,32 @@ if (!empty($_GET['f_res']) && is_array($_GET['f_res'])):
   endforeach;
 endif;
 $res_ids = !empty($res_get) ? $res_get : $res_actifs;
+
+// ============================================================
+// 1bis. SUPPLÉMENT UTILISATEUR — détection + toggle "brouillons" (SP-C2)
+// ============================================================
+
+$gere_supplement = !empty($listConfig['champ_public'])
+                 && !empty($listConfig['champ_visible'])
+                 && !empty($listConfig['champ_res_owner']);
+
+$uid_courant          = (int)($_SESSION['j_id'] ?? 0);
+$mes_brouillons_dispo = false;
+$afficher_brouillons  = false;
+
+if ($gere_supplement && $uid_courant):
+  // Le toggle n'est proposé que si l'utilisateur a au moins une entrée
+  // brouillon (_visible=0) dans son propre supplément pour cette entité.
+  $stmt_brouillons = $db->prepare("
+    SELECT 1 FROM {$listConfig['from']}
+    WHERE {$listConfig['champ_res_owner']} = ?
+      AND {$listConfig['champ_visible']} = 0
+    LIMIT 1
+  ");
+  $stmt_brouillons->execute([$uid_courant]);
+  $mes_brouillons_dispo = (bool)$stmt_brouillons->fetchColumn();
+  $afficher_brouillons  = $mes_brouillons_dispo && isset($_GET['f_brouillons']);
+endif;
 
 // ============================================================
 // 2. CONSTRUCTION SQL
@@ -97,6 +131,26 @@ else:
   $where_parts[] = '1=0';
 endif;
 
+// Filtre visibilité supplément (SP-C2) — vient EN PLUS du filtre sources
+// ci-dessus (une source de supplément peut être active sans que toutes ses
+// entrées soient visibles à tous) :
+//   - entrée officielle (res_owner IS NULL)            → toujours
+//   - entrée du supplément du propriétaire courant      → toujours, sauf
+//     brouillon (_visible=0) qui nécessite le toggle "Afficher mes brouillons"
+//   - entrée d'un supplément tiers                      → seulement si
+//     _public=1 ET _visible=1
+if ($gere_supplement):
+  $owner = $listConfig['champ_res_owner'];
+  $pub   = $listConfig['champ_public'];
+  $vis   = $listConfig['champ_visible'];
+  if ($afficher_brouillons):
+    $where_parts[] = "($owner IS NULL OR $owner = ? OR ($pub = 1 AND $vis = 1))";
+  else:
+    $where_parts[] = "($owner IS NULL OR ($owner = ? AND $vis = 1) OR ($pub = 1 AND $vis = 1))";
+  endif;
+  $params[] = $uid_courant;
+endif;
+
 // Filtre texte libre sur la première colonne
 if ($q !== ''):
   $where_parts[] = $listConfig['colonnes'][0]['sql'] . ' LIKE ?';
@@ -135,6 +189,11 @@ $select_parts = [$listConfig['champ_id'] . ' AS _id'];
 foreach ($listConfig['colonnes'] as $col):
   $select_parts[] = $col['sql'] . ' AS ' . $col['champ'];
 endforeach;
+// Supplément (SP-C2) : propriétaire de la ressource, pour le badge homebrew
+// et le gating per-entry du menu ⋮ (canEditCompendiumEntry()).
+if ($gere_supplement):
+  $select_parts[] = $listConfig['champ_res_owner'] . ' AS _res_j_id';
+endif;
 // Colonnes supplémentaires déclarées (ex: nom ressource)
 if (!empty($listConfig['select_extra'])):
   foreach ($listConfig['select_extra'] as $extra):
@@ -227,6 +286,7 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
   endforeach;
   $sources_actives = count($res_get);
   if ($sources_actives > 0) $filtres_actifs++;
+  if ($gere_supplement && $afficher_brouillons) $filtres_actifs++;
   ?>
 
   <div class="comp-filtre-bar">
@@ -304,6 +364,23 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
             <?php endif ?>
           </div>
         <?php endforeach ?>
+
+        <?php // ── Supplément (SP-C2) : toggle "Afficher mes brouillons"
+        // Visible uniquement si l'utilisateur a ≥1 entrée _visible=0 dans
+        // son propre supplément pour cette entité.
+        ?>
+        <?php if ($gere_supplement && $mes_brouillons_dispo): ?>
+          <div class="comp-filtre-item">
+            <label class="comp-filtre-checkbox-label">
+              <input type="checkbox"
+                     name="f_brouillons"
+                     value="1"
+                     <?= $afficher_brouillons ? 'checked' : '' ?>
+                     onchange="document.getElementById('form-filtre-<?= h($entite) ?>').submit()">
+              Afficher mes brouillons
+            </label>
+          </div>
+        <?php endif ?>
 
         <?php // ── Sources : bouton + menu déroulant avec checkboxes 
         ?>
@@ -434,19 +511,33 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
 
         <?php else: ?>
           <?php foreach ($lignes as $ligne): ?>
-            <?php $id = (int)$ligne['_id'] ?>
-            <tr id="row-<?= $id ?>" class="comp-ligne">
+            <?php
+            $id = (int)$ligne['_id'];
+            // Supplément (SP-C2) : propriété de l'entrée + droit de modif per-entry.
+            $res_j_id_ligne = null;
+            $est_homebrew   = false;
+            if ($gere_supplement && array_key_exists('_res_j_id', $ligne) && $ligne['_res_j_id'] !== null):
+              $res_j_id_ligne = (int)$ligne['_res_j_id'];
+              $est_homebrew   = true;
+            endif;
+            $peut_modifier_ligne = $gere_supplement
+              ? canEditCompendiumEntry($db, $res_j_id_ligne)
+              : canEditCompendium();
+            ?>
+            <tr id="row-<?= $id ?>" class="comp-ligne<?= $est_homebrew ? ' comp-ligne--homebrew' : '' ?>">
 
-              <?php // Checkbox 
+              <?php // Checkbox — masquée si l'utilisateur ne peut pas agir sur cette ligne
               ?>
               <td class="bulk-check">
-                <input type="checkbox" class="comp-check" data-id="<?= $id ?>">
+                <?php if ($peut_modifier_ligne): ?>
+                  <input type="checkbox" class="comp-check" data-id="<?= $id ?>">
+                <?php endif ?>
               </td>
 
               <?php // Menu ligne (⋮) 
               ?>
               <td class="col-action">
-                <?php if (canEditCompendium()): ?>
+                <?php if ($peut_modifier_ligne): ?>
                   <div class="comp-menu-ligne">
                     <button class="btn btn-icon btn-sm comp-menu-btn"
                       onclick="compToggleMenu(<?= $id ?>)"
@@ -490,13 +581,15 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
                 ?>
                 <td class="<?= $cls_col ?>"
                   onclick="actualiserPage(compUrlDetail, {id: <?= $id ?>}, 'liste')">
+                  <?php if ($col['mobile'] && $est_homebrew): ?>
+                    <i class="fa fa-flask comp-homebrew-icon" title="Entrée de supplément"></i>
+                  <?php endif ?>
                   <?= h((string)$val) ?>
 
                   <?php // Sous-ligne mobile : injectée dans col-primary uniquement 
                   ?>
                   <?php if ($col['mobile'] && !empty($cols_secondary)): ?>
-                    <div class="comp-subrow">
-                      <?php
+                    <div class="comp-subrow">                      <?php
                       $parts = [];
                       foreach ($cols_secondary as $sc):
                         $sv = $ligne[$sc['champ']] ?? '';

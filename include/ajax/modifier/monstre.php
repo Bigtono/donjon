@@ -153,11 +153,11 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
         </div>
 
         <?php if ($est_dd2024): ?>
-        <!-- Groupe (DD2024) -->
+        <!-- Groupe (DD2024) — facultatif (mo_mogr_id nullable en base) -->
         <div class="form-group">
-          <label for="mo_mogr_id">Groupe <span class="required">*</span></label>
-          <select id="mo_mogr_id" name="mo_mogr_id" required>
-            <option value="">— Choisir —</option>
+          <label for="mo_mogr_id">Groupe</label>
+          <select id="mo_mogr_id" name="mo_mogr_id">
+            <option value="">—</option>
             <?php foreach ($groupes as $gr): ?>
               <option value="<?= (int)$gr['mogr_id'] ?>"
                 <?= (int)$mo['mo_mogr_id'] === (int)$gr['mogr_id'] ? 'selected' : '' ?>>
@@ -170,6 +170,7 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
           <!-- DD3.5 : pas de groupe. On transmet la valeur existante pour ne pas l'écraser. -->
           <input type="hidden" name="mo_mogr_id" value="<?= (int)($mo['mo_mogr_id'] ?: 0) ?>">
         <?php endif ?>
+
 
         <!-- Facteur de puissance -->
         <div class="form-group">

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 14:05 -->
+<!-- Mis à jour : 2026-06-20 15:20 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -691,6 +691,75 @@ compendium restent en l'état, non régressées puisqu'elles n'ont pas de colonn
   faire. Les entrées de supplément créées via ce formulaire sont donc correctement enregistrées en
   base mais pas encore distinguées visuellement ni filtrées dans la liste Monstres.
 
+**[2026-06-20] Correction — champ Groupe (DD2024) redevenu facultatif**
+Signalé : le `<select>` Groupe du formulaire monstre (`include/ajax/modifier/monstre.php`) portait
+`required` + astérisque, alors que `mo_mogr_id` est nullable en base et qu'aucune règle métier
+n'impose un groupe à tous les monstres DD2024 (le champ caché DD3.5 transmettait d'ailleurs déjà
+une valeur potentiellement vide sans contrainte côté serveur — l'incohérence n'était que côté UI).
+→ Retrait de `required` et de l'astérisque ; option vide relabellisée `—` au lieu de `— Choisir —`
+(cohérent avec les autres champs facultatifs du formulaire, ex. Facteur de puissance). Aucun
+changement côté `enregistrerMonstre()` : `$mogr_id` était déjà traité comme optionnel
+(`intParam(...) ?: null`).
+
+**[2026-06-20] SP-C2/SP-C3 livrées pour Monstres — moteur de liste, badge, gating per-entry**
+
+*Contexte* : entre la livraison SP-C4/SP-C5 et cette session, le commit a été poussé sur `main` par
+l'utilisateur (vérification systématique faite en re-clonant le repo en début de session — le
+GitHub n'était pas synchronisé au moment de la demande de poursuite, cf. consigne d'accès GitHub).
+Tous les fichiers de travail ont été confirmés identiques à `main` avant reprise.
+
+*Choix d'implémentation, en écart avec la conception générique initiale (§ Compendium des règles,
+non réécrite pour traçabilité — un erratum y a été ajouté) :*
+
+- **Clé `champ_res_owner` ajoutée à `$listConfig`** (en plus de `champ_public`/`champ_visible`,
+  initialement seules prévues). Raison : la conception initiale prévoyait que le moteur
+  `compendium-liste.php` ajoute lui-même un `JOIN dd_ressources` pour résoudre `res_j_id`. Mais
+  `compendium/monstres.php` (et très probablement les 7 autres contrôleurs à terme) joint déjà
+  `dd_ressources` sous l'alias `res` pour afficher le nom de la source en colonne — un second JOIN
+  automatique sous le même alias aurait provoqué une erreur SQL (alias dupliqué). Le contrôleur
+  déclare donc explicitement la référence SQL vers la colonne déjà disponible
+  (`champ_res_owner => 'res.res_j_id'`), le moteur ne fait plus de JOIN lui-même.
+- **Toggle "Afficher mes brouillons" géré directement par le moteur**, pas via le mécanisme générique
+  `filtres[]` à checkbox (qui délègue son effet en `extra_where` côté contrôleur). Raison : ce toggle
+  est transverse à toutes les entités à supplément (même requête de détection, même paramètre GET
+  `f_brouillons`, même clause WHERE) — le coder une fois dans le moteur évite de le redupliquer dans
+  les 8 contrôleurs. Affiché uniquement si une requête `EXISTS`-like (`SELECT 1 ... LIMIT 1`) trouve
+  au moins une entrée `_visible=0` appartenant à l'utilisateur courant pour cette entité.
+- **Filtre de visibilité scindé en 2 variantes** selon l'état du toggle, plutôt qu'une clause unique
+  avec un paramètre booléen en SQL (MySQL/MariaDB n'a pas de booléen de requête pratique à injecter
+  proprement dans un `OR` conditionnel sans complexifier la requête) :
+  toggle inactif → `(owner IS NULL OR (owner=:uid AND visible=1) OR (public=1 AND visible=1))` ;
+  toggle actif → `(owner IS NULL OR owner=:uid OR (public=1 AND visible=1))`.
+- **Badge homebrew** : classe `comp-ligne--homebrew` sur le `<tr>` (style : liseré `--clr-accent-2`
+  + léger fond teinté sur `col-primary`) + icône `fa-flask` (`.comp-homebrew-icon`) injectée en tête
+  de la colonne mobile primaire. Ajouté dans `css/compendium-modules.css`.
+- **Gating per-entry du menu ⋮** : remplace `canEditCompendium()` (droit global) par
+  `canEditCompendiumEntry($db, $_res_j_id)` quand `$gere_supplement` est actif. La checkbox bulk de
+  la ligne est également masquée si l'utilisateur ne peut pas agir dessus (cohérent avec le menu) —
+  empêche de sélectionner pour suppression groupée une ligne qu'on ne peut de toute façon pas
+  supprimer. Le JS bulk (`js/compendium.js`) n'a nécessité aucune modification : il interroge déjà
+  `.comp-check` via `querySelectorAll`, donc une checkbox absente est simplement ignorée.
+- **Garde-fou serveur ajouté côté suppression** (extension du périmètre SP-C5, pas explicitement
+  listée dans le plan initial mais nécessaire en défense en profondeur) : `supprimerEntite()`
+  générique n'a aucune notion de propriétaire per-entry — n'importe quel `j_compendium_manager`
+  pouvait jusqu'ici supprimer l'entrée de supplément d'un autre utilisateur via une requête POST
+  directe (le menu ⋮ le masquait côté UI, mais rien ne l'empêchait côté serveur). Nouvelle fonction
+  `supprimerMonstre()` (remplace `supprimerEntite()` pour cette entité dans le dispatch de
+  `enregistrement.php`) : relit `res_j_id` pour chaque id reçu, filtre via `canEditCompendiumEntry()`,
+  ne supprime que les ids autorisés (ignore silencieusement les autres plutôt que d'échouer toute
+  l'opération — cohérent avec un éventuel id invalide isolé dans un bulk delete légitime).
+- **SP-C3** : `include/ajax/detail-pp/monstre.php` sélectionne désormais `res.res_j_id` et remplace
+  `canEditCompendium()` par `canEditCompendiumEntry($db, $res_j_id)` pour le bouton Modifier.
+
+*Reste pour Monstres* : **SP-C7** uniquement (suppression de `include/ajax/modifier/monstre-old.php`,
+relecture de `monstre-parser.php` pour confirmer l'absence de toute référence résiduelle à `mo_j_id`).
+
+*Pour les 7 autres entités* : le moteur `compendium-liste.php` est désormais générique et ne nécessite
+plus aucune modification — il suffit, pour chacune, de (1) déclarer `champ_public`/`champ_visible`/
+`champ_res_owner` dans son `$listConfig`, (2) répliquer le pattern de formulaire 2-groupes + ownership
+côté `enregistrement.php`, (3) ajouter une fonction `supprimer*()` dédiée avec garde per-entry,
+(4) câbler `canEditCompendiumEntry()` dans son `detail-pp/*.php`.
+
 **[2026-06-15] Supplément sélectionnable par d'autres utilisateurs**
 La ressource supplément d'un utilisateur devient visible dans "Mes sources" (profil) pour les autres
 uniquement si **au moins une entrée est publique et visible** (`_public = 1 AND _visible = 1`)
@@ -711,12 +780,12 @@ Styles dans `compendium-modules.css`.
 |---|---|---|---|
 | SP-C0 | SQL : 8 ALTER TABLE + migration mo_j_id + `patch_004_supplements.sql` | Modérée | ✅ livré (2026-06-17) |
 | SP-C1 | Socle : `getOrCreateUserSupplement`, `getUserSupplementResId`, `canEditCompendiumEntry` | Faible | ✅ livré (2026-06-17) |
-| SP-C2 | Moteur : `compendium-liste.php` + 8 contrôleurs (`champ_public`/`champ_visible`) | Élevée | ⏳ à faire |
-| SP-C3 | `detail-pp/*.php` × 8 : bouton Modifier per-entry | Modérée | ⏳ à faire |
+| SP-C2 | Moteur : `compendium-liste.php` (générique) + 8 contrôleurs (`champ_public`/`champ_visible`/`champ_res_owner`) | Élevée | 🟢 moteur générique livré (2026-06-20) ; Monstres branché, 7 contrôleurs restants |
+| SP-C3 | `detail-pp/*.php` × 8 : bouton Modifier per-entry | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
 | SP-C4 | `modifier/*.php` × 8 : source dropdown 2 groupes + champs `_public`/`_visible` | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
-| SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
+| SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément + suppression per-entry | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
 | SP-C6 | `profil/index.php` : "Mes sources" — suppléments publics d'autres utilisateurs | Faible | ⏳ à faire |
-| SP-C7 | Monstres : nettoyage `monstres.php` + `monstre-parser.php` (rm refs `mo_j_id`) | Faible | ⏳ à faire |
+| SP-C7 | Monstres : nettoyage `monstre-old.php` + `monstre-parser.php` (rm refs `mo_j_id`) | Faible | ⏳ à faire |
 
 ---
 
@@ -1353,11 +1422,15 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [ ] Personnages — resynchroniser sql/schema.sql avec dd_alignements + nouveaux champs dd_personnages (pe_sexe, pe_al_id, pe_notes_scope, pe_hi_id)
 - [x] ~~SP-C0 — Produire sql/patch_004_supplements.sql~~ → livré (15 ALTER TABLE idempotents + migration mo_j_id)
 - [x] ~~SP-C1 — Produire fonctions socle helpers.php~~ → livré (getUserSupplementResId, getOrCreateUserSupplement, canEditCompendiumEntry — toutes dans helpers.php)
-- [ ] SP-C2 — Mettre à jour compendium-liste.php + 8 contrôleurs (champ_public/champ_visible)
-- [ ] SP-C3 — Mettre à jour detail-pp/*.php × 8 (bouton Modifier per-entry)
+- [x] ~~SP-C2 — Moteur compendium-liste.php (générique : champ_public/champ_visible/champ_res_owner)~~ → livré (2026-06-20, rétro-compatible)
+- [x] ~~SP-C2 — Monstres : brancher champ_public/champ_visible/champ_res_owner dans $listConfig~~ → livré (2026-06-20, compendium/monstres.php)
+- [ ] SP-C2 — Sorts, dons, compétences, classes, races, objets, historiques : brancher $listConfig (moteur déjà prêt, juste à déclarer les 3 clés)
+- [x] ~~SP-C3 — Monstres : detail-pp/monstre.php bouton Modifier per-entry~~ → livré (2026-06-20, canEditCompendiumEntry($db, res_j_id))
+- [ ] SP-C3 — Sorts, dons, compétences, classes, races, objets, historiques : detail-pp/*.php × 7
 - [x] ~~SP-C4 — Monstres : source dropdown 2 groupes + _public/_visible~~ → livré (2026-06-20, include/ajax/modifier/monstre.php) ; 7 entités restantes
 - [ ] SP-C4 — Sorts, dons, compétences, classes, races, objets, historiques : source dropdown 2 groupes + _public/_visible
 - [x] ~~SP-C5 — Monstres : enregistrement.php ownership + auto-create supplément~~ → livré (2026-06-20, enregistrerMonstre()) ; 7 entités restantes
-- [ ] SP-C5 — Sorts, dons, compétences, classes, races, objets, historiques : enregistrement.php (ownership + auto-create supplément)
+- [x] ~~SP-C5 — Monstres : suppression per-entry (garde canEditCompendiumEntry)~~ → livré (2026-06-20, supprimerMonstre() dédiée, remplace supprimerEntite() générique)
+- [ ] SP-C5 — Sorts, dons, compétences, classes, races, objets, historiques : enregistrement.php (ownership + auto-create supplément + suppression per-entry)
 - [ ] SP-C6 — Mettre à jour profil/index.php (Mes sources — suppléments tiers)
-- [ ] SP-C7 — Nettoyage monstres post-migration (monstres.php, monstre-parser.php, suppression include/ajax/modifier/monstre-old.php)
+- [ ] SP-C7 — Nettoyage monstres post-migration (suppression include/ajax/modifier/monstre-old.php, relecture monstre-parser.php pour refs mo_j_id résiduelles)

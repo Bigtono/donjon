@@ -291,6 +291,25 @@
   cursor: pointer;
 }
 
+/* ============================================================
+   Supplément utilisateur (SP-C2) — badge homebrew
+   Lignes de liste appartenant à un supplément (officiel ou tiers
+   partagé), distinguées visuellement des entrées du compendium officiel.
+   ============================================================ */
+.comp-ligne--homebrew {
+  box-shadow: inset 3px 0 0 var(--clr-accent-2);
+}
+
+.comp-ligne--homebrew td.col-primary {
+  background: rgba(199, 168, 79, 0.06);
+}
+
+.comp-homebrew-icon {
+  color: var(--clr-accent-2);
+  font-size: 0.78rem;
+  margin-right: var(--sp-xs, 4px);
+}
+
 .bulk-check {
   width: 36px;
   text-align: center;

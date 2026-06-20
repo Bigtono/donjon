@@ -58,10 +58,12 @@ $filtres[] = [
 ];
 
 // ============================================================
-// Visibilité : gérée par le moteur générique via champ_res / champ_camp
-// (mo_res_id, mo_camp_id) — l'ancienne colonne mo_j_id a été supprimée
-// de dd_monstres lors de la migration vers le mécanisme de supplément
-// utilisateur commun à toutes les entités du compendium.
+// Visibilité (SP-C2) : mécanisme supplément branché via
+// champ_public / champ_visible / champ_res_owner ci-dessous —
+// filtre + badge homebrew + gating per-entry gérés par le moteur
+// commun (include/compendium-liste.php). L'ancienne colonne mo_j_id
+// a été supprimée de dd_monstres lors de la migration vers ce
+// mécanisme commun à toutes les entités du compendium.
 // ============================================================
 
 // ============================================================
@@ -81,21 +83,24 @@ $colonnes[] = ['sql' => 'res.res_abreviation', 'champ' => 'res_abreviation', 'la
 // Configuration de la liste
 // ============================================================
 $listConfig = [
-  'entite'        => 'monstre',
-  'from'          => 'dd_monstres mo
-                      LEFT JOIN dd_monstres_categories mocat ON mocat.mocat_id = mo.mo_mocat_id
-                      LEFT JOIN dd_monstres_groupes    mogr  ON mogr.mogr_id   = mo.mo_mogr_id
-                      LEFT JOIN dd_ressources          res   ON res.res_id     = mo.mo_res_id',
-  'champ_id'      => 'mo.mo_id',
-  'champ_res'     => 'mo.mo_res_id',
-  'champ_ruleset' => 'mo.mo_ruleset_var_id',
-  'champ_camp'    => 'mo.mo_camp_id',
-  'colonnes'      => $colonnes,
-  'filtres'       => $filtres,
-  'url_detail'    => BASE_URL . '/include/ajax/detail-pp/monstre.php',
-  'url_modifier'  => BASE_URL . '/include/ajax/modifier/monstre.php',
-  'url_enreg'     => BASE_URL . '/compendium/enregistrement.php',
-  'bulk_actions'  => [
+  'entite'          => 'monstre',
+  'from'            => 'dd_monstres mo
+                        LEFT JOIN dd_monstres_categories mocat ON mocat.mocat_id = mo.mo_mocat_id
+                        LEFT JOIN dd_monstres_groupes    mogr  ON mogr.mogr_id   = mo.mo_mogr_id
+                        LEFT JOIN dd_ressources          res   ON res.res_id     = mo.mo_res_id',
+  'champ_id'        => 'mo.mo_id',
+  'champ_res'       => 'mo.mo_res_id',
+  'champ_ruleset'   => 'mo.mo_ruleset_var_id',
+  'champ_camp'      => 'mo.mo_camp_id',
+  'champ_public'    => 'mo.mo_public',
+  'champ_visible'   => 'mo.mo_visible',
+  'champ_res_owner' => 'res.res_j_id',
+  'colonnes'        => $colonnes,
+  'filtres'         => $filtres,
+  'url_detail'      => BASE_URL . '/include/ajax/detail-pp/monstre.php',
+  'url_modifier'    => BASE_URL . '/include/ajax/modifier/monstre.php',
+  'url_enreg'       => BASE_URL . '/compendium/enregistrement.php',
+  'bulk_actions'    => [
     ['valeur' => 'supprimer', 'label' => 'Supprimer la sélection'],
   ],
 ];

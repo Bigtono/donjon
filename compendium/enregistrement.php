@@ -162,7 +162,7 @@ switch ($entite):
         break;
       case 'supprimer':
       case 'bulk_supprimer':
-        supprimerEntite($db, 'dd_monstres', 'mo_id', $is_ajax, $redirect);
+        supprimerMonstre($db, $is_ajax, $redirect);
         break;
       default:
         repondreErreur($is_ajax, 'Action inconnue.', $redirect);
@@ -1589,6 +1589,68 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
     $db->rollBack();
     error_log('enregistrerMonstre : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// Suppression — garde per-entry (SP-C2/SP-C3) : un compendium manager ne peut
+// supprimer que les entrées officielles (canEditCompendium global) ou ses
+// propres entrées de supplément ; jamais le supplément d'un autre utilisateur,
+// même avec le droit global. supprimerEntite() générique ne fait pas cette
+// distinction (aucune notion de propriétaire per-entry) — fonction dédiée.
+function supprimerMonstre($db, bool $is_ajax, string $redirect): void
+{
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_values(array_unique(array_filter(array_map('intval', (array)$ids))));
+
+  if (empty($ids)):
+    repondreErreur($is_ajax, 'Aucun élément à supprimer.', $redirect);
+  endif;
+
+  try {
+    $db->beginTransaction();
+
+    $ph   = resIdsPlaceholders($ids);
+    $stmt = $db->prepare("
+      SELECT mo.mo_id, res.res_j_id
+      FROM   dd_monstres      mo
+      LEFT JOIN dd_ressources res ON res.res_id = mo.mo_res_id
+      WHERE  mo.mo_id IN ($ph)
+    ");
+    $stmt->execute($ids);
+    $lignes = $stmt->fetchAll();
+
+    $ids_autorises = [];
+    foreach ($lignes as $ligne):
+      $res_j_id = $ligne['res_j_id'] !== null ? (int)$ligne['res_j_id'] : null;
+      if (canEditCompendiumEntry($db, $res_j_id)):
+        $ids_autorises[] = (int)$ligne['mo_id'];
+      endif;
+    endforeach;
+
+    if (empty($ids_autorises)):
+      $db->rollBack();
+      repondreErreur($is_ajax, 'Aucun élément autorisé à la suppression.', $redirect);
+    endif;
+
+    $ph2  = resIdsPlaceholders($ids_autorises);
+    $stmt = $db->prepare("DELETE FROM dd_monstres WHERE mo_id IN ($ph2)");
+    $stmt->execute($ids_autorises);
+
+    $db->commit();
+
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Élément(s) supprimé(s).'];
+    header('Location: ' . $redirect);
+    exit;
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('supprimerMonstre : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
   }
 }
 

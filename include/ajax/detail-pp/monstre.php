@@ -28,6 +28,7 @@ $stmt = $db->prepare('
     mocat.mocat_nom,
     mogr.mogr_nom,
     res.res_nom,
+    res.res_j_id,
     var.var_valeur AS ruleset_label
   FROM   dd_monstres               mo
   LEFT JOIN dd_monstres_categories mocat ON mocat.mocat_id = mo.mo_mocat_id
@@ -71,7 +72,7 @@ $detail_base = BASE_URL . '/include/ajax/detail-pp/';
   <div class="sort-detail__header">
     <h2 class="sort-detail__nom">
       <?= h($mo['mo_nom']) ?>
-      <?php if (canEditCompendium()): ?>
+      <?php if (canEditCompendiumEntry($db, $mo['res_j_id'] !== null ? (int)$mo['res_j_id'] : null)): ?>
         <button class="sort-detail__edit-btn"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/monstre.php', <?= $id ?>)"
                 title="Modifier ce monstre">
