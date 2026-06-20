@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 17:10 -->
+<!-- Mis à jour : 2026-06-20 21:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -522,6 +522,109 @@ le `<select>` du filtre via `fp_valeur`. `mo_mocat_id` (catégorie, obligatoire)
 **[2026-05] `modifier/monstre-old.php` — ancienne version conservée**
 Une version antérieure du formulaire (`include/ajax/modifier/monstre-old.php`) reste dans le dépôt.
 À supprimer une fois le v3 stabilisé.
+
+**[2026-06-20] Développement urgent — équipement cliquable + parser appliqué aux oppositions**
+
+*Demande* : (1) rendre cliquables les équipements/objets magiques dans la ligne "Equipement" et les
+blocs "Actions" du bloc de stats ; (2) appliquer le même moteur de rendu (`monstre-parser.php`) à
+l'affichage des oppositions (module Campagnes), qui montrait jusqu'ici `opp_stats` en texte brut
+(`<pre>` échappé, aucun lien, pas de mise en forme).
+
+*Partie 1 — Liaison automatique objets/équipement (`include/monstre-parser.php`)* :
+- Type `objet` ajouté à `typesLiablesMonstre()` (`dd_objets_magiques` : `om_id`/`om_nom`/
+  `om_ruleset_var_id`/`om_res_id`/`om_camp_id` — mêmes clés que `don`/`sort`, donc `chargerIndexMonstre()`
+  l'indexe automatiquement sans autre changement).
+- `construireIndexAuto()` : priorité étendue à `sort > objet > glossaire` (sort gagne en cas de
+  collision de nom, objet avant glossaire — un nom d'objet est plus spécifique qu'un terme générique).
+- **Aucun nouveau tag explicite** (pas de `&Nom&` ou équivalent pour les objets) : le mécanisme
+  `lierAuto()` déjà câblé sur la ligne `label_gras` "Equipement" (DD2024) et sur la description des
+  `pouvoir` (blocs Actions) suffit tel quel — ces deux points de passage appellent déjà `lierAuto()`
+  avec l'index fusionné, qui inclut désormais les objets. Testé en local (PDO SQLite en mémoire) :
+  "Equipement" et le texte d'une action ("Morsure. Attaque … avec une épée longue +1…") produisent
+  bien `<span class="mo-lien" data-type="objet" data-id="…">`.
+- Le mapping JS `MO_LIEN_FICHIERS` (cf. partie 2) contenait déjà `objet: 'objet.php'` — anticipé mais
+  inutilisé jusqu'à aujourd'hui, donc aucun changement JS requis pour le clic lui-même.
+
+*Partie 2 — Handler de clic `.mo-lien` déplacé vers `js/main.js`* :
+- Avant ce jour, le handler vivait dans `js/compendium.js`, chargé uniquement sur les pages
+  compendium (`$js_module = 'compendium'`). Le module Campagnes charge `js/campagne.js`
+  (`$js_module = 'campagne'`) — sans déplacement, les liens produits dans une opposition auraient
+  été inertes (spans non cliquables, juste du texte souligné par erreur de style résiduel).
+- Déplacé intégralement vers `js/main.js`, chargé sans condition sur toutes les pages
+  (`include/footer.php`, `<script src=".../js/main.js">` hors du bloc conditionnel `$js_module`).
+  Retiré de `compendium.js` (évite la double délégation et le double fetch au clic).
+
+*Partie 3 — Styles `.mo-*` déplacés vers `css/modules.css`* :
+- Même raisonnement que la partie 2 : `.mo-stats`, `.mo-lien`, `.mo-section-titre`, `.mo-pouvoir`,
+  `.mo-sous-liste`, `.mo-carac-*` (grille caractéristiques DD2024) déplacés de
+  `css/compendium-modules.css` (chargé seulement sur les pages compendium) vers `css/modules.css`
+  (chargé sans condition, cf. `include/header.php`). Restent dans `compendium-modules.css` :
+  `.mo-stats-input` et `.mo-tag-popup*` (popup d'autocomplétion des tags `@`/`%` dans le `<textarea>`
+  d'édition — usage exclusif du formulaire compendium, jamais affiché côté opposition).
+- Vérifié : les variables CSS utilisées (`--clr-accent`, `--clr-accent-2`, `--clr-border`,
+  `--clr-text-muted`, `--clr-surface-2`) sont définies dans `css/main.css` (thème global, chargé
+  partout) — aucune dépendance résiduelle à `compendium-modules.css`.
+
+*Partie 4 — `include/ajax/detail-pp-sub/opposition.php`* :
+- `<pre class="opp-stats"><?= h($opp['opp_stats']) ?></pre>` remplacé par
+  `rendreStatsMonstre($db, $opp['opp_stats'], $ruleset_id, $res_ids)`, rendu dans un conteneur
+  `<div class="mo-stats" data-detail-base="…">` (même structure que `detail-pp/monstre.php`).
+- `$ruleset_id` = `camp_ruleset_var_id` (déjà remonté par la jointure existante de ce fichier
+  jusqu'à `dd_campagnes`, juste ajouté au `SELECT`) — **pas** le ruleset de session du visiteur.
+- `$res_ids` = `getActiveResIdsCampagne($db, camp_id, ruleset_id)` (sources actives de la
+  **campagne**, fonction déjà existante depuis SP-C0/recherche-monstre) — **pas**
+  `getActiveResIds()` (sources personnelles du visiteur). Cohérence : une opposition est un contenu
+  de campagne consulté par n'importe quel MJ de cette campagne, son index de liaison ne doit pas
+  dépendre des sources personnelles de qui la regarde.
+- `opp_stats` est une copie texte de `mo_stats` (recopiée telle quelle à la sélection du monstre,
+  cf. `modifier/opposition.php` → `chargerDepuisMonstre()`) : même format de texte brut, donc le
+  parser s'applique sans aucune adaptation de format.
+
+*Limite UX assumée (non corrigée, hors périmètre de l'urgence)* : `#detail-pp-sub` est un panneau
+unique sans pile (`actualiserPageSub()` remplace toujours son contenu). L'opposition y est déjà
+affichée ; cliquer un lien `.mo-lien` à l'intérieur **remplace donc la vue Opposition** par la fiche
+ciblée (sort/don/objet/glossaire), au lieu de s'empiler par-dessus comme c'est le cas pour les liens
+cliqués depuis `detail-pp/monstre.php` (qui vit dans `#detail-pp`, un panneau différent du
+sous-panneau qu'il ouvre). Seul "Fermer" est disponible, pas de "retour". Net positif par rapport à
+l'état précédent (texte totalement inerte), mais une vraie pile de sous-panneaux nécessiterait de
+faire évoluer `actualiserPageSub()`/`fermerSubPanel()` — non fait, à reprendre si gênant en pratique.
+
+**[2026-06-20] Clarification — `dd_equipements` n'existait pas ; utilisée `dd_objets_magiques` seule**
+
+Suite au développement ci-dessus, l'utilisateur signale que **`dd_equipements`** (équipement
+mondain : armes, armures, matériel non magique) n'avait en réalité jamais été créée en base — il
+s'en est rendu compte après coup. Le développement du jour n'a donc câblé que la liaison **objets
+magiques** (`dd_objets_magiques`, module déjà existant) ; le mot "équipements" de la demande
+initiale n'a, de fait, pas été couvert séparément (aucune table, aucun module, aucun endpoint
+n'existait pour ce concept avant ce jour).
+
+Arbitrage proposé (3 options) → réponse : **schéma SQL fourni à utiliser maintenant, reste du module
+différé**, avec demande explicite de planifier les étapes restantes, numérotées sur le modèle SP-C.
+
+*Fait aujourd'hui (SP-E0 uniquement)* :
+- `dd_equipements` créée via `sql/2026-06-20_equipements_sp-e0.sql`, **committé dans le dépôt**
+  (contrairement à `patch_004_supplements.sql`, jamais committé — leçon appliquée ici directement).
+  Testé par exécution réelle sur une instance MariaDB locale (`CREATE TABLE` + `DESCRIBE`), pas
+  seulement relu — la table se crée sans erreur et la structure correspond exactement au schéma
+  fourni.
+- `doc/SCHEMA_SQL.md` : coquille corrigée (la description de `dd_equipements` avait été copiée
+  depuis la section `dd_objets_magiques` — "Objets magiques du compendium" — manifestement un
+  copier-coller non corrigé lors de l'injection par l'utilisateur). Ligne de versioning 1.3 ajoutée.
+- Écart noté avec le modèle Supplément (SP-C) : `eqt_visible` seul, pas de `eqt_public` — modèle de
+  visibilité simple (façon ancien `om_visible` pré-SP-C0), pas de notion propriétaire/supplément.
+  Non corrigé unilatéralement (le schéma vient de l'utilisateur) ; à arbitrer explicitement plus
+  tard si Équipements doit rejoindre le mécanisme supplément (SP-E5, planifié mais pas priorisé).
+- Plan **SP-E0 à SP-E5** ajouté dans `ARCHITECTURE_0_REFERENCE.md` § Module Équipements (planifié),
+  sur le modèle du tableau SP-C0..C7 : SP-E1 (contrôleur liste), SP-E2 (formulaire +
+  enregistrement), SP-E3 (fiche détail), SP-E4 (liaison dans `monstre-parser.php` — **explicitement
+  bloquée par SP-E3**, un lien sans endpoint de destination produirait une 404), SP-E5 *(à
+  arbitrer)* alignement sur le mécanisme Supplément.
+
+*Pas fait, volontairement différé* : SP-E1 à SP-E5 (aucun contrôleur, formulaire, endpoint ou
+liaison parser pour `dd_equipements`). La liaison auto "objet" déjà livrée dans
+`monstre-parser.php` (ce même jour) continue de ne couvrir que `dd_objets_magiques` — ne pas
+confondre les deux lors d'une prochaine session : *objet* (existant, câblé) ≠ *equipement* (planifié
+SP-E, pas câblé).
 
 ---
 
@@ -1496,3 +1599,12 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [ ] SP-C5 — Sorts, dons, compétences, classes, races, objets, historiques : enregistrement.php (ownership + auto-create supplément + suppression per-entry) — bloqué, voir item ci-dessus
 - [ ] SP-C6 — Mettre à jour profil/index.php (Mes sources — suppléments tiers) — en pause (non bloquée techniquement, juste reportée)
 - [x] ~~SP-C7 — Nettoyage monstres post-migration (suppression include/ajax/modifier/monstre-old.php, relecture monstre-parser.php pour refs mo_j_id résiduelles)~~ → livré (2026-06-20)
+- [x] ~~Parser monstre — liaison auto objets magiques/équipement (ligne Equipement + blocs Actions)~~ → livré (2026-06-20, typesLiablesMonstre() + construireIndexAuto())
+- [x] ~~Oppositions (Campagnes) — appliquer monstre-parser.php au lieu du `<pre>` brut~~ → livré (2026-06-20, detail-pp-sub/opposition.php, scope getActiveResIdsCampagne())
+- [ ] Sous-panneaux — `actualiserPageSub()`/`fermerSubPanel()` ne gèrent qu'un niveau (pas de pile) : cliquer un lien `.mo-lien` depuis une opposition (déjà dans #detail-pp-sub) remplace la vue au lieu de s'empiler. Pas bloquant, à reprendre si gênant en pratique — cf. `DECISIONS_LOG.md` [2026-06-20] partie "Limite UX assumée".
+- [x] ~~SP-E0 — dd_equipements : CREATE TABLE~~ → livré (2026-06-20, sql/2026-06-20_equipements_sp-e0.sql, committé + testé sur MariaDB réelle)
+- [ ] SP-E1 — compendium/equipements.php (contrôleur liste + $listConfig)
+- [ ] SP-E2 — modifier/equipement.php (formulaire) + enregistrement.php (enregistrerEquipement())
+- [ ] SP-E3 — detail-pp/equipement.php (fiche détail)
+- [ ] SP-E4 — monstre-parser.php : type 'equipement' (typesLiablesMonstre/construireIndexAuto) + MO_LIEN_FICHIERS — BLOQUÉ par SP-E3
+- [ ] SP-E5 (à arbitrer) — Équipements rejoint le mécanisme Supplément (SP-C) : eqt_public + champ_public/champ_visible/champ_res_owner

@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/../../auth.php';
 require_once __DIR__ . '/../../helpers.php';
+require_once __DIR__ . '/../../monstre-parser.php';
 
 requireAuth();
 
@@ -21,7 +22,7 @@ $stmt = $db->prepare('
          re.re_id, re.re_nom,
          scc.scc_id,
          sce.sce_id,
-         camp.camp_id
+         camp.camp_id, camp.camp_ruleset_var_id
   FROM   dd_oppositions opp
   JOIN   dd_rencontres re ON re.re_id = opp.opp_re_id
   JOIN   dd_scenarios_chapitres scc ON scc.scc_id = re.re_scc_id
@@ -47,6 +48,18 @@ if (!isMJ($db, (int)$opp['camp_id'])):
 endif;
 
 $base_modifier = BASE_URL . '/include/ajax/modifier';
+
+// Bloc de stats : même moteur de rendu que la fiche Monstre du compendium
+// (carac DD2024 en grille, sections, liens cliquables sorts/dons/objets/
+// glossaire). Index scopé au ruleset + sources actives de la CAMPAGNE
+// (getActiveResIdsCampagne), pas aux sources personnelles du visiteur —
+// l'opposition est un contenu de campagne, pas un contenu de compendium
+// personnel. opp_stats est une copie texte de mo_stats (cf. SCHEMA_SQL.md
+// § dd_oppositions) : même format, même parser.
+$ruleset_id = (int)$opp['camp_ruleset_var_id'];
+$res_ids    = getActiveResIdsCampagne($db, (int)$opp['camp_id'], $ruleset_id);
+$rendu      = rendreStatsMonstre($db, $opp['opp_stats'], $ruleset_id, $res_ids);
+$detail_base = BASE_URL . '/include/ajax/detail-pp/';
 ?>
 
 <div class="camp-detail" data-opp-id="<?= $id ?>" data-re-id="<?= (int)$opp['re_id'] ?>">
@@ -66,8 +79,10 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
     <?php endif ?>
   </div>
 
-  <?php if (!empty($opp['opp_stats'])): ?>
-    <pre class="opp-stats"><?= h($opp['opp_stats']) ?></pre>
+  <?php if ($rendu['html'] !== ''): ?>
+    <div class="mo-stats" data-detail-base="<?= h($detail_base) ?>">
+      <?= $rendu['html'] ?>
+    </div>
   <?php else: ?>
     <p class="text-muted">Aucune statistique renseignée.</p>
   <?php endif ?>

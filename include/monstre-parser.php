@@ -12,6 +12,7 @@
 //
 // PARSING AUTOMATIQUE DD2024 (description des pouvoirs + labels) :
 //   - Sorts (liaison par nom)
+//   - Objets magiques / équipement (liaison par nom — ligne "Equipement" + blocs Actions)
 //   - Glossaire (liaison par nom, type=glossaire)
 //   Le nom du pouvoir lui-meme n'est jamais parse automatiquement.
 //
@@ -34,6 +35,13 @@ function typesLiablesMonstre(): array
     'sort' => [
       'table' => 'dd_sorts', 'id' => 'so_id', 'nom' => 'so_nom',
       'ruleset' => 'so_ruleset_var_id', 'res' => 'so_res_id', 'camp' => 'so_camp_id',
+    ],
+    // Équipement / objets magiques — liaison auto dans la ligne "Equipement"
+    // (label_gras DD2024) et dans les blocs Actions (texte des pouvoirs),
+    // au même titre que les sorts et le glossaire (cf. construireIndexAuto()).
+    'objet' => [
+      'table' => 'dd_objets_magiques', 'id' => 'om_id', 'nom' => 'om_nom',
+      'ruleset' => 'om_ruleset_var_id', 'res' => 'om_res_id', 'camp' => 'om_camp_id',
     ],
   ];
 }
@@ -186,12 +194,12 @@ function chargerIndexMonstre(PDO $db, int $ruleset_id, array $res_ids): array
   return $index;
 }
 
-// Index fusionne sorts + glossaire pour la detection automatique en texte libre.
+// Index fusionne sorts + objets + glossaire pour la detection automatique en texte libre.
 function construireIndexAuto(array $index): array
 {
   $auto = [];
-  // Priorite : sort > glossaire
-  foreach (['sort', 'glossaire'] as $type):
+  // Priorite : sort > objet > glossaire
+  foreach (['sort', 'objet', 'glossaire'] as $type):
     foreach (($index[$type] ?? []) as $cle => $info):
       if (!isset($auto[$cle])):
         $auto[$cle] = ['type' => $type, 'id' => $info['id'], 'nom' => $info['nom']];

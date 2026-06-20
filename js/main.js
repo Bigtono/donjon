@@ -301,3 +301,58 @@ document.addEventListener('DOMContentLoaded', () => {
 function confirmer(message, callback) {
   if (window.confirm(message)) callback();
 }
+
+// ============================================================
+// MONSTRE / OPPOSITION — liens cliquables du bloc de stats (.mo-lien)
+// Le span ne porte que data-type / data-id ; l'URL de l'endpoint
+// detail-pp est résolue ici, et la base est lue sur le conteneur
+// (.mo-stats[data-detail-base]) -> aucune dépendance à un BASE_URL global.
+// Délégation : un seul écouteur pour tous les blocs de stats affichés
+// (compendium ET oppositions de campagne — d'où la présence ici, dans
+// main.js, chargé sur toutes les pages, plutôt que dans compendium.js).
+// ============================================================
+var MO_LIEN_FICHIERS = {
+  don: 'don.php',
+  competence: 'competence.php',
+  sort: 'sort.php',
+  objet: 'objet.php',
+  capacite: 'capacite.php',
+  race: 'race.php',
+  classe: 'classe.php',
+  regle: 'regle',
+  glossaire: 'glossaire',
+};
+
+document.addEventListener('click', function (e) {
+  const lien = e.target.closest('.mo-lien');
+  if (!lien) return;
+  const type = lien.dataset.type;
+  const id   = parseInt(lien.dataset.id, 10);
+  if (!id) return;
+
+  // Reconstruire BASE_URL depuis data-detail-base
+  // data-detail-base = "http://localhost/donjon/include/ajax/detail-pp/"
+  const cont       = lien.closest('[data-detail-base]');
+  const detailBase = cont ? cont.dataset.detailBase : '';
+  // Retirer "/include/ajax/detail-pp/" pour obtenir la racine
+  const appBase    = detailBase.replace(/\/include\/ajax\/detail-pp\/$/, '');
+
+  // Regle : nouvelle page
+  if (type === 'regle') {
+    window.open(appBase + '/regles/regle.php?id=' + id, '_blank');
+    return;
+  }
+  // Glossaire : sub-panel
+  if (type === 'glossaire') {
+    if (typeof actualiserPageSub === 'function') {
+      actualiserPageSub(appBase + '/include/ajax/detail-pp-sub/glossaire.php', { id: id });
+    }
+    return;
+  }
+  // Autres types compendium : sub-panel standard
+  const fichier = MO_LIEN_FICHIERS[type];
+  if (!fichier) return;
+  if (typeof actualiserPageSub === 'function') {
+    actualiserPageSub(detailBase + fichier, { id: id });
+  }
+});

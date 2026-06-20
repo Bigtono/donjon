@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 17:10 -->
+<!-- Mis à jour : 2026-06-20 21:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -479,17 +479,27 @@ Modifier à `canEditCompendiumEntry($db, $res_j_id)` au lieu de `canEditCompendi
 | `@id@` | `dd_regles` (tout type) | par **id** |
 | `%id%` | `dd_regles` `reg_type='glossaire'` | par **id** |
 
-**2. Liaison automatique (`lierAuto()`) — limitée à sorts + glossaire.** Sur le texte libre,
-une passe relie automatiquement les **sorts** et les **termes de glossaire** via un index fusionné
-(`construireIndexAuto()`, priorité sort > glossaire). Garde-fous : normalisation casse/accents,
-plus longue correspondance d'abord, longueur minimale `MO_LONGUEUR_MIN = 4`.
+**2. Liaison automatique (`lierAuto()`) — sorts + objets magiques/équipement + glossaire.** Sur le
+texte libre, une passe relie automatiquement les **sorts**, les **objets magiques/équipement** et
+les **termes de glossaire** via un index fusionné (`construireIndexAuto()`, priorité
+sort > objet > glossaire). Garde-fous : normalisation casse/accents, plus longue correspondance
+d'abord, longueur minimale `MO_LONGUEUR_MIN = 4`.
+
+> ✅ **2026-06-20.** Type `objet` (`dd_objets_magiques`) ajouté à `typesLiablesMonstre()` et à
+> `construireIndexAuto()`. Effet immédiat sans changement structurel supplémentaire : la ligne
+> **Equipement** (label_gras DD2024, déjà passée par `lierAuto()`) et le texte des **Actions**
+> (description des `pouvoir`, déjà passé par `lierAuto()`) deviennent automatiquement cliquables —
+> aucun nouveau tag explicite requis, le mécanisme de liaison par nom déjà en place pour
+> sorts/glossaire s'applique tel quel.
 
 #### Dictionnaire — registre `typesLiablesMonstre()`
 
-Registre déclaratif décrivant les types chargés **par nom** : `don` et `sort` (table, id, nom,
+Registre déclaratif décrivant les types chargés **par nom** : `don`, `sort`, `objet` (table, id, nom,
 colonnes ruleset/res/camp). Le **glossaire** est chargé séparément depuis `dd_regles`. Chargement
-(`chargerIndexMonstre()`) scopé : **ruleset courant + sources actives (`getActiveResIds()`) +
-`camp IS NULL`**.
+(`chargerIndexMonstre()`) scopé : **ruleset + sources actives passées en paramètre + `camp IS NULL`**
+— le paramètre `$res_ids` n'est plus implicitement `getActiveResIds()` : depuis l'usage Oppositions
+(2026-06-20), l'appelant peut passer `getActiveResIdsCampagne()` à la place (cf. § Oppositions
+ci-dessous), `rendreStatsMonstre()` étant agnostique de la source du scope.
 
 #### Rendu par ruleset
 
@@ -497,7 +507,7 @@ colonnes ruleset/res/camp). Le **glossaire** est chargé séparément depuis `dd
   en-tête / ligne de **caractéristiques** (grille 3×2 via `rendreTableauCarac()`),
   **titre de section**, **label inline**, **label gras**, **sous-liste de sorts**, **pouvoir**, ligne simple.
 - **DD3.5** (`formaterLigneDD35()`) : labels terminés par « : ». Ligne « Dons : » → liaison dons ;
-  autres → liaison auto (sorts + glossaire). Parsing automatique DD3.5 **minimal — à compléter**.
+  autres → liaison auto (sorts + objets + glossaire). Parsing automatique DD3.5 **minimal — à compléter**.
 
 Séparateur de blocs commun : une ligne `***` → `<hr class="mo-stat-hr">`.
 
@@ -511,7 +521,15 @@ Séparateur de blocs commun : une ligne `***` → `<hr class="mo-stat-hr">`.
 |---|---|
 | `regle` | ouverture de `regles/regle.php?id=…` dans un **nouvel onglet** |
 | `glossaire` | `actualiserPageSub()` → `detail-pp-sub/glossaire.php` (sous-panneau) |
-| `don` / `sort` | `actualiserPageSub()` → endpoint `detail-pp` du type |
+| `don` / `sort` / `objet` | `actualiserPageSub()` → endpoint `detail-pp` du type |
+
+> ✅ **2026-06-20.** Le handler de clic `.mo-lien` (`MO_LIEN_FICHIERS` + délégation
+> `document.addEventListener('click', …)`) a été **déplacé de `js/compendium.js` vers `js/main.js`**
+> (chargé sans condition sur toutes les pages, cf. `include/footer.php`). Raison : le bloc de stats
+> est désormais aussi rendu sur la fiche **Opposition** du module Campagnes (`$js_module =
+> 'campagne'`, ne charge jamais `compendium.js`) — sans ce déplacement, les liens y seraient inertes.
+> Le mapping `MO_LIEN_FICHIERS` contenait déjà l'entrée `objet: 'objet.php'`, anticipée mais inutilisée
+> jusqu'à l'ajout du type `objet` au parser le même jour.
 
 #### Formulaire et autocomplétion des tags
 
@@ -529,13 +547,69 @@ Champs : `mo_nom`, `mo_mocat_id`, `mo_mogr_id`, `mo_fp_id`, `mo_res_id`, `mo_cam
 ```
 compendium/monstres.php                     # contrôleur liste + $listConfig (champ_public/champ_visible/champ_res_owner)
 compendium/enregistrement.php               # case 'monstre' / enregistrerMonstre() (stockage brut)
-include/monstre-parser.php                  # moteur d'analyse + rendu (v3) — rendreStatsMonstre()
+include/monstre-parser.php                  # moteur d'analyse + rendu (v3) — rendreStatsMonstre() ; types don/sort/objet
 include/ajax/detail-pp/monstre.php          # fiche détail (#detail-pp) — appelle rendreStatsMonstre()
 include/ajax/modifier/monstre.php           # formulaire (textarea + autocomplete tags + _public/_visible)
 include/ajax/autocomplete-tags-monstre.php  # suggestions tags @ (règle) / % (glossaire)
-js/compendium.js                            # gestionnaire délégué .mo-lien (résolution data-*)
-css/compendium-modules.css                  # styles .mo-stats / .mo-lien / grille carac / .comp-ligne--homebrew
+js/main.js                                  # gestionnaire délégué .mo-lien (résolution data-*) — global, depuis 2026-06-20
+css/modules.css                             # styles .mo-stats / .mo-lien / grille carac — global, depuis 2026-06-20
+css/compendium-modules.css                  # styles compendium restants (.mo-stats-input, .mo-tag-popup, .comp-ligne--homebrew)
 ```
+
+#### Usage Oppositions (module Campagnes) — 2026-06-20
+
+`include/ajax/detail-pp-sub/opposition.php` applique désormais `rendreStatsMonstre()` à `opp_stats`
+au lieu d'un `<pre>` brut échappé. `opp_stats` est une copie texte de `mo_stats` au moment de la
+sélection du monstre (cf. § `dd_oppositions` — formulaire `modifier/opposition.php`,
+`chargerDepuisMonstre()`) : même format, même parser, sans adaptation. Scope de l'index de liaison :
+**`getActiveResIdsCampagne($db, camp_id, camp_ruleset_var_id)`** (sources actives de la campagne),
+**pas** `getActiveResIds()` (sources personnelles du visiteur) — l'opposition est un contenu de
+campagne, le ruleset et les sources viennent de `camp_ruleset_var_id` remonté par jointure
+(`dd_oppositions → dd_rencontres → dd_scenarios_chapitres → dd_scenarios → dd_campagnes`).
+
+> ⚠️ **Limite UX connue, acceptée pour cette livraison urgente.** Le bloc de stats d'une opposition
+> est lui-même affiché dans `#detail-pp-sub` (sous-panneau unique, sans pile/historique —
+> `actualiserPageSub()` remplace toujours le contenu du même panneau, cf. `js/main.js`). Cliquer un
+> lien `.mo-lien` à l'intérieur (sort, don, objet, glossaire) **remplace donc la vue Opposition** par
+> la fiche du compendium ciblée, plutôt que de s'empiler par-dessus — pas de bouton « retour », seul
+> « Fermer » est disponible. Comportement strictement meilleur que l'état précédent (texte brut
+> totalement inerte), mais pas une vraie pile de sous-panneaux. Une vraie pile (SP ultérieur,
+> non priorisé) nécessiterait de faire évoluer `actualiserPageSub()`/`fermerSubPanel()` pour empiler
+> plusieurs niveaux au lieu d'un panneau unique — hors périmètre de ce correctif urgent.
+
+---
+
+### Module Équipements (planifié — SP-E)
+
+Entité **`dd_equipements`** (`eqt_*`) — équipement mondain (armes, armures, matériel non magique),
+distincte de `dd_objets_magiques` (objets magiques, module déjà existant). Schéma fourni par
+l'utilisateur le 2026-06-20, table créée (`sql/2026-06-20_equipements_sp-e0.sql`, committé) ;
+**aucun contrôleur, formulaire ou endpoint ne l'utilise encore** — développement différé,
+volontairement séquencé en étapes sur le modèle du plan SP-C (Supplément utilisateur).
+
+> Origine : demande initiale "rendre cliquables les équipements et objets magiques" dans le bloc de
+> stats Monstre (2026-06-20). `dd_equipements` n'existait pas encore en base à ce moment — seule la
+> liaison **objets magiques** (`dd_objets_magiques`, déjà existante) a été câblée dans
+> `monstre-parser.php` ce jour-là (cf. § Module Monstres ci-dessus). La liaison **équipement mondain**
+> est différée à SP-E4, une fois la table et un endpoint de détail disponibles. Voir
+> `DECISIONS_LOG.md` [2026-06-20] "Développement urgent" et [2026-06-20] "Clarification
+> dd_equipements".
+
+| Phase | Contenu | Complexité | Avancement |
+|---|---|---|---|
+| **SP-E0** | SQL : `CREATE TABLE dd_equipements` | Faible | ✅ livré (2026-06-20, `sql/2026-06-20_equipements_sp-e0.sql`) |
+| **SP-E1** | Contrôleur liste `compendium/equipements.php` (`$listConfig` — moteur générique déjà prêt, cf. SP-C2) | Modérée | ⏳ à faire |
+| **SP-E2** | Formulaire `modifier/equipement.php` + `enregistrement.php` (`case 'equipement'` / `enregistrerEquipement()`) | Modérée | ⏳ à faire |
+| **SP-E3** | Fiche détail `detail-pp/equipement.php` | Faible | ⏳ à faire |
+| **SP-E4** | `monstre-parser.php` : type `equipement` (`typesLiablesMonstre()` + `construireIndexAuto()`, priorité à arbitrer vs `objet`/`sort`/`glossaire`) + entrée `equipement: 'equipement.php'` dans `MO_LIEN_FICHIERS` (`js/main.js`) | Faible | ⏳ à faire — **bloquée par SP-E3** (lien sans cible = 404) |
+| **SP-E5** *(à arbitrer)* | Rejoindre le mécanisme Supplément utilisateur (SP-C) : ajout `eqt_public`, alignement sur `champ_public`/`champ_visible`/`champ_res_owner` | Faible | ⏳ à arbitrer — non nécessaire tant qu'aucun module n'existe |
+
+> SP-E1 à SP-E3 reproduisent exactement le pattern déjà posé pour Monstres/Objets magiques
+> (contrôleur liste générique `compendium-liste.php`, formulaire `modifier/*.php`, fonction
+> `enregistrer*()` dans `enregistrement.php`, endpoint `detail-pp/*.php`) — aucune inconnue
+> technique, juste du volume. SP-E4 ne peut pas être fait avant SP-E3 (un lien `.mo-lien` vers un
+> endpoint inexistant produirait une 404 au clic — erreur identifiée et évitée le 2026-06-20, cf.
+> `DECISIONS_LOG.md`).
 
 ---
 

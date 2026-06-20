@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-17 17:40 -->
+<!-- Mis à jour : 2026-06-20 21:00 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -15,6 +15,7 @@
 | 1.0 | 2025-05 | JM | Création — schéma initial issu du dump XAMPP |
 | 1.1 | 2026-06-01 | JM | Module Campagnes — refonte section 7 : `dd_oppositions` (copie éditable de monstre) + `dd_fichiers` (PJ génériques) ; ruleset hérité de la campagne (retrait `sce_ruleset_var_id`) ; univers 1-1 (`camp_un_id`, retrait `dd_campagnes_univers`) ; abandon `dd_rencontres_monstres` / `dd_rencontres_oppositions` ; `pe_camp_id` (dernière campagne jouée) |
 | 1.2 | 2026-06-02 | JM | dd_sorts : ajout `so_concentration` / `so_rituel` (0/1, DD2024). Import en masse des sorts SRD 5.2.1 (res_id 93) par lots à IDs explicites |
+| 1.3 | 2026-06-20 | JM | `dd_equipements` : CRÉÉE (équipement mondain, distincte de `dd_objets_magiques`). SQL committé : `sql/2026-06-20_equipements_sp-e0.sql`. Module compendium correspondant non développé — cf. plan SP-E (ARCHITECTURE_0_REFERENCE.md) |
 
 ---
 
@@ -565,7 +566,8 @@ Rareté des bjets magiques du compendium.
 
 
 ### dd_equipements
-Objets magiques du compendium.
+Équipement mondain du compendium (armes, armures, matériel non magique) — distincte de
+`dd_objets_magiques` (objets magiques).
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
@@ -576,6 +578,15 @@ Objets magiques du compendium.
 | eqt_res_id | int unsigned | nn | Source -> dd_ressources |
 | eqt_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | eqt_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> Table créée le 2026-06-20 (`sql/2026-06-20_equipements_sp-e0.sql`, committé dans le dépôt).
+> ⚠️ Écart avec le modèle supplément (cf. § Supplément utilisateur, SP-C) : un seul flag
+> `eqt_visible` plutôt que le couple `_public`/`_visible` des 8 tables déjà migrées — modèle de
+> visibilité simple (ancien `om_visible` pré-SP-C0), pas de notion de propriétaire/supplément pour
+> l'instant. À arbitrer explicitement si Équipements doit un jour rejoindre le mécanisme supplément
+> (ajout `eqt_public` + `eqt_res_id` pointant vers une ressource supplément) — non fait, non
+> nécessaire tant qu'aucun module n'existe pour cette table (cf. ARCHITECTURE_0_REFERENCE.md § Plan
+> Équipements SP-E, DECISIONS_LOG.md [2026-06-20]).
 
 
 ### dd_monstres
