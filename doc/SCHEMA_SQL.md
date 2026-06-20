@@ -564,6 +564,20 @@ Rareté des bjets magiques du compendium.
 | om_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
 
+### dd_equipements
+Objets magiques du compendium.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| eqt_id | int unsigned | PK | |
+| eqt_nom | varchar(150) | nn | |
+| eqt_description | text | null | Description HTML TinyMCE (format libre) |
+| eqt_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs |
+| eqt_res_id | int unsigned | nn | Source -> dd_ressources |
+| eqt_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
+| eqt_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+
 ### dd_monstres
 
 | Champ | Type | Null | Commentaire |
