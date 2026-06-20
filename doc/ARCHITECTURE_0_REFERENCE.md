@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-19 19:10 -->
+<!-- Mis à jour : 2026-06-20 14:05 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -379,13 +379,50 @@ Table principale `dd_monstres` (colonnes référencées par le code) :
 > `mo_res_id` (supplément) et `mo_camp_id` (homebrew campagne), alignées sur le mécanisme commun
 > à toutes les entités du compendium. Migration via `patch_004_supplements.sql`.
 
-> ⚠️ **Écart schéma SQL / code à régulariser.** `sql/schema.sql` et le dump `sql/maikasteiymaika.sql` ne
-> reflètent pas encore `mo_mocat_id`, `mo_mogr_id`, `mo_res_id`, `mo_camp_id`, `mo_public`, `mo_visible`
-> ni les tables `dd_monstres_categories`, `dd_monstres_groupes`, `dd_fp`. La base réelle est à jour ;
-> les fichiers SQL versionnés sont à resynchroniser.
+> ✅ **Régularisé le 2026-06-20.** `enregistrerMonstre()` (`compendium/enregistrement.php`) et le
+> formulaire (`include/ajax/modifier/monstre.php`) référençaient encore `mo_j_id`, provoquant une
+> erreur SQL (`Unknown column 'mo_j_id'`) à chaque save. Code aligné sur le schéma réel — voir
+> `DECISIONS_LOG.md` [2026-06-20]. Reste un écart documentaire mineur : `sql/schema.sql` et le dump
+> `sql/maikasteiymaika.sql` ne reflètent toujours pas `mo_mocat_id`, `mo_mogr_id`, `mo_res_id`,
+> `mo_camp_id`, `mo_public`, `mo_visible` ni les tables `dd_monstres_categories`, `dd_monstres_groupes`,
+> `dd_fp` — resynchronisation des fichiers SQL versionnés toujours à planifier (sans urgence, la base
+> réelle fait foi).
 
 **Visibilité — mécanisme unifié.** Portée par le moteur commun via `champ_public`/`champ_visible` dans `$listConfig`.
 Le filtre `extra_where` spécifique `(mo.mo_j_id IS NULL OR mo.mo_j_id = $uid)` est supprimé.
+
+> ⏳ **SP-C2 non fait pour Monstres.** `compendium/monstres.php` ne déclare pas encore
+> `champ_public`/`champ_visible` dans son `$listConfig`, et `include/compendium-liste.php` n'a pas
+> encore le support générique de ces clés (JOIN `dd_ressources` + filtre visibilité + badge homebrew +
+> menu ⋮ + toggle "Afficher mes brouillons"). Tant que ce n'est pas fait, les entrées de supplément
+> créées via le formulaire (SP-C4/C5, fait) sont enregistrées correctement en base mais **n'apparaissent
+> pas différemment dans la liste** (pas de badge, pas de filtre de visibilité appliqué — la liste
+> affiche actuellement toutes les entrées actives sans distinction officiel/supplément/brouillon).
+
+#### Formulaire — source à 2 groupes (SP-C4, fait)
+
+Le select `mo_res_id` du formulaire (`include/ajax/modifier/monstre.php`) présente deux `<optgroup>` :
+- **Sources officielles** : ressources actives avec `res_j_id IS NULL`.
+- **Mon supplément** : une unique option, le supplément de l'utilisateur courant. Si celui-ci n'existe
+  pas encore (aucune entrée de supplément créée pour ce ruleset), l'option porte la valeur sentinelle
+  `'supplement'` plutôt qu'un `res_id` réel — la ressource est créée à la volée au premier save
+  (`getOrCreateUserSupplement()`, appelée depuis `enregistrerMonstre()`, dans la transaction).
+
+Un bloc `#mo-supplement-visibilite` (checkboxes `mo_public` / `mo_visible`) n'est affiché que lorsque
+la source sélectionnée est le supplément (`data-supplement="1"` sur l'`<option>`) — masqué pour les
+sources officielles, qui sont toujours `_public=1`/`_visible=1` en base. Contrainte `_public=1 ⇒
+_visible=1` appliquée côté client (case Visible cochée + désactivée si Partagé est coché) **et** côté
+serveur dans `enregistrerMonstre()` (la valeur cliente n'est pas fiable : un champ désactivé n'est pas
+soumis en POST).
+
+#### Enregistrement — ownership (SP-C5, fait)
+
+`enregistrerMonstre()` résout `mo_res_id` POST en trois cas :
+1. Valeur `'supplement'` → `getOrCreateUserSupplement($db, $uid, $ruleset_id)`.
+2. Id réel dont `res_j_id IS NULL` (officielle) → `_public`/`_visible` forcés à `1`/`1`.
+3. Id réel dont `res_j_id` est défini (supplément) → garde-fou : doit être égal à l'utilisateur courant
+   (ou admin), sinon `repondreErreur('Source de supplément invalide.')` — empêche d'écrire dans le
+   supplément d'un autre utilisateur en forgeant la requête POST.
 
 #### Liaison des entités — deux mécanismes complémentaires
 
@@ -1423,6 +1460,21 @@ rattachées à une source "Supplément de {pseudo}" (1 par ruleset par utilisate
 | **SP-C5** | `enregistrement.php` : ownership + save `_public`/`_visible` + auto-create supplément | Modérée |
 | **SP-C6** | `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers | Faible |
 | **SP-C7** | Nettoyage monstres post-migration (`monstres.php`, `monstre-parser.php`) | Faible |
+
+#### Avancement par entité
+
+SP-C0 et SP-C1 sont des phases transverses (socle SQL + helpers), livrées pour les 8 entités.
+SP-C2 à SP-C7 s'implémentent entité par entité. État au 2026-06-20 :
+
+| Entité | SP-C2 (moteur liste) | SP-C3 (detail-pp) | SP-C4 (formulaire) | SP-C5 (enregistrement) | SP-C6 | SP-C7 |
+|---|---|---|---|---|---|---|
+| **Monstres** | ⏳ à faire | ⏳ à faire | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | — (transverse) | ⏳ à faire |
+| Sorts, dons, compétences, classes, races, objets, historiques | ⏳ à faire | ⏳ à faire | ⏳ à faire | ⏳ à faire | — (transverse) | n/a |
+
+> Monstres est la première entité traitée, en partant par SP-C4/SP-C5 (formulaire + save) car
+> c'était le point bloquant (régression `mo_j_id`, cf. `DECISIONS_LOG.md` [2026-06-20]). SP-C2/SP-C3
+> (moteur de liste, badge homebrew, menu ⋮, bouton Modifier per-entry, toggle "Afficher mes
+> brouillons") restent à implémenter pour Monstres avant de répliquer le pattern aux 7 autres entités.
 
 ### Phase Admin — Zone d'administration TERMINE
 

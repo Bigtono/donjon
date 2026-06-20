@@ -32,9 +32,10 @@ $mo = [
   'mo_mogr_id'  => '',
   'mo_stats'    => '',
   'mo_fp_id'    => '',
-  'mo_j_id'     => null,
   'mo_res_id'   => '',
   'mo_camp_id'  => null,
+  'mo_public'   => 0,
+  'mo_visible'  => 1,
 ];
 
 if ($id > 0):
@@ -71,13 +72,45 @@ endif;
 // On stocke le libellé (fp_nom) dans mo_fp_id (varchar).
 $fps = $db->query('SELECT fp_nom, fp_valeur FROM dd_fp ORDER BY fp_valeur')->fetchAll();
 
-// Ressources actives
-$sources = [];
+// Ressources actives — scindées en 2 groupes pour le select du formulaire :
+// sources officielles (res_j_id IS NULL) vs supplément personnel de
+// l'utilisateur courant (le seul supplément qu'il a le droit d'alimenter).
+$sources_officielles = [];
 if (!empty($res_ids)):
   $ph   = resIdsPlaceholders($res_ids);
-  $stmt = $db->prepare("SELECT res_id, res_nom FROM dd_ressources WHERE res_id IN ($ph) ORDER BY res_nom");
+  $stmt = $db->prepare("
+    SELECT res_id, res_nom
+    FROM   dd_ressources
+    WHERE  res_id IN ($ph) AND res_j_id IS NULL
+    ORDER  BY res_nom
+  ");
   $stmt->execute($res_ids);
-  $sources = $stmt->fetchAll();
+  $sources_officielles = $stmt->fetchAll();
+endif;
+
+// Supplément de l'utilisateur courant : peut ne pas encore exister (aucune
+// entrée de supplément créée pour ce ruleset). Dans ce cas, l'option du
+// select porte la valeur sentinelle 'supplement' ; la ressource sera créée
+// à la volée au save (getOrCreateUserSupplement(), cf. enregistrement.php).
+$mon_supplement_res_id = getUserSupplementResId($db, $uid, $ruleset_id);
+$mon_supplement_nom    = '';
+if ($mon_supplement_res_id !== null):
+  $stmt = $db->prepare('SELECT res_nom FROM dd_ressources WHERE res_id = ?');
+  $stmt->execute([$mon_supplement_res_id]);
+  $mon_supplement_nom = (string)$stmt->fetchColumn();
+else:
+  $stmt = $db->prepare('SELECT j_pseudo FROM dd_joueurs WHERE j_id = ?');
+  $stmt->execute([$uid]);
+  $pseudo = $stmt->fetchColumn();
+  $mon_supplement_nom = 'Supplément de ' . ($pseudo !== false ? $pseudo : 'utilisateur');
+endif;
+
+// Valeur actuellement sélectionnée par le formulaire pour mo_res_id : si
+// l'entrée éditée appartient déjà au supplément de l'utilisateur, on utilise
+// la sentinelle pour pointer la bonne <option> même si le libellé diffère.
+$mo_res_id_select = (string)$mo['mo_res_id'];
+if ($mon_supplement_res_id !== null && (int)$mo['mo_res_id'] === $mon_supplement_res_id):
+  $mo_res_id_select = 'supplement';
 endif;
 
 $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
@@ -157,22 +190,36 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
           <label for="mo_res_id">Source <span class="required">*</span></label>
           <select id="mo_res_id" name="mo_res_id" required>
             <option value="">— Choisir —</option>
-            <?php foreach ($sources as $src): ?>
-              <option value="<?= (int)$src['res_id'] ?>"
-                <?= (int)$mo['mo_res_id'] === (int)$src['res_id'] ? 'selected' : '' ?>>
-                <?= h($src['res_nom']) ?>
+            <optgroup label="Sources officielles">
+              <?php foreach ($sources_officielles as $src): ?>
+                <option value="<?= (int)$src['res_id'] ?>" data-supplement="0"
+                  <?= $mo_res_id_select === (string)$src['res_id'] ? 'selected' : '' ?>>
+                  <?= h($src['res_nom']) ?>
+                </option>
+              <?php endforeach ?>
+            </optgroup>
+            <optgroup label="Mon supplément">
+              <option value="supplement" data-supplement="1"
+                <?= $mo_res_id_select === 'supplement' ? 'selected' : '' ?>>
+                <?= h($mon_supplement_nom) ?>
               </option>
-            <?php endforeach ?>
+            </optgroup>
           </select>
         </div>
 
-        <!-- Visibilité : privé = visible du seul créateur -->
-        <div class="form-group">
+        <!-- Visibilité (supplément uniquement) -->
+        <div class="form-group" id="mo-supplement-visibilite" hidden>
           <label class="form-label--checkbox">
-            <input type="checkbox" id="mo_prive" name="mo_prive" value="1"
-              <?= $mo['mo_j_id'] !== null ? 'checked' : '' ?>>
-            Monstre privé (visible de moi seul)
+            <input type="checkbox" id="mo_public" name="mo_public" value="1"
+              <?= (int)$mo['mo_public'] === 1 ? 'checked' : '' ?>>
+            Partagé (visible des autres utilisateurs ayant ce supplément comme source)
           </label>
+          <label class="form-label--checkbox">
+            <input type="checkbox" id="mo_visible" name="mo_visible" value="1"
+              <?= (int)$mo['mo_visible'] === 1 ? 'checked' : '' ?>>
+            Visible (décoché = brouillon masqué, accessible via « Afficher mes brouillons »)
+          </label>
+          <span class="form-hint">Une entrée partagée est forcément visible.</span>
         </div>
 
       </div><!-- .modif-grid -->
@@ -207,6 +254,41 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
     </div>
 
   </form>
+
+<script>
+(function () {
+  // Affiche/masque le bloc public/visible selon le groupe de la source
+  // sélectionnée (officielle vs supplément personnel), et applique la
+  // contrainte client _public=1 => _visible coché + désactivé.
+  var selectRes = document.getElementById('mo_res_id');
+  var blocVisib = document.getElementById('mo-supplement-visibilite');
+  var chkPublic = document.getElementById('mo_public');
+  var chkVisible = document.getElementById('mo_visible');
+
+  if (!selectRes || !blocVisib) return;
+
+  function appliquerContrainte() {
+    if (chkPublic.checked) {
+      chkVisible.checked = true;
+      chkVisible.disabled = true;
+    } else {
+      chkVisible.disabled = false;
+    }
+  }
+
+  function actualiserAffichage() {
+    var option = selectRes.options[selectRes.selectedIndex];
+    var estSupplement = option && option.getAttribute('data-supplement') === '1';
+    blocVisib.hidden = !estSupplement;
+    if (estSupplement) appliquerContrainte();
+  }
+
+  selectRes.addEventListener('change', actualiserAffichage);
+  if (chkPublic) chkPublic.addEventListener('change', appliquerContrainte);
+
+  actualiserAffichage();
+}());
+</script>
 
 <div id="mo-tag-popup" class="mo-tag-popup" hidden>
   <div class="mo-tag-popup__header">

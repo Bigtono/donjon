@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-19 19:10 -->
+<!-- Mis à jour : 2026-06-20 14:05 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -653,6 +653,44 @@ cohérent avec les autres fonctions de ce fichier qui interrogent la base (`owne
 le code existant (`admin/enregistrement.php`, `modifier/ressource.php`) — aucun risque de collision
 entre un futur supplément et une ressource homebrew-campagne préexistante.
 
+**[2026-06-20] Régression — save monstre cassé par la migration `mo_j_id` (SP-C0)**
+Signalé : "Erreur base de données" systématique à la création d'un monstre. Cause : `DROP COLUMN
+mo_j_id` (SP-C0, livré le 17/06) exécuté en base, mais `enregistrerMonstre()`
+(`compendium/enregistrement.php`) et le formulaire (`include/ajax/modifier/monstre.php`) n'avaient
+jamais été mis à jour pour SP-C4/SP-C5 — ils écrivaient encore sur `mo_j_id`
+(`Unknown column 'mo_j_id'`). Régression silencieuse : aucun test de création de monstre effectué
+entre la migration SQL et ce signalement.
+→ Corrigé en traitant SP-C4 + SP-C5 pour l'entité Monstres uniquement (les 7 autres entités du
+compendium restent en l'état, non régressées puisqu'elles n'ont pas de colonne `_j_id` historique
+à migrer de la même façon).
+
+**[2026-06-20] SP-C4/SP-C5 livrées pour Monstres — choix d'implémentation**
+- **Sentinelle `'supplement'`** pour `mo_res_id` côté formulaire plutôt qu'un `res_id` réel : le
+  supplément de l'utilisateur peut ne pas encore exister (aucune entrée créée pour ce ruleset). La
+  valeur sentinelle est résolue côté serveur par `getOrCreateUserSupplement()`, appelée **dans** la
+  transaction de `enregistrerMonstre()` (la fonction ne gère pas sa propre transaction par design,
+  cf. son docblock dans `helpers.php`).
+- **Source dropdown 2 `<optgroup>`** : "Sources officielles" (`res_j_id IS NULL`, scopées
+  `getActiveResIds()`) et "Mon supplément" (une seule option : la ressource personnelle, réelle ou
+  sentinelle). Pas d'option pour le supplément d'un tiers — un compendium manager ne peut créer
+  d'entrée que dans le sien.
+- **Garde-fou serveur sur `mo_res_id` réel non-officiel** : si la valeur POST correspond à un
+  `res_id` dont `res_j_id` est défini, on vérifie `res_j_id === $uid` (ou admin) avant d'écrire ;
+  sinon `repondreErreur('Source de supplément invalide.')`. Empêche un POST forgé de rattacher un
+  monstre au supplément d'un autre utilisateur via un `res_id` deviné/énuméré.
+- **`_public = 1 ⇒ _visible = 1`** appliqué côté serveur uniquement (source de vérité), pas en
+  confiance du POST : la case `_visible`, désactivée en JS quand `_public` est coché, n'est alors
+  plus soumise par le navigateur — `enregistrerMonstre()` force `$visible = 1` dès que `$public`
+  vaut `1`, indépendamment de ce qui arrive dans `$_POST['mo_visible']`.
+- **Entrées officielles** : `mo_public`/`mo_visible` forcés à `1`/`1` côté serveur, champs masqués
+  côté formulaire (pas de notion de partage/brouillon pour le compendium officiel).
+- **Hors périmètre de cette livraison** (volontairement) : `compendium/monstres.php` ne déclare pas
+  encore `champ_public`/`champ_visible` dans son `$listConfig`, et `include/compendium-liste.php`
+  n'a pas le support générique de ces clés — c'est SP-C2 (moteur de liste + badge homebrew + menu ⋮
+  + toggle brouillons) et SP-C3 (bouton Modifier per-entry dans `detail-pp/monstre.php`), encore à
+  faire. Les entrées de supplément créées via ce formulaire sont donc correctement enregistrées en
+  base mais pas encore distinguées visuellement ni filtrées dans la liste Monstres.
+
 **[2026-06-15] Supplément sélectionnable par d'autres utilisateurs**
 La ressource supplément d'un utilisateur devient visible dans "Mes sources" (profil) pour les autres
 uniquement si **au moins une entrée est publique et visible** (`_public = 1 AND _visible = 1`)
@@ -669,16 +707,16 @@ Styles dans `compendium-modules.css`.
 
 **[2026-06-15] Plan de développement SP-C — 8 sous-phases**
 
-| Phase | Contenu | Complexité |
-|---|---|---|
-| SP-C0 | SQL : 8 ALTER TABLE + migration mo_j_id + `patch_004_supplements.sql` | Modérée |
-| SP-C1 | Socle : `getOrCreateUserSupplement`, `getUserSupplementResId`, `canEditCompendiumEntry` | Faible |
-| SP-C2 | Moteur : `compendium-liste.php` + 8 contrôleurs (`champ_public`/`champ_visible`) | Élevée |
-| SP-C3 | `detail-pp/*.php` × 8 : bouton Modifier per-entry | Modérée |
-| SP-C4 | `modifier/*.php` × 8 : source dropdown 2 groupes + champs `_public`/`_visible` | Modérée |
-| SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément | Modérée |
-| SP-C6 | `profil/index.php` : "Mes sources" — suppléments publics d'autres utilisateurs | Faible |
-| SP-C7 | Monstres : nettoyage `monstres.php` + `monstre-parser.php` (rm refs `mo_j_id`) | Faible |
+| Phase | Contenu | Complexité | Avancement |
+|---|---|---|---|
+| SP-C0 | SQL : 8 ALTER TABLE + migration mo_j_id + `patch_004_supplements.sql` | Modérée | ✅ livré (2026-06-17) |
+| SP-C1 | Socle : `getOrCreateUserSupplement`, `getUserSupplementResId`, `canEditCompendiumEntry` | Faible | ✅ livré (2026-06-17) |
+| SP-C2 | Moteur : `compendium-liste.php` + 8 contrôleurs (`champ_public`/`champ_visible`) | Élevée | ⏳ à faire |
+| SP-C3 | `detail-pp/*.php` × 8 : bouton Modifier per-entry | Modérée | ⏳ à faire |
+| SP-C4 | `modifier/*.php` × 8 : source dropdown 2 groupes + champs `_public`/`_visible` | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
+| SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
+| SP-C6 | `profil/index.php` : "Mes sources" — suppléments publics d'autres utilisateurs | Faible | ⏳ à faire |
+| SP-C7 | Monstres : nettoyage `monstres.php` + `monstre-parser.php` (rm refs `mo_j_id`) | Faible | ⏳ à faire |
 
 ---
 
@@ -1317,7 +1355,9 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~SP-C1 — Produire fonctions socle helpers.php~~ → livré (getUserSupplementResId, getOrCreateUserSupplement, canEditCompendiumEntry — toutes dans helpers.php)
 - [ ] SP-C2 — Mettre à jour compendium-liste.php + 8 contrôleurs (champ_public/champ_visible)
 - [ ] SP-C3 — Mettre à jour detail-pp/*.php × 8 (bouton Modifier per-entry)
-- [ ] SP-C4 — Mettre à jour modifier/*.php × 8 (source dropdown 2 groupes + _public/_visible)
-- [ ] SP-C5 — Mettre à jour enregistrement.php (ownership + auto-create supplément)
+- [x] ~~SP-C4 — Monstres : source dropdown 2 groupes + _public/_visible~~ → livré (2026-06-20, include/ajax/modifier/monstre.php) ; 7 entités restantes
+- [ ] SP-C4 — Sorts, dons, compétences, classes, races, objets, historiques : source dropdown 2 groupes + _public/_visible
+- [x] ~~SP-C5 — Monstres : enregistrement.php ownership + auto-create supplément~~ → livré (2026-06-20, enregistrerMonstre()) ; 7 entités restantes
+- [ ] SP-C5 — Sorts, dons, compétences, classes, races, objets, historiques : enregistrement.php (ownership + auto-create supplément)
 - [ ] SP-C6 — Mettre à jour profil/index.php (Mes sources — suppléments tiers)
-- [ ] SP-C7 — Nettoyage monstres post-migration (monstres.php, monstre-parser.php)
+- [ ] SP-C7 — Nettoyage monstres post-migration (monstres.php, monstre-parser.php, suppression include/ajax/modifier/monstre-old.php)

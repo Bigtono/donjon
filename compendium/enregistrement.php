@@ -1465,13 +1465,17 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
   $mo_id      = intParam($_POST['mo_id']             ?? 0);
   $nom        = strParam($_POST['mo_nom']            ?? '');
   $ruleset_id = intParam($_POST['mo_ruleset_var_id'] ?? 1);
+  $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
     repondreErreur($is_ajax, 'Le nom du monstre est obligatoire.', $redirect);
   endif;
 
-  $res_id = intParam($_POST['mo_res_id'] ?? 0);
-  if (!$res_id):
+  // mo_res_id : soit l'id réel d'une source active (officielle ou supplément
+  // déjà créé), soit la sentinelle 'supplement' si l'utilisateur n'a encore
+  // aucun supplément pour ce ruleset (cf. § Supplément utilisateur).
+  $res_raw = strParam($_POST['mo_res_id'] ?? '');
+  if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
 
@@ -1488,19 +1492,55 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
   $stats   = (string)($_POST['mo_stats'] ?? '');         // TEXTE BRUT — pas de h()
   $camp_id = intParam($_POST['mo_camp_id'] ?? 0) ?: null;
 
-  // Visibilité : privé -> mo_j_id = utilisateur courant ; public -> NULL
-  $prive = isset($_POST['mo_prive']);
-  $j_id  = $prive ? (int)($_SESSION['j_id'] ?? 0) : null;
-
   try {
     $db->beginTransaction();
+
+    // ----------------------------------------------------------
+    // Résolution de la source (mécanisme commun supplément utilisateur)
+    // ----------------------------------------------------------
+    if ($res_raw === 'supplement'):
+      // Premier save d'une entrée de supplément pour cet utilisateur/ruleset :
+      // création à la volée (idempotente) + auto-add dd_joueurs_sources.
+      $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+      $est_supplement = true;
+    else:
+      $res_id = (int)$res_raw;
+      $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+      $stmt->execute([$res_id]);
+      $res_j_id       = $stmt->fetchColumn();
+      $est_supplement = ($res_j_id !== false && $res_j_id !== null);
+
+      // Garde-fou : seul le propriétaire (ou un admin) peut rattacher une
+      // entrée à un supplément — empêche un compendium manager d'écrire
+      // dans le supplément d'autrui en forgeant la requête.
+      if ($est_supplement && (int)$res_j_id !== $uid && !isAdmin()):
+        $db->rollBack();
+        repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+      endif;
+    endif;
+
+    // ----------------------------------------------------------
+    // Visibilité — pertinente uniquement pour une entrée de supplément.
+    // Les entrées officielles sont toujours public=1 / visible=1.
+    // Contrainte serveur : _public=1 implique _visible=1 (interdit en base).
+    // ----------------------------------------------------------
+    if ($est_supplement):
+      $public  = isset($_POST['mo_public'])  ? 1 : 0;
+      $visible = isset($_POST['mo_visible']) ? 1 : 0;
+      if ($public):
+        $visible = 1;
+      endif;
+    else:
+      $public  = 1;
+      $visible = 1;
+    endif;
 
     if ($mo_id === 0):
       $stmt = $db->prepare('
         INSERT INTO dd_monstres
           (mo_nom, mo_mocat_id, mo_mogr_id, mo_stats, mo_fp_id,
-           mo_j_id, mo_res_id, mo_camp_id, mo_ruleset_var_id)
-        VALUES (?,?,?,?,?,?,?,?,?)
+           mo_res_id, mo_camp_id, mo_public, mo_visible, mo_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
@@ -1508,9 +1548,10 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
         $mogr_id,
         $stats,
         $fp_id,
-        $j_id,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $ruleset_id,
       ]);
       $mo_id = (int)$db->lastInsertId();
@@ -1522,9 +1563,10 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
           mo_mogr_id  = ?,
           mo_stats    = ?,
           mo_fp_id    = ?,
-          mo_j_id     = ?,
           mo_res_id   = ?,
-          mo_camp_id  = ?
+          mo_camp_id  = ?,
+          mo_public   = ?,
+          mo_visible  = ?
         WHERE mo_id = ?
       ');
       $stmt->execute([
@@ -1533,9 +1575,10 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
         $mogr_id,
         $stats,
         $fp_id,
-        $j_id,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $mo_id,
       ]);
     endif;
