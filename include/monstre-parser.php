@@ -62,9 +62,17 @@ function labelsInlineDD2024(): array
 function labelsGrasDD2024(): array
 {
   return [
-    'Resistances', 'Immunites', 'Vulnerabilites', 'Sens', 'Langues', 'FP',
+    'Sauvegardes', 'Resistances', 'Immunites', 'Vulnerabilites', 'Sens', 'Langues', 'FP',
     'Competences', 'Dons', 'Maitrises', 'Bonus de maitrise', 'Equipement',
   ];
+}
+
+// Labels pour lesquels la liaison automatique (glossaire/regles/sorts) est exclue.
+// Ces labels contiennent des valeurs structurees (abreviations, nombres) qui
+// produiraient de faux positifs s'ils etaient passes a resoudreTagsExplicites/lierAuto.
+function labelsGrasSansLiaisonDD2024(): array
+{
+  return ['Sauvegardes'];
 }
 
 function sectionsTitresDD2024(): array
@@ -546,13 +554,20 @@ function formaterBlocDD2024(
 
       case 'label_gras':
         $flushCarac();
-        $gNorm = normaliserNomMonstre($cl['label']);
-        $val   = resoudreTagsExplicites($cl['valeur'], $db, $index, 0, $rapport);
-        // Competences : pas de liaison auto (les noms de competences peuvent etre des mots communs)
-        // Dons : liaisons via tags # uniquement
-        // Sorts dans FP : pas de liaison
-        // Pour Resistances/Immunites etc. : liaison auto (peut contenir des termes de glossaire)
-        $val = lierAuto($val, $indexAuto, $rapport);
+        $gNorm        = normaliserNomMonstre($cl['label']);
+        $sansLiaison  = array_map('normaliserNomMonstre', labelsGrasSansLiaisonDD2024());
+        if (in_array($gNorm, $sansLiaison, true)):
+          // Sauvegardes : pas de liaison glossaire/regles/sorts (valeur structuree,
+          // abreviations de caracteristiques, risque de faux positifs)
+          $val = h($cl['valeur']);
+        else:
+          $val = resoudreTagsExplicites($cl['valeur'], $db, $index, 0, $rapport);
+          // Competences : pas de liaison auto (les noms de competences peuvent etre des mots communs)
+          // Dons : liaisons via tags # uniquement
+          // Sorts dans FP : pas de liaison
+          // Pour Resistances/Immunites etc. : liaison auto (peut contenir des termes de glossaire)
+          $val = lierAuto($val, $indexAuto, $rapport);
+        endif;
         $out[] = '<div class="mo-stat-ligne">'
                . '<strong class="mo-stat-label">' . h($cl['label']) . '</strong>'
                . ($cl['valeur'] !== '' ? ' ' . $val : '')

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 15:20 -->
+<!-- Mis à jour : 2026-06-20 16:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -751,14 +751,29 @@ non réécrite pour traçabilité — un erratum y a été ajouté) :*
 - **SP-C3** : `include/ajax/detail-pp/monstre.php` sélectionne désormais `res.res_j_id` et remplace
   `canEditCompendium()` par `canEditCompendiumEntry($db, $res_j_id)` pour le bouton Modifier.
 
-*Reste pour Monstres* : **SP-C7** uniquement (suppression de `include/ajax/modifier/monstre-old.php`,
-relecture de `monstre-parser.php` pour confirmer l'absence de toute référence résiduelle à `mo_j_id`).
+*Monstres est désormais traitée intégralement (SP-C0 à SP-C7, cf. entrée [2026-06-20] SP-C7 ci-dessous).*
 
 *Pour les 7 autres entités* : le moteur `compendium-liste.php` est désormais générique et ne nécessite
 plus aucune modification — il suffit, pour chacune, de (1) déclarer `champ_public`/`champ_visible`/
 `champ_res_owner` dans son `$listConfig`, (2) répliquer le pattern de formulaire 2-groupes + ownership
 côté `enregistrement.php`, (3) ajouter une fonction `supprimer*()` dédiée avec garde per-entry,
 (4) câbler `canEditCompendiumEntry()` dans son `detail-pp/*.php`.
+
+**[2026-06-20] SP-C7 — Nettoyage Monstres post-migration**
+Vérification exhaustive avant suppression (`grep -rn` sur tout le dépôt) :
+- `include/ajax/modifier/monstre-old.php` : aucune référence ailleurs dans le code (ni `require`,
+  ni URL codée en dur côté JS) — confirmé obsolète depuis le passage à `mo_res_id`/`mo_public`/
+  `mo_visible`. **Supprimé.**
+- `mo_j_id` : plus aucune occurrence dans le code actif (seule trace restante : un commentaire
+  explicatif dans `compendium/monstres.php` mentionnant l'ancienne colonne supprimée — légitime,
+  conservé pour la traçabilité historique).
+- `mo_prive` (ancien nom de la checkbox liée à `mo_j_id`) : n'existait que dans `monstre-old.php`,
+  disparu avec sa suppression.
+- `include/monstre-parser.php` : relu intégralement, aucune référence à `mo_j_id` ni à un concept de
+  visibilité par propriétaire — le parseur ne traite que `mo_stats` (texte brut), indépendant du
+  mécanisme de propriété/visibilité. Rien à modifier.
+→ L'entrée `[2026-05] modifier/monstre-old.php — ancienne version conservée` plus haut dans ce
+journal reste en l'état pour traçabilité historique ; elle est résolue par celle-ci.
 
 **[2026-06-15] Supplément sélectionnable par d'autres utilisateurs**
 La ressource supplément d'un utilisateur devient visible dans "Mes sources" (profil) pour les autres
@@ -785,7 +800,7 @@ Styles dans `compendium-modules.css`.
 | SP-C4 | `modifier/*.php` × 8 : source dropdown 2 groupes + champs `_public`/`_visible` | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
 | SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément + suppression per-entry | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
 | SP-C6 | `profil/index.php` : "Mes sources" — suppléments publics d'autres utilisateurs | Faible | ⏳ à faire |
-| SP-C7 | Monstres : nettoyage `monstre-old.php` + `monstre-parser.php` (rm refs `mo_j_id`) | Faible | ⏳ à faire |
+| SP-C7 | Monstres : nettoyage `monstre-old.php` + `monstre-parser.php` (rm refs `mo_j_id`) | Faible | ✅ livré (2026-06-20) |
 
 ---
 
@@ -1385,7 +1400,7 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~Monstres — mécanisme de liens~~ → tags explicites `#`/`$`/`@`/`%` + liaison auto sorts/glossaire
 - [x] ~~Monstres — visibilité~~ → **SUPERSÉDÉ** par supplément utilisateur — `mo_j_id` supprimé, `mo_public`/`mo_visible` ajoutés, migration via `patch_004_supplements.sql`
 - [ ] Monstres — resynchroniser sql/schema.sql et le dump avec le schéma réel (catégories, groupes, fp, colonnes mo_* incluant la suppression de mo_j_id et l'ajout de mo_public/mo_visible)
-- [ ] Monstres — supprimer include/ajax/modifier/monstre-old.php une fois le v3 stabilisé
+- [x] ~~Monstres — supprimer include/ajax/modifier/monstre-old.php une fois le v3 stabilisé~~ → fait (2026-06-20, SP-C7)
 - [ ] Monstres — étendre le parsing automatique DD3.5 (actuellement minimal)
 - [ ] Sorts DD2024 — `so_resume` : NULL ou résumé court généré par sort (actuellement NULL)
 - [ ] Interface d'inscription (auto-inscription ou invitation admin seulement ?)
@@ -1433,4 +1448,4 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~SP-C5 — Monstres : suppression per-entry (garde canEditCompendiumEntry)~~ → livré (2026-06-20, supprimerMonstre() dédiée, remplace supprimerEntite() générique)
 - [ ] SP-C5 — Sorts, dons, compétences, classes, races, objets, historiques : enregistrement.php (ownership + auto-create supplément + suppression per-entry)
 - [ ] SP-C6 — Mettre à jour profil/index.php (Mes sources — suppléments tiers)
-- [ ] SP-C7 — Nettoyage monstres post-migration (suppression include/ajax/modifier/monstre-old.php, relecture monstre-parser.php pour refs mo_j_id résiduelles)
+- [x] ~~SP-C7 — Nettoyage monstres post-migration (suppression include/ajax/modifier/monstre-old.php, relecture monstre-parser.php pour refs mo_j_id résiduelles)~~ → livré (2026-06-20)

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 15:20 -->
+<!-- Mis à jour : 2026-06-20 16:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -520,8 +520,9 @@ tags `@` (règle) et `%` (glossaire), alimentée par `include/ajax/autocomplete-
 Champs : `mo_nom`, `mo_mocat_id`, `mo_mogr_id`, `mo_fp_id`, `mo_res_id`, `mo_camp_id`,
 `mo_public`, `mo_visible`, `mo_stats`.
 
-> Une ancienne version `include/ajax/modifier/monstre-old.php` subsiste dans le dépôt — à supprimer
-> une fois le v3 stabilisé.
+> ✅ **SP-C7 (2026-06-20).** `include/ajax/modifier/monstre-old.php` (ancienne version pré-migration
+> supplément, référençait encore `mo_j_id`/`mo_prive`) supprimé du dépôt — aucune référence ailleurs
+> dans le code (vérifié). `include/monstre-parser.php` relu : aucune trace résiduelle de `mo_j_id`.
 
 #### Fichiers du module
 
@@ -1503,7 +1504,7 @@ rattachées à une source "Supplément de {pseudo}" (1 par ruleset par utilisate
 | **SP-C4** | `modifier/*.php` × 8 : source dropdown 2 groupes + `_public`/`_visible` | Modérée |
 | **SP-C5** | `enregistrement.php` : ownership + save `_public`/`_visible` + auto-create supplément | Modérée |
 | **SP-C6** | `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers | Faible |
-| **SP-C7** | Nettoyage monstres post-migration (`monstres.php`, `monstre-parser.php`) | Faible |
+| **SP-C7** | Nettoyage monstres post-migration (suppression `monstre-old.php`, vérif `monstre-parser.php`) | Faible |
 
 #### Avancement par entité
 
@@ -1512,16 +1513,15 @@ SP-C2 à SP-C7 s'implémentent entité par entité. État au 2026-06-20 :
 
 | Entité | SP-C2 (moteur liste) | SP-C3 (detail-pp) | SP-C4 (formulaire) | SP-C5 (enregistrement) | SP-C6 | SP-C7 |
 |---|---|---|---|---|---|---|
-| **Monstres** | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | — (transverse) | ⏳ à faire |
+| **Monstres** | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | — (transverse) | ✅ fait (2026-06-20) |
 | Sorts, dons, compétences, classes, races, objets, historiques | ⏳ à faire | ⏳ à faire | ⏳ à faire | ⏳ à faire | — (transverse) | n/a |
 
-> Monstres est la première entité traitée intégralement (C2 à C5), choisie car c'était le point
-> bloquant (régression `mo_j_id`, cf. `DECISIONS_LOG.md` [2026-06-20]). Le moteur `compendium-liste.php`
-> mis à jour pour C2 est **générique** (clés `champ_public`/`champ_visible`/`champ_res_owner` dans
-> `$listConfig`) — répliquer le pattern aux 7 autres entités consiste désormais à déclarer ces 3 clés
-> dans chaque page contrôleur et appliquer le même pattern de formulaire/enregistrement que Monstres,
-> sans retoucher le moteur. Reste pour Monstres : **SP-C7** (suppression de `monstre-old.php`, relecture
-> de `monstre-parser.php` pour vérifier l'absence de toute référence résiduelle à `mo_j_id`).
+> Monstres est désormais traitée intégralement (C0 à C7). Le moteur `compendium-liste.php` mis à jour
+> pour C2 est **générique** (clés `champ_public`/`champ_visible`/`champ_res_owner` dans `$listConfig`)
+> — répliquer le pattern aux 7 autres entités consiste à déclarer ces 3 clés dans chaque page
+> contrôleur et appliquer le même pattern de formulaire/enregistrement/suppression/detail-pp que
+> Monstres, sans retoucher le moteur ni la fonction `supprimerEntite()` générique (chaque entité aura
+> sa propre fonction `supprimer*()` dédiée, sur le modèle de `supprimerMonstre()`).
 
 ### Phase Admin — Zone d'administration TERMINE
 
