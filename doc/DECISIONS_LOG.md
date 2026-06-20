@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-19 18:45 -->
+<!-- Mis à jour : 2026-06-19 19:10 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -898,6 +898,24 @@ avec la dernière livraison connue :
 → Checklist ajoutée en §17 de `ARCHITECTURE_0_REFERENCE.md` : toute sous-phase Campagnes qui ajoute
   un niveau ou modifie un handler `detail-pp/*.php` doit revérifier ces 5 points d'intégration —
   c'est leur absence de suivi systématique qui a permis cette régression silencieuse.
+
+**[2026-06-19] Contexte de navigation (header) — préservation des niveaux enfants lors d'une revisite**
+Comportement signalé comme gênant à l'usage : `setLastCampagne()`/`setLastScenario()`/
+`setLastChapitre()` effaçaient systématiquement les niveaux enfants à chaque appel, y compris en
+revisitant un niveau déjà actif — cliquer sur le bouton « Scénario » du header (qui recharge le même
+scénario) effaçait chapitre et rencontre mémorisés, même sans aucun changement de sélection.
+→ Les 4 fonctions `setLast*()` comparent désormais l'id reçu à l'id déjà mémorisé pour ce niveau :
+  niveaux enfants effacés UNIQUEMENT si l'id change réellement (sélection d'une autre
+  campagne/scénario/chapitre dans une liste) ; préservés si l'id est identique (revisite via un
+  bouton du header, ou tout autre rechargement du même niveau). Le discriminant est l'id, pas le
+  chemin emprunté pour y arriver — aucun changement requis côté handlers `detail-pp/*.php`, qui
+  continuent d'appeler `setLast*()` de la même façon.
+→ Exemple validé : Campagne → Scénario A → Chapitre → Rencontre chargés ; clic sur le bouton
+  « Scénario » (revisite A) préserve chapitre et rencontre ; sélection d'un Scénario B depuis la
+  fenêtre scénario efface chapitre et rencontre, conserve la campagne.
+→ Section `ARCHITECTURE_0_REFERENCE.md` §12 mise à jour avec le code et l'explication du
+  discriminant id. Pas de changement sur `getHeaderCampagneContext()`, l'affichage, ou
+  `invalidateLastCampagneContext()`.
 
 ---
 

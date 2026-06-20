@@ -195,36 +195,57 @@ function getLastPersonnage(): int {
 // CONTEXTE CAMPAGNE (last_camp_id / last_sce_id / last_scc_id)
 // ============================================================
 // Mémorisation en cascade des derniers niveaux consultés dans la hiérarchie
-// Campagne → Scénario → Chapitre (→ Rencontre, SP3), pour les boutons de
-// retour rapide affichés dans le header sur toutes les pages. Appelée depuis
-// include/ajax/detail-pp/{campagne,scenario,chapitre}.php, qui disposent déjà
-// de la chaîne d'ancêtres via leur jointure remontante.
+// Campagne → Scénario → Chapitre → Rencontre, pour les boutons de retour
+// rapide affichés dans le header sur toutes les pages. Appelée depuis chaque
+// include/ajax/detail-pp/*.php, qui dispose déjà de la chaîne d'ancêtres via
+// sa jointure remontante.
+//
+// Un niveau enfant n'est effacé QUE si l'id du niveau courant change
+// réellement (sélection d'une autre campagne/scénario/chapitre) — revisiter
+// le même niveau (ex. clic sur un bouton du header) préserve les niveaux
+// enfants déjà mémorisés, tant qu'on ne change pas de campagne/scénario/
+// chapitre. Le discriminant est l'id, pas le chemin emprunté pour y arriver.
 
-// Mémorise la campagne et efface tout niveau enfant mémorisé précédemment.
+// Mémorise la campagne ; n'efface les niveaux enfants que si l'id change.
 function setLastCampagne(int $camp_id, string $camp_nom): void {
+  $camp_change = ((int)($_SESSION['last_camp_id'] ?? 0)) !== $camp_id;
   $_SESSION['last_camp_id']  = $camp_id;
   $_SESSION['last_camp_nom'] = $camp_nom;
-  unset($_SESSION['last_sce_id'], $_SESSION['last_sce_nom']);
-  unset($_SESSION['last_scc_id'], $_SESSION['last_scc_nom']);
-  unset($_SESSION['last_re_id'],  $_SESSION['last_re_nom']);
+  if ($camp_change):
+    unset($_SESSION['last_sce_id'], $_SESSION['last_sce_nom']);
+    unset($_SESSION['last_scc_id'], $_SESSION['last_scc_nom']);
+    unset($_SESSION['last_re_id'],  $_SESSION['last_re_nom']);
+  endif;
 }
 
-// Mémorise le scénario (et sa campagne) ; efface chapitre/rencontre mémorisés.
+// Mémorise le scénario (et sa campagne) ; n'efface chapitre/rencontre que si
+// l'id du scénario change.
 function setLastScenario(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom): void {
   setLastCampagne($camp_id, $camp_nom);
+  $sce_change = ((int)($_SESSION['last_sce_id'] ?? 0)) !== $sce_id;
   $_SESSION['last_sce_id']  = $sce_id;
   $_SESSION['last_sce_nom'] = $sce_nom;
+  if ($sce_change):
+    unset($_SESSION['last_scc_id'], $_SESSION['last_scc_nom']);
+    unset($_SESSION['last_re_id'],  $_SESSION['last_re_nom']);
+  endif;
 }
 
-// Mémorise le chapitre (et sa campagne + son scénario) ; efface la rencontre mémorisée.
+// Mémorise le chapitre (et sa campagne + son scénario) ; n'efface la
+// rencontre que si l'id du chapitre change.
 function setLastChapitre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
                           int $scc_id, string $scc_nom): void {
   setLastScenario($camp_id, $camp_nom, $sce_id, $sce_nom);
+  $scc_change = ((int)($_SESSION['last_scc_id'] ?? 0)) !== $scc_id;
   $_SESSION['last_scc_id']  = $scc_id;
   $_SESSION['last_scc_nom'] = $scc_nom;
+  if ($scc_change):
+    unset($_SESSION['last_re_id'], $_SESSION['last_re_nom']);
+  endif;
 }
 
-// Mémorise la rencontre (et toute sa chaîne d'ancêtres).
+// Mémorise la rencontre (et toute sa chaîne d'ancêtres) — c'est le niveau le
+// plus profond, rien à effacer en dessous.
 function setLastRencontre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
                            int $scc_id, string $scc_nom, int $re_id, string $re_nom): void {
   setLastChapitre($camp_id, $camp_nom, $sce_id, $sce_nom, $scc_id, $scc_nom);

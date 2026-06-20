@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-19 18:45 -->
+<!-- Mis à jour : 2026-06-19 19:10 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -1047,28 +1047,42 @@ vers les derniers niveaux de campagne consultés, comme en v1, sans réintroduir
 (double écriture session page + header sur `$_GET`).
 
 **Écriture — dans `helpers.php`, appelée depuis chaque handler `include/ajax/detail-pp/*.php`
-juste après son contrôle `isMJ()` :**
+juste après son contrôle `isMJ()`. Un niveau enfant n'est effacé QUE si l'id du niveau courant
+change réellement — revisiter le même niveau (ex. clic sur un bouton du header, qui recharge le
+même `id`) préserve les niveaux enfants déjà mémorisés :**
 
 ```php
 function setLastCampagne(int $camp_id, string $camp_nom): void {
+  $camp_change = ((int)($_SESSION['last_camp_id'] ?? 0)) !== $camp_id;
   $_SESSION['last_camp_id']  = $camp_id;
   $_SESSION['last_camp_nom'] = $camp_nom;
-  unset($_SESSION['last_sce_id'], $_SESSION['last_sce_nom']);
-  unset($_SESSION['last_scc_id'], $_SESSION['last_scc_nom']);
-  unset($_SESSION['last_re_id'],  $_SESSION['last_re_nom']);
+  if ($camp_change):
+    unset($_SESSION['last_sce_id'], $_SESSION['last_sce_nom']);
+    unset($_SESSION['last_scc_id'], $_SESSION['last_scc_nom']);
+    unset($_SESSION['last_re_id'],  $_SESSION['last_re_nom']);
+  endif;
 }
 
 function setLastScenario(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom): void {
   setLastCampagne($camp_id, $camp_nom);
+  $sce_change = ((int)($_SESSION['last_sce_id'] ?? 0)) !== $sce_id;
   $_SESSION['last_sce_id']  = $sce_id;
   $_SESSION['last_sce_nom'] = $sce_nom;
+  if ($sce_change):
+    unset($_SESSION['last_scc_id'], $_SESSION['last_scc_nom']);
+    unset($_SESSION['last_re_id'],  $_SESSION['last_re_nom']);
+  endif;
 }
 
 function setLastChapitre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
                           int $scc_id, string $scc_nom): void {
   setLastScenario($camp_id, $camp_nom, $sce_id, $sce_nom);
+  $scc_change = ((int)($_SESSION['last_scc_id'] ?? 0)) !== $scc_id;
   $_SESSION['last_scc_id']  = $scc_id;
   $_SESSION['last_scc_nom'] = $scc_nom;
+  if ($scc_change):
+    unset($_SESSION['last_re_id'], $_SESSION['last_re_nom']);
+  endif;
 }
 
 function setLastRencontre(int $camp_id, string $camp_nom, int $sce_id, string $sce_nom,
@@ -1082,9 +1096,12 @@ function setLastRencontre(int $camp_id, string $camp_nom, int $sce_id, string $s
 Chaque handler dispose déjà, via sa jointure remontante, de tous les id/nom nécessaires (ex. :
 `detail-pp/chapitre.php` joint `dd_scenarios_chapitres` → `dd_scenarios` → `dd_campagnes` et obtient
 `camp_id`, `camp_nom`, `sce_id`, `sce_nom` en plus de ses propres champs) — aucune requête
-supplémentaire n'est nécessaire pour la mémorisation. L'écriture en cascade efface systématiquement
-les niveaux enfants : remonter à un ancêtre nettoie proprement les niveaux plus profonds mémorisés
-(contrairement au v1, où ce nettoyage n'était fait que par `campagne.php`/`scenario.php`).
+supplémentaire n'est nécessaire pour la mémorisation. Le discriminant est l'id du niveau, pas le
+chemin emprunté pour y arriver : sélectionner un autre scénario dans la même campagne efface
+chapitre/rencontre mémorisés (changement réel), mais revisiter ce même scénario via le bouton du
+header ne touche à rien en dessous (aucun changement). C'est aussi ce qui corrige l'incohérence du
+v1, où le nettoyage des niveaux enfants n'était fait que par `campagne.php`/`scenario.php`, jamais
+par un retour arrière simple.
 
 **Lecture — `getHeaderCampagneContext(): array`**, sans requête base (tout est déjà en session) :
 
