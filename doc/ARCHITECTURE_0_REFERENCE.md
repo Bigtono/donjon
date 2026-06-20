@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 16:00 -->
+<!-- Mis à jour : 2026-06-20 17:10 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -1502,8 +1502,14 @@ rattachées à une source "Supplément de {pseudo}" (1 par ruleset par utilisate
 | **SP-C2** | Moteur : `compendium-liste.php` JOIN + filtre visibilité + per-entry menu ⋮ + badge ; 8 contrôleurs | Élevée |
 | **SP-C3** | `detail-pp/*.php` × 8 : bouton Modifier per-entry (`canEditCompendiumEntry`) | Modérée |
 | **SP-C4** | `modifier/*.php` × 8 : source dropdown 2 groupes + `_public`/`_visible` | Modérée |
-| **SP-C5** | `enregistrement.php` : ownership + save `_public`/`_visible` + auto-create supplément | Modérée |
-| **SP-C6** | `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers | Faible |
+| **SP-C5** | `enregistrement.php` : ownership + save `_public`/`_visible` + auto-create supplément ⚠️ **en pause** | Modérée |
+| **SP-C6** | `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers ⚠️ **en pause** | Faible |
+
+> ⚠️ **SP-C5 (7 entités restantes) et SP-C6 mis en pause le 2026-06-20.** Point bloquant pour SP-C5 :
+> écart schéma non vérifié sur Dons/Sorts/Compétences/Races/Classes/Objets/Historiques (colonnes
+> `_public`/`_visible` non documentées dans `SCHEMA_SQL.md`, fichier de migration introuvable dans le
+> dépôt). Détail complet de l'audit, ne pas refaire l'analyse : `DECISIONS_LOG.md` [2026-06-20]
+> "SP-C5/SP-C6 — Mis en pause après audit". SP-C6 n'est pas bloquée techniquement, juste reportée.
 | **SP-C7** | Nettoyage monstres post-migration (suppression `monstre-old.php`, vérif `monstre-parser.php`) | Faible |
 
 #### Avancement par entité

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 16:00 -->
+<!-- Mis à jour : 2026-06-20 17:10 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -775,6 +775,52 @@ Vérification exhaustive avant suppression (`grep -rn` sur tout le dépôt) :
 → L'entrée `[2026-05] modifier/monstre-old.php — ancienne version conservée` plus haut dans ce
 journal reste en l'état pour traçabilité historique ; elle est résolue par celle-ci.
 
+**[2026-06-20] SP-C5/SP-C6 — Mis en pause après audit. Écart schéma à lever avant reprise.**
+
+*Décision* : SP-C5 (enregistrement.php ownership, 7 entités restantes) et SP-C6 (profil "Mes
+sources" — suppléments tiers) sont mis en pause à la demande de l'utilisateur, le temps de lever
+le point bloquant ci-dessous. Ne pas reprendre SP-C5 sur Dons/Sorts/Compétences/Races/Classes/
+Objets/Historiques sans avoir d'abord traité ce point — c'est exactement le même type d'écart qui a
+causé la régression `mo_j_id` documentée plus haut [2026-06-20].
+
+*Constat (audit du code + de la doc, sans accès à la base de production)* :
+
+1. **`enregistrer{Don,Sort,Competence,Race,Classe,Objet,Historique}()` dans `compendium/enregistrement.php`
+   n'écrivent `_public`/`_visible` nulle part** — ni dans l'INSERT, ni dans l'UPDATE. `{xx}_res_id`
+   est lu en brut depuis `$_POST`, jamais résolu via `getOrCreateUserSupplement()`/sentinelle
+   `'supplement'` (le mécanisme posé pour Monstres, SP-C4/C5).
+2. **Suppression** : seules Sorts, Races, Classes ont une fonction dédiée (`supprimerSort()`,
+   `supprimerRace()`, `supprimerClasse()`), mais **sans garde per-entry** (`canEditCompendiumEntry()`
+   absent) — même lacune que celle corrigée pour Monstres (`supprimerMonstre()`, SP-C5). Dons,
+   Compétences, Objets, Historiques utilisent `supprimerEntite()` générique, idem sans garde.
+3. **`doc/SCHEMA_SQL.md` ne documente `_public`/`_visible` pour AUCUNE des 7 tables** (`dd_dons`,
+   `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques`, `dd_objets_magiques`) —
+   seules `mo_public`/`mo_visible` y figurent (ajoutées le 2026-06-20 pour Monstres). Vérifié
+   explicitement sur `dd_sorts` et `dd_objets_magiques` : colonnes absentes de la doc.
+4. **`sql/patch_004_supplements.sql`** — le fichier que l'entrée `[2026-06-17] SP-C0 et SP-C1
+   livrées` (plus haut dans ce journal) décrit comme livré (15 `ALTER TABLE` sur les 8 tables) —
+   **n'existe pas dans le dépôt** (`find . -iname "*patch_004*"` ne retourne rien). Seule trace :
+   les mentions dans `ARCHITECTURE_0_REFERENCE.md` et ce journal.
+
+*Conséquence* : impossible de savoir, sans interroger la base réelle, si `do_public`/`do_visible`
+(et équivalents sur les 6 autres tables) **existent déjà en production** (migration appliquée
+directement en base sans que le `.sql` ni `SCHEMA_SQL.md` n'aient été committés — schéma identique
+au cas Monstres avant régularisation) **ou si SP-C0 reste à faire** pour ces 7 tables. Coder
+SP-C5/SP-C4 dessus sans lever cette ambiguïté reproduirait l'incident `mo_j_id` à l'identique.
+
+*Action requise avant reprise (à fournir par l'utilisateur, pas déductible du dépôt)* :
+`SHOW CREATE TABLE` (ou export phpMyAdmin équivalent) d'au moins une des 7 tables — `dd_dons` ou
+`dd_sorts` suggéré en premier, structure la plus simple. Selon le résultat :
+- colonnes `_public`/`_visible` présentes → traiter comme Monstres : SP-C5 (`enregistrement.php`)
+  + SP-C4 (formulaire) directement, mettre à jour `SCHEMA_SQL.md` au passage pour les 7 tables.
+- colonnes absentes → SP-C0 reste à faire pour ces 7 tables (`ALTER TABLE`, idéalement committé
+  cette fois dans `sql/` plutôt qu'appliqué directement en base) avant tout SP-C4/SP-C5.
+
+*Hors périmètre de ce constat* : SP-C6 (profil "Mes sources") ne dépend pas de ce point — son blocage
+est uniquement l'absence d'implémentation (`profil/index.php` filtre `res_j_id IS NULL` en dur,
+ligne ~46), aucun écart de schéma identifié à ce sujet. Peut être repris indépendamment de la levée
+du point ci-dessus si l'utilisateur le souhaite.
+
 **[2026-06-15] Supplément sélectionnable par d'autres utilisateurs**
 La ressource supplément d'un utilisateur devient visible dans "Mes sources" (profil) pour les autres
 uniquement si **au moins une entrée est publique et visible** (`_public = 1 AND _visible = 1`)
@@ -798,8 +844,8 @@ Styles dans `compendium-modules.css`.
 | SP-C2 | Moteur : `compendium-liste.php` (générique) + 8 contrôleurs (`champ_public`/`champ_visible`/`champ_res_owner`) | Élevée | 🟢 moteur générique livré (2026-06-20) ; Monstres branché, 7 contrôleurs restants |
 | SP-C3 | `detail-pp/*.php` × 8 : bouton Modifier per-entry | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
 | SP-C4 | `modifier/*.php` × 8 : source dropdown 2 groupes + champs `_public`/`_visible` | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
-| SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément + suppression per-entry | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
-| SP-C6 | `profil/index.php` : "Mes sources" — suppléments publics d'autres utilisateurs | Faible | ⏳ à faire |
+| SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément + suppression per-entry | Modérée | ⏸ **en pause** (Monstres fait 2026-06-20 ; 7 restantes bloquées — cf. [2026-06-20] SP-C5/SP-C6 audit) |
+| SP-C6 | `profil/index.php` : "Mes sources" — suppléments publics d'autres utilisateurs | Faible | ⏸ **en pause** (non bloquée techniquement, mise de côté à la demande utilisateur — cf. [2026-06-20] SP-C5/SP-C6 audit) |
 | SP-C7 | Monstres : nettoyage `monstre-old.php` + `monstre-parser.php` (rm refs `mo_j_id`) | Faible | ✅ livré (2026-06-20) |
 
 ---
@@ -1446,6 +1492,7 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [ ] SP-C4 — Sorts, dons, compétences, classes, races, objets, historiques : source dropdown 2 groupes + _public/_visible
 - [x] ~~SP-C5 — Monstres : enregistrement.php ownership + auto-create supplément~~ → livré (2026-06-20, enregistrerMonstre()) ; 7 entités restantes
 - [x] ~~SP-C5 — Monstres : suppression per-entry (garde canEditCompendiumEntry)~~ → livré (2026-06-20, supprimerMonstre() dédiée, remplace supprimerEntite() générique)
-- [ ] SP-C5 — Sorts, dons, compétences, classes, races, objets, historiques : enregistrement.php (ownership + auto-create supplément + suppression per-entry)
-- [ ] SP-C6 — Mettre à jour profil/index.php (Mes sources — suppléments tiers)
+- [ ] **⏸ BLOQUANT avant SP-C5 (7 entités restantes) — vérifier `SHOW CREATE TABLE dd_dons` (ou `dd_sorts`) : `_public`/`_visible` existent-elles déjà en base ? `sql/patch_004_supplements.sql` introuvable dans le dépôt, `SCHEMA_SQL.md` ne documente ces colonnes pour aucune des 7 tables. Cf. `DECISIONS_LOG.md` [2026-06-20] SP-C5/SP-C6 audit pour le détail complet — ne pas refaire cette analyse.**
+- [ ] SP-C5 — Sorts, dons, compétences, classes, races, objets, historiques : enregistrement.php (ownership + auto-create supplément + suppression per-entry) — bloqué, voir item ci-dessus
+- [ ] SP-C6 — Mettre à jour profil/index.php (Mes sources — suppléments tiers) — en pause (non bloquée techniquement, juste reportée)
 - [x] ~~SP-C7 — Nettoyage monstres post-migration (suppression include/ajax/modifier/monstre-old.php, relecture monstre-parser.php pour refs mo_j_id résiduelles)~~ → livré (2026-06-20)
