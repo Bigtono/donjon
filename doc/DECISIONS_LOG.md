@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 22:30 -->
+<!-- Mis à jour : 2026-06-21 09:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -670,6 +670,49 @@ client (`alert('Veuillez choisir un monstre d'origine.')` dans `modifier/opposit
   "— aucun monstre sélectionné —" à "— aucun, saisie manuelle —" (plus explicite sur l'intention).
 - **Doc** : `SCHEMA_SQL.md` § `dd_oppositions` mis à jour (`opp_mo_id` nullable, sémantique NULL =
   saisie manuelle) + ligne de versioning 1.4. `ARCHITECTURE_0_REFERENCE.md` § Campagnes mis à jour.
+
+**[2026-06-21] Bug — supplément personnel absent de la recherche de monstre (création d'opposition)**
+
+*Signalement* : aucun monstre du supplément personnel de l'utilisateur n'apparaît dans les résultats
+de recherche lors de la sélection d'un monstre pour créer une opposition.
+
+*Cause* : `getActiveResIdsCampagne()` (`include/helpers.php`, utilisée par
+`include/ajax/recherche-monstre.php`) ne renvoyait **jamais** le supplément personnel du MJ, dans
+ses deux branches :
+- Repli (pas de `dd_campagnes_sources` configurées pour la campagne) : `WHERE res_j_id IS NULL` —
+  exclut explicitement tout supplément, ne renvoie que les sources officielles.
+- Sources explicites (`dd_campagnes_sources` configurées) : aucun chemin n'aurait pu y faire entrer
+  un supplément personnel de toute façon — le formulaire qui peuple cette table
+  (`include/ajax/modifier/campagne.php`) ne propose **que** des sources officielles dans son select
+  (`WHERE res_ruleset_var_id = ? AND res_j_id IS NULL`, ligne 73), sans option pour ajouter le
+  supplément du MJ lui-même.
+
+Cause racine plus large : `getActiveResIdsCampagne()` et le formulaire de sources de campagne ont été
+écrits **avant** le système Supplément utilisateur (SP-C, livré le 2026-06-17) et n'ont jamais été
+mis à jour pour en tenir compte — contrairement à `getActiveResIds()` (sources personnelles, hors
+campagne) qui inclut bien le supplément de l'utilisateur depuis l'origine de SP-C1.
+
+*Correctif* : `getActiveResIdsCampagne()` résout désormais systématiquement le supplément du
+**propriétaire de la campagne** (`camp_j_id`, pas l'utilisateur courant — distinction utile si un
+admin consulte la campagne d'un tiers) via `getUserSupplementResId()`, et l'ajoute dans les deux
+branches (sources explicites : ajouté s'il n'y est pas déjà ; repli officiel : toujours ajouté).
+Pas de changement nécessaire côté formulaire de sources de campagne (`modifier/campagne.php`) — le
+supplément personnel est désormais inclus *implicitement*, sans avoir besoin d'être sélectionnable
+explicitement dans cette liste. Testé (PDO SQLite en mémoire) sur les deux branches : présent dans
+les deux cas après correctif, absent avant.
+
+*Bénéficiaire secondaire* : `include/ajax/detail-pp-sub/opposition.php` (rendu du bloc de stats
+d'une opposition, livré le 2026-06-20) utilise la même fonction pour son index de liaison — un sort/
+objet du supplément personnel du MJ référencé dans le texte d'une opposition devient également
+cliquable, sans changement de code de son côté.
+
+*Non corrigé, noté pour mémoire* : `recherche-monstre.php` ne filtre pas par `mo_public`/
+`mo_visible` — si `dd_campagnes_sources` contient explicitement le supplément **d'un tiers** (cas
+rare : un autre joueur a partagé son supplément et le MJ l'a ajouté aux sources de sa campagne), les
+entrées en brouillon (`mo_visible = 0`) de ce tiers pourraient apparaître dans la recherche. Risque
+faible (nécessite une action explicite du MJ pour ajouter une source tierce) et hors périmètre de ce
+signalement (qui portait sur l'absence du supplément **personnel**, pas sur une fuite de
+confidentialité tierce) — à corriger si signalé séparément.
 
 ---
 
@@ -1655,3 +1698,5 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [ ] SP-E5 (à arbitrer) — Équipements rejoint le mécanisme Supplément (SP-C) : eqt_public + champ_public/champ_visible/champ_res_owner
 - [x] ~~Oppositions — bug formulaire Modifier ouvert sous la vue (z-index)~~ → corrigé (2026-06-20, fermerSubPanel() avant actualiserPageModif() dans detail-pp-sub/opposition.php)
 - [x] ~~Oppositions — monstre d'origine optionnel (saisie manuelle possible)~~ → corrigé (2026-06-20, opp_mo_id nullable + retrait blocages serveur/client)
+- [x] ~~Recherche monstre (création opposition) — supplément personnel du MJ absent des résultats~~ → corrigé (2026-06-21, getActiveResIdsCampagne() inclut désormais le supplément du propriétaire de la campagne)
+- [ ] recherche-monstre.php ne filtre pas mo_public/mo_visible — fuite potentielle de brouillons si un supplément tiers est explicitement ajouté aux sources d'une campagne (risque faible, non signalé séparément) — cf. DECISIONS_LOG.md [2026-06-21]

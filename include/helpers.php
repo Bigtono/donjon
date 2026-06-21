@@ -110,18 +110,51 @@ function resIdsPlaceholders(array $ids): string {
 //      compte joueur », pas « source valide » — un MJ sans sélection
 //      explicite doit voir l'intégralité du compendium du ruleset, y
 //      compris les suppléments ajoutés après coup avec res_selection=0.
+// Sources actives pour une campagne donnée. Si la campagne a des sources
+// explicitement configurées (dd_campagnes_sources), on les utilise telles
+// quelles ; sinon, repli sur toutes les sources officielles du ruleset.
+//
+// Dans les deux cas, le supplément personnel du PROPRIÉTAIRE de la campagne
+// (camp_j_id) est toujours inclus, même s'il n'a jamais été ajouté
+// explicitement aux sources de la campagne — un MJ doit pouvoir utiliser ses
+// propres monstres homebrew pour construire ses oppositions sans étape
+// manuelle supplémentaire. Avant ce correctif, le repli filtrait
+// explicitement `res_j_id IS NULL` (sources officielles uniquement) et le
+// formulaire de sélection des sources de campagne (modifier/campagne.php)
+// ne propose lui non plus que des sources officielles : le supplément
+// personnel n'avait donc AUCUN moyen d'entrer dans cette liste.
 function getActiveResIdsCampagne(PDO $db, int $camp_id, int $ruleset_var_id): array {
+  $stmt = $db->prepare('SELECT camp_j_id FROM dd_campagnes WHERE camp_id = ?');
+  $stmt->execute([$camp_id]);
+  $camp_j_id = (int)$stmt->fetchColumn();
+
+  $supplement_res_id = $camp_j_id
+    ? getUserSupplementResId($db, $camp_j_id, $ruleset_var_id)
+    : null;
+
   $stmt = $db->prepare('SELECT cs_res_id FROM dd_campagnes_sources WHERE cs_camp_id = ?');
   $stmt->execute([$camp_id]);
   $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-  if (!empty($ids)) return $ids;
+
+  if (!empty($ids)):
+    if ($supplement_res_id !== null && !in_array($supplement_res_id, $ids, true)):
+      $ids[] = $supplement_res_id;
+    endif;
+    return $ids;
+  endif;
 
   $stmt = $db->prepare('
     SELECT res_id FROM dd_ressources
     WHERE res_ruleset_var_id = ? AND res_j_id IS NULL
   ');
   $stmt->execute([$ruleset_var_id]);
-  return $stmt->fetchAll(PDO::FETCH_COLUMN);
+  $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+  if ($supplement_res_id !== null):
+    $ids[] = $supplement_res_id;
+  endif;
+
+  return $ids;
 }
 
 // ============================================================

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 22:30 -->
+<!-- Mis à jour : 2026-06-21 09:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -566,6 +566,18 @@ sélection du monstre (cf. § `dd_oppositions` — formulaire `modifier/oppositi
 **pas** `getActiveResIds()` (sources personnelles du visiteur) — l'opposition est un contenu de
 campagne, le ruleset et les sources viennent de `camp_ruleset_var_id` remonté par jointure
 (`dd_oppositions → dd_rencontres → dd_scenarios_chapitres → dd_scenarios → dd_campagnes`).
+
+> ✅ **Bug corrigé le 2026-06-20 — supplément personnel absent de `getActiveResIdsCampagne()`.**
+> Avant correctif, cette fonction (`include/helpers.php`) ne retournait **jamais** le supplément
+> personnel du MJ : le repli (pas de `dd_campagnes_sources` configurées) filtrait explicitement
+> `res_j_id IS NULL`, et le formulaire de sélection des sources de campagne
+> (`modifier/campagne.php`) ne proposait lui non plus que des sources officielles — aucun chemin
+> ne permettait au supplément du MJ d'entrer dans cette liste. Conséquence concrète : le sélecteur
+> de monstre pour créer une opposition (`include/ajax/recherche-monstre.php`) ne renvoyait jamais
+> les monstres homebrew du MJ. Corrigé en incluant systématiquement
+> `getUserSupplementResId($db, camp_j_id, ruleset_var_id)` (propriétaire de la campagne, pas
+> visiteur) dans les deux branches de `getActiveResIdsCampagne()`. Bénéficie aux deux appelants
+> existants (`recherche-monstre.php` et `detail-pp-sub/opposition.php`) sans changement de leur côté.
 
 > ⚠️ **Limite UX connue, acceptée pour cette livraison urgente.** Le bloc de stats d'une opposition
 > est lui-même affiché dans `#detail-pp-sub` (sous-panneau unique, sans pile/historique —
