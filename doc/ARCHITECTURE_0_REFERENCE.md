@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 21:00 -->
+<!-- Mis à jour : 2026-06-20 22:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -577,6 +577,18 @@ campagne, le ruleset et les sources viennent de `camp_ruleset_var_id` remonté p
 > non priorisé) nécessiterait de faire évoluer `actualiserPageSub()`/`fermerSubPanel()` pour empiler
 > plusieurs niveaux au lieu d'un panneau unique — hors périmètre de ce correctif urgent.
 
+> ✅ **Bug corrigé le 2026-06-20 — formulaire Modifier ouvert sous la vue Opposition.** `#modification`
+> (`.overlay-panel--edit`, z-index 250) est par design **sous** `#detail-pp-sub` (`.overlay-panel--sub`,
+> z-index 300) — cf. commentaire `css/main.css`. Le bouton Modifier de la vue Opposition est le
+> **seul endroit du code** où `actualiserPageModif()` est appelé alors qu'un `#detail-pp-sub` est
+> déjà ouvert (la vue Opposition elle-même) — partout ailleurs, "Modifier" s'ouvre depuis `#detail-pp`
+> (panel principal, z-index 200, toujours sous `#modification`), donc le conflit n'existait nulle
+> part ailleurs. Vérifié par grep exhaustif sur tous les appels `actualiserPageModif`/
+> `ouvrirModifier` du dépôt. Corrigé en fermant le sous-panneau juste avant l'ouverture du formulaire
+> (`onclick="fermerSubPanel(); actualiserPageModif(...)"`) plutôt qu'en modifiant les z-index
+> globaux (`actualiserPageModif()` est appelée dans tout le reste de l'app sans ce problème — un
+> changement de z-index global aurait été un risque non nécessaire pour un cas isolé).
+
 ---
 
 ### Module Équipements (planifié — SP-E)
@@ -967,7 +979,9 @@ Hiérarchie : **Campagne → Scénario → Chapitre → Rencontre → Opposition
 - **Rencontre** : rattachement à un chapitre **obligatoire** (`re_scc_id` NOT NULL).
   Effectifs décrits **littéralement** dans `re_composition` (texte).
 - **Opposition** : copie **éditable** d'un monstre du compendium (`dd_oppositions`), propre à une
-  rencontre (lien 1-N `opp_re_id`). Le monstre modèle (`opp_mo_id`) est figé pour traçabilité.
+  rencontre (lien 1-N `opp_re_id`) — **ou saisie 100% manuelle**, sans monstre d'origine
+  (`opp_mo_id` nullable depuis le 2026-06-20). Quand un monstre modèle est choisi (`opp_mo_id`
+  renseigné), il est figé pour traçabilité ; sinon `opp_mo_id` reste `NULL` définitivement.
 - **Duplication** : scénario / rencontre / opposition duplicables (suffixe « - copie »), en cascade
   descendante, **limitée au ruleset courant**.
 - **Pièces jointes** : PDF uniquement, table générique `dd_fichiers`.

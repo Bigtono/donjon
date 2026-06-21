@@ -95,18 +95,19 @@ $url_detail_mo     = BASE_URL . '/include/ajax/detail-monstre-json.php';
 
     <div class="modif-section">
       <div class="modif-section__header">
-        <span class="modif-section__label">Monstre d'origine</span>
+        <span class="modif-section__label">Monstre d'origine <span class="form-hint">(facultatif)</span></span>
       </div>
 
       <div class="opp-mo-origine">
         <span id="opp_mo_nom_affiche">
-          <?= $opp['opp_mo_id'] ? h($mo_nom_origine) : '— aucun monstre sélectionné —' ?>
+          <?= $opp['opp_mo_id'] ? h($mo_nom_origine) : '— aucun, saisie manuelle —' ?>
         </span>
         <?php if ($id === 0 || !$opp['opp_mo_id']): ?>
           <button type="button" class="btn btn-secondary btn-sm"
                   onclick="actualiserPageSub('<?= $url_sub_recherche ?>', {camp_id:<?= $camp_id ?>})">
             <i class="fa fa-search"></i> Choisir un monstre
           </button>
+          <span class="form-hint">Optionnel — laissez vide pour une opposition saisie entièrement à la main.</span>
         <?php else: ?>
           <span class="form-hint">Le monstre d'origine ne peut pas être changé après création.</span>
         <?php endif ?>
@@ -185,8 +186,8 @@ $url_detail_mo     = BASE_URL . '/include/ajax/detail-monstre-json.php';
     const nom = document.getElementById('opp_nom').value.trim();
     if (!nom) { alert('Le nom est obligatoire.'); return; }
 
-    const moId = parseInt(document.getElementById('opp_mo_id').value || '0', 10);
-    if (!moId) { alert('Veuillez choisir un monstre d\'origine.'); return; }
+    // Monstre d'origine optionnel — une opposition peut être saisie entièrement
+    // à la main (opp_mo_id reste vide, opp_mo_id POST = '0' = NULL côté serveur).
 
     fetch(form.getAttribute('action'), { method: 'POST', body: new FormData(form) })
       .then(r => r.json())

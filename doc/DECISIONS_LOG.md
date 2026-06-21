@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 21:00 -->
+<!-- Mis à jour : 2026-06-20 22:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -625,6 +625,51 @@ liaison parser pour `dd_equipements`). La liaison auto "objet" déjà livrée da
 `monstre-parser.php` (ce même jour) continue de ne couvrir que `dd_objets_magiques` — ne pas
 confondre les deux lors d'une prochaine session : *objet* (existant, câblé) ≠ *equipement* (planifié
 SP-E, pas câblé).
+
+**[2026-06-20] Oppositions — 2 correctifs : formulaire sous la vue + monstre d'origine optionnel**
+
+*Signalement 1 — régression : le formulaire Modifier s'ouvre derrière la vue Opposition.*
+Investigation avant correction (vérification systématique, cf. consigne projet) : diff de tous mes
+changements du jour contre la version précédente — **aucun ne touche** le bouton Modifier, sa
+fonction JS (`actualiserPageModif()`, inchangée), ni les z-index CSS. Cause réelle, pré-existante :
+`#modification` (`.overlay-panel--edit`, z-index 250) est **par design** sous `#detail-pp-sub`
+(`.overlay-panel--sub`, z-index 300) — commentaire explicite dans `css/main.css` depuis l'origine
+de cette architecture d'overlays. `grep` exhaustif sur tous les appels `actualiserPageModif`/
+`ouvrirModifier` du dépôt : **la vue Opposition (`detail-pp-sub/opposition.php`) est le seul endroit
+du code où "Modifier" est déclenché depuis l'intérieur d'un `#detail-pp-sub` déjà ouvert** — partout
+ailleurs (sorts, dons, monstres, personnages, campagnes, rencontres…) le bouton Modifier vit dans
+`#detail-pp` (z-index 200, toujours sous `#modification`), donc le conflit n'apparaît nulle part
+ailleurs. Conclusion : pas une régression de mes changements précédents, mais un angle mort
+architectural pré-existant, invisible jusqu'ici car Opposition est la seule entité avec un bouton
+Modifier accessible depuis sa propre vue en sous-panneau.
+→ Corrigé en fermant le sous-panneau juste avant l'ouverture du formulaire :
+`onclick="fermerSubPanel(); actualiserPageModif(...)"` dans `detail-pp-sub/opposition.php`. Choix
+volontairement local (pas de modification des z-index globaux ni de `actualiserPageModif()`
+elle-même, utilisée sans problème ailleurs) — limite le risque de régression à l'unique cas concerné.
+Effet de bord accepté : après annulation de l'édition (`fermerModification()`), la vue Opposition ne
+se rouvre pas automatiquement (l'utilisateur doit recliquer la ligne dans la rencontre) — comportement
+jugé acceptable, cohérent avec l'ouverture d'un formulaire d'édition "frais".
+
+*Signalement 2 — le choix d'un monstre doit être optionnel (saisie manuelle possible).*
+`opp_mo_id` était `NOT NULL` en base (`sql/2026-06-01_campagnes_v2_etape1.sql`) et bloqué côté
+serveur (`campErreur('Choisissez un monstre d'origine.')` dans `enregistrerOpposition()`) et côté
+client (`alert('Veuillez choisir un monstre d'origine.')` dans `modifier/opposition.php`).
+→ Corrections :
+- **SQL** : `opp_mo_id` rendu `NULL` (`sql/2026-06-20_oppositions_monstre_optionnel.sql`, committé,
+  testé par exécution réelle sur MariaDB locale — `ALTER TABLE ... MODIFY COLUMN`, idempotent,
+  n'altère aucune ligne existante puisque toutes ont déjà `opp_mo_id` renseigné).
+- **Serveur** (`campagnes/enregistrement.php` → `enregistrerOpposition()`) : suppression du blocage
+  `if ($opp_id_was_zero && !$opp_mo_id)` ; `$opp_mo_id = intParam(...) ?: null` (0 → NULL, cohérent
+  avec le reste du code projet pour les FK optionnelles). `opp_mo_id` reste non modifiable après
+  création (UPDATE ne le touche toujours pas) — y compris pour passer de NULL à une valeur : une
+  opposition créée sans monstre le reste définitivement, cohérent avec la sémantique "figé pour
+  traçabilité" déjà en place pour le cas où un monstre est choisi.
+- **Formulaire** (`include/ajax/modifier/opposition.php`) : retrait du blocage JS bloquant la
+  soumission sans monstre. Label "Monstre d'origine" annoté "(facultatif)" ; texte d'aide ajouté
+  ("laissez vide pour une opposition saisie entièrement à la main") ; libellé par défaut changé de
+  "— aucun monstre sélectionné —" à "— aucun, saisie manuelle —" (plus explicite sur l'intention).
+- **Doc** : `SCHEMA_SQL.md` § `dd_oppositions` mis à jour (`opp_mo_id` nullable, sémantique NULL =
+  saisie manuelle) + ligne de versioning 1.4. `ARCHITECTURE_0_REFERENCE.md` § Campagnes mis à jour.
 
 ---
 
@@ -1608,3 +1653,5 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [ ] SP-E3 — detail-pp/equipement.php (fiche détail)
 - [ ] SP-E4 — monstre-parser.php : type 'equipement' (typesLiablesMonstre/construireIndexAuto) + MO_LIEN_FICHIERS — BLOQUÉ par SP-E3
 - [ ] SP-E5 (à arbitrer) — Équipements rejoint le mécanisme Supplément (SP-C) : eqt_public + champ_public/champ_visible/champ_res_owner
+- [x] ~~Oppositions — bug formulaire Modifier ouvert sous la vue (z-index)~~ → corrigé (2026-06-20, fermerSubPanel() avant actualiserPageModif() dans detail-pp-sub/opposition.php)
+- [x] ~~Oppositions — monstre d'origine optionnel (saisie manuelle possible)~~ → corrigé (2026-06-20, opp_mo_id nullable + retrait blocages serveur/client)

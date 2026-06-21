@@ -757,7 +757,7 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
 {
   $opp_id        = intParam($_POST['opp_id']        ?? 0);
   $re_id         = intParam($_POST['re_id']          ?? 0);
-  $opp_mo_id     = intParam($_POST['opp_mo_id']       ?? 0);
+  $opp_mo_id     = intParam($_POST['opp_mo_id']       ?? 0) ?: null; // optionnel : saisie 100% manuelle possible
   $opp_nom       = trim($_POST['opp_nom']             ?? '');
   $opp_mocat_nom = trim($_POST['opp_mocat_nom']       ?? '');
   $opp_stats     = trim($_POST['opp_stats']           ?? '');
@@ -767,10 +767,6 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
   if (!checkReOwner($db, $re_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
 
   $opp_id_was_zero = ($opp_id === 0);
-
-  if ($opp_id_was_zero && !$opp_mo_id) {
-    campErreur($is_ajax, 'Choisissez un monstre d\'origine.', $redirect);
-  }
 
   $db->beginTransaction();
   try {
@@ -791,7 +787,9 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
         $db->rollBack();
         campErreur($is_ajax, 'Accès refusé.', $redirect);
       endif;
-      // opp_mo_id n'est jamais modifié après création (traçabilité figée)
+      // opp_mo_id n'est jamais modifié après création (traçabilité figée) —
+      // y compris pour passer de NULL à une valeur : si l'opposition a été
+      // créée sans monstre d'origine, elle le reste (cohérent avec "figé").
       $stmt = $db->prepare('
         UPDATE dd_oppositions
         SET    opp_nom = ?, opp_mocat_nom = ?, opp_stats = ?

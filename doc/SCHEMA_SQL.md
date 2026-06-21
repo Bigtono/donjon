@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 21:00 -->
+<!-- Mis à jour : 2026-06-20 22:30 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -16,6 +16,7 @@
 | 1.1 | 2026-06-01 | JM | Module Campagnes — refonte section 7 : `dd_oppositions` (copie éditable de monstre) + `dd_fichiers` (PJ génériques) ; ruleset hérité de la campagne (retrait `sce_ruleset_var_id`) ; univers 1-1 (`camp_un_id`, retrait `dd_campagnes_univers`) ; abandon `dd_rencontres_monstres` / `dd_rencontres_oppositions` ; `pe_camp_id` (dernière campagne jouée) |
 | 1.2 | 2026-06-02 | JM | dd_sorts : ajout `so_concentration` / `so_rituel` (0/1, DD2024). Import en masse des sorts SRD 5.2.1 (res_id 93) par lots à IDs explicites |
 | 1.3 | 2026-06-20 | JM | `dd_equipements` : CRÉÉE (équipement mondain, distincte de `dd_objets_magiques`). SQL committé : `sql/2026-06-20_equipements_sp-e0.sql`. Module compendium correspondant non développé — cf. plan SP-E (ARCHITECTURE_0_REFERENCE.md) |
+| 1.4 | 2026-06-20 | JM | `dd_oppositions.opp_mo_id` rendu NULLABLE — monstre d'origine optionnel, saisie d'opposition 100% manuelle possible. SQL committé : `sql/2026-06-20_oppositions_monstre_optionnel.sql` |
 
 ---
 
@@ -851,23 +852,30 @@ Une rencontre appartient **obligatoirement** à un chapitre (plus de rencontre o
 ---
 
 ### dd_oppositions
-Copie **éditable** d'un monstre du compendium, propre à une rencontre. Le MJ recopie un monstre
-puis ajuste/annote librement pour sa partie, **sans altérer le compendium**.
+Copie **éditable** d'un monstre du compendium, propre à une rencontre — **ou opposition saisie
+entièrement à la main**, sans monstre d'origine. Le MJ recopie un monstre puis ajuste/annote
+librement pour sa partie, **sans altérer le compendium** ; ou bien saisit directement nom + stats.
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | opp_id | int unsigned | PK | |
-| opp_nom | varchar(150) | nn | Recopié de `mo_nom`, éditable |
-| opp_mocat_nom | varchar(150) | null | Recopié du libellé de catégorie (`mocat_nom` via `mo_mocat_id`), **stocké en texte libre**, éditable |
-| opp_stats | text | null | Recopié de `mo_stats`, éditable |
+| opp_nom | varchar(150) | nn | Recopié de `mo_nom` si monstre choisi, sinon saisi librement. Éditable |
+| opp_mocat_nom | varchar(150) | null | Recopié du libellé de catégorie (`mocat_nom` via `mo_mocat_id`) si monstre choisi, sinon texte libre. Éditable |
+| opp_stats | text | null | Recopié de `mo_stats` si monstre choisi, sinon saisi librement. Éditable |
 | opp_re_id | int unsigned | nn | Rencontre parente -> dd_rencontres |
-| opp_mo_id | int unsigned | nn | Monstre-template d'origine -> dd_monstres. **Non éditable** par le MJ (traçabilité). |
+| opp_mo_id | int unsigned | **null** | Monstre-template d'origine -> dd_monstres. **Non éditable** par le MJ une fois fixé (traçabilité). **`NULL` = opposition saisie manuellement**, sans monstre d'origine au compendium. |
 
 > Lien rencontre **1-N** (`opp_re_id`), pas de table de liaison.
-> À la création, le formulaire propose un sélecteur de monstre (scopé ruleset courant + sources
-> actives) qui pré-remplit `opp_nom`, `opp_mocat_nom`, `opp_stats` et fige `opp_mo_id`.
+> À la création, le formulaire propose un sélecteur de monstre **optionnel** (scopé ruleset courant
+> + sources actives) qui, s'il est utilisé, pré-remplit `opp_nom`, `opp_mocat_nom`, `opp_stats` et
+> fige `opp_mo_id`. Si aucun monstre n'est choisi, le MJ saisit `opp_nom`/`opp_mocat_nom`/`opp_stats`
+> directement et `opp_mo_id` reste `NULL` (définitivement — pas de monstre d'origine ajoutable après
+> coup, cohérent avec le caractère figé du champ).
 > Duplicable (« *[nom] - copie* »).
 > `opp_mo_id` normalisé en `int unsigned` (la spec initiale notait `int(10)`).
+> `opp_mo_id` rendu **nullable** le 2026-06-20 (`sql/2026-06-20_oppositions_monstre_optionnel.sql`,
+> committé + testé sur MariaDB réelle) — était `NOT NULL` à l'origine, bloquant toute saisie
+> manuelle.
 
 ---
 

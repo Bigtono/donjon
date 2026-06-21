@@ -68,7 +68,7 @@ $detail_base = BASE_URL . '/include/ajax/detail-pp/';
     <h2 class="camp-detail__nom">
       <?= h($opp['opp_nom']) ?>
       <button class="sort-detail__edit-btn"
-              onclick="actualiserPageModif('<?= $base_modifier ?>/opposition.php',
+              onclick="fermerSubPanel(); actualiserPageModif('<?= $base_modifier ?>/opposition.php',
                        {id:<?= $id ?>, re_id:<?= (int)$opp['re_id'] ?>})"
               title="Modifier cette opposition">
         <i class="fa fa-edit"></i>
