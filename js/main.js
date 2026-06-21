@@ -105,6 +105,18 @@ function retourDetailPP() {
   _chargerDetailPP(prev.url, prev.params, _detailPpStack.length > 1);
 }
 
+// Recharge le panel #detail-pp actuellement affiché (sommet de la pile),
+// sans modifier l'historique de navigation (contrairement à naviguerDetailPP,
+// qui empile une nouvelle entrée). Utile après une action déclenchée depuis
+// un sous-panneau (#detail-pp-sub) qui modifie des données affichées dans
+// #detail-pp en dessous — ex : modifier une opposition depuis sa fiche
+// détail doit rafraîchir la liste des oppositions de la rencontre affichée.
+function rafraichirDetailPPCourant() {
+  if (_detailPpStack.length === 0) return;
+  const top = _detailPpStack[_detailPpStack.length - 1];
+  _chargerDetailPP(top.url, top.params, _detailPpStack.length > 1);
+}
+
 // Worker interne — construit l'URL, fait le fetch, injecte le HTML.
 // withBack=true → ajoute le bouton ← Retour sous le bouton ✕.
 function _chargerDetailPP(url, params, withBack) {

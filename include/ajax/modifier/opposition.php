@@ -195,6 +195,7 @@ $url_detail_mo     = BASE_URL . '/include/ajax/detail-monstre-json.php';
         if (data.ok) {
           fermerModification();
           if (OPP_ID > 0) {
+            rafraichirDetailPPCourant();
             actualiserPageSub(URL_OPP_DETAIL, { id: OPP_ID });
           } else {
             naviguerDetailPP(URL_RE_DETAIL, { id: RE_ID });

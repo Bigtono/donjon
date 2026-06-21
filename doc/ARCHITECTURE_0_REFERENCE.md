@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-21 09:00 -->
+<!-- Mis à jour : 2026-06-21 10:45 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -600,6 +600,26 @@ campagne, le ruleset et les sources viennent de `camp_ruleset_var_id` remonté p
 > (`onclick="fermerSubPanel(); actualiserPageModif(...)"`) plutôt qu'en modifiant les z-index
 > globaux (`actualiserPageModif()` est appelée dans tout le reste de l'app sans ce problème — un
 > changement de z-index global aurait été un risque non nécessaire pour un cas isolé).
+
+> ✅ **Bug corrigé le 2026-06-21 — la liste des oppositions de la rencontre ne se rafraîchissait pas
+> après modification.** Après édition d'une opposition existante, le formulaire ne faisait que
+> rouvrir la vue Opposition (`actualiserPageSub(URL_OPP_DETAIL, …)`) sans jamais recharger
+> `#detail-pp` (la fiche Rencontre, qui contient la liste affichée en dessous) — celle-ci gardait
+> donc le nom/catégorie d'avant édition jusqu'au prochain rechargement complet de la page. La
+> création (`OPP_ID === 0`) n'était pas affectée : elle appelait déjà `naviguerDetailPP(URL_RE_DETAIL,
+> …)`, qui recharge intégralement `#detail-pp`. Corrigé en ajoutant `rafraichirDetailPPCourant()`
+> (nouvelle fonction `js/main.js`, à côté de `naviguerDetailPP()`/`retourDetailPP()` — recharge le
+> sommet de `_detailPpStack` **sans** empiler une nouvelle entrée, contrairement à
+> `naviguerDetailPP()`) avant de rouvrir la vue Opposition.
+
+> ⚠️ **Bug apparenté repéré au passage, non corrigé (hors périmètre du signalement).** Le bouton
+> Supprimer de la vue Opposition (`detail-pp-sub/opposition.php`) appelle
+> `campOppDemanderSuppression(oppId, reId)` (`js/campagne.js`), qui cherche les éléments
+> `#camp-opp-row-{id}`/`#camp-opp-confirm-{id}` — **présents uniquement dans la liste de
+> `rencontre.php`**, absents du DOM de la vue Opposition elle-même. Conséquence : cliquer
+> "Supprimer" depuis la vue Opposition ne fait actuellement **rien** (early return silencieux,
+> aucune erreur visible). Fonctionne correctement depuis la liste dans `rencontre.php` (le bouton
+> ⋮ → Supprimer per-row). À corriger si signalé séparément — cf. `DECISIONS_LOG.md` [2026-06-21].
 
 ---
 

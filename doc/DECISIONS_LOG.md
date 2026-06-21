@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-21 09:00 -->
+<!-- Mis à jour : 2026-06-21 10:45 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -713,6 +713,39 @@ entrées en brouillon (`mo_visible = 0`) de ce tiers pourraient apparaître dans
 faible (nécessite une action explicite du MJ pour ajouter une source tierce) et hors périmètre de ce
 signalement (qui portait sur l'absence du supplément **personnel**, pas sur une fuite de
 confidentialité tierce) — à corriger si signalé séparément.
+
+**[2026-06-21] Bug — la liste des oppositions de la rencontre ne se rafraîchit pas après modification**
+
+*Signalement* : modifier une opposition ne met pas à jour la liste des oppositions affichée dans la
+fiche Rencontre.
+
+*Cause* : `soumettre()` (`include/ajax/modifier/opposition.php`) ne traitait que la vue Opposition
+elle-même après un save réussi — `actualiserPageSub(URL_OPP_DETAIL, {id: OPP_ID})` recharge
+`#detail-pp-sub`, mais rien ne rechargeait `#detail-pp` (la fiche Rencontre affichée en dessous, qui
+contient la `<table class="camp-sous-liste">` des oppositions). La branche création
+(`OPP_ID === 0`) n'avait pas ce problème : elle appelle `naviguerDetailPP(URL_RE_DETAIL, {id: RE_ID})`,
+qui recharge `#detail-pp` en entier (mais empile une nouvelle entrée dans l'historique de
+navigation — pas adapté pour un simple rafraîchissement après édition, d'où l'absence de cet appel
+dans la branche édition).
+
+*Correctif* : nouvelle fonction `rafraichirDetailPPCourant()` (`js/main.js`, à côté de
+`naviguerDetailPP()`/`retourDetailPP()`) — recharge le panel `#detail-pp` à partir du **sommet
+actuel** de `_detailPpStack` (`_chargerDetailPP(top.url, top.params, …)`) **sans empiler de
+nouvelle entrée**, contrairement à `naviguerDetailPP()`. Appelée juste avant
+`actualiserPageSub(URL_OPP_DETAIL, …)` dans la branche édition de `soumettre()`. Les deux appels
+(`#detail-pp` et `#detail-pp-sub`) sont deux fetch indépendants ciblant des éléments DOM différents
+— pas de risque de course critique entre les deux.
+
+*Bug apparenté repéré au passage, non corrigé (hors périmètre de ce signalement)* : le bouton
+Supprimer de la vue Opposition (`detail-pp-sub/opposition.php`) appelle
+`campOppDemanderSuppression(oppId, reId)` (`js/campagne.js`), qui cherche
+`#camp-opp-row-{id}`/`#camp-opp-confirm-{id}` dans le DOM — ces éléments n'existent que dans la
+liste de `rencontre.php`, jamais dans la vue Opposition elle-même. Supprimer une opposition depuis
+sa propre vue détail ne fait donc actuellement **rien** (pas d'erreur visible, juste un early
+return silencieux dans `campOppDemanderSuppression`). Fonctionne correctement depuis le menu ⋮ de
+la liste dans `rencontre.php`. Probable même catégorie de bug que les deux précédents (fonctionnalité
+écrite en supposant un contexte DOM — liste rencontre — qui ne correspond pas à tous les points
+d'entrée possibles du bouton). À corriger si signalé séparément.
 
 ---
 
@@ -1700,3 +1733,5 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~Oppositions — monstre d'origine optionnel (saisie manuelle possible)~~ → corrigé (2026-06-20, opp_mo_id nullable + retrait blocages serveur/client)
 - [x] ~~Recherche monstre (création opposition) — supplément personnel du MJ absent des résultats~~ → corrigé (2026-06-21, getActiveResIdsCampagne() inclut désormais le supplément du propriétaire de la campagne)
 - [ ] recherche-monstre.php ne filtre pas mo_public/mo_visible — fuite potentielle de brouillons si un supplément tiers est explicitement ajouté aux sources d'une campagne (risque faible, non signalé séparément) — cf. DECISIONS_LOG.md [2026-06-21]
+- [x] ~~Oppositions — liste de la rencontre non rafraîchie après modification~~ → corrigé (2026-06-21, rafraichirDetailPPCourant() dans js/main.js)
+- [ ] Oppositions — bouton Supprimer inopérant depuis la vue Opposition elle-même (campOppDemanderSuppression cherche des éléments DOM qui n'existent que dans la liste rencontre.php) — repéré 2026-06-21, non corrigé, fonctionne depuis le menu ⋮ de la liste
