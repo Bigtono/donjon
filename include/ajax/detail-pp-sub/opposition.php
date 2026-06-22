@@ -88,10 +88,32 @@ $detail_base = BASE_URL . '/include/ajax/detail-pp/';
   <?php endif ?>
 
   <div class="camp-detail__actions">
-    <button class="btn btn-danger btn-sm"
-            onclick="campOppDemanderSuppression(<?= $id ?>, <?= (int)$opp['re_id'] ?>)">
+    <button class="btn btn-danger btn-sm" onclick="oppDetailSupprimer(<?= $id ?>)">
       <i class="fa fa-trash"></i> Supprimer
     </button>
   </div>
 
 </div>
+
+<script>
+(function () {
+  // Suppression autonome — ne dépend d'aucun élément du DOM de la liste
+  // rencontre.php (contrairement à campOppDemanderSuppression(), conçue pour
+  // le menu ⋮ de cette liste, où la ligne #camp-opp-row-{id} existe). Cette
+  // vue (#detail-pp-sub) n'a pas cette ligne dans son propre DOM — d'où
+  // l'usage de confirm() natif plutôt que la confirmation inline du menu ⋮.
+  window.oppDetailSupprimer = function (oppId) {
+    if (!confirm('Supprimer cette opposition ?')) return;
+    postAjax(campUrlEnreg, { action: 'supprimerOpposition', id: oppId })
+      .then(function (data) {
+        if (data.ok) {
+          fermerSubPanel();
+          rafraichirDetailPPCourant();
+        } else {
+          alert(data.erreur || 'Erreur lors de la suppression.');
+        }
+      })
+      .catch(function (err) { alert('Erreur : ' + err); });
+  };
+}());
+</script>

@@ -131,6 +131,18 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
                                      {id:<?= $oid ?>, re_id:<?= $id ?>})">
                       <i class="fa fa-edit"></i> Modifier
                     </button>
+                    <button class="comp-menu-item"
+                            onclick="campToggleMenu('opp-<?= $oid ?>');
+                                     campOppOuvrirTransfertPopup(event, <?= $oid ?>, <?= $id ?>,
+                                     <?= (int)$re['camp_id'] ?>, 'transferer')">
+                      <i class="fa fa-share"></i> Transférer
+                    </button>
+                    <button class="comp-menu-item"
+                            onclick="campToggleMenu('opp-<?= $oid ?>');
+                                     campOppOuvrirTransfertPopup(event, <?= $oid ?>, <?= $id ?>,
+                                     <?= (int)$re['camp_id'] ?>, 'dupliquer')">
+                      <i class="fa fa-copy"></i> Dupliquer
+                    </button>
                     <button class="comp-menu-item comp-menu-item--danger"
                             onclick="campToggleMenu('opp-<?= $oid ?>');
                                      campOppDemanderSuppression(<?= $oid ?>, <?= $id ?>)">
@@ -162,4 +174,16 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
     <?php endif ?>
   </div>
 
+</div>
+
+<div id="camp-transfer-popup" class="camp-transfer-popup" hidden>
+  <div class="camp-transfer-popup__header">
+    <span id="camp-transfer-popup-titre" class="camp-transfer-popup__titre">Transférer vers…</span>
+    <button type="button" class="camp-transfer-popup__close"
+            onclick="campFermerTransfertPopup()">&times;</button>
+  </div>
+  <div id="camp-transfer-popup-body" class="camp-transfer-popup__body"></div>
+  <div class="camp-transfer-popup__footer">
+    Vers une autre campagne — bientôt disponible.
+  </div>
 </div>

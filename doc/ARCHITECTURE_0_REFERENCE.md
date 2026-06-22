@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-21 10:45 -->
+<!-- Mis à jour : 2026-06-21 12:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -620,6 +620,53 @@ campagne, le ruleset et les sources viennent de `camp_ruleset_var_id` remonté p
 > "Supprimer" depuis la vue Opposition ne fait actuellement **rien** (early return silencieux,
 > aucune erreur visible). Fonctionne correctement depuis la liste dans `rencontre.php` (le bouton
 > ⋮ → Supprimer per-row). À corriger si signalé séparément — cf. `DECISIONS_LOG.md` [2026-06-21].
+
+> ✅ **Bug corrigé le 2026-06-21.** Le bouton Supprimer de la vue Opposition utilise désormais une
+> fonction autonome (`oppDetailSupprimer()`, définie inline dans `detail-pp-sub/opposition.php`) avec
+> `confirm()` natif au lieu de `campOppDemanderSuppression()` — ne dépend plus du DOM de la liste
+> rencontre. Après succès : `fermerSubPanel()` + `rafraichirDetailPPCourant()`.
+
+---
+
+### Transfert / Duplication d'opposition (SP-T)
+
+Menu ⋮ de la liste des oppositions (`include/ajax/detail-pp/rencontre.php`) : deux actions
+ajoutées le 2026-06-21, **Transférer** et **Dupliquer**, toutes deux via un **popup contextuel**
+(`#camp-transfer-popup`, `js/campagne.js`) listant les rencontres de la campagne (groupées
+scénario › chapitre, endpoint JSON `include/ajax/liste-rencontres-campagne.php`).
+
+| Phase | Contenu | Avancement |
+|---|---|---|
+| **SP-T0** | Transférer/Dupliquer une opposition vers une rencontre de la **même campagne** | ✅ livré (2026-06-21) |
+| **SP-T1** *(planifié, non codé)* | Étendre Transférer/Dupliquer vers une rencontre d'une **autre campagne** du MJ (sélecteur de campagne en amont de celui de rencontre dans le popup) | ⏳ à faire |
+
+**Transférer** : `UPDATE dd_oppositions SET opp_re_id = ?`. Rencontre d'origine exclue de la liste
+proposée (`exclude_re_id`). Conserve `opp_nom` tel quel.
+
+**Dupliquer** : `INSERT` d'une copie (mêmes `opp_nom`/`opp_mocat_nom`/`opp_stats`/`opp_mo_id`, nouveau
+`opp_re_id`). Rencontre d'origine **incluse** dans la liste proposée (duplication "en place" valide,
+réutilise le suffixe « *- copie* » déjà acté pour la duplication — cf. `DECISIONS_LOG.md`
+[2026-06-01] — uniquement quand la cible est la rencontre d'origine ; vers une rencontre différente,
+le nom n'est pas modifié).
+
+**Garde-fou serveur SP-T0** : `memeCampagne($db, $re_id_a, $re_id_b)` (`campagnes/enregistrement.php`)
+vérifie explicitement que les deux rencontres appartiennent à la **même** campagne — `checkReOwner()`
+seul ne suffit pas (un MJ peut posséder plusieurs campagnes ; deux rencontres "autorisées" via
+`checkReOwner()` peuvent appartenir à deux campagnes différentes du même MJ). Si échec : message
+"n'est pas encore disponible" plutôt qu'un refus d'accès générique — anticipe explicitement SP-T1
+côté utilisateur.
+
+**Anticipation SP-T1 dans l'interface** : le popup affiche un pied de page fixe, non cliquable
+(« *Vers une autre campagne — bientôt disponible* », `.camp-transfer-popup__footer`) — réserve
+visuellement la place pour l'évolution sans l'implémenter. Aucune logique de sélection de campagne
+n'existe encore côté client ni serveur.
+
+**Positionnement du popup** : `position: absolute` dans `#detail-pp` (qui est `position: fixed` +
+`transform`, donc *containing block* réel du popup). Calcul par différence de
+`getBoundingClientRect()` entre le bouton déclencheur et `#detail-pp`, **pas**
+`offsetTop`/`offsetLeft` (à la différence de `.mo-tag-popup`) — le bouton vit dans
+`.comp-menu-ligne` (`position: relative`), qui s'interposerait comme `offsetParent` et fausserait
+le calcul si on suivait le même pattern que `.mo-tag-popup`.
 
 ---
 

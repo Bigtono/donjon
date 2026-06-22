@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-21 10:45 -->
+<!-- Mis à jour : 2026-06-21 12:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -746,6 +746,67 @@ return silencieux dans `campOppDemanderSuppression`). Fonctionne correctement de
 la liste dans `rencontre.php`. Probable même catégorie de bug que les deux précédents (fonctionnalité
 écrite en supposant un contexte DOM — liste rencontre — qui ne correspond pas à tous les points
 d'entrée possibles du bouton). À corriger si signalé séparément.
+
+**[2026-06-21] Correctif — bouton Supprimer inopérant depuis la vue Opposition**
+
+Corrigé tel qu'identifié ci-dessus : `detail-pp-sub/opposition.php` n'appelle plus
+`campOppDemanderSuppression()`. Nouvelle fonction autonome `oppDetailSupprimer(oppId)`, définie
+inline (`<script>` dans le même fichier, pattern déjà utilisé pour le toggle visibilité supplément
+de `modifier/monstre.php`) — `confirm()` natif (pas de ligne de confirmation inline à dessiner, vue
+à un seul élément) → `postAjax(campUrlEnreg, {action:'supprimerOpposition', id:oppId})` →
+`fermerSubPanel()` + `rafraichirDetailPPCourant()` en cas de succès. `campUrlEnreg` et `postAjax`
+restent accessibles : ce sont des globaux définis une fois au chargement initial de
+`campagnes/index.php`, jamais ré-évalués lors de l'injection des fragments `#detail-pp`/
+`#detail-pp-sub` (simples fetch + innerHTML dans la même page).
+
+**[2026-06-21] Nouveau — Transférer / Dupliquer une opposition (SP-T0)**
+
+*Demande* : ajouter au menu ⋮ de la liste des oppositions deux actions, **Transférer** et
+**Dupliquer**, chacune ouvrant un menu contextuel proposant les rencontres de la même campagne ;
+anticiper dans l'interface (sans l'implémenter) une évolution future vers le choix d'une rencontre
+d'une **autre** campagne, à planifier/numéroter comme les étapes Monstres (SP-C, SP-E).
+
+*Numérotation retenue* : **SP-T** (nouveau préfixe, distinct de SP-C/Supplément et SP-E/Équipements).
+SP-T0 = ce qui est livré aujourd'hui (même campagne). SP-T1 = extension inter-campagnes, planifiée
+mais non codée — cf. `ARCHITECTURE_0_REFERENCE.md` § Transfert / Duplication d'opposition (SP-T).
+
+*Implémentation* :
+- **Backend** (`campagnes/enregistrement.php`) : deux nouvelles actions dispatchées,
+  `transfererOpposition` (`UPDATE opp_re_id`) et `dupliquerOpposition` (`INSERT` copie). Toutes
+  deux passent par `checkReOwner()` sur la rencontre source **et** sur la rencontre cible, **plus**
+  un nouveau garde-fou `memeCampagne($db, $re_id_a, $re_id_b)` — nécessaire car `checkReOwner()`
+  seul ne garantit que "rencontre appartenant à une campagne du MJ courant", pas "même campagne que
+  la source" : un MJ avec plusieurs campagnes pourrait sinon transférer une opposition vers une
+  rencontre d'une autre de ses propres campagnes sans que `checkReOwner()` s'y oppose. Testé par
+  exécution réelle des requêtes SQL sur une instance MariaDB locale (schéma reconstitué à partir de
+  `SCHEMA_SQL.md`) : jointure `memeCampagne`, `UPDATE` transfert, `INSERT` duplication — tous
+  vérifiés directement en base, pas seulement relus.
+- **Duplication — suffixe « - copie »** : appliqué uniquement quand la cible est la rencontre
+  d'origine (duplication "en place"), conformément à la convention déjà actée le 2026-06-01 pour la
+  duplication en général. Vers une rencontre différente, le nom de la copie n'est pas modifié (pas
+  de risque de confusion puisqu'elle n'apparaît pas à côté de l'original dans la même liste).
+- **Endpoint JSON** `include/ajax/liste-rencontres-campagne.php` : liste des rencontres d'une
+  campagne, groupées scénario › chapitre, avec `exclude_re_id` optionnel (utilisé par Transférer
+  pour omettre la rencontre d'origine — non utilisé par Dupliquer, qui propose volontairement aussi
+  la rencontre d'origine).
+- **Popup contextuel** (`#camp-transfer-popup`, markup ajouté dans `rencontre.php`, logique dans
+  `js/campagne.js`) : modèle visuel repris de `.mo-tag-popup` (popup flottant `position: absolute`,
+  z-index 1200), mais **positionnement recalculé différemment** — `.mo-tag-popup` utilise
+  `offsetTop`/`offsetLeft` du textarea, qui fonctionne car rien ne s'interpose entre le textarea et
+  son `offsetParent` (`#modification`). Ici, le bouton déclencheur vit dans `.comp-menu-ligne`
+  (`position: relative`), qui deviendrait l'`offsetParent` du bouton et fausserait tout calcul basé
+  sur `offsetTop`/`offsetLeft`. Calcul retenu : différence de `getBoundingClientRect()` entre le
+  bouton et `#detail-pp` (l'ancêtre réellement positionné du popup, `position: fixed` +
+  `transform` → containing block), plus compensation du scroll interne de `#detail-pp`
+  (`overflow-y: auto`). Fermeture au clic extérieur : même pattern différé (`setTimeout(…, 0)`
+  avant d'enregistrer l'écouteur `document`) que `campToggleMenu()`, pour ne pas capter le clic qui
+  vient d'ouvrir le popup.
+- **Anticipation SP-T1** : pied de page fixe et non cliquable dans le popup
+  (« Vers une autre campagne — bientôt disponible »). Aucune logique de sélection de campagne en
+  amont — purement un repère visuel d'intention pour l'instant.
+- Après succès (transfert ou duplication) : popup fermé, `rafraichirDetailPPCourant()` (la même
+  fonction que pour le correctif de rafraîchissement de liste du 2026-06-21 précédent) pour mettre
+  à jour la liste des oppositions affichée.
 
 ---
 
@@ -1735,3 +1796,6 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [ ] recherche-monstre.php ne filtre pas mo_public/mo_visible — fuite potentielle de brouillons si un supplément tiers est explicitement ajouté aux sources d'une campagne (risque faible, non signalé séparément) — cf. DECISIONS_LOG.md [2026-06-21]
 - [x] ~~Oppositions — liste de la rencontre non rafraîchie après modification~~ → corrigé (2026-06-21, rafraichirDetailPPCourant() dans js/main.js)
 - [ ] Oppositions — bouton Supprimer inopérant depuis la vue Opposition elle-même (campOppDemanderSuppression cherche des éléments DOM qui n'existent que dans la liste rencontre.php) — repéré 2026-06-21, non corrigé, fonctionne depuis le menu ⋮ de la liste
+- [x] ~~Oppositions — bouton Supprimer inopérant depuis la vue Opposition~~ → corrigé (2026-06-21, oppDetailSupprimer() autonome dans detail-pp-sub/opposition.php)
+- [x] ~~SP-T0 — Transférer/Dupliquer une opposition vers une rencontre de la même campagne~~ → livré (2026-06-21, popup contextuel + campagnes/enregistrement.php + liste-rencontres-campagne.php)
+- [ ] SP-T1 — Transférer/Dupliquer une opposition vers une rencontre d'une autre campagne (sélecteur de campagne en amont dans le popup) — planifié, footer du popup réservé visuellement, aucune logique codée

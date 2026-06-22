@@ -94,6 +94,14 @@ switch ($action):
     supprimerOpposition($db, $is_ajax, $redirect);
     break;
 
+  case 'transfererOpposition':
+    transfererOpposition($db, $is_ajax, $redirect);
+    break;
+
+  case 'dupliquerOpposition':
+    dupliquerOpposition($db, $is_ajax, $redirect);
+    break;
+
   default:
     campErreur($is_ajax, 'Action inconnue.', $redirect);
 
@@ -863,6 +871,134 @@ function supprimerOpposition(PDO $db, bool $is_ajax, string $redirect): void
   $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Opposition supprimée.'];
   header('Location: ' . $redirect);
   exit;
+}
+
+// Transfère une opposition vers une autre rencontre — SP-T0 : même campagne
+// uniquement (cf. ARCHITECTURE_0_REFERENCE.md § Plan Transfert/Duplication
+// d'opposition (SP-T) pour SP-T1, transfert inter-campagnes, planifié).
+function transfererOpposition(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $opp_id     = intParam($_POST['opp_id']     ?? 0);
+  $dest_re_id = intParam($_POST['dest_re_id'] ?? 0);
+  if (!$opp_id || !$dest_re_id) campErreur($is_ajax, 'Paramètres manquants.', $redirect);
+
+  $stmt = $db->prepare('SELECT opp_re_id FROM dd_oppositions WHERE opp_id = ? AND opp_supprime = 0');
+  $stmt->execute([$opp_id]);
+  $row = $stmt->fetch();
+  if (!$row) campErreur($is_ajax, 'Opposition introuvable.', $redirect);
+
+  $source_re_id = (int)$row['opp_re_id'];
+  if (!checkReOwner($db, $source_re_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+  if (!checkReOwner($db, $dest_re_id))   campErreur($is_ajax, 'Rencontre de destination invalide.', $redirect);
+
+  if (!memeCampagne($db, $source_re_id, $dest_re_id)):
+    campErreur($is_ajax, "Le transfert vers une autre campagne n'est pas encore disponible.", $redirect);
+  endif;
+
+  if ($dest_re_id === $source_re_id):
+    campErreur($is_ajax, 'Cette opposition est déjà dans cette rencontre.', $redirect);
+  endif;
+
+  $db->beginTransaction();
+  try {
+    $stmt = $db->prepare('UPDATE dd_oppositions SET opp_re_id = ? WHERE opp_id = ? AND opp_supprime = 0');
+    $stmt->execute([$dest_re_id, $opp_id]);
+    $db->commit();
+  } catch (Exception $e) {
+    $db->rollBack();
+    campErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => true, 'id' => $source_re_id, 're_id' => $source_re_id]);
+    exit;
+  endif;
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Opposition transférée.'];
+  header('Location: ' . $redirect);
+  exit;
+}
+
+// Duplique une opposition vers une autre rencontre (ou la même, pour une
+// copie en place) — SP-T0 : même campagne uniquement (cf. SP-T1 ci-dessus).
+// Suffixe « - copie » uniquement si la cible est la rencontre d'origine
+// (convention déjà actée pour la duplication, cf. DECISIONS_LOG.md
+// [2026-06-01]) — vers une rencontre différente, le nom n'est pas modifié.
+function dupliquerOpposition(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $opp_id     = intParam($_POST['opp_id']     ?? 0);
+  $dest_re_id = intParam($_POST['dest_re_id'] ?? 0);
+  if (!$opp_id || !$dest_re_id) campErreur($is_ajax, 'Paramètres manquants.', $redirect);
+
+  $stmt = $db->prepare('SELECT * FROM dd_oppositions WHERE opp_id = ? AND opp_supprime = 0');
+  $stmt->execute([$opp_id]);
+  $opp = $stmt->fetch();
+  if (!$opp) campErreur($is_ajax, 'Opposition introuvable.', $redirect);
+
+  $source_re_id = (int)$opp['opp_re_id'];
+  if (!checkReOwner($db, $source_re_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+  if (!checkReOwner($db, $dest_re_id))   campErreur($is_ajax, 'Rencontre de destination invalide.', $redirect);
+
+  if (!memeCampagne($db, $source_re_id, $dest_re_id)):
+    campErreur($is_ajax, "La duplication vers une autre campagne n'est pas encore disponible.", $redirect);
+  endif;
+
+  $nom = $opp['opp_nom'] . ($dest_re_id === $source_re_id ? ' - copie' : '');
+
+  $db->beginTransaction();
+  try {
+    $stmt = $db->prepare('
+      INSERT INTO dd_oppositions
+        (opp_nom, opp_mocat_nom, opp_stats, opp_re_id, opp_mo_id, opp_supprime)
+      VALUES (?, ?, ?, ?, ?, 0)
+    ');
+    $stmt->execute([
+      $nom,
+      $opp['opp_mocat_nom'],
+      $opp['opp_stats'],
+      $dest_re_id,
+      $opp['opp_mo_id'],
+    ]);
+    $new_id = (int)$db->lastInsertId();
+    $db->commit();
+  } catch (Exception $e) {
+    $db->rollBack();
+    campErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => true, 'id' => $new_id, 're_id' => $source_re_id]);
+    exit;
+  endif;
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Opposition dupliquée.'];
+  header('Location: ' . $redirect);
+  exit;
+}
+
+// Vrai si deux rencontres appartiennent à la même campagne (par ids distincts
+// — un MJ peut posséder plusieurs campagnes : checkReOwner() seul ne suffit
+// pas à garantir "même campagne", seulement "campagne(s) du même MJ").
+function memeCampagne(PDO $db, int $re_id_a, int $re_id_b): bool
+{
+  $camp_a = campIdDeRencontre($db, $re_id_a);
+  $camp_b = campIdDeRencontre($db, $re_id_b);
+  return $camp_a !== null && $camp_a === $camp_b;
+}
+
+function campIdDeRencontre(PDO $db, int $re_id): ?int
+{
+  $stmt = $db->prepare('
+    SELECT camp.camp_id FROM dd_rencontres re
+    JOIN   dd_scenarios_chapitres scc ON scc.scc_id = re.re_scc_id
+    JOIN   dd_scenarios sce  ON sce.sce_id  = scc.scc_sce_id
+    JOIN   dd_campagnes camp ON camp.camp_id = sce.sce_camp_id
+    WHERE  re.re_id = ? AND re.re_supprime = 0
+      AND  scc.scc_supprime = 0 AND sce.sce_supprime = 0 AND camp.camp_supprime = 0
+  ');
+  $stmt->execute([$re_id]);
+  $row = $stmt->fetch();
+  return $row ? (int)$row['camp_id'] : null;
 }
 
 // Vérifie que l'utilisateur courant est MJ de la campagne porteuse de la rencontre.
