@@ -275,23 +275,31 @@ function campOppOuvrirTransfertPopup(event, oppId, currentReId, campId, action) 
   titre.textContent = action === 'transferer' ? 'Transférer vers…' : 'Dupliquer vers…';
   body.innerHTML = '<p class="camp-transfer-popup__msg">Chargement…</p>';
 
-  // Position : sous le bouton de menu ayant déclenché l'ouverture.
-  // Calcul via getBoundingClientRect() (viewport-relatif, fiable quels que
-  // soient les ancêtres positionnés intermédiaires — ex: .comp-menu-ligne)
-  // puis conversion en coordonnées relatives à #detail-pp, qui est
-  // l'ancêtre positionné réel du popup (position:fixed + transform sur
-  // .overlay-panel -> devient le containing block ; offsetTop/offsetLeft
-  // façon mo-tag-popup ne conviendrait pas ici à cause de .comp-menu-ligne
-  // qui s'interpose comme offsetParent du bouton).
-  const btn   = event.target.closest('button') || event.target;
-  const panel = document.getElementById('detail-pp');
-  if (panel) {
-    const panelRect = panel.getBoundingClientRect();
-    const btnRect   = btn.getBoundingClientRect();
-    popup.style.top  = (btnRect.bottom - panelRect.top  + panel.scrollTop  + 4) + 'px';
-    popup.style.left = (btnRect.left   - panelRect.left + panel.scrollLeft)     + 'px';
-  }
+  // Position : près du point de clic, en position:fixed (viewport).
+  // On utilise event.clientX/Y (coordonnées viewport du clic) plutôt que
+  // getBoundingClientRect() du bouton, parce que campToggleMenu() (appelé
+  // dans le même onclick, avant cette fonction) masque le menu déroulant
+  // (display:none via noDisplay) AVANT que le JS de positionnement s'exécute :
+  // le bouton "Transférer/Dupliquer" est alors non-rendu, getBoundingClientRect()
+  // retourne {top:0,left:0,...} → popup calé en coin (bug constaté 2026-06-21).
+  // clientX/Y proviennent de l'objet event AVANT que le DOM change — toujours
+  // fiables. Décalage de +4px vers le bas, aligné à gauche du point de clic.
+  const cx = event.clientX;
+  const cy = event.clientY;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  popup.style.position = 'fixed';
+  // Calcul provisoire pour mesurer la largeur réelle du popup
+  popup.style.top  = '-9999px';
+  popup.style.left = '-9999px';
   popup.hidden = false;
+  const pw = popup.offsetWidth  || 260;
+  const ph = popup.offsetHeight || 200;
+  // Repositionner : rester dans le viewport (marge 8px)
+  const top  = Math.min(cy + 4,  vh - ph - 8);
+  const left = Math.max(8, Math.min(cx, vw - pw - 8));
+  popup.style.top  = top  + 'px';
+  popup.style.left = left + 'px';
 
   let url = BASE_URL + '/include/ajax/liste-rencontres-campagne.php?camp_id=' + campId;
   if (action === 'transferer') url += '&exclude_re_id=' + currentReId;
