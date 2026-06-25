@@ -368,3 +368,96 @@ document.addEventListener('click', function (e) {
     actualiserPageSub(detailBase + fichier, { id: id });
   }
 });
+
+// ============================================================
+// AIDE CONTEXTUELLE (.aide-icone)
+// La bulle est créée en enfant direct de <body> (jamais nichée dans
+// #modification / #detail-pp-sub, qui ont un transform — containing block
+// des descendants position:fixed) pour rester correctement positionnée et
+// non rognée quelle que soit la couche d'affichage qui l'a déclenchée.
+// Cache le HTML par clé pour éviter un fetch répété sur la même bulle.
+// ============================================================
+var _aideCache = {};
+var _aideBulleEl = null;
+
+function _fermerAideBulle() {
+  if (_aideBulleEl) {
+    _aideBulleEl.remove();
+    _aideBulleEl = null;
+  }
+}
+
+function _positionnerAideBulle(bulle, icone) {
+  const rect = icone.getBoundingClientRect();
+  bulle.style.visibility = 'hidden';
+  document.body.appendChild(bulle);
+  const largeur = bulle.offsetWidth;
+  let left = rect.left;
+  if (left + largeur > window.innerWidth - 8) {
+    left = window.innerWidth - largeur - 8;
+  }
+  bulle.style.left = Math.max(8, left) + 'px';
+  bulle.style.top  = (rect.bottom + 6) + 'px';
+  bulle.style.visibility = '';
+}
+
+function _ouvrirAideBulle(icone, cle) {
+  const bulle = document.createElement('div');
+  bulle.id = 'aide-bulle';
+  bulle.innerHTML = _aideCache[cle];
+  _aideBulleEl = bulle;
+  _positionnerAideBulle(bulle, icone);
+}
+
+document.addEventListener('click', function (e) {
+  const icone = e.target.closest('.aide-icone');
+
+  if (!icone) {
+    if (_aideBulleEl && !e.target.closest('#aide-bulle')) {
+      _fermerAideBulle();
+    }
+    return;
+  }
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Re-clic sur la même icône : ferme la bulle déjà ouverte
+  if (_aideBulleEl && _aideBulleEl.dataset.aideOuvrante === icone.dataset.aide) {
+    _fermerAideBulle();
+    return;
+  }
+  _fermerAideBulle();
+
+  const cle = icone.dataset.aide;
+  if (_aideCache[cle] !== undefined) {
+    _ouvrirAideBulle(icone, cle);
+    _aideBulleEl.dataset.aideOuvrante = cle;
+    return;
+  }
+
+  fetch(BASE_URL + '/include/ajax/aide.php?cle=' + encodeURIComponent(cle))
+    .then(r => r.text())
+    .then(html => {
+      _aideCache[cle] = html;
+      _ouvrirAideBulle(icone, cle);
+      _aideBulleEl.dataset.aideOuvrante = cle;
+    });
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && _aideBulleEl) {
+    _fermerAideBulle();
+  }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('aide-icone')) {
+    e.preventDefault();
+    e.target.click();
+  }
+});
+
+// Ferme la bulle si la couche qui la contient scrolle, pour éviter qu'elle
+// reste figée à une position obsolète (capture:true = capte le scroll de
+// n'importe quel conteneur scrollable ancestor, pas seulement window).
+document.addEventListener('scroll', function () {
+  if (_aideBulleEl) _fermerAideBulle();
+}, true);

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-21 12:30 -->
+<!-- Mis à jour : 2026-06-25 17:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -1700,6 +1700,64 @@ au-dessus d'un standard « sans images ».
 → Section 16 de `ARCHITECTURE_0_REFERENCE.md` réécrite : le tableau de boutons et les chaînes
   `toolbar`/`plugins` canoniques incluent désormais `image`/`table` nativement ; l'ancienne section
   « Configuration avec upload d'images » a fusionné avec la section « Barre d'outils standard ».
+
+**[2026-06-25] Parser Monstres — priorité objets magiques > sorts + tag manuel `&Nom&`**
+
+- Constat : `construireIndexAuto()` priorisait `sort > objet > glossaire` pour la liaison automatique
+  (utilisée notamment sur la ligne "Equipement" en label_gras DD2024). En cas d'ambiguïté de nom
+  entre un objet magique et un sort, le sort gagnait — contre-intuitif sur une ligne d'équipement.
+- Décision : inversion de la priorité globale du moteur de liaison automatique →
+  `objet > sort > glossaire`. Pas de traitement spécifique à la ligne "Equipement" : le changement
+  s'applique à tout le texte parsé (pouvoirs, labels gras, etc.), à valider à l'usage.
+- Ajout du tag explicite `&Nom de l'objet&` (résolu en pré-passe par `resoudreTagsExplicites()`),
+  sur le modèle de `#Nom du don#` et `$Nom du sort$`. Comble un manque : les objets magiques
+  n'avaient jusqu'alors aucun moyen pour l'utilisateur de forcer le lien par tag, contrairement aux
+  dons et sorts.
+- Fichier modifié : `include/monstre-parser.php` (`construireIndexAuto()`,
+  `resoudreTagsExplicites()`).
+
+**[2026-06-25] Nouveau — Système d'aide contextuelle générique (icône `?`)**
+
+- Besoin : afficher des bulles d'aide ancrées à un label (ex. rappel des tags `#`/`$`/`&`/`@`/`%`
+  du parser monstre, au niveau du label "Description complète"), réutilisable dans tout
+  formulaire de l'application sans dépendre du moteur de panels existant.
+- Décision : contenu déclaré dans `include/aide-contextuelle.php` (tableau de closures
+  `PDO $db, int $ruleset_id -> string HTML` — autorise du contenu dynamique sans changer l'API
+  d'appel), édité à la main (pas de table SQL ni d'interface admin pour l'instant).
+  Helper `aideIcone(string $cle)` dans `include/helpers.php` pour l'insertion côté formulaire.
+  Endpoint unique `include/ajax/aide.php?cle=...` (GET, `requireAuth()`).
+- Contrainte technique posée et résolue : `#detail-pp` et `#detail-pp-sub` ont un `transform`
+  CSS, qui devient le containing block des descendants `position: fixed` (et leur
+  `overflow-y: auto` peut rogner un enfant statique). La bulle `#aide-bulle` est donc **toujours**
+  créée dynamiquement en enfant direct de `<body>` par `js/main.js` (jamais nichée dans le DOM
+  d'un panel), positionnée via `getBoundingClientRect()` de l'icône, `z-index: 350`
+  (au-dessus de `#detail-pp-sub` à 300). Fermeture : clic extérieur, Échap, re-clic, ou scroll
+  de la couche d'ouverture (capture sur tous les conteneurs scrollables).
+- Première utilisation : label "Description complète" du formulaire monstre
+  (`include/ajax/modifier/monstre.php`), clé `monstre-tags-description`.
+- Fichiers : `include/aide-contextuelle.php` (nouveau), `include/ajax/aide.php` (nouveau),
+  `include/helpers.php` (`aideIcone()`), `css/modules.css` (`.aide-icone`, `#aide-bulle`),
+  `js/main.js` (handler délégué `.aide-icone`).
+- Pour ajouter une aide ailleurs dans l'app : une entrée dans `aide-contextuelle.php` +
+  `<?= aideIcone('ma-cle') ?>` à l'endroit voulu — aucune autre modification nécessaire.
+
+**[2026-06-25] Bug — tags de liaison ré-échappés en HTML littéral (double passage `h()`)**
+
+- Symptôme : sur la ligne "Equipement" (et toute autre ligne combinant un tag explicite avec la
+  liaison automatique), le `<span class="mo-lien">` produit par `resoudreTagsExplicites()` était
+  affiché tel quel à l'écran au lieu d'être rendu comme lien.
+- Cause : `formaterBlocDD2024()` chaîne systématiquement `resoudreTagsExplicites()` puis
+  `lierAuto()`/`lierSorts()`/`lierDons()`. `lierAvecIndex()` traitait son entrée comme du texte
+  brut intégral et appliquait `h()` sur tous les segments non reconnus par l'index — y compris
+  le HTML déjà construit par la pré-passe de tags, ré-échappant ses chevrons en entités.
+  Pas spécifique à "Equipement" : touchait toute combinaison tag + liaison auto (labels gras,
+  pouvoirs, sous-listes de sorts, etc.).
+- Correctif : `lierAvecIndex()` détecte désormais les blocs `<span class="mo-lien">...</span>`
+  déjà présents dans le texte, les fait transiter inchangés (`lierAvecSegmentsProteges()`), et
+  n'applique le tokenizer/`h()` (`lierSegmentBrut()`, ex-corps de `lierAvecIndex()`) qu'aux
+  segments de texte brut situés entre eux.
+- Fichier modifié : `include/monstre-parser.php` (`lierAvecIndex()` découpée en
+  `lierAvecSegmentsProteges()` + `lierSegmentBrut()`).
 
 ## Bugs connus — à traiter
 

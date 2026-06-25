@@ -7,14 +7,13 @@
 // TAGS EXPLICITES (resolus en pre-passe) :
 //   #Nom don#       -> lien vers le don par nom
 //   $Nom sort$      -> lien vers le sort par nom
+//   &Nom objet&     -> lien vers l'objet magique par nom
 //   @id@            -> lien vers la regle (dd_regles, tout type)
 //   %id%            -> lien vers le glossaire (dd_regles, type=glossaire)
 //
 // PARSING AUTOMATIQUE DD2024 (description des pouvoirs + labels) :
-//   - Sorts (liaison par nom)
-//   - Objets magiques / équipement (liaison par nom — ligne "Equipement" + blocs Actions)
-//   - Glossaire (liaison par nom, type=glossaire)
-//   Le nom du pouvoir lui-meme n'est jamais parse automatiquement.
+//   - Priorite : objets magiques / équipement > sorts > glossaire (liaison par nom)
+//   - Le nom du pouvoir lui-meme n'est jamais parse automatiquement.
 //
 // DD3.5 : labels avec ":" ; parsing automatique a completer ulterieurement.
 // ============================================================
@@ -198,8 +197,8 @@ function chargerIndexMonstre(PDO $db, int $ruleset_id, array $res_ids): array
 function construireIndexAuto(array $index): array
 {
   $auto = [];
-  // Priorite : sort > objet > glossaire
-  foreach (['sort', 'objet', 'glossaire'] as $type):
+  // Priorite : objet > sort > glossaire
+  foreach (['objet', 'sort', 'glossaire'] as $type):
     foreach (($index[$type] ?? []) as $cle => $info):
       if (!isset($auto[$cle])):
         $auto[$cle] = ['type' => $type, 'id' => $info['id'], 'nom' => $info['nom']];
@@ -270,6 +269,17 @@ function resoudreTagsExplicites(
          . h($m[1]) . '</span>';
   }, $txt);
 
+  // &Nom& : objet magique par nom
+  $txt = preg_replace_callback('/&([^&\n]+)&/', function ($m) use ($index, &$rapport) {
+    $cle  = normaliserNomMonstre($m[1]);
+    $info = $index['objet'][$cle] ?? null;
+    if (!$info) return h($m[1]);
+    $rapport['liens']++;
+    $rapport['par_type']['objet'] = ($rapport['par_type']['objet'] ?? 0) + 1;
+    return '<span class="mo-lien" data-type="objet" data-id="' . $info['id'] . '">'
+         . h($m[1]) . '</span>';
+  }, $txt);
+
   return $txt;
 }
 
@@ -279,7 +289,40 @@ function resoudreTagsExplicites(
 
 define('MO_LONGUEUR_MIN', 4);
 
+// $txt peut déjà contenir des <span class="mo-lien">...</span> insérés par
+// resoudreTagsExplicites() (chaînage systématique resoudreTagsExplicites()
+// puis lierAuto()/lierSorts()/lierDons() dans formaterBlocDD2024()). Ces
+// blocs sont déjà du HTML sûr (construit via h() au moment de leur
+// création) : ils ne doivent ni être re-tokenisés (les mots de l'attribut
+// data-type/data-id pourraient matcher l'index par accident) ni être
+// re-échappés (h() transformerait leurs chevrons en entités, faisant
+// apparaître le tag littéralement à l'écran). On les protège donc en les
+// faisant transiter tels quels, et on n'applique le tokenizer qu'aux
+// segments de texte brut situés entre eux.
 function lierAvecIndex(string $txt, int $maxWords, callable $resolve, array &$rapport): string
+{
+  if (!preg_match('/<span\b[^>]*\bclass="mo-lien"[^>]*>.*?<\/span>/su', $txt)):
+    return lierSegmentBrut($txt, $maxWords, $resolve, $rapport);
+  endif;
+  return lierAvecSegmentsProteges($txt, $maxWords, $resolve, $rapport);
+}
+
+function lierAvecSegmentsProteges(string $txt, int $maxWords, callable $resolve, array &$rapport): string
+{
+  $segments = preg_split(
+    '/(<span\b[^>]*\bclass="mo-lien"[^>]*>.*?<\/span>)/su',
+    $txt, -1, PREG_SPLIT_DELIM_CAPTURE
+  );
+  $out = '';
+  foreach ($segments as $seg):
+    $out .= str_starts_with($seg, '<span')
+      ? $seg
+      : lierSegmentBrut($seg, $maxWords, $resolve, $rapport);
+  endforeach;
+  return $out;
+}
+
+function lierSegmentBrut(string $txt, int $maxWords, callable $resolve, array &$rapport): string
 {
   if ($maxWords < 1 || $txt === '') return h($txt);
   if (!preg_match_all('/[\p{L}\p{N}\']+/u', $txt, $mm, PREG_OFFSET_CAPTURE)):

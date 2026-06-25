@@ -232,10 +232,9 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
         <span class="modif-section__label">Statistiques</span>
       </div>
       <div class="form-group">
-        <label for="mo_stats">Description complète
+        <label for="mo_stats">Description complète<?= aideIcone('monstre-tags-description') ?>
           <span class="form-hint">
-            (texte brut — les sorts et termes du glossaire sont liés automatiquement.
-            Utilisez #Nom# pour un don, $Nom$ pour un sort, @id@ pour une règle, %id% pour le glossaire.)
+            (texte brut — les sorts et termes du glossaire sont liés automatiquement.)
           </span>
         </label>
         <textarea id="mo_stats" name="mo_stats"

@@ -22,6 +22,25 @@ function strParam($val, string $default = ''): string {
 }
 
 // ============================================================
+// AIDE CONTEXTUELLE
+// ============================================================
+
+// Icône (?) cliquable ouvrant la bulle d'aide associée à $cle (voir
+// include/aide-contextuelle.php et include/ajax/aide.php). N'affiche rien
+// si la clé n'existe pas, pour ne jamais casser un formulaire à cause d'une
+// faute de frappe dans la clé.
+function aideIcone(string $cle): string {
+  static $cles = null;
+  if ($cles === null) {
+    $cles = require __DIR__ . '/aide-contextuelle.php';
+  }
+  if (!isset($cles[$cle])) {
+    return '';
+  }
+  return '<span class="aide-icone" data-aide="' . h($cle) . '" tabindex="0" role="button" aria-label="Aide">?</span>';
+}
+
+// ============================================================
 // FILTRAGE PROPRIÉTAIRE
 // ============================================================
 

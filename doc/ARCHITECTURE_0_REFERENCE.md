@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-21 12:30 -->
+<!-- Mis à jour : 2026-06-25 17:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -476,14 +476,32 @@ Modifier à `canEditCompendiumEntry($db, $res_j_id)` au lieu de `canEditCompendi
 |---|---|---|
 | `#Nom du don#` | `dd_dons` | par **nom** (index, insensible casse/accents) |
 | `$Nom du sort$` | `dd_sorts` | par **nom** |
+| `&Nom de l'objet&` | `dd_objets_magiques` | par **nom** |
 | `@id@` | `dd_regles` (tout type) | par **id** |
 | `%id%` | `dd_regles` `reg_type='glossaire'` | par **id** |
 
-**2. Liaison automatique (`lierAuto()`) — sorts + objets magiques/équipement + glossaire.** Sur le
-texte libre, une passe relie automatiquement les **sorts**, les **objets magiques/équipement** et
+> ✅ **2026-06-25.** Tag `&Nom de l'objet&` ajouté pour forcer la liaison vers un objet magique
+> par nom (jusqu'alors seul type liable sans tag explicite dédié).
+
+**2. Liaison automatique (`lierAuto()`) — objets magiques/équipement + sorts + glossaire.** Sur le
+texte libre, une passe relie automatiquement les **objets magiques/équipement**, les **sorts** et
 les **termes de glossaire** via un index fusionné (`construireIndexAuto()`, priorité
-sort > objet > glossaire). Garde-fous : normalisation casse/accents, plus longue correspondance
+objet > sort > glossaire). Garde-fous : normalisation casse/accents, plus longue correspondance
 d'abord, longueur minimale `MO_LONGUEUR_MIN = 4`.
+
+> ✅ **2026-06-25.** Priorité inversée (`objet > sort > glossaire`, auparavant `sort > objet >
+> glossaire`) : sur la ligne **Equipement**, un nom ambigu pouvant correspondre à la fois à un
+> objet magique et à un sort doit se lier en priorité vers l'objet magique.
+
+> 🐛 **2026-06-25 — correctif.** `formaterBlocDD2024()` chaîne systématiquement
+> `resoudreTagsExplicites()` (pré-passe tags `#`/`$`/`&`/`@`/`%`) puis `lierAuto()` (ou
+> `lierSorts()`/`lierDons()`). `lierAvecIndex()` traitait son entrée comme du texte brut
+> intégral et ré-échappait via `h()` les `<span class="mo-lien">` déjà produits par la pré-passe
+> de tags, les faisant apparaître littéralement à l'écran au lieu d'un lien (touchait toute
+> ligne combinant un tag explicite et une liaison auto — pas seulement Equipement). Corrigé en
+> découpant `lierAvecIndex()` en `lierAvecSegmentsProteges()` (détecte et préserve les blocs
+> `<span class="mo-lien">...</span>` déjà présents) + `lierSegmentBrut()` (ex-corps de la
+> fonction, appliqué uniquement aux segments de texte brut entre ces blocs).
 
 > ✅ **2026-06-20.** Type `objet` (`dd_objets_magiques`) ajouté à `typesLiablesMonstre()` et à
 > `construireIndexAuto()`. Effet immédiat sans changement structurel supplémentaire : la ligne
@@ -1566,6 +1584,51 @@ fermerDetailPP();                     // Ferme #detail-pp + cascade modification
 
 Style : fond var(--burger-bg), bordure var(--burger-border), texte var(--burger-text).
 Le fond reste toujours "clair" dans les deux thèmes (beige #f3f3ef en dark, #f9f6f0 en light).
+
+### Aide contextuelle — icône `?` réutilisable
+
+Système générique permettant d'ancrer une bulle d'aide à n'importe quel label/champ, dans
+toute page ou formulaire (y compris injecté en AJAX). Cf. `doc/DECISIONS_LOG.md` [2026-06-25].
+
+**Contenu** : `include/aide-contextuelle.php` — tableau associatif `clé => closure`, chaque
+closure ayant la signature `function(PDO $db, int $ruleset_id): string` (retourne le HTML de la
+bulle). Closure plutôt que HTML statique pour autoriser du contenu dynamique (requête base) sans
+changer l'API d'appel. Fichier édité à la main — pas de table SQL, pas d'interface admin.
+
+**Insertion côté formulaire** (`include/helpers.php`) :
+
+```php
+function aideIcone(string $cle): string
+```
+
+Affiche `<span class="aide-icone" data-aide="CLE" tabindex="0">?</span>`, ou rien si la clé
+n'existe pas dans `aide-contextuelle.php` (jamais d'erreur visible pour une faute de frappe).
+
+```php
+<label for="mo_stats">Description complète<?= aideIcone('monstre-tags-description') ?></label>
+```
+
+**Endpoint** : `include/ajax/aide.php?cle=...` (GET, `requireAuth()`) — unique pour toutes les
+aides de l'application, résout la clé et exécute sa closure.
+
+**Affichage (js/main.js)** : un seul handler délégué sur `.aide-icone`. Au clic : fetch (mis en
+cache côté JS par clé, pas de re-fetch sur réouverture) puis injection de `#aide-bulle`.
+
+⚠️ **Contrainte impérative de positionnement** : `#detail-pp` et `#detail-pp-sub` ont un
+`transform` CSS (voir tableau des overlays ci-dessus), qui devient le containing block des
+descendants `position: fixed` — et leur `overflow-y: auto` peut rogner un enfant statique.
+`#aide-bulle` doit donc **toujours** être créée dynamiquement en enfant direct de `<body>`
+(jamais nichée dans le DOM d'un panel), positionnée via `icone.getBoundingClientRect()`.
+`z-index: 350` (au-dessus de `#detail-pp-sub` à 300) suffit alors, puisqu'elle est hors de tout
+contexte d'empilement transformé. Fermeture : clic extérieur, Échap, re-clic sur l'icône, ou
+scroll de la couche d'ouverture (listener `scroll` en `capture: true`).
+
+**Fichiers** : `include/aide-contextuelle.php`, `include/ajax/aide.php`,
+`include/helpers.php` (`aideIcone()`), `css/modules.css` (`.aide-icone`, `#aide-bulle`),
+`js/main.js` (handler `.aide-icone`).
+
+**Pour ajouter une aide ailleurs** : une entrée dans `aide-contextuelle.php` +
+`<?= aideIcone('ma-cle') ?>` à l'endroit voulu. Aucune autre modification nécessaire.
 
 ---
 

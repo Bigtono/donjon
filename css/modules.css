@@ -1,6 +1,67 @@
 /* css/modules.css — Styles globaux transverses */
 
 /* ============================================================
+   AIDE CONTEXTUELLE
+   Icône .aide-icone insérée via aideIcone() (include/helpers.php),
+   bulle #aide-bulle injectée dynamiquement en enfant de <body> par
+   js/main.js — toujours en dehors du DOM des panels #modification /
+   #detail-pp-sub pour ne pas hériter de leur containing block transformé
+   (cf. doc/DECISIONS_LOG.md [2026-06-25]).
+   ============================================================ */
+.aide-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: var(--sp-xs);
+  border-radius: 50%;
+  background: var(--clr-surface-2);
+  color: var(--clr-text-muted);
+  font-size: 0.7rem;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+}
+
+.aide-icone:hover,
+.aide-icone:focus {
+  background: var(--clr-accent-2);
+  color: var(--clr-bg);
+  outline: none;
+}
+
+#aide-bulle {
+  position: fixed;
+  z-index: 350;
+  max-width: 320px;
+  padding: var(--sp-md);
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  color: var(--clr-text);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+#aide-bulle code {
+  background: var(--clr-surface-2);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+#aide-bulle ul {
+  margin: var(--sp-xs) 0;
+  padding-left: var(--sp-lg);
+}
+
+#aide-bulle.noDisplay {
+  display: none;
+}
+
+/* ============================================================
    HEADER — profil et logout séparés
    ============================================================ */
 .site-header__profil {
