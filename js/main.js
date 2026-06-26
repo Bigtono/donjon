@@ -141,7 +141,7 @@ function _chargerDetailPP(url, params, withBack) {
         ? '<button class="overlay-back" onclick="retourDetailPP()" title="Retour">'
           + '<i class="fa fa-arrow-left"></i> Retour</button>'
         : '';
-      panel.innerHTML = closeBtn + backBtn + html;
+      panel.innerHTML = closeBtn + backBtn + '<div class="overlay-panel__inner">' + html + '</div>';
       actualiserContexteHeader();
     })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
@@ -177,7 +177,7 @@ function actualiserPageModif(url, params = {}) {
   fetch(fullUrl)
     .then(r => { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
     .then(html => {
-      panel.innerHTML = html;
+      panel.innerHTML = '<div class="overlay-panel__inner">' + html + '</div>';
       // Les <script> injectés via innerHTML ne s'exécutent pas — on les recrée
       panel.querySelectorAll('script').forEach(ancien => {
         const nouveau = document.createElement('script');
@@ -244,7 +244,7 @@ function actualiserPageSub(url, params = {}) {
     .then(html => {
       const closeBtn = '<button class="overlay-close" onclick="fermerSubPanel()" title="Fermer">'
         + '<i class="fa fa-times"></i></button>';
-      panel.innerHTML = closeBtn + html;
+      panel.innerHTML = closeBtn + '<div class="overlay-panel__inner">' + html + '</div>';
       // Les <script> injectés via innerHTML ne s'exécutent pas — on les recrée
       panel.querySelectorAll('script').forEach(ancien => {
         const nouveau = document.createElement('script');

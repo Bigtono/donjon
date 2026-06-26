@@ -270,22 +270,36 @@ button {
 }
 
 /* Panel modal centré */
+/* overflow:hidden + display:flex sur le panel (au lieu de overflow-y:auto)
+   pour que l'ascenseur reste cantonné à .overlay-panel__inner et ne
+   chevauche jamais les coins arrondis du panel */
 .overlay-panel {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 200;
+  display: flex;
+  flex-direction: column;
   width: 92%;
   max-width: 960px;
   /* anciennement 720px */
-  max-height: 85vh;
-  overflow-y: auto;
+  max-height: 90vh;
+  /* anciennement 85vh */
+  overflow: hidden;
   background: var(--clr-surface);
   border: 1px solid var(--clr-border);
   border-radius: var(--radius-lg);
-  padding: var(--sp-lg);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Conteneur scrollable interne — seul élément avec overflow-y:auto,
+   jamais en contact direct avec le border-radius du panel parent */
+.overlay-panel__inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-lg);
 }
 
 .overlay-panel--edit {
@@ -648,8 +662,11 @@ textarea {
   /* Overlay panels : pleine largeur sur mobile */
   .overlay-panel {
     width: 98%;
+    max-height: 95vh;
+  }
+
+  .overlay-panel__inner {
     padding: var(--sp-md);
-    max-height: 92vh;
   }
 
   /* Boutons : pleine largeur dans form-actions sur mobile */
