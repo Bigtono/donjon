@@ -62,6 +62,11 @@ require_once '../include/header.php';
     <span>Monstres</span>
   </a>
 
+  <a href="<?= BASE_URL ?>/compendium/equipements.php" class="dashboard-card">
+    <i class="fa fa-shield-alt"></i>
+    <span>Équipements</span>
+  </a>
+
 </div>
 
 <?php

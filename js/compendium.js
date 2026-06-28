@@ -296,6 +296,34 @@ function soumettreDon() {
 }
 
 // ============================================================
+// SOUMISSION FORMULAIRE ÉQUIPEMENT (appelé depuis modifier/equipement.php)
+// ============================================================
+
+function soumettreEquipement() {
+  const form = document.getElementById('form-equipement');
+  if (!form) return;
+
+  if (typeof tinymce !== 'undefined') {
+    const editor = tinymce.get('eqt_description');
+    if (editor) document.getElementById('eqt_description').value = editor.getContent();
+  }
+
+  fetch(form.getAttribute('action'), {
+    method: 'POST',
+    body: new FormData(form),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        apresModification(data);
+      } else {
+        alert(data.erreur || "Erreur lors de l'enregistrement.");
+      }
+    })
+    .catch(err => alert('Erreur : ' + err));
+}
+
+// ============================================================
 // SOUMISSION FORMULAIRE COMPÉTENCE (appelé depuis modifier/competence.php)
 // ============================================================
 

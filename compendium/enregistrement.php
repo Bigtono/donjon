@@ -93,6 +93,22 @@ switch ($entite):
     endswitch;
     break;
 
+  case 'equipement':
+    switch ($action):
+      case 'sauvegarder':
+        enregistrerEquipement($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+        supprimerEntite($db, 'dd_equipements', 'eqt_id', $is_ajax, $redirect);
+        break;
+      case 'bulk_supprimer':
+        supprimerEntite($db, 'dd_equipements', 'eqt_id', $is_ajax, $redirect);
+        break;
+      default:
+        repondreErreur($is_ajax, 'Action inconnue.', $redirect);
+    endswitch;
+    break;
+
   case 'sort':
     switch ($action):
       case 'sauvegarder':
@@ -266,6 +282,79 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
   } catch (Exception $e) {
     $db->rollBack();
     error_log('enregistrerDon : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// ============================================================
+// ÉQUIPEMENT — Enregistrement
+// ============================================================
+
+function enregistrerEquipement($db, bool $is_ajax, string $redirect): void
+{
+  $eqt_id     = intParam($_POST['eqt_id']             ?? 0);
+  $nom        = strParam($_POST['eqt_nom']             ?? '');
+  $ruleset_id = intParam($_POST['eqt_ruleset_var_id']  ?? 1);
+
+  if (!$nom):
+    repondreErreur($is_ajax, 'Le nom de l\'équipement est obligatoire.', $redirect);
+  endif;
+
+  $res_id = intParam($_POST['eqt_res_id'] ?? 0);
+  if (!$res_id):
+    repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
+  endif;
+
+  $camp_id     = intParam($_POST['eqt_camp_id'] ?? 0) ?: null;
+  $visible     = isset($_POST['eqt_visible']) ? 1 : 0;
+  $description = $_POST['eqt_description'] ?? '';   // HTML TinyMCE
+
+  try {
+    $db->beginTransaction();
+
+    if ($eqt_id === 0):
+      $stmt = $db->prepare('
+        INSERT INTO dd_equipements
+          (eqt_nom, eqt_description, eqt_visible,
+           eqt_res_id, eqt_camp_id, eqt_ruleset_var_id)
+        VALUES (?,?,?,?,?,?)
+      ');
+      $stmt->execute([
+        $nom,
+        $description,
+        $visible,
+        $res_id,
+        $camp_id,
+        $ruleset_id
+      ]);
+      $eqt_id = (int)$db->lastInsertId();
+    else:
+      $stmt = $db->prepare('
+        UPDATE dd_equipements SET
+          eqt_nom            = ?,
+          eqt_description    = ?,
+          eqt_visible        = ?,
+          eqt_res_id         = ?,
+          eqt_camp_id        = ?,
+          eqt_ruleset_var_id = ?
+        WHERE eqt_id = ?
+      ');
+      $stmt->execute([
+        $nom,
+        $description,
+        $visible,
+        $res_id,
+        $camp_id,
+        $ruleset_id,
+        $eqt_id
+      ]);
+    endif;
+
+    $db->commit();
+    repondreOk($is_ajax, $eqt_id, 'equipement', $redirect);
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('enregistrerEquipement : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
   }
 }

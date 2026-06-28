@@ -1,0 +1,2074 @@
+{
+  "character": {
+    "id": "-OwEETf8dJ-0MPpJbmVs",
+    "name": "Aboleth",
+    "avatar": "https://files.d20.io/images/421764151/zihKgFVScymmmcm9KHjTqA/original.png"
+  },
+  "attributes": [
+    {
+      "name": "ac",
+      "current": 9,
+      "max": ""
+    },
+    {
+      "name": "acrobatics_bonus",
+      "current": -1,
+      "max": ""
+    },
+    {
+      "name": "acrobatics_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{acrobatics-u}}} {{mod=@{acrobatics_bonus}}} {{r1=[[@{d20}+-1[dexterity]@{pbd_safe}]]}} @{advantagetoggle}+-1[dexterity]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "ammotracking",
+      "current": "off",
+      "max": ""
+    },
+    {
+      "name": "animal_handling_bonus",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "animal_handling_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{animal_handling-u}}} {{mod=@{animal_handling_bonus}}} {{r1=[[@{d20}+2[wisdom]@{pbd_safe}]]}} @{advantagetoggle}+2[wisdom]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "appliedUpdates",
+      "current": "upgrade_to_4_2_1,fix_npc_missing_attack_display_flag_attribute,fix_npc_version_number,fix_npcs_in_modules_saves_and_ability_mods,fix_spell_attacks,fix_npc_in_modules_triggering_popup,fix_npc_actions_to_support_translation,fix_pc_skill_and_saving_rolls,fix_pc_saving_rolls,fix_pc_skill_and_saving_rolls_with_expertise,fix_pc_skill_and_saving_rolls_with_reliable_talent,fix_npc_attacks,fix_npc_attacks_with_auto_damage_roll,enable_powerful_build_on_existing_characters,fix_pc_global_critical_damage_rolls,fix_npc_actions_with_damage,fix_pc_global_critical_stacked_damage_rolls,fix_npc_charname_output,fix_pc_skill_rolls_tooltips,fix_pc_global_statical_critical_damage,fix_spell_school_ouput,fix_pc_global_multiple_statical_critical_damage,fix_spell_savedc_output,fix_spellpoints,fix_advantage_query,fix_attacks_spelllink,fix_pc_skills_when_jack_and_odd_prof,fix_armor_stealth_penalty,fix_pc_printedskills,fix_npc_charactersheet_type",
+      "max": ""
+    },
+    {
+      "name": "arcana_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "arcana_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{arcana-u}}} {{mod=@{arcana_bonus}}} {{r1=[[@{d20}+4[intelligence]@{pbd_safe}]]}} @{advantagetoggle}+4[intelligence]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "armorwarningflag",
+      "current": "hide",
+      "max": ""
+    },
+    {
+      "name": "army_maneuver_action",
+      "current": "%{Aboleth|army-maneuver-action}",
+      "max": ""
+    },
+    {
+      "name": "army_morale_action",
+      "current": "%{Aboleth|army-morale-action}",
+      "max": ""
+    },
+    {
+      "name": "army_ranged_action",
+      "current": "%{Aboleth|army-ranged-action}",
+      "max": ""
+    },
+    {
+      "name": "army_scouting_action",
+      "current": "%{Aboleth|army-scouting-action}",
+      "max": ""
+    },
+    {
+      "name": "athletics_bonus",
+      "current": 5,
+      "max": ""
+    },
+    {
+      "name": "athletics_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{athletics-u}}} {{mod=@{athletics_bonus}}} {{r1=[[@{d20}+5[strength]@{pbd_safe}]]}} @{advantagetoggle}+5[strength]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "caster_level",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "cd_bar1_m",
+      "current": "hp_max",
+      "max": ""
+    },
+    {
+      "name": "cd_bar1_v",
+      "current": "hp_max",
+      "max": ""
+    },
+    {
+      "name": "cd_bar2_l",
+      "current": "npc_ac",
+      "max": ""
+    },
+    {
+      "name": "charactersheet_type",
+      "current": "npc",
+      "max": ""
+    },
+    {
+      "name": "charisma",
+      "current": 18,
+      "max": ""
+    },
+    {
+      "name": "charisma_base",
+      "current": "18",
+      "max": ""
+    },
+    {
+      "name": "charisma_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "charisma_mod",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "charisma_save_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "charisma_save_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{charisma-save-u}}} {{mod=@{charisma_save_bonus}}} {{r1=[[@{d20}+@{charisma_save_bonus}@{pbd_safe}]]}} @{advantagetoggle}+@{charisma_save_bonus}@{pbd_safe}]]}} {{global=@{global_save_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "charname_output",
+      "current": "{{charname=@{npc_name}}}",
+      "max": ""
+    },
+    {
+      "name": "constitution",
+      "current": 15,
+      "max": ""
+    },
+    {
+      "name": "constitution_base",
+      "current": "15",
+      "max": ""
+    },
+    {
+      "name": "constitution_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "constitution_mod",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "constitution_save_bonus",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "constitution_save_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{constitution-save-u}}} {{mod=@{constitution_save_bonus}}} {{r1=[[@{d20}+@{constitution_save_bonus}@{pbd_safe}]]}} @{advantagetoggle}+@{constitution_save_bonus}@{pbd_safe}]]}} {{global=@{global_save_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "core_die",
+      "current": "1d20",
+      "max": ""
+    },
+    {
+      "name": "customacwarningflag",
+      "current": "hide",
+      "max": ""
+    },
+    {
+      "name": "d20",
+      "current": "1d20",
+      "max": ""
+    },
+    {
+      "name": "death_save_bonus",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "death_save_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{death-save-u}}} {{mod=@{death_save_bonus}}} {{r1=[[@{d20}+@{death_save_bonus}@{pbd_safe}]]}} @{advantagetoggle}+@{death_save_bonus}@{pbd_safe}]]}} {{global=@{global_save_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "deception_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "deception_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{deception-u}}} {{mod=@{deception_bonus}}} {{r1=[[@{d20}+4[charisma]@{pbd_safe}]]}} @{advantagetoggle}+4[charisma]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "dexterity",
+      "current": 9,
+      "max": ""
+    },
+    {
+      "name": "dexterity_base",
+      "current": "9",
+      "max": ""
+    },
+    {
+      "name": "dexterity_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "dexterity_mod",
+      "current": -1,
+      "max": ""
+    },
+    {
+      "name": "dexterity_save_bonus",
+      "current": -1,
+      "max": ""
+    },
+    {
+      "name": "dexterity_save_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{dexterity-save-u}}} {{mod=@{dexterity_save_bonus}}} {{r1=[[@{d20}+@{dexterity_save_bonus}@{pbd_safe}]]}} @{advantagetoggle}+@{dexterity_save_bonus}@{pbd_safe}]]}} {{global=@{global_save_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "drop_category",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "drop_content",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "drop_data",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "drop_name",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "dtype",
+      "current": "full",
+      "max": ""
+    },
+    {
+      "name": "encumberance",
+      "current": " ",
+      "max": ""
+    },
+    {
+      "name": "encumberance_setting",
+      "current": "on",
+      "max": ""
+    },
+    {
+      "name": "filter_traits_by",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "global_attack_mod",
+      "current": "[[1d4[BLESS]]]",
+      "max": ""
+    },
+    {
+      "name": "global_attack_mod_flag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "global_damage_mod_crit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "global_damage_mod_flag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "global_damage_mod_roll",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "global_damage_mod_type",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "global_save_mod",
+      "current": "[[1d4[BLESS]]]",
+      "max": ""
+    },
+    {
+      "name": "global_save_mod_flag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "global_skill_mod",
+      "current": "[[1d4[GUIDANCE]]]",
+      "max": ""
+    },
+    {
+      "name": "global_skill_mod_flag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "globalmagicmod",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "history_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "history_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{history-u}}} {{mod=@{history_bonus}}} {{r1=[[@{d20}+4[intelligence]@{pbd_safe}]]}} @{advantagetoggle}+4[intelligence]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "hitdieroll",
+      "current": "4",
+      "max": ""
+    },
+    {
+      "name": "honor_save_bonus",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "honor_save_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{honor-save-u}}} {{mod=@{honor_save_bonus}}} {{r1=[[@{d20}+@{honor_save_bonus}@{pbd_safe}]]}} @{advantagetoggle}+@{honor_save_bonus}@{pbd_safe}]]}} {{global=@{global_save_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "honor_toggle",
+      "current": "0",
+      "max": ""
+    },
+    {
+      "name": "hp",
+      "current": "",
+      "max": "150"
+    },
+    {
+      "name": "init_tiebreaker",
+      "current": "@{dexterity}/100",
+      "max": ""
+    },
+    {
+      "name": "initiative_bonus",
+      "current": -0.91,
+      "max": ""
+    },
+    {
+      "name": "insight_bonus",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "insight_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{insight-u}}} {{mod=@{insight_bonus}}} {{r1=[[@{d20}+2[wisdom]@{pbd_safe}]]}} @{advantagetoggle}+2[wisdom]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "intelligence",
+      "current": 18,
+      "max": ""
+    },
+    {
+      "name": "intelligence_base",
+      "current": "18",
+      "max": ""
+    },
+    {
+      "name": "intelligence_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "intelligence_mod",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "intelligence_save_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "intelligence_save_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{intelligence-save-u}}} {{mod=@{intelligence_save_bonus}}} {{r1=[[@{d20}+@{intelligence_save_bonus}@{pbd_safe}]]}} @{advantagetoggle}+@{intelligence_save_bonus}@{pbd_safe}]]}} {{global=@{global_save_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "intimidation_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "intimidation_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{intimidation-u}}} {{mod=@{intimidation_bonus}}} {{r1=[[@{d20}+4[charisma]@{pbd_safe}]]}} @{advantagetoggle}+4[charisma]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "invalidXP",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "investigation_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "investigation_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{investigation-u}}} {{mod=@{investigation_bonus}}} {{r1=[[@{d20}+4[intelligence]@{pbd_safe}]]}} @{advantagetoggle}+4[intelligence]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "is_vehicle",
+      "current": "0",
+      "max": ""
+    },
+    {
+      "name": "jack",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "jack_attr",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "jack_bonus",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "kingdom",
+      "current": "0",
+      "max": ""
+    },
+    {
+      "name": "kingdom_agriculture_action",
+      "current": "%{Aboleth|kingdom-agriculture-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_arts_action",
+      "current": "%{Aboleth|kingdom-arts-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_boating_action",
+      "current": "%{Aboleth|kingdom-boating-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_culture_action",
+      "current": "%{Aboleth|kingdom-culture-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_defense_action",
+      "current": "%{Aboleth|kingdom-defense-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_drop_data",
+      "current": "{\"AC\":\"17\",\"HP\":\"150 (20d10 + 40)\",\"PB\":\"4\",\"CHA\":\"18\",\"CON\":\"15\",\"DEX\":\"9\",\"INT\":\"18\",\"STR\":\"21\",\"WIS\":\"15\",\"Size\":\"Large\",\"Type\":\"Aberration\",\"Speed\":\"10 ft., Swim 40 ft.\",\"Token\":\"https://files.d20.io/images/421764151/zihKgFVScymmmcm9KHjTqA/original.png\",\"Senses\":\"Darkvision 120 ft\",\"Skills\":\"History +12, Perception +10\",\"Habitat\":\"Underdark, Underwater\",\"data-XP\":\"5,900, or 7,200 in lair\",\"Category\":\"Monsters\",\"Treasure\":\"Relics\",\"Alignment\":\"Lawful Evil\",\"Expansion\":\"33335\",\"Languages\":\"Deep Speech; telepathy 120 ft.\",\"data-List\":\"false\",\"Token Size\":\"2\",\"data-Traits\":\"[{\\\"Name\\\":\\\"Amphibious\\\",\\\"Desc\\\":\\\"The aboleth can breathe air and water.\\\"},{\\\"Name\\\":\\\"Eldritch Restoration\\\",\\\"Desc\\\":\\\"If destroyed, the aboleth gains a new body in [[5d10]] (5d10) days, reviving with all its Hit Points in the Far Realm or another location chosen by the DM.\\\"},{\\\"Name\\\":\\\"Legendary Resistance (3/Day, or 4/Day in Lair)\\\",\\\"Desc\\\":\\\"If the aboleth fails a saving throw, it can choose to succeed instead.\\\"},{\\\"Name\\\":\\\"Mucus Cloud\\\",\\\"Desc\\\":\\\"While underwater, the aboleth is surrounded by mucus. *Constitution Saving Throw:* DC 14, each creature in a 5-foot Emanation originating from the aboleth at the end of the aboleth's turn. *Failure:* The target is cursed. Until the curse ends, the target's skin becomes slimy, the target can breathe air and water, and it can't regain Hit Points unless it is underwater.\\\\n\\\\nWhile the cursed creature is outside a body of water, the creature takes 6 (or [[1d12]] (1d12)) Acid damage at the end of every 10 minutes unless moisture is applied to its skin before those minutes have passed.\\\"},{\\\"Name\\\":\\\"Probing Telepathy\\\",\\\"Desc\\\":\\\"If a creature the aboleth can see communicates telepathically with the aboleth, the aboleth learns the creature's greatest desires.\\\"}]\",\"data-Actions\":\"[{\\\"Name\\\":\\\"Multiattack\\\",\\\"Desc\\\":\\\"The aboleth makes two Tentacle attacks and uses either Consume Memories or Dominate Mind if available.\\\"},{\\\"Name\\\":\\\"Tentacle\\\",\\\"Desc\\\":\\\"If the target is a Large or smaller creature, it has the Grappled condition (escape DC 14) from one of four tentacles.\\\",\\\"Type\\\":\\\"Melee\\\",\\\"Type Attack\\\":\\\"Weapon Attack\\\",\\\"Hit Bonus\\\":\\\"9\\\",\\\"Reach\\\":\\\"15 ft.\\\",\\\"Target\\\":\\\"one target\\\",\\\"Damage\\\":\\\"2d6 + 5\\\",\\\"Damage Type\\\":\\\"Bludgeoning\\\"},{\\\"Name\\\":\\\"Consume Memories\\\",\\\"Desc\\\":\\\"*Intelligence Saving Throw:* DC 16, one creature within 30 feet that is Charmed or Grappled by the aboleth. *Failure:* 10 (or [[3d6]] (3d6)) Psychic damage. *Success:* Half damage. *Failure or Success:* The aboleth gains the target's memories if the target is a Humanoid and is reduced to 0 Hit Points by this action.\\\"},{\\\"Name\\\":\\\"Dominate Mind (2/Day)\\\",\\\"Desc\\\":\\\"*Wisdom Saving Throw:* DC 16, one creature the aboleth can see within 30 feet. *Failure:* The target has the Charmed condition until the aboleth dies or is on a different plane of existence from the target. While Charmed, the target acts as an ally to the aboleth and is under its control while within 60 feet of it. In addition, the aboleth and the target can communicate telepathically with each other over any distance.\\\\n\\\\nThe target repeats the save whenever it takes damage as well as after every 24 hours it spends at least 1 mile away from the aboleth, ending the effect on itself on a success.\\\"}]\",\"data-CHA-mod\":\"4\",\"data-CON-mod\":\"2\",\"data-DEX-mod\":\"-1\",\"data-INT-mod\":\"4\",\"data-STR-mod\":\"5\",\"data-SizeNum\":\"5\",\"data-WIS-mod\":\"2\",\"Saving Throws\":\"Str +5, Dex +3, Con +6, Int +8, Wis +6, Cha +4\",\"Initiative Mod\":\"7\",\"Challenge Rating\":\"10\",\"Initiative Score\":\"17\",\"Passive Perception\":\"20\",\"Legendary Actions Desc\":\"Legendary Action Uses: 3 (4 in Lair). Immediately after another creature's turn, the aboleth can expend a use to take one of the following actions. The aboleth regains all expended uses at the start of each of its turns.\",\"data-Legendary Actions\":\"[{\\\"Name\\\":\\\"Lash\\\",\\\"Desc\\\":\\\"The aboleth makes one Tentacle attack.\\\"},{\\\"Name\\\":\\\"Psychic Drain\\\",\\\"Desc\\\":\\\"If the aboleth has at least one creature Charmed or Grappled, it uses Consume Memories and regains 5 (or [[1d10]] (1d10)) Hit Points.\\\"}]\",\"blobs\":{}}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_drop_name",
+      "current": "Aboleth",
+      "max": ""
+    },
+    {
+      "name": "kingdom_economy_action",
+      "current": "%{Aboleth|kingdom-economy-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_engineering_action",
+      "current": "%{Aboleth|kingdom-engineering-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_exploration_action",
+      "current": "%{Aboleth|kingdom-exploration-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_folklore_action",
+      "current": "%{Aboleth|kingdom-folklore-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_industry_action",
+      "current": "%{Aboleth|kingdom-industry-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_intrigue_action",
+      "current": "%{Aboleth|kingdom-intrigue-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_loyalty_action",
+      "current": "%{Aboleth|kingdom-loyalty-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_magic_action",
+      "current": "%{Aboleth|kingdom-magic-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_politics_action",
+      "current": "%{Aboleth|kingdom-politics-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_scholarship_action",
+      "current": "%{Aboleth|kingdom-scholarship-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_stability_action",
+      "current": "%{Aboleth|kingdom-stability-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_statecraft_action",
+      "current": "%{Aboleth|kingdom-statecraft-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_trade_action",
+      "current": "%{Aboleth|kingdom-trade-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_warfare_action",
+      "current": "%{Aboleth|kingdom-warfare-action}",
+      "max": ""
+    },
+    {
+      "name": "kingdom_wilderness_action",
+      "current": "%{Aboleth|kingdom-wilderness-action}",
+      "max": ""
+    },
+    {
+      "name": "kingmaker_tab",
+      "current": "nav-tabs-kingmaker--settings",
+      "max": ""
+    },
+    {
+      "name": "l1mancer_status",
+      "current": "completed",
+      "max": ""
+    },
+    {
+      "name": "legendaryactionlist",
+      "current": "Lash|Psychic Drain",
+      "max": ""
+    },
+    {
+      "name": "level_calculations",
+      "current": "on",
+      "max": ""
+    },
+    {
+      "name": "lvl1_slots_total",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "lvl2_slots_total",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "lvl3_slots_total",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "lvl4_slots_total",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "lvl5_slots_total",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "lvl6_slots_total",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "lvl7_slots_total",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "lvl8_slots_total",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "lvl9_slots_total",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "lvup_button_mode",
+      "current": " ",
+      "max": ""
+    },
+    {
+      "name": "medicine_bonus",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "medicine_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{medicine-u}}} {{mod=@{medicine_bonus}}} {{r1=[[@{d20}+2[wisdom]@{pbd_safe}]]}} @{advantagetoggle}+2[wisdom]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "nature_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "nature_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{nature-u}}} {{mod=@{nature_bonus}}} {{r1=[[@{d20}+4[intelligence]@{pbd_safe}]]}} @{advantagetoggle}+4[intelligence]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "npc",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "npc_ac",
+      "current": "17",
+      "max": ""
+    },
+    {
+      "name": "npc_acrobatics",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_acrobatics_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_acrobatics_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_actype",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_animal_handling",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_animal_handling_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_animal_handling_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_arcana",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_arcana_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_arcana_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_athletics",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_athletics_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_athletics_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_cha_negative",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_cha_save",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "npc_cha_save_base",
+      "current": "+4",
+      "max": ""
+    },
+    {
+      "name": "npc_cha_save_flag",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "npc_challenge",
+      "current": "10",
+      "max": ""
+    },
+    {
+      "name": "npc_con_negative",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_con_save",
+      "current": 6,
+      "max": ""
+    },
+    {
+      "name": "npc_con_save_base",
+      "current": "+6",
+      "max": ""
+    },
+    {
+      "name": "npc_con_save_flag",
+      "current": 1,
+      "max": ""
+    },
+    {
+      "name": "npc_condition_immunities",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_deception",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_deception_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_deception_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_dex_negative",
+      "current": 1,
+      "max": ""
+    },
+    {
+      "name": "npc_dex_save",
+      "current": 3,
+      "max": ""
+    },
+    {
+      "name": "npc_dex_save_base",
+      "current": "+3",
+      "max": ""
+    },
+    {
+      "name": "npc_dex_save_flag",
+      "current": 1,
+      "max": ""
+    },
+    {
+      "name": "npc_history",
+      "current": 12,
+      "max": ""
+    },
+    {
+      "name": "npc_history_base",
+      "current": "+12",
+      "max": ""
+    },
+    {
+      "name": "npc_history_flag",
+      "current": 1,
+      "max": ""
+    },
+    {
+      "name": "npc_hpformula",
+      "current": "20d10 + 40",
+      "max": ""
+    },
+    {
+      "name": "npc_immunities",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_insight",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_insight_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_insight_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_int_negative",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_int_save",
+      "current": 8,
+      "max": ""
+    },
+    {
+      "name": "npc_int_save_base",
+      "current": "+8",
+      "max": ""
+    },
+    {
+      "name": "npc_int_save_flag",
+      "current": 1,
+      "max": ""
+    },
+    {
+      "name": "npc_intimidation",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_intimidation_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_intimidation_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_investigation",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_investigation_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_investigation_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_languages",
+      "current": "Deep Speech; telepathy 120 ft.",
+      "max": ""
+    },
+    {
+      "name": "npc_legendary_actions",
+      "current": 3,
+      "max": ""
+    },
+    {
+      "name": "npc_legendary_actions_desc",
+      "current": "Legendary Action Uses: 3 (4 in Lair). Immediately after another creature's turn, the aboleth can expend a use to take one of the following actions. The aboleth regains all expended uses at the start of each of its turns.",
+      "max": ""
+    },
+    {
+      "name": "npc_medicine",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_medicine_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_medicine_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_mythic_actions",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_mythic_actions_desc",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_name",
+      "current": "Aboleth",
+      "max": ""
+    },
+    {
+      "name": "npc_name_flag",
+      "current": "{{name=@{npc_name}}}",
+      "max": ""
+    },
+    {
+      "name": "npc_nature",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_nature_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_nature_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_options-flag",
+      "current": "on",
+      "max": ""
+    },
+    {
+      "name": "npc_pb",
+      "current": "4",
+      "max": ""
+    },
+    {
+      "name": "npc_perception",
+      "current": 10,
+      "max": ""
+    },
+    {
+      "name": "npc_perception_base",
+      "current": "+10",
+      "max": ""
+    },
+    {
+      "name": "npc_perception_flag",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "npc_performance",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_performance_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_performance_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_persuasion",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_persuasion_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_persuasion_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_religion",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_religion_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_religion_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_resistances",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_saving_flag",
+      "current": 7,
+      "max": ""
+    },
+    {
+      "name": "npc_senses",
+      "current": "Darkvision 120 ft, passive Perception 20",
+      "max": ""
+    },
+    {
+      "name": "npc_skills_flag",
+      "current": 3,
+      "max": ""
+    },
+    {
+      "name": "npc_sleight_of_hand",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_sleight_of_hand_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_sleight_of_hand_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_speed",
+      "current": "10 ft., Swim 40 ft.",
+      "max": ""
+    },
+    {
+      "name": "npc_stealth",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_stealth_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_stealth_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_str_negative",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_str_save",
+      "current": 5,
+      "max": ""
+    },
+    {
+      "name": "npc_str_save_base",
+      "current": "+5",
+      "max": ""
+    },
+    {
+      "name": "npc_str_save_flag",
+      "current": 1,
+      "max": ""
+    },
+    {
+      "name": "npc_survival",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_survival_base",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_survival_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_type",
+      "current": "Large Aberration, Lawful Evil",
+      "max": ""
+    },
+    {
+      "name": "npc_vulnerabilities",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "npc_wis_negative",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npc_wis_save",
+      "current": 6,
+      "max": ""
+    },
+    {
+      "name": "npc_wis_save_base",
+      "current": "+6",
+      "max": ""
+    },
+    {
+      "name": "npc_wis_save_flag",
+      "current": 1,
+      "max": ""
+    },
+    {
+      "name": "npc_xp",
+      "current": 5900,
+      "max": ""
+    },
+    {
+      "name": "npcactionlist",
+      "current": "Multiattack|Tentacle|Consume Memories|Dominate Mind (2/Day)",
+      "max": ""
+    },
+    {
+      "name": "npcbonusactionsflag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "npcreactionsflag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "npcspellcastingflag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "other_armor",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "other_languages",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "other_other",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "other_tool",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "other_weapon",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "passive_wisdom",
+      "current": 12,
+      "max": ""
+    },
+    {
+      "name": "pb",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "pb_custom",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "pb_type",
+      "current": "custom",
+      "max": ""
+    },
+    {
+      "name": "pbd_safe",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "perception_bonus",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "perception_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{perception-u}}} {{mod=@{perception_bonus}}} {{r1=[[@{d20}+2[wisdom]@{pbd_safe}]]}} @{advantagetoggle}+2[wisdom]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "performance_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "performance_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{performance-u}}} {{mod=@{performance_bonus}}} {{r1=[[@{d20}+4[charisma]@{pbd_safe}]]}} @{advantagetoggle}+4[charisma]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "persuasion_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "persuasion_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{persuasion-u}}} {{mod=@{persuasion_bonus}}} {{r1=[[@{d20}+4[charisma]@{pbd_safe}]]}} @{advantagetoggle}+4[charisma]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "queryadvantage",
+      "current": "{{query=1}} ?{Advantage?|Normal Roll,&#123&#123normal=1&#125&#125 &#123&#123r2=[[0d20|Advantage,&#123&#123advantage=1&#125&#125 &#123&#123r2=[[@{d20}|Disadvantage,&#123&#123disadvantage=1&#125&#125 &#123&#123r2=[[@{d20}}",
+      "max": ""
+    },
+    {
+      "name": "religion_bonus",
+      "current": 4,
+      "max": ""
+    },
+    {
+      "name": "religion_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{religion-u}}} {{mod=@{religion_bonus}}} {{r1=[[@{d20}+4[intelligence]@{pbd_safe}]]}} @{advantagetoggle}+4[intelligence]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "repeating_damagemod_-OwEEU4LfehrO0sueYzp_global_damage_active_flag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXa_attack_crit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXa_attack_crit2",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXa_attack_onhit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXa_attack_tohitrange",
+      "current": "+0",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXa_damage_flag",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXa_description",
+      "current": "The aboleth makes two Tentacle attacks and uses either Consume Memories or Dominate Mind if available.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXa_name",
+      "current": "Multiattack",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXa_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXa_rollbase",
+      "current": "@{wtype}&{template:npcaction} @{npc_name_flag} {{rname=@{name}}} {{description=@{show_desc}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_crit",
+      "current": "2d6",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_crit2",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_damage",
+      "current": "2d6 + 5",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_damage2",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_damagetype",
+      "current": "Bludgeoning",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_damagetype2",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_display_flag",
+      "current": "{{attack=1}}",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_flag",
+      "current": "on",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_onhit",
+      "current": "12 (2d6 + 5) Bludgeoning damage",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_options",
+      "current": "{{attack=1}}",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_range",
+      "current": "15 ft.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_target",
+      "current": "one target",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_tohit",
+      "current": "9",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_tohitrange",
+      "current": "+9, Reach 15 ft., one target",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_attack_type",
+      "current": "Melee",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_damage_flag",
+      "current": "{{damage=1}} {{dmg1flag=1}} ",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_description",
+      "current": "If the target is a Large or smaller creature, it has the Grappled condition (escape DC 14) from one of four tentacles.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_name",
+      "current": "Tentacle",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXb_rollbase",
+      "current": "@{wtype}&{template:npcfullatk} {{attack=1}} @{damage_flag} @{npc_name_flag} {{rname=@{name}}} {{r1=[[@{d20}+(@{attack_tohit}+0)]]}} @{rtype}+(@{attack_tohit}+0)]]}} {{dmg1=[[@{attack_damage}+0]]}} {{dmg1type=@{attack_damagetype}}} {{dmg2=[[@{attack_damage2}+0]]}} {{dmg2type=@{attack_damagetype2}}} {{crit1=[[@{attack_crit}+0]]}} {{crit2=[[@{attack_crit2}+0]]}} {{description=@{show_desc}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXc_attack_crit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXc_attack_crit2",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXc_attack_onhit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXc_attack_tohitrange",
+      "current": "+0",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXc_damage_flag",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXc_description",
+      "current": "*Intelligence Saving Throw:* DC 16, one creature within 30 feet that is Charmed or Grappled by the aboleth. *Failure:* 10 (or [[3d6]] (3d6)) Psychic damage. *Success:* Half damage. *Failure or Success:* The aboleth gains the target's memories if the target is a Humanoid and is reduced to 0 Hit Points by this action.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXc_name",
+      "current": "Consume Memories",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXc_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXc_rollbase",
+      "current": "@{wtype}&{template:npcaction} @{npc_name_flag} {{rname=@{name}}} {{description=@{show_desc}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXd_attack_crit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXd_attack_crit2",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXd_attack_onhit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXd_attack_tohitrange",
+      "current": "+0",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXd_damage_flag",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXd_description",
+      "current": "*Wisdom Saving Throw:* DC 16, one creature the aboleth can see within 30 feet. *Failure:* The target has the Charmed condition until the aboleth dies or is on a different plane of existence from the target. While Charmed, the target acts as an ally to the aboleth and is under its control while within 60 feet of it. In addition, the aboleth and the target can communicate telepathically with each other over any distance.\n\nThe target repeats the save whenever it takes damage as well as after every 24 hours it spends at least 1 mile away from the aboleth, ending the effect on itself on a success.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXd_name",
+      "current": "Dominate Mind (2/Day)",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXd_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction_-OwEEU86S7Jw78LOCfXd_rollbase",
+      "current": "@{wtype}&{template:npcaction} @{npc_name_flag} {{rname=@{name}}} {{description=@{show_desc}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXe_attack_crit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXe_attack_crit2",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXe_attack_onhit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXe_attack_tohitrange",
+      "current": "+0",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXe_damage_flag",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXe_description",
+      "current": "The aboleth makes one Tentacle attack.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXe_name",
+      "current": "Lash",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXe_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXe_rollbase",
+      "current": "@{wtype}&{template:npcaction} @{npc_name_flag} {{rname=@{name}}} {{description=@{show_desc}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXf_attack_crit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXf_attack_crit2",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXf_attack_onhit",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXf_attack_tohitrange",
+      "current": "+0",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXf_damage_flag",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXf_description",
+      "current": "If the aboleth has at least one creature Charmed or Grappled, it uses Consume Memories and regains 5 (or [[1d10]] (1d10)) Hit Points.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXf_name",
+      "current": "Psychic Drain",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXf_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npcaction-l_-OwEEU86S7Jw78LOCfXf_rollbase",
+      "current": "@{wtype}&{template:npcaction} @{npc_name_flag} {{rname=@{name}}} {{description=@{show_desc}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_crit",
+      "current": "6d10",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_crit2",
+      "current": "1d6",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_damage",
+      "current": "6d10",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_damage2",
+      "current": "1d6",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_damagetype",
+      "current": "contondant",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_damagetype2",
+      "current": "force",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_flag",
+      "current": "on",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_onhit",
+      "current": "33 (6d10) contondant damage plus 3 (1d6) force damage",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_range",
+      "current": "3 m",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_target",
+      "current": "1 cibke",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_tohit",
+      "current": "12",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_attack_tohitrange",
+      "current": "+12, Reach 3 m, 1 cibke",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_damage_flag",
+      "current": "{{damage=1}} {{dmg1flag=1}} {{dmg2flag=1}} ",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_description",
+      "current": "blabla bla",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_name",
+      "current": "Contre attaque",
+      "max": ""
+    },
+    {
+      "name": "repeating_npcbonusaction_-OwEMdO8v7XMg0QLo9te_rollbase",
+      "current": "@{wtype}&{template:npcfullatk} {{attack=1}} @{damage_flag} @{npc_name_flag} {{rname=@{name}}} {{r1=[[@{d20}+(@{attack_tohit}+0)]]}} @{rtype}+(@{attack_tohit}+0)]]}} {{dmg1=[[@{attack_damage}+0]]}} {{dmg1type=@{attack_damagetype}}} {{dmg2=[[@{attack_damage2}+0]]}} {{dmg2type=@{attack_damagetype2}}} {{crit1=[[@{attack_crit}+0]]}} {{crit2=[[@{attack_crit2}+0]]}} {{description=@{show_desc}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXg_description",
+      "current": "The aboleth can breathe air and water.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXg_name",
+      "current": "Amphibious",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXg_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXh_description",
+      "current": "If destroyed, the aboleth gains a new body in [[5d10]] (5d10) days, reviving with all its Hit Points in the Far Realm or another location chosen by the DM.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXh_name",
+      "current": "Eldritch Restoration",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXh_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXi_description",
+      "current": "If the aboleth fails a saving throw, it can choose to succeed instead.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXi_name",
+      "current": "Legendary Resistance (3/Day, or 4/Day in Lair)",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXi_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXj_description",
+      "current": "While underwater, the aboleth is surrounded by mucus. *Constitution Saving Throw:* DC 14, each creature in a 5-foot Emanation originating from the aboleth at the end of the aboleth's turn. *Failure:* The target is cursed. Until the curse ends, the target's skin becomes slimy, the target can breathe air and water, and it can't regain Hit Points unless it is underwater.\n\nWhile the cursed creature is outside a body of water, the creature takes 6 (or [[1d12]] (1d12)) Acid damage at the end of every 10 minutes unless moisture is applied to its skin before those minutes have passed.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXj_name",
+      "current": "Mucus Cloud",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXj_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXk_description",
+      "current": "If a creature the aboleth can see communicates telepathically with the aboleth, the aboleth learns the creature's greatest desires.",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXk_name",
+      "current": "Probing Telepathy",
+      "max": ""
+    },
+    {
+      "name": "repeating_npctrait_-OwEEU86S7Jw78LOCfXk_npc_options-flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "repeating_savemod_-OwEEU4KgfyAbjrDXPCv_global_save_active_flag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "repeating_savemod_-OwEEU4KgfyAbjrDXPCv_global_save_name",
+      "current": "BLESS",
+      "max": ""
+    },
+    {
+      "name": "repeating_savemod_-OwEEU4KgfyAbjrDXPCv_global_save_roll",
+      "current": "1d4",
+      "max": ""
+    },
+    {
+      "name": "repeating_skillmod_-OwEEU4KgfyAbjrDXPCw_global_skill_active_flag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "repeating_skillmod_-OwEEU4KgfyAbjrDXPCw_global_skill_name",
+      "current": "GUIDANCE",
+      "max": ""
+    },
+    {
+      "name": "repeating_skillmod_-OwEEU4KgfyAbjrDXPCw_global_skill_roll",
+      "current": "1d4",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_details-flag",
+      "current": "0",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_options-flag",
+      "current": "0",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_roll_output_dc",
+      "current": 16,
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_spell_ability",
+      "current": "@{intelligence_mod}+",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_spellcastingtime",
+      "current": "action",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_spellcomp_materials",
+      "current": "une luciole ou de la mousse phosphorescente",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_spellcomp_s",
+      "current": "0",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_spelldescription",
+      "current": "Vous touchez un objet de taille G ou inférieure qui n'est pas porté par quelqu'un d'autre. Jusqu'à la fin du sort, l'objet émet une Lumière vive sur un rayon de 6 mètres et une Lumière faible sur 6 mètres supplémentaires. La lumière peut être colorée à votre guise. Recouvrir l'objet par quelque chose d'opaque bloque la lumière. Le sort prend fin si vous le relancez.",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_spellduration",
+      "current": "1 heure",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_spellname",
+      "current": "Lumière",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_spellrange",
+      "current": "contact",
+      "max": ""
+    },
+    {
+      "name": "repeating_spell-cantrip_-OwEMsi9YLU8a10Oqcsf_spellschool",
+      "current": "evocation",
+      "max": ""
+    },
+    {
+      "name": "repeating_tohitmod_-OwEEU4KgfyAbjrDXPCx_global_attack_active_flag",
+      "current": "1",
+      "max": ""
+    },
+    {
+      "name": "repeating_tohitmod_-OwEEU4KgfyAbjrDXPCx_global_attack_name",
+      "current": "BLESS",
+      "max": ""
+    },
+    {
+      "name": "repeating_tohitmod_-OwEEU4KgfyAbjrDXPCx_global_attack_roll",
+      "current": "1d4",
+      "max": ""
+    },
+    {
+      "name": "rtype",
+      "current": "@{advantagetoggle}",
+      "max": ""
+    },
+    {
+      "name": "sanity_save_bonus",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "sanity_save_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{sanity-save-u}}} {{mod=@{sanity_save_bonus}}} {{r1=[[@{d20}+@{sanity_save_bonus}@{pbd_safe}]]}} @{advantagetoggle}+@{sanity_save_bonus}@{pbd_safe}]]}} {{global=@{global_save_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "sanity_toggle",
+      "current": "0",
+      "max": ""
+    },
+    {
+      "name": "sheet_version",
+      "current": 1,
+      "max": ""
+    },
+    {
+      "name": "showleveler",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "simpleinventory",
+      "current": "complex",
+      "max": ""
+    },
+    {
+      "name": "simpleproficencies",
+      "current": "complex",
+      "max": ""
+    },
+    {
+      "name": "simpletraits",
+      "current": "complex",
+      "max": ""
+    },
+    {
+      "name": "sleight_of_hand_bonus",
+      "current": -1,
+      "max": ""
+    },
+    {
+      "name": "sleight_of_hand_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{sleight_of_hand-u}}} {{mod=@{sleight_of_hand_bonus}}} {{r1=[[@{d20}+-1[dexterity]@{pbd_safe}]]}} @{advantagetoggle}+-1[dexterity]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "spell_attack_bonus",
+      "current": 8,
+      "max": ""
+    },
+    {
+      "name": "spell_attack_mod",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "spell_dc_mod",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "spell_save_dc",
+      "current": 16,
+      "max": ""
+    },
+    {
+      "name": "spellcasting_ability",
+      "current": "@{intelligence_mod}+",
+      "max": ""
+    },
+    {
+      "name": "stealth_bonus",
+      "current": -1,
+      "max": ""
+    },
+    {
+      "name": "stealth_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{stealth-u}}} {{mod=@{stealth_bonus}}} {{r1=[[@{d20}+-1[dexterity]@{pbd_safe}]]}} @{advantagetoggle}+-1[dexterity]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "strength",
+      "current": 21,
+      "max": ""
+    },
+    {
+      "name": "strength_base",
+      "current": "21",
+      "max": ""
+    },
+    {
+      "name": "strength_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "strength_mod",
+      "current": 5,
+      "max": ""
+    },
+    {
+      "name": "strength_save_bonus",
+      "current": 5,
+      "max": ""
+    },
+    {
+      "name": "strength_save_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{strength-save-u}}} {{mod=@{strength_save_bonus}}} {{r1=[[@{d20}+@{strength_save_bonus}@{pbd_safe}]]}} @{advantagetoggle}+@{strength_save_bonus}@{pbd_safe}]]}} {{global=@{global_save_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "survival_bonus",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "survival_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{survival-u}}} {{mod=@{survival_bonus}}} {{r1=[[@{d20}+2[wisdom]@{pbd_safe}]]}} @{advantagetoggle}+2[wisdom]@{pbd_safe}]]}} {{global=@{global_skill_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "token_size",
+      "current": "2",
+      "max": ""
+    },
+    {
+      "name": "ui_flags",
+      "current": "",
+      "max": ""
+    },
+    {
+      "name": "version",
+      "current": 4.21,
+      "max": ""
+    },
+    {
+      "name": "weighttotal",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "wisdom",
+      "current": 15,
+      "max": ""
+    },
+    {
+      "name": "wisdom_base",
+      "current": "15",
+      "max": ""
+    },
+    {
+      "name": "wisdom_flag",
+      "current": 0,
+      "max": ""
+    },
+    {
+      "name": "wisdom_mod",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "wisdom_save_bonus",
+      "current": 2,
+      "max": ""
+    },
+    {
+      "name": "wisdom_save_roll",
+      "current": "@{wtype}&{template:simple} {{rname=^{wisdom-save-u}}} {{mod=@{wisdom_save_bonus}}} {{r1=[[@{d20}+@{wisdom_save_bonus}@{pbd_safe}]]}} @{advantagetoggle}+@{wisdom_save_bonus}@{pbd_safe}]]}} {{global=@{global_save_mod}}} @{charname_output}",
+      "max": ""
+    },
+    {
+      "name": "wtype",
+      "current": "@{whispertoggle}",
+      "max": ""
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-25 17:30 -->
+<!-- Mis à jour : 2026-06-26 10:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -707,11 +707,11 @@ volontairement séquencé en étapes sur le modèle du plan SP-C (Supplément ut
 | Phase | Contenu | Complexité | Avancement |
 |---|---|---|---|
 | **SP-E0** | SQL : `CREATE TABLE dd_equipements` | Faible | ✅ livré (2026-06-20, `sql/2026-06-20_equipements_sp-e0.sql`) |
-| **SP-E1** | Contrôleur liste `compendium/equipements.php` (`$listConfig` — moteur générique déjà prêt, cf. SP-C2) | Modérée | ⏳ à faire |
-| **SP-E2** | Formulaire `modifier/equipement.php` + `enregistrement.php` (`case 'equipement'` / `enregistrerEquipement()`) | Modérée | ⏳ à faire |
-| **SP-E3** | Fiche détail `detail-pp/equipement.php` | Faible | ⏳ à faire |
-| **SP-E4** | `monstre-parser.php` : type `equipement` (`typesLiablesMonstre()` + `construireIndexAuto()`, priorité à arbitrer vs `objet`/`sort`/`glossaire`) + entrée `equipement: 'equipement.php'` dans `MO_LIEN_FICHIERS` (`js/main.js`) | Faible | ⏳ à faire — **bloquée par SP-E3** (lien sans cible = 404) |
-| **SP-E5** *(à arbitrer)* | Rejoindre le mécanisme Supplément utilisateur (SP-C) : ajout `eqt_public`, alignement sur `champ_public`/`champ_visible`/`champ_res_owner` | Faible | ⏳ à arbitrer — non nécessaire tant qu'aucun module n'existe |
+| **SP-E1** | Contrôleur liste `compendium/equipements.php` (`$listConfig` — moteur générique déjà prêt, cf. SP-C2) | Modérée | ✅ livré (2026-06-26) |
+| **SP-E2** | Formulaire `modifier/equipement.php` + `enregistrement.php` (`case 'equipement'` / `enregistrerEquipement()`) | Modérée | ✅ livré (2026-06-26) |
+| **SP-E3** | Fiche détail `detail-pp/equipement.php` | Faible | ✅ livré (2026-06-26) |
+| **SP-E4** | `monstre-parser.php` : type `equipement` (`typesLiablesMonstre()` + `construireIndexAuto()`, priorité à arbitrer vs `objet`/`sort`/`glossaire`) + entrée `equipement: 'equipement.php'` dans `MO_LIEN_FICHIERS` (`js/main.js`) | Faible | ⏳ à faire — débloquée (SP-E3 livré, endpoint de détail existe) |
+| **SP-E5** *(à arbitrer)* | Rejoindre le mécanisme Supplément utilisateur (SP-C) : ajout `eqt_public`, alignement sur `champ_public`/`champ_visible`/`champ_res_owner` | Faible | ⏳ à arbitrer — non prioritaire |
 
 > SP-E1 à SP-E3 reproduisent exactement le pattern déjà posé pour Monstres/Objets magiques
 > (contrôleur liste générique `compendium-liste.php`, formulaire `modifier/*.php`, fonction
@@ -719,6 +719,17 @@ volontairement séquencé en étapes sur le modèle du plan SP-C (Supplément ut
 > technique, juste du volume. SP-E4 ne peut pas être fait avant SP-E3 (un lien `.mo-lien` vers un
 > endpoint inexistant produirait une 404 au clic — erreur identifiée et évitée le 2026-06-20, cf.
 > `DECISIONS_LOG.md`).
+
+> ✅ **2026-06-26 — SP-E1/E2/E3 livrés.** `compendium/equipements.php` (liste, sans filtre
+> spécifique — `dd_equipements` n'a pas de catégorie comme `dd_dons`), `include/ajax/modifier/
+> equipement.php` + `enregistrerEquipement()` dans `compendium/enregistrement.php`, `include/ajax/
+> detail-pp/equipement.php`. Carte ajoutée dans `compendium/index.php`. Modèle suivi : module Dons
+> (entité simple sans supplément). Point laissé tel quel : `eqt_visible` existe en base mais n'est
+> pas câblé dans `$listConfig` (pas de `champ_visible` déclaré) — la liste affiche tous les
+> équipements sans filtrage de visibilité, comme `dd_dons` qui n'a même pas cette colonne ; à
+> traiter si besoin lors de SP-E5 (alignement Supplément). SP-E4 débloqué (endpoint de détail
+> disponible) mais non fait — reste à arbitrer la priorité `equipement` vs `objet`/`sort`/`glossaire`
+> dans `construireIndexAuto()`.
 
 ---
 

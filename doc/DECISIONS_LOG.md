@@ -1759,6 +1759,33 @@ au-dessus d'un standard « sans images ».
 - Fichier modifié : `include/monstre-parser.php` (`lierAvecIndex()` découpée en
   `lierAvecSegmentsProteges()` + `lierSegmentBrut()`).
 
+**[2026-06-26] SP-E1/E2/E3 — Module Équipements (liste, formulaire, fiche détail)**
+
+- Reprise du plan SP-E (différé depuis le 2026-06-20, cf. `[2026-06-20] Clarification —
+  dd_equipements`), après dépôt par l'utilisateur d'un export complet de la structure de base
+  (`sql/maikasteiymaika-20260626.sql`) pour vérification schema-first avant développement.
+- Vérification : `dd_equipements` existe en base, structure identique au schéma SP-E0
+  (`eqt_id`, `eqt_nom`, `eqt_description`, `eqt_visible`, `eqt_res_id`, `eqt_camp_id`,
+  `eqt_ruleset_var_id`) — aucun écart, pas de `eqt_public`/owner (confirmé : modèle de visibilité
+  simple, pas le mécanisme Supplément SP-C).
+- Modèle suivi : module **Dons** (entité compendium simple, sans supplément) plutôt que
+  Objets magiques (trop riche : catégories, formats, rareté — non pertinent pour l'équipement
+  mondain en l'état du schéma fourni).
+- Livré : `compendium/equipements.php` (`$listConfig`, sans filtre spécifique — pas de catégorie
+  en base), `include/ajax/modifier/equipement.php` + `enregistrerEquipement()` dans
+  `compendium/enregistrement.php` (`case 'equipement'`), `include/ajax/detail-pp/equipement.php`,
+  `soumettreEquipement()` dans `js/compendium.js`, carte « Équipements » ajoutée dans
+  `compendium/index.php`.
+- Écart assumé : `eqt_visible` n'est pas câblé dans `$listConfig` (pas de `champ_visible` déclaré)
+  — la liste affiche tous les équipements sans filtrage, comme `dd_dons` (qui n'a même pas cette
+  colonne). Champ exposé dans le formulaire (case à cocher) et persisté en base, mais sans effet
+  sur l'affichage liste/détail pour l'instant. À traiter explicitement si besoin lors de SP-E5.
+- SP-E4 (liaison `monstre-parser.php`) reste à faire — n'est plus bloqué techniquement
+  (`detail-pp/equipement.php` existe désormais) mais nécessite un arbitrage de priorité
+  (`equipement` vs `objet`/`sort`/`glossaire` dans `construireIndexAuto()`), non traité aujourd'hui.
+- Vérifié : `php -l` sur tous les fichiers PHP modifiés/créés (OK), requête `curl` sur
+  `compendium/equipements.php` (redirection 302 attendue — `requireAuth()`, pas d'erreur 500).
+
 ## Bugs connus — à traiter
 
 - **Admin / liste utilisateurs** : le menu ⋮ (dropdown) ne fonctionne pas correctement sur les lignes `admin-ligne--inactif`. La piste CSS (stacking context créé par `opacity` sur `<td>`) a été explorée sans succès. À investiguer en session dédiée.
@@ -1843,10 +1870,10 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~Oppositions (Campagnes) — appliquer monstre-parser.php au lieu du `<pre>` brut~~ → livré (2026-06-20, detail-pp-sub/opposition.php, scope getActiveResIdsCampagne())
 - [ ] Sous-panneaux — `actualiserPageSub()`/`fermerSubPanel()` ne gèrent qu'un niveau (pas de pile) : cliquer un lien `.mo-lien` depuis une opposition (déjà dans #detail-pp-sub) remplace la vue au lieu de s'empiler. Pas bloquant, à reprendre si gênant en pratique — cf. `DECISIONS_LOG.md` [2026-06-20] partie "Limite UX assumée".
 - [x] ~~SP-E0 — dd_equipements : CREATE TABLE~~ → livré (2026-06-20, sql/2026-06-20_equipements_sp-e0.sql, committé + testé sur MariaDB réelle)
-- [ ] SP-E1 — compendium/equipements.php (contrôleur liste + $listConfig)
-- [ ] SP-E2 — modifier/equipement.php (formulaire) + enregistrement.php (enregistrerEquipement())
-- [ ] SP-E3 — detail-pp/equipement.php (fiche détail)
-- [ ] SP-E4 — monstre-parser.php : type 'equipement' (typesLiablesMonstre/construireIndexAuto) + MO_LIEN_FICHIERS — BLOQUÉ par SP-E3
+- [x] ~~SP-E1 — compendium/equipements.php (contrôleur liste + $listConfig)~~ → livré (2026-06-26)
+- [x] ~~SP-E2 — modifier/equipement.php (formulaire) + enregistrement.php (enregistrerEquipement())~~ → livré (2026-06-26)
+- [x] ~~SP-E3 — detail-pp/equipement.php (fiche détail)~~ → livré (2026-06-26)
+- [ ] SP-E4 — monstre-parser.php : type 'equipement' (typesLiablesMonstre/construireIndexAuto) + MO_LIEN_FICHIERS — débloqué (SP-E3 livré), reste à faire
 - [ ] SP-E5 (à arbitrer) — Équipements rejoint le mécanisme Supplément (SP-C) : eqt_public + champ_public/champ_visible/champ_res_owner
 - [x] ~~Oppositions — bug formulaire Modifier ouvert sous la vue (z-index)~~ → corrigé (2026-06-20, fermerSubPanel() avant actualiserPageModif() dans detail-pp-sub/opposition.php)
 - [x] ~~Oppositions — monstre d'origine optionnel (saisie manuelle possible)~~ → corrigé (2026-06-20, opp_mo_id nullable + retrait blocages serveur/client)
