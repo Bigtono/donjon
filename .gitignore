@@ -23,3 +23,6 @@ desktop.ini
 
 # --- XAMPP / uploads locaux ---
 uploads/
+
+# --- fichiers d'export roll20 ---
+export/
