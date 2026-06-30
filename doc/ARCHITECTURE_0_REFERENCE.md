@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-30 09:29 -->
+<!-- Mis à jour : 2026-06-30 12:12 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -2205,20 +2205,26 @@ Détection TYPE A : présence de `Corps à corps :` ou `À distance :` dans le t
 
 ### Script Roll20 API — `ImportNPC.js`
 
-Deux commandes chat, deux modes d'import :
+Trois commandes chat, deux modes d'import :
 
 | Commande | Source | Comportement |
 |---|---|---|
+| `!import-npc-ping` | — | Test de connectivité (whisper de confirmation, aucun import) |
 | `!import-npc [nom_handout]` | GM Notes d'un Handout (défaut : "Import NPC") | Crée le personnage dans la bibliothèque, sans token lié |
-| `!import-npc-token` | GM Notes du token sélectionné | Crée le personnage **et** lie automatiquement le token (`represents`) + le renomme |
+| `!import-npc-token` | GM Notes du token sélectionné | Crée le personnage, lie le token, configure taille/barres/position, synchronise avatar + token par défaut |
 
 ```
 1. Lecture des GM Notes (Handout ou token sélectionné) — unescape + nettoyage HTML
 2. JSON.parse()
 3. createObj('character', {name, avatar})
 4. Pour chaque attribut : createObj('attribute', {characterid, name, current, max})
-5. (mode token) token.set({represents: charId, name: charName})
-6. Whisper de confirmation au MJ
+5. wtype forcé à '/w gm ' (chuchotage toujours actif) — voir DECISIONS_LOG D-R15
+6. (mode token) token.set({represents, name, width:70, height:70, bar_location:'bottom'})
+7. (mode token) Barres liées : Barre1=npc_ac, Barre2=passive_wisdom, Barre3=hp
+8. (mode token) avatar synchronisé depuis l'image du token (getCleanImgsrc)
+9. (mode token) setDefaultTokenForCharacter(character, token) — capture l'état
+   courant du token (image, taille, barres, position) comme token par défaut de la fiche
+10. Whisper de confirmation au MJ
 ```
 
 Le mode token reproduit le pattern utilisé par des scripts communautaires Roll20

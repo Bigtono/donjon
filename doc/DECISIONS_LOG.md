@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-30 11:21 -->
+<!-- Mis à jour : 2026-06-30 12:11 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2120,6 +2120,50 @@ puis applique :
 (upload externe, lien direct non standard), `getCleanImgsrc()` retourne `undefined` —
 l'avatar n'est pas synchronisé et un avertissement explicite est chuchoté au MJ et
 journalisé dans l'API Console plutôt que d'échouer silencieusement.
+
+---
+
+### D-R15 — `ImportNPC.js` v1.3 : chuchotage forcé, taille token, barres, position
+
+**Contexte :** `include/ajax/export/monstre-roll20.php` n'est pas versionné sur le dépôt
+GitHub (confirmé 404 sur `raw.githubusercontent.com`) — seul `ImportNPC.js` y est tenu à
+jour avec un système de versioning propre (en-tête `// VERSIONS`). Cette entrée documente
+exclusivement les évolutions apportées côté **import**, indépendamment de l'état réel du
+script d'export local de Jean-Michel.
+
+**D1 — Chuchotage forcé (filet de sécurité) :** `importerNpc()` force désormais l'attribut
+`wtype` à la valeur `/w gm ` sur **toute** fiche importée (mode handout et mode token),
+qu'il soit déjà présent dans le JSON ou non — créé s'il manque, écrasé sinon. Garantit
+"Chuchoter les jets au MJ : Toujours" même si l'export PHP source venait à régresser sur
+ce point (cf. D-R8 pour le contexte du choix initial `/w gm `).
+
+**D2 — Taille de token (mode token uniquement) :** `token.set({width: 70, height: 70})`
+appliqué systématiquement à l'import. Valeur fixe en pixels, non paramétrable pour l'instant.
+
+**D3 — Barres de jeton (mode token uniquement) :** Répartition confirmée par Jean-Michel :
+- Barre 1 = `npc_ac` (CA)
+- Barre 2 = `passive_wisdom` (Perception passive)
+- Barre 3 = `hp` (PV, current/max)
+
+Chaque barre est liée à son attribut via `bar{N}_link` (Roll20 resynchronise alors
+automatiquement barre ↔ attribut pour les futures modifications en jeu). Filet de sécurité
+sur la barre PV : si l'attribut `hp` a un `current` vide (cas observé côté export — `hp`
+n'a souvent qu'un `max` renseigné, `current` à `''`), la barre affiche et resynchronise les
+PV max plutôt qu'une barre vide.
+
+**D4 — Position des barres :** `token.set({bar_location: 'bottom'})` — confirmé comme
+propriété officielle du Graphic dans la documentation Roll20 actuelle (valeurs possibles :
+`overlap_top`, `overlap_bottom`, `bottom`). Correspond à "Options des barres de jeton >
+Position : En dessous".
+
+**D5 — Token par défaut de la fiche, correction du bug v1.2.1 :** La V1.2.1 tentait
+d'écrire `character._defaulttoken` directement via `.set()` — cette propriété est en
+réalité **en lecture seule** côté API (confirmée par la documentation officielle Roll20).
+Explique pourquoi seul l'avatar était repris après import, jamais le token par défaut.
+Remplacé par l'appel à la fonction utilitaire globale Roll20 dédiée
+`setDefaultTokenForCharacter(character, token)`, qui capture l'état courant du token
+(image, taille, barres, position des barres…) — appelée en tout dernier, après toutes les
+modifications du token, pour que le snapshot soit complet.
 
 ---
 

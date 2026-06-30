@@ -34,6 +34,13 @@
 //  v1.0.2 : corrections de bugs d'imports
 //  V1.2 : ajout fonction d'import depuis un token
 //  v1.2.1 : met à jour le token par défaut de la fiche depuis le token ayant servi à l'import
+//  v1.3 : - "Chuchoter les jets au MJ" forcé à Toujours (wtype) sur la fiche importée,
+//           en filet de sécurité indépendant du JSON source
+//         - Mode token : redimensionne le token à 70x70 px
+//         - Mode token : configure les barres (Barre1=CA, Barre2=Perception passive,
+//           Barre3=PV) et la position des barres sur "En dessous"
+//         - Mode token : utilise setDefaultTokenForCharacter() pour que ces réglages
+//           soient aussi repris dans le token par défaut de la fiche
 //
 // V2 PRÉVUE
 //   - Support spelloutput = "ATTACK" pour les sorts offensifs des PNJ
@@ -52,7 +59,7 @@ var ImportNPC = ImportNPC || (function () {
   // ── Écoute des commandes chat ─────────────────────────
 
   on('ready', function () {
-    log('[ImportNPC] v1.2.1 chargé et prêt. Commandes disponibles : '
+    log('[ImportNPC] v1.3 chargé et prêt. Commandes disponibles : '
       + CMD_HANDOUT + ' [nom_handout]  |  '
       + CMD_TOKEN + ' (token sélectionné)  |  '
       + CMD_PING + ' (test de connectivité)');
@@ -221,6 +228,11 @@ var ImportNPC = ImportNPC || (function () {
     var nbOk = 0;
     var nbTotal = data.attributes.length;
 
+    // Conserve une référence par nom vers chaque attribut créé : nécessaire
+    // pour forcer wtype, et pour lier les barres de jeton (CA/Perception
+    // passive/PV) en mode token.
+    var attrByName = {};
+
     // Créer tous les attributs (current + max)
     for (var i = 0; i < nbTotal; i++) {
       var a = data.attributes[i];
@@ -231,40 +243,53 @@ var ImportNPC = ImportNPC || (function () {
         current: a.current !== undefined ? a.current : '',
         max: a.max !== undefined ? a.max : '',
       });
-      if (obj) nbOk++;
+      if (obj) {
+        nbOk++;
+        attrByName[String(a.name)] = obj;
+      }
     }
 
-    // Mode token : lier le token au personnage, le renommer,
-    // et synchroniser l'avatar/_defaulttoken du personnage sur l'image du token.
+    // "Chuchoter les jets au MJ" forcé à Toujours (wtype = '/w gm '), en
+    // filet de sécurité indépendant de ce que contient le JSON source —
+    // garantit ce comportement même si l'export PHP venait à régresser.
+    forcerWhisperToujours(attrByName, charId);
+
+    // Mode token : lier le token au personnage, le renommer, le redimensionner,
+    // configurer ses barres, puis synchroniser avatar + token par défaut de la
+    // fiche depuis ce même token via setDefaultTokenForCharacter().
     // (Lier représente le token <-> fiche pour les jets, mais ne copie pas
-    //  l'image : la fiche et le token restent deux objets distincts.)
+    //  l'image ni les réglages visuels : la fiche et le token restent deux
+    //  objets distincts tant qu'on ne les synchronise pas explicitement.)
     if (token) {
       token.set({
         represents: charId,
         name: charName,
+        width: 70,
+        height: 70,
+        bar_location: 'bottom', // "Options des barres de jeton" > Position = En dessous
       });
+
+      configurerBarresToken(token, attrByName);
 
       var imgsrc = token.get('imgsrc');
       var cleanSrc = getCleanImgsrc(imgsrc);
       if (cleanSrc) {
-        charObj.set({
-          avatar: cleanSrc,
-          _defaulttoken: JSON.stringify({
-            name: charName,
-            imgsrc: cleanSrc,
-            width: token.get('width'),
-            height: token.get('height'),
-            layer: 'token',
-          }),
-        });
+        charObj.set({ avatar: cleanSrc });
       } else {
         log('[ImportNPC] Avertissement : image du token (' + imgsrc + ') hors bibliothèque'
-          + ' utilisateur — avatar/_defaulttoken non synchronisés (limitation API Roll20).');
+          + ' utilisateur — avatar non synchronisé (limitation API Roll20).');
       }
+
+      // _defaulttoken est en lecture seule côté API : on ne peut pas l'écrire
+      // directement. setDefaultTokenForCharacter() est la fonction utilitaire
+      // Roll20 dédiée à cet usage — elle capture l'état COURANT du token
+      // (image, taille, barres, position des barres...) donc elle doit être
+      // appelée en dernier, après toutes les modifications ci-dessus.
+      setDefaultTokenForCharacter(charObj, token);
 
       whisper(who,
         '✅ **' + charName + '** importé et lié au token sélectionné.'
-        + (cleanSrc ? ' Avatar synchronisé.' : ' ⚠️ Avatar non synchronisé (image hors bibliothèque).')
+        + (cleanSrc ? ' Avatar et token par défaut synchronisés.' : ' ⚠️ Avatar non synchronisé (image hors bibliothèque).')
         + ' (' + nbOk + '/' + nbTotal + ' attributs créés)'
       );
       log('[ImportNPC] Import token terminé : ' + charName + ' (charId=' + charId
@@ -278,6 +303,60 @@ var ImportNPC = ImportNPC || (function () {
     );
     log('[ImportNPC] Import handout terminé : ' + charName + ' (charId=' + charId
       + ', attrs=' + nbOk + '/' + nbTotal + ')');
+  }
+
+  // ── Chuchotage forcé des jets au MJ ───────────────────
+  // wtype porte directement la valeur utilisée dans les macros de jet
+  // Roll20 (@{wtype}&{template:...}). '/w gm ' = chuchotage systématique,
+  // quoi que contienne le JSON source.
+
+  function forcerWhisperToujours(attrByName, charId) {
+    if (attrByName.wtype) {
+      attrByName.wtype.set('current', '/w gm ');
+    } else {
+      var obj = createObj('attribute', {
+        characterid: charId,
+        name: 'wtype',
+        current: '/w gm ',
+        max: '',
+      });
+      if (obj) attrByName.wtype = obj;
+    }
+  }
+
+  // ── Configuration des barres de jeton ─────────────────
+  // Barre 1 = CA (npc_ac), Barre 2 = Perception passive (passive_wisdom),
+  // Barre 3 = PV (hp). Décision confirmée par Jean-Michel (2026-06-30).
+  // Chaque barre est liée (bar*_link) à l'attribut correspondant : Roll20
+  // resynchronise alors automatiquement la barre <-> l'attribut.
+
+  function configurerBarresToken(token, attrByName) {
+    appliquerBarre(token, 1, attrByName['npc_ac']);
+    appliquerBarre(token, 2, attrByName['passive_wisdom']);
+    appliquerBarre(token, 3, attrByName['hp'], true);
+  }
+
+  function appliquerBarre(token, numero, attrObj, estPv) {
+    if (!attrObj) return;
+
+    var current = attrObj.get('current');
+    var max = attrObj.get('max');
+
+    // Filet de sécurité : si les PV courants sont vides (valeur connue côté
+    // export pour les nouveaux PNJ), afficher les PV max plutôt qu'une barre
+    // vide, et resynchroniser l'attribut en conséquence.
+    if (estPv && (current === '' || current === undefined || current === null)) {
+      current = max;
+      attrObj.set('current', current);
+    }
+
+    var props = {};
+    props['bar' + numero + '_link'] = attrObj.id;
+    props['bar' + numero + '_value'] = current;
+    if (max !== '' && max !== undefined && max !== null) {
+      props['bar' + numero + '_max'] = max;
+    }
+    token.set(props);
   }
 
   // ── Conversion d'une URL d'image vers sa variante "thumb" ─────
