@@ -103,6 +103,16 @@ $listConfig = [
   'bulk_actions'    => [
     ['valeur' => 'supprimer', 'label' => 'Supprimer la sélection'],
   ],
+  // Bouton d'export Roll20 visible pour tous les utilisateurs authentifiés
+  'row_actions'     => [
+    [
+      'label'        => 'Exporter vers Roll20',
+      'icon'         => 'fa-download',
+      'href'         => BASE_URL . '/include/ajax/export/monstre-roll20.php?id={id}',
+      'download'     => true,
+      'require_edit' => false,
+    ],
+  ],
 ];
 
 require_once '../include/header.php';

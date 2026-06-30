@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-26 10:00 -->
+<!-- Mis à jour : 2026-06-29 16:34 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -188,6 +188,17 @@ $listConfig = [
   'url_enreg'     => BASE_URL . '/compendium/enregistrement.php',
   'bulk_actions'  => [
     ['valeur' => 'supprimer', 'label' => 'Supprimer la selection'],
+  ],
+  // Optionnel — boutons d'action par ligne (ex : export Roll20)
+  'row_actions'   => [
+    [
+      'label'        => 'Exporter vers Roll20',  // tooltip et texte menu ⋮
+      'icon'         => 'fa-download',            // classe FontAwesome
+      'href'         => BASE_URL . '/include/ajax/export/monstre-roll20.php?id={id}',
+      'download'     => true,    // ajoute l'attribut HTML download
+      'require_edit' => false,   // false → bouton visible pour tous
+                                 // true  → item dans le menu ⋮ éditeur
+    ],
   ],
 ];
 require_once '../include/header.php';
@@ -1696,10 +1707,11 @@ donjon/
     personnage_helpers.php
     ajax/
       detail-pp/     sort.php, classe.php, don.php, race.php, historique.php,
-                     objet.php, monstre.php, ...
+                     objet.php, monstre.php, ..., equipement.php
       detail-pp-sub/ glossaire.php
       modifier/      sort.php, classe.php, don.php, race.php, historique.php,
-                     objet.php, monstre.php, regle.php, ...
+                     objet.php, monstre.php, regle.php, ..., equipement.php
+      export/        monstre-roll20.php   export JSON Roll20 NPC (GET ?id=mo_id)
       autocomplete-tags-monstre.php
   sql/
     schema.sql
@@ -1713,6 +1725,7 @@ donjon/
     DECISIONS_LOG.md
     SCHEMA_SQL.md
     METIER_*.md
+    roll20-api/  ImportNPC.js   script Roll20 API Pro (import NPC depuis handout)
 ```
 
 ---
@@ -2102,3 +2115,113 @@ document.querySelectorAll('.tinymce-basic').forEach(function(el) {
 - [ ] Tableaux à 2 lignes d'en-tête : thead avec <tr class="thead-groupes"> pour la ligne groupe
 - [ ] Style tableau : jamais de border sur th/td — alternance fond gris perle / transparent sur tbody
 - [ ] Thèmes : --clr-surface-alt défini dans les deux thèmes si utilisé dans un composant
+
+---
+
+## 18. Export Roll20 NPC
+
+### Objectif
+
+Permet d'exporter un monstre du compendium vers **Roll20** au format JSON compatible
+avec la fiche officielle **D&D 5e (2014)** en VF. L'utilisateur télécharge le fichier `.json`
+puis l'importe dans Roll20 via le script API Pro `ImportNPC.js`.
+
+### Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| `include/ajax/export/monstre-roll20.php` | Endpoint PHP — parse, build, envoie le JSON |
+| `doc/roll20-api/ImportNPC.js` | Script Roll20 API Pro — importe le JSON dans une campagne |
+
+### Flux utilisateur
+
+```
+1. Utilisateur ouvre la fiche ou la liste des monstres
+2. Clique sur le bouton ↓ (icône fa-download)
+3. Téléchargement automatique de roll20_<nom>.json
+4. Dans Roll20 : colle le JSON dans les GM Notes d'un Handout
+5. Dans le chat Roll20 : !import-npc [nom_handout]
+6. Le script API crée le personnage + ses attributs
+```
+
+### Endpoint PHP — `monstre-roll20.php`
+
+**Accès :** `GET /include/ajax/export/monstre-roll20.php?id={mo_id}`
+**Auth :** `requireAuth()` — tous les utilisateurs connectés
+**Sortie :** `application/json` avec `Content-Disposition: attachment`
+
+Fonctions internes (dans le même fichier) :
+
+| Fonction | Rôle |
+|---|---|
+| `firebaseId()` | Génère un ID pseudo-Firebase 20 chars unique |
+| `parseMonstreStats($texte)` | Parse `mo_stats` (DD2024) en tableau structuré |
+| `parseHeader($lignes, …)` | Parse npc_type / CA / Pv / Vitesse / FP / stats / optionnels |
+| `parseCaracLine($ligne, …)` | Parse une ligne For/Dex/Con… → stats Roll20 |
+| `parseOptionalLine($ligne, …)` | Parse Compétences / Résistances / Sens / Langues… |
+| `parseActionBlock($lignes, …)` | Parse un bloc Traits / Actions / Bonus / Réactions |
+| `parseAction($nom, $desc)` | Parse une action : détecte TYPE A (attaque) ou TYPE B (description) |
+| `parseIncantation($texte, …)` | Parse le bloc Incantation (carac, DD, noms de sorts) |
+| `parseLegendaryBlock($lignes, …)` | Parse Actions Légendaires (intro + actions) |
+| `fetchSortsByName($db, …)` | Récupère les sorts par nom (2 passes SQL : index léger + données) |
+| `buildRoll20NpcJson($mo, …)` | Assemble le JSON Roll20 complet |
+| `addAbilityScores($attrs, …)` | Ajoute les 6 caractéristiques + modificateurs |
+| `addNpcSaves($attrs, …)` | Ajoute les sauvegardes NPC (triple champ + flag) |
+| `addNpcSkills($attrs, …)` | Ajoute les compétences NPC (détecte expertise via BM) |
+| `addNpcActionAttrs($attrs, …)` | Ajoute les attributs Roll20 d'une action (template ① ou ②) |
+| `addSpellAttrs($attrs, …)` | Ajoute les sorts repeating_spell-N (SPELLCARD uniquement) |
+
+### Format `mo_stats` DD2024 attendu
+
+```
+[Ligne 0 opt.]  Grand aberration, Neutre mauvais   → npc_type
+CA 17 Initiative +7 (17)                            → npc_ac (Initiative ignorée, voir D-R6)
+Pv 150 (20d10 + 40)                                 → hp.max + npc_hpformula
+Vitesse 3 m, nage 12 m                              → npc_speed
+FP 10 (5 900 PX; BM 4)                              → npc_challenge + npc_xp + pb
+For 21 +5 +5  Dex 9 -1 +3  Con 15 +2 +6             → 6 stats + mods + saves
+Int 18 +4 +8  Sag 15 +2 +6  Cha 18 +4 +4
+[Lignes optionnelles]  Compétences / Sens / Langues / Résistances / Immunités / Vulnérabilités
+Traits / Actions / Actions légendaires / Actions bonus / Réactions / Incantation
+```
+
+### Actions — 2 templates `rollbase` Roll20
+
+- **Template ① (TYPE B — description)** : `@{wtype}&{template:npcaction} … {{description=@{show_desc}}}`
+- **Template ② (TYPE A — attaque)** : `@{wtype}&{template:npcfullatk} {{attack=1}} …`
+
+Détection TYPE A : présence de `Corps à corps :` ou `À distance :` dans le texte.
+
+### Sorts NPC
+
+- `spelloutput = "SPELLCARD"` pour tous les sorts PNJ (V1).
+- V2 prévue : `spelloutput = "ATTACK"` pour les sorts offensifs (documenté dans DECISIONS_LOG §D-R5).
+- Lookup par nom normalisé (sans accents, minuscules) dans `dd_sorts`.
+- JOIN `dd_colleges` → `college2Roll20()` mappe le nom FR vers le code EN Roll20.
+
+### Script Roll20 API — `ImportNPC.js`
+
+Commande chat : `!import-npc [nom_handout]` (défaut : "Import NPC")
+
+```
+1. Lecture des GM Notes du Handout (unescape + nettoyage HTML)
+2. JSON.parse()
+3. createObj('character', {name, avatar})
+4. Pour chaque attribut : createObj('attribute', {characterid, name, current, max})
+5. Whisper de confirmation au MJ
+```
+
+### Extension `$listConfig` — clé `row_actions`
+
+Ajoutée dans `compendium-liste.php` de manière rétro-compatible. Permet à n'importe
+quel contrôleur compendium d'ajouter des boutons d'action par ligne, sans modifier le moteur.
+
+Voir §5 pour la documentation complète des clés `row_actions`.
+
+### Limitations connues (V1)
+
+- `charactersheet_type = "npc"` cible la fiche 2014 — la fiche 2024 n'est pas supportée.
+- L'initiative Roll20 = `DEX_mod + DEX_score/100` (tie-breaker) ; l'initiative DD2024 (+7 dans `mo_stats`) n'est pas mappée car la fiche 2014 ne la supporte pas.
+- Les images de token/avatar ne sont pas exportées (Roll20 API : upload non disponible via script).
+- Les sous-classes, dons, équipements du PNJ ne sont pas exportés (hors scope `mo_stats`).
+- `spelloutput = "ATTACK"` différé en V2 (voir DECISIONS_LOG D-R5).

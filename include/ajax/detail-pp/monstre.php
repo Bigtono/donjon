@@ -79,6 +79,12 @@ $detail_base = BASE_URL . '/include/ajax/detail-pp/';
           <i class="fa fa-edit"></i>
         </button>
       <?php endif ?>
+      <a href="<?= BASE_URL ?>/include/ajax/export/monstre-roll20.php?id=<?= $id ?>"
+         download
+         class="sort-detail__export-btn btn btn-icon btn-sm"
+         title="Exporter vers Roll20">
+        <i class="fa fa-download"></i>
+      </a>
     </h2>
 
     <?php if (!empty($meta)): ?>

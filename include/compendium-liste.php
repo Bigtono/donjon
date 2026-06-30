@@ -19,6 +19,11 @@
 //   url_modifier  string   — URL endpoint AJAX modifier ('' = pas de modification)
 //   url_enreg     string   — URL enregistrement.php
 //   bulk_actions  array    — [{valeur, label}]
+//   row_actions   array    — (optionnel) actions supplémentaires par ligne dans le menu ⋮ :
+//                            [{label, icon (fa-class), href (avec {id}), download (bool), require_edit (bool)}]
+//                            require_edit=false → item visible pour tous dans le menu ⋮
+//                                                 (le menu ⋮ s'affiche même pour les non-éditeurs)
+//                            require_edit=true  → item réservé aux éditeurs dans le menu ⋮
 //
 //   --- Supplément utilisateur (SP-C2) — les 3 clés suivantes sont optionnelles,
 //       et doivent être déclarées ENSEMBLE pour activer le mécanisme :
@@ -536,21 +541,44 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
 
               <?php // Menu ligne (⋮) 
               ?>
+              <?php
+              // Le menu ⋮ s'affiche si l'utilisateur peut modifier la ligne
+              // OU s'il y a des row_actions visibles pour tous (require_edit=false).
+              $_row_actions    = $listConfig['row_actions'] ?? [];
+              $_has_open_actions = !empty(array_filter($_row_actions, fn($a) => empty($a['require_edit'])));
+              $_afficher_menu  = $peut_modifier_ligne || $_has_open_actions;
+              ?>
               <td class="col-action">
-                <?php if ($peut_modifier_ligne): ?>
+                <?php if ($_afficher_menu): ?>
                   <div class="comp-menu-ligne">
                     <button class="btn btn-icon btn-sm comp-menu-btn"
                       onclick="compToggleMenu(<?= $id ?>)"
                       title="Actions">⋮</button>
                     <div id="comp-menu-<?= $id ?>" class="comp-menu-dropdown noDisplay">
-                      <button class="comp-menu-item"
-                        onclick="compToggleMenu(<?= $id ?>); ouvrirModifier(compUrlModifier, <?= $id ?>)">
-                        <i class="fa fa-edit"></i> Modifier
-                      </button>
-                      <button class="comp-menu-item comp-menu-item--danger"
-                        onclick="compToggleMenu(<?= $id ?>); compDemanderSuppression(<?= $id ?>)">
-                        <i class="fa fa-trash"></i> Supprimer
-                      </button>
+                      <?php if ($peut_modifier_ligne): ?>
+                        <button class="comp-menu-item"
+                          onclick="compToggleMenu(<?= $id ?>); ouvrirModifier(compUrlModifier, <?= $id ?>)">
+                          <i class="fa fa-edit"></i> Modifier
+                        </button>
+                      <?php endif ?>
+                      <?php // Toutes les row_actions visibles selon les droits ?>
+                      <?php foreach ($_row_actions as $_ra): ?>
+                        <?php if (empty($_ra['require_edit']) || $peut_modifier_ligne): ?>
+                          <?php $_ra_href = str_replace('{id}', (string)$id, (string)$_ra['href']) ?>
+                          <a href="<?= h($_ra_href) ?>"
+                             <?php if (!empty($_ra['download'])): ?>download<?php endif ?>
+                             class="comp-menu-item"
+                             onclick="compToggleMenu(<?= $id ?>)">
+                            <i class="fa <?= h($_ra['icon']) ?>"></i> <?= h($_ra['label']) ?>
+                          </a>
+                        <?php endif ?>
+                      <?php endforeach ?>
+                      <?php if ($peut_modifier_ligne): ?>
+                        <button class="comp-menu-item comp-menu-item--danger"
+                          onclick="compToggleMenu(<?= $id ?>); compDemanderSuppression(<?= $id ?>)">
+                          <i class="fa fa-trash"></i> Supprimer
+                        </button>
+                      <?php endif ?>
                     </div>
                   </div>
                 <?php endif ?>

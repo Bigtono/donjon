@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-25 17:30 -->
+<!-- Mis à jour : 2026-06-29 16:34 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -1884,3 +1884,115 @@ Ajout de `so_concentration` et `so_rituel` (tinyint 0/1) à `dd_sorts` pour stoc
 - [x] ~~Oppositions — bouton Supprimer inopérant depuis la vue Opposition~~ → corrigé (2026-06-21, oppDetailSupprimer() autonome dans detail-pp-sub/opposition.php)
 - [x] ~~SP-T0 — Transférer/Dupliquer une opposition vers une rencontre de la même campagne~~ → livré (2026-06-21, popup contextuel + campagnes/enregistrement.php + liste-rencontres-campagne.php)
 - [ ] SP-T1 — Transférer/Dupliquer une opposition vers une rencontre d'une autre campagne (sélecteur de campagne en amont dans le popup) — planifié, footer du popup réservé visuellement, aucune logique codée
+
+---
+
+## [2026-06-29] Export Roll20 NPC — `include/ajax/export/monstre-roll20.php`
+
+### Contexte
+
+Développement de la fonctionnalité d'export des monstres du compendium vers Roll20
+au format JSON (fiche D&D 5e 2014 VF). Cible : campagne DD2024, fiche Roll20 "D&D 5e (2014)".
+
+---
+
+### D-R1 — Source de `npc_type`
+
+**Décision :** `npc_type` = première ligne de `mo_stats` si elle ne commence pas par `CA`.
+Si `mo_stats` commence directement par `CA`, `npc_type` est laissé vide.
+
+**Raison :** La première ligne contient le type/alignement du monstre (ex : "Grande aberration,
+Neutre mauvais"). Elle peut être absente dans certains formats anciens.
+
+---
+
+### D-R2 — Source du Bonus de Maîtrise
+
+**Décision :** Le BM est extrait de la ligne `FP {X} ({Y} PX; BM {Z})` dans `mo_stats`.
+- `{X}` → `npc_challenge` + fallback `mo_fp_id`
+- `{Y}` → `npc_xp` (entier, espaces ignorés pour les grands nombres)
+- `{Z}` → `pb`, `npc_pb`, `pb_custom`, `pb_type="custom"`
+
+**Raison :** La ligne FP est la seule source structurée du BM dans le texte libre `mo_stats`.
+Le champ `mo_fp_id` sert de fallback pour `npc_challenge` si la ligne FP est absente.
+
+---
+
+### D-R3 — Lignes optionnelles (Sens, Langues, Résistances, Immunités)
+
+**Décision :** Ces lignes sont parsées si présentes, champ Roll20 laissé à `""` si absent.
+Lignes concernées (préfixes reconnus, insensibles à la casse/accents) :
+- `Compétences :` → compétences NPC avec détection expertise (BM×2)
+- `Résistances aux dégâts :` → `npc_resistances`
+- `Immunités aux dégâts :` → `npc_immunities`
+- `Immunités aux états :` → `npc_condition_immunities`
+- `Vulnérabilités :` → `npc_vulnerabilities`
+- `Sens :` → `npc_senses`
+- `Langues :` → `npc_languages`
+
+---
+
+### D-R4 — Mécanisme d'import Roll20
+
+**Décision :** Import via script Roll20 API Pro `doc/roll20-api/ImportNPC.js`.
+
+**Flux :**
+1. PHP génère `roll20_{nom}.json` (téléchargement direct)
+2. MJ colle le JSON dans les **GM Notes** d'un Handout Roll20
+3. Commande chat : `!import-npc [nom_handout]` (défaut : "Import NPC")
+4. Le script lit le Handout, parse le JSON, `createObj('character')` + `createObj('attribute')`
+
+**Raison :** La Roll20 API ne permet pas l'import de fichiers externes sans Pro.
+L'import via handout évite les limites de taille du chat (JSON souvent > 4 096 chars).
+
+---
+
+### D-R5 — `spelloutput` pour les sorts PNJ
+
+**Décision V1 :** `spelloutput = "SPELLCARD"` pour **tous** les sorts PNJ.
+
+**Raison :** La résolution sort → bouton d'attaque Roll20 (ATTACK) nécessite de connaître
+le type de jet pour chaque sort (attaque de sort vs. jet de sauvegarde vs. aucun).
+Cette logique dépasse le scope du parsing `mo_stats` actuel.
+
+**V2 prévue (documentée, non implémentée) :**
+- Ajouter un champ `so_type_jet` (attaque/sauvegarde/aucun) dans `dd_sorts`.
+- Ou détecter via regex dans `so_description` les patterns d'attaque de sort.
+- Générer alors `spelloutput = "ATTACK"` pour les sorts offensifs avec bouton de jet.
+
+---
+
+### D-R6 — Mapping de l'initiative
+
+**Décision :** `initiative_bonus` Roll20 = `DEX_mod + DEX_score / 100` (convention tie-breaker).
+
+**Raison :** La fiche Roll20 D&D 5e 2014 calcule l'initiative sur la base du modificateur de
+Dextérité uniquement. L'initiative DD2024 (ex : +7 pour un Aboleth avec INT 18) n'est pas
+supportée par la fiche 2014 — la valeur de `mo_stats` (`CA X Initiative +Y (Z)`) est ignorée
+pour la construction du JSON.
+
+**Impact utilisateur :** L'initiative affichée dans Roll20 diffère de l'initiative 2024 pour les
+monstres utilisant INT ou d'autres caractéristiques. Limitation assumée (hors scope fiche 2014).
+
+---
+
+### D-R7 — Extension `$listConfig` : clé `row_actions`
+
+**Décision :** `compendium-liste.php` est étendu avec la clé optionnelle `row_actions`
+(tableau d'objets `{label, icon, href, download, require_edit}`).
+
+**Comportement :**
+- `require_edit = false` → bouton icône `<a download>` toujours visible dans `col-action`
+- `require_edit = true` → item `<a>` dans le menu ⋮ (conditionné par `canEditCompendiumEntry`)
+
+**Rétro-compatibilité :** Totale — clé absente = aucun comportement ajouté.
+**Utilisation initiale :** Export Roll20 dans `compendium/monstres.php`.
+
+---
+
+### Backlog Roll20 Export (V2)
+
+- [ ] `spelloutput = "ATTACK"` pour sorts offensifs — cf. D-R5
+- [ ] Détection automatique de l'image du token (API Roll20 non disponible sans Pro+)
+- [ ] Export groupé (plusieurs monstres → ZIP de JSONs)
+- [ ] Support du `npc_type` pour les monstres DD3.5 (format `mo_stats` différent)
