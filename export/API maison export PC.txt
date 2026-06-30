@@ -2,4 +2,4 @@ sélectionner le token du personnage ;
 lancer !export-char ;
 le script récupère tous les attributs de la fiche ;
 il les transforme en JSON ;
-le JSON est placé dans le handout « API Output Console » (pratique pour les gros volumes de données).
+le JSON est placé dans le handout « Character Export » (pratique pour les gros volumes de données).

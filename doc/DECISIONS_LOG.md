@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-29 16:34 -->
+<!-- Mis à jour : 2026-06-30 09:29 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -1981,12 +1981,92 @@ monstres utilisant INT ou d'autres caractéristiques. Limitation assumée (hors 
 **Décision :** `compendium-liste.php` est étendu avec la clé optionnelle `row_actions`
 (tableau d'objets `{label, icon, href, download, require_edit}`).
 
-**Comportement :**
-- `require_edit = false` → bouton icône `<a download>` toujours visible dans `col-action`
-- `require_edit = true` → item `<a>` dans le menu ⋮ (conditionné par `canEditCompendiumEntry`)
+**Comportement (corrigé le 2026-06-29, suite retour terrain) :** Toutes les `row_actions`
+sont affichées comme items du menu ⋮, jamais comme bouton icône isolé dans `col-action`.
+- `require_edit = false` → item visible pour **tous** les utilisateurs dans le menu ⋮.
+  Le menu ⋮ s'affiche même pour un utilisateur non-éditeur dès qu'au moins une
+  `row_action` ouverte existe (variable `$_has_open_actions` dans `compendium-liste.php`).
+- `require_edit = true` → item réservé aux éditeurs (`canEditCompendiumEntry`), à côté
+  de Modifier/Supprimer.
 
 **Rétro-compatibilité :** Totale — clé absente = aucun comportement ajouté.
 **Utilisation initiale :** Export Roll20 dans `compendium/monstres.php`.
+
+---
+
+### D-R8 — Chuchotage des jets au MJ (`wtype`)
+
+**Décision :** L'attribut Roll20 `wtype` est exporté avec la valeur littérale `/w gm `
+(chaîne fixe), et non une référence `@{whispertoggle}` comme en V1 initiale.
+
+**Raison :** `@{whispertoggle}` correspond au mode fiche "Bascule" (boutons manuels),
+pas au mode "Toujours" demandé. La fiche officielle D&D 5E by Roll20 ne publie pas
+son code source (les sheets "by Roll20" sont fermées), mais la documentation
+communautaire confirme que l'attribut `wtype` porte directement la valeur utilisée
+dans les macros de jet (`@{wtype}&{template:...}`) — y compris pour la commande API
+`!setattr --allgm --wtype|/w gm` utilisée par la communauté pour forcer ce réglage
+rétroactivement. Régler `wtype = '/w gm '` à l'export reproduit exactement ce comportement.
+
+**Impact :** Tous les jets du PNJ importé (attaques, sauvegardes, compétences) sont
+automatiquement chuchotés au MJ, sans réglage manuel sur la fiche après import.
+
+---
+
+### D-R9 — Action "Incantation" recopiée intégralement dans Roll20
+
+**Décision :** Le bloc `Incantation.` n'est plus filtré lors de la génération des
+`repeating_npctrait` / `repeating_npcaction`. Son texte complet (intro + sous-listes
+"À volonté :", "X/jour :"…) est recopié à l'identique comme action `TYPE B` (description),
+en plus de l'extraction structurée des sorts dans `repeating_spell-N`.
+
+**Raison :** Le MJ veut conserver le texte narratif complet de l'incantation
+(formulation exacte du DD de sauvegarde, regroupement par fréquence d'usage) visible
+sur la fiche, en plus des sorts importés individuellement et cliquables.
+
+---
+
+### D-R10 — Bug `firebaseId()` : suppression de `_` du charset
+
+**Bug constaté :** Certains sorts générés apparaissaient vides dans Roll20 alors
+qu'ils étaient correctement trouvés et exportés côté PHP (ex : "main du mage", "vol").
+
+**Cause :** Le charset de `firebaseId()` incluait `_`, qui est le caractère séparateur
+utilisé par Roll20 dans les noms d'attributs (`repeating_section_{ID}_field`). Un ID
+contenant lui-même un `_` tronque le parsing du nom d'attribut côté Roll20 : la ligne
+apparaît dans `_reporder` mais aucun attribut ne lui est rattaché → ligne fantôme vide.
+
+**Correction :** Charset réduit à `[A-Za-z0-9]` (62 caractères, `random_int(0, 61)`).
+
+---
+
+### D-R11 — Bug noms de sorts avec note entre parenthèses
+
+**Bug constaté :** Des sorts cités avec une note explicative dans `mo_stats`
+(ex. `armure du mage (compris dans la CA)`, `boule de feu (au 4e niveau)`) n'étaient
+jamais trouvés en base, donc absents du JSON exporté.
+
+**Cause :** Le nom complet avec parenthèse ne matchait pas le nom en base (`armure du mage`).
+
+**Correction :** `parseIncantation()` retire systématiquement tout texte entre
+parenthèses du nom de sort avant ajout à `noms_sorts`, via
+`preg_replace('/\s*\([^)]*\)/', '', $nom)`.
+
+---
+
+### D-R12 — Import Roll20 depuis le token sélectionné (sans Handout)
+
+**Décision :** `ImportNPC.js` gagne une seconde commande `!import-npc-token`, qui lit
+les GM Notes du **token actuellement sélectionné** sur la carte plutôt que d'un Handout.
+En plus de créer le personnage, elle lie automatiquement le token (`token.set({represents,
+name})`).
+
+**Raison :** Le MJ pose souvent un token générique sur la carte avant la rencontre ;
+coller le JSON directement dans les GM Notes du token (au lieu de créer un Handout
+intermédiaire) accélère le flux en cours de partie. Pattern repris de scripts
+communautaires Roll20 connus (ex. 5eShapedCompanion `!shaped-import-statblock`).
+
+**Comportement conservé :** `!import-npc [nom_handout]` (mode Handout, sans lien token)
+reste disponible pour la préparation de PNJ hors session.
 
 ---
 

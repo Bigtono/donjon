@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-29 16:34 -->
+<!-- Mis à jour : 2026-06-30 09:29 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -2137,11 +2137,15 @@ puis l'importe dans Roll20 via le script API Pro `ImportNPC.js`.
 
 ```
 1. Utilisateur ouvre la fiche ou la liste des monstres
-2. Clique sur le bouton ↓ (icône fa-download)
+2. Clique sur le bouton ↓ (icône fa-download) dans le menu ⋮
 3. Téléchargement automatique de roll20_<nom>.json
-4. Dans Roll20 : colle le JSON dans les GM Notes d'un Handout
-5. Dans le chat Roll20 : !import-npc [nom_handout]
-6. Le script API crée le personnage + ses attributs
+4. Dans Roll20, deux modes d'import au choix :
+   a) Handout  : coller le JSON dans GM Notes d'un Handout,
+                 puis !import-npc [nom_handout] dans le chat
+   b) Token    : poser un token sur la carte, coller le JSON dans
+                 ses GM Notes, le sélectionner, puis !import-npc-token
+                 → crée le personnage ET lie le token automatiquement
+5. Le script API crée le personnage + ses attributs
 ```
 
 ### Endpoint PHP — `monstre-roll20.php`
@@ -2201,15 +2205,26 @@ Détection TYPE A : présence de `Corps à corps :` ou `À distance :` dans le t
 
 ### Script Roll20 API — `ImportNPC.js`
 
-Commande chat : `!import-npc [nom_handout]` (défaut : "Import NPC")
+Deux commandes chat, deux modes d'import :
+
+| Commande | Source | Comportement |
+|---|---|---|
+| `!import-npc [nom_handout]` | GM Notes d'un Handout (défaut : "Import NPC") | Crée le personnage dans la bibliothèque, sans token lié |
+| `!import-npc-token` | GM Notes du token sélectionné | Crée le personnage **et** lie automatiquement le token (`represents`) + le renomme |
 
 ```
-1. Lecture des GM Notes du Handout (unescape + nettoyage HTML)
+1. Lecture des GM Notes (Handout ou token sélectionné) — unescape + nettoyage HTML
 2. JSON.parse()
 3. createObj('character', {name, avatar})
 4. Pour chaque attribut : createObj('attribute', {characterid, name, current, max})
-5. Whisper de confirmation au MJ
+5. (mode token) token.set({represents: charId, name: charName})
+6. Whisper de confirmation au MJ
 ```
+
+Le mode token reproduit le pattern utilisé par des scripts communautaires Roll20
+connus (ex. 5eShapedCompanion `!shaped-import-statblock`) : lecture des GM Notes
+d'un token posé sur la carte plutôt que d'un Handout intermédiaire — plus rapide
+en cours de partie.
 
 ### Extension `$listConfig` — clé `row_actions`
 
@@ -2218,10 +2233,25 @@ quel contrôleur compendium d'ajouter des boutons d'action par ligne, sans modif
 
 Voir §5 pour la documentation complète des clés `row_actions`.
 
+### Chuchotage des jets au MJ (`wtype`)
+
+L'attribut Roll20 `wtype` est exporté avec la valeur littérale `/w gm ` (et non
+une référence `@{whispertoggle}`). Cela correspond au réglage fiche "Chuchoter
+les jets au MJ : Toujours" — tous les jets du PNJ (attaques, sauvegardes,
+compétences) sont automatiquement chuchotés au MJ dès l'import, sans réglage
+manuel sur la fiche. Voir DECISIONS_LOG D-R8.
+
+### Trait "Équipement"
+
+La ligne `Équipement : …` du header `mo_stats` (présente sur les PNJ humanoïdes
+porteurs d'objets) n'a pas d'équivalent dans les champs scalaires Roll20. Elle
+est convertie en un trait `repeating_npctrait` nommé **Équipement**, inséré en
+première position, avec le texte de la ligne en description. Voir DECISIONS_LOG D-R3.
+
 ### Limitations connues (V1)
 
 - `charactersheet_type = "npc"` cible la fiche 2014 — la fiche 2024 n'est pas supportée.
 - L'initiative Roll20 = `DEX_mod + DEX_score/100` (tie-breaker) ; l'initiative DD2024 (+7 dans `mo_stats`) n'est pas mappée car la fiche 2014 ne la supporte pas.
 - Les images de token/avatar ne sont pas exportées (Roll20 API : upload non disponible via script).
-- Les sous-classes, dons, équipements du PNJ ne sont pas exportés (hors scope `mo_stats`).
+- Les sous-classes et dons du PNJ ne sont pas exportés (hors scope `mo_stats`). L'équipement est exporté sous forme de trait (voir ci-dessus).
 - `spelloutput = "ATTACK"` différé en V2 (voir DECISIONS_LOG D-R5).
