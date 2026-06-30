@@ -1,5 +1,5 @@
 // ============================================================
-// ImportNPC.js — Script Roll20 API (Pro requis) v1.3
+// ImportNPC.js — Script Roll20 API (Pro requis)
 // ============================================================
 // Importe un personnage NPC dans Roll20 à partir d'un JSON
 // généré par Codex DD (include/ajax/export/monstre-roll20.php).
@@ -52,7 +52,7 @@ var ImportNPC = ImportNPC || (function () {
   // ── Écoute des commandes chat ─────────────────────────
 
   on('ready', function () {
-    log('[ImportNPC] v1.3 chargé et prêt. Commandes disponibles : '
+    log('[ImportNPC] v1.2.1 chargé et prêt. Commandes disponibles : '
       + CMD_HANDOUT + ' [nom_handout]  |  '
       + CMD_TOKEN + ' (token sélectionné)  |  '
       + CMD_PING + ' (test de connectivité)');
