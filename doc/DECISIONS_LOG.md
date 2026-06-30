@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-30 09:29 -->
+<!-- Mis à jour : 2026-06-30 11:21 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2067,6 +2067,59 @@ communautaires Roll20 connus (ex. 5eShapedCompanion `!shaped-import-statblock`).
 
 **Comportement conservé :** `!import-npc [nom_handout]` (mode Handout, sans lien token)
 reste disponible pour la préparation de PNJ hors session.
+
+---
+
+### D-R13 — Bug `!import-npc-token` totalement silencieux : `gmnotes` Graphic est synchrone
+
+**Bug constaté :** La commande `!import-npc-token` ne produisait absolument rien
+(ni message chat, ni log API Console, ni erreur), alors que `!import-npc-ping`
+répondait correctement et que la détection "aucun token sélectionné" fonctionnait.
+
+**Cause :** Sur les objets Roll20 **Character** et **Handout**, les champs
+`notes`/`gmnotes`/`bio` sont stockés de façon asynchrone (backend Firebase) et
+nécessitent impérativement le pattern `obj.get('champ', function(valeur){...})`.
+Sur un objet **Graphic** (token), en revanche, `gmnotes` est une propriété
+**synchrone** classique — `obj.get('gmnotes')` retourne directement la valeur,
+sans callback. En appliquant par erreur le pattern asynchrone au token, le
+callback n'était jamais invoqué par Roll20 (ce n'est pas une erreur silencieuse :
+c'est simplement un usage incorrect de l'API qui n'aboutit à aucune exécution).
+
+**Correction :** `importerDepuisToken()` lit désormais `token.get('gmnotes')`
+de façon synchrone, sans callback. Le mode Handout (`!import-npc`) conserve le
+pattern asynchrone avec callback, qui est correct dans son cas.
+
+**Leçon générale :** Sur Roll20 API, vérifier au cas par cas si une propriété
+texte (`notes`, `gmnotes`, `bio`) est synchrone ou asynchrone selon le **type
+d'objet** porteur (Character/Handout = async ; Graphic = sync), et ne jamais
+supposer que le pattern d'un type s'applique à l'autre.
+
+---
+
+### D-R14 — Synchronisation de l'avatar/_defaulttoken du personnage en mode token
+
+**Constat :** Après import en mode `!import-npc-token`, le token sur la carte est bien
+lié à la fiche (`represents`), mais la fiche elle-même (portrait, vignette bibliothèque,
+token par défaut pour un futur glisser-déposer) ne reprend pas l'image du token.
+
+**Raison :** `token.set({represents: charId})` établit uniquement le lien fonctionnel
+pour les jets (`@{selected|...}`, macros liées au token). Le personnage (Character) et
+le token (Graphic) restent deux objets distincts dans le modèle Roll20, chacun avec
+ses propres propriétés visuelles (`avatar`/`_defaulttoken` côté Character, `imgsrc`
+côté Graphic) — aucune des deux API ne synchronise l'autre automatiquement.
+
+**Correction :** Après liaison du token, `importerNpc()` lit `token.get('imgsrc')`,
+le convertit vers sa variante `thumb` via `getCleanImgsrc()` (seule variante
+acceptable en écriture par l'API Roll20, cf. doc officielle Mod Scripts Cookbook),
+puis applique :
+- `character.avatar` = image nettoyée (portrait visible sur la fiche et dans la bibliothèque)
+- `character._defaulttoken` = JSON décrivant un token par défaut (image, largeur,
+  hauteur, calque) réutilisé lors d'un futur glisser-déposer du personnage depuis le Journal
+
+**Limitation :** Si l'image du token ne provient pas de la bibliothèque utilisateur
+(upload externe, lien direct non standard), `getCleanImgsrc()` retourne `undefined` —
+l'avatar n'est pas synchronisé et un avertissement explicite est chuchoté au MJ et
+journalisé dans l'API Console plutôt que d'échouer silencieusement.
 
 ---
 

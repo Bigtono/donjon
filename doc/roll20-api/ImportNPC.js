@@ -1,5 +1,5 @@
 // ============================================================
-// ImportNPC.js — Script Roll20 API (Pro requis)
+// ImportNPC.js — Script Roll20 API (Pro requis) v1.3
 // ============================================================
 // Importe un personnage NPC dans Roll20 à partir d'un JSON
 // généré par Codex DD (include/ajax/export/monstre-roll20.php).
@@ -28,6 +28,13 @@
 //   3. Sélectionner le jeton, taper !import-npc-token
 //   4. Le jeton est immédiatement relié à la fiche PNJ complète
 //
+// VERSIONS 
+//  v1.0 : verison original
+//  v1.0.1 : corrections de bugs d'imports
+//  v1.0.2 : corrections de bugs d'imports
+//  V1.2 : ajout fonction d'import depuis un token
+//  v1.2.1 : met à jour le token par défaut de la fiche depuis le token ayant servi à l'import
+//
 // V2 PRÉVUE
 //   - Support spelloutput = "ATTACK" pour les sorts offensifs des PNJ
 //     (nécessite la résolution sort → jet d'attaque Roll20)
@@ -38,18 +45,42 @@ var ImportNPC = ImportNPC || (function () {
   'use strict';
 
   var HANDOUT_DEFAULT = 'Import NPC';
-  var CMD_HANDOUT      = '!import-npc';
-  var CMD_TOKEN         = '!import-npc-token';
+  var CMD_HANDOUT = '!import-npc';
+  var CMD_TOKEN = '!import-npc-token';
+  var CMD_PING = '!import-npc-ping';
 
   // ── Écoute des commandes chat ─────────────────────────
 
   on('ready', function () {
-    log('[ImportNPC] Prêt. Commandes : ' + CMD_HANDOUT + ' [nom_handout]  |  '
-      + CMD_TOKEN + ' (token sélectionné)');
+    log('[ImportNPC] v1.3 chargé et prêt. Commandes disponibles : '
+      + CMD_HANDOUT + ' [nom_handout]  |  '
+      + CMD_TOKEN + ' (token sélectionné)  |  '
+      + CMD_PING + ' (test de connectivité)');
   });
 
   on('chat:message', function (msg) {
+    try {
+      handleMessage(msg);
+    } catch (e) {
+      // Toute exception est journalisée dans l'API Console ET chuchotée
+      // au joueur, pour éviter un échec totalement silencieux.
+      log('[ImportNPC] ERREUR : ' + (e && e.stack ? e.stack : e));
+      if (msg && msg.who) {
+        sendChat('ImportNPC', '/w ' + msg.who
+          + ' ❌ Erreur interne du script (voir API Console pour le détail).');
+      }
+    }
+  });
+
+  function handleMessage(msg) {
     if (msg.type !== 'api') return;
+
+    // ── Test de connectivité ──────────────────────────
+    if (msg.content.indexOf(CMD_PING) === 0) {
+      whisper(msg.who, '✅ ImportNPC est actif et reçoit bien les commandes.');
+      log('[ImportNPC] Ping reçu de ' + msg.who);
+      return;
+    }
 
     // ── Mode token sélectionné ───────────────────────
     if (msg.content.indexOf(CMD_TOKEN) === 0) {
@@ -59,7 +90,7 @@ var ImportNPC = ImportNPC || (function () {
 
     // ── Mode handout ──────────────────────────────────
     if (msg.content.indexOf(CMD_HANDOUT) === 0) {
-      var parts       = msg.content.split(/\s+/);
+      var parts = msg.content.split(/\s+/);
       var handoutName = parts.slice(1).join(' ') || HANDOUT_DEFAULT;
 
       trouverHandout(handoutName, function (handout) {
@@ -78,7 +109,7 @@ var ImportNPC = ImportNPC || (function () {
       });
       return;
     }
-  });
+  }
 
   // ── Mode token : lecture des GM Notes du token sélectionné ──
 
@@ -95,15 +126,20 @@ var ImportNPC = ImportNPC || (function () {
       return;
     }
 
-    token.get('gmnotes', function (notes) {
-      if (!notes || notes === 'null') {
-        whisper(msg.who, '❌ Les GM Notes de ce token sont vides. Collez-y le JSON exporté'
-          + ' depuis Codex DD (clic droit sur le token > Modifier > GM Notes).');
-        return;
-      }
-      var data = parserJsonDepuisNotes(notes, msg.who);
-      if (data) importerNpc(data, msg.who, token);
-    });
+    // ⚠ Contrairement à Character/Handout (où notes/gmnotes/bio sont
+    // asynchrones et nécessitent un callback), gmnotes sur un Graphic
+    // (token) est une propriété SYNCHRONE. Utiliser le pattern callback
+    // ici fait que le callback n'est tout simplement jamais invoqué —
+    // aucune exception, aucun message, silence total.
+    var notes = token.get('gmnotes');
+
+    if (!notes || notes === 'null') {
+      whisper(msg.who, '❌ Les GM Notes de ce token sont vides. Collez-y le JSON exporté'
+        + ' depuis Codex DD (clic droit sur le token > Modifier > GM Notes).');
+      return;
+    }
+    var data = parserJsonDepuisNotes(notes, msg.who);
+    if (data) importerNpc(data, msg.who, token);
   }
 
   // ── Recherche du handout ──────────────────────────────
@@ -136,16 +172,16 @@ var ImportNPC = ImportNPC || (function () {
     } catch (e) { /* pas encodé */ }
     // Supprimer les balises HTML (Roll20 wrapper <div>/<p> etc.)
     notes = notes.replace(/<br\s*\/?>/gi, '')
-                 .replace(/<p[^>]*>/gi, '')
-                 .replace(/<\/p>/gi, '')
-                 .replace(/<div[^>]*>/gi, '')
-                 .replace(/<\/div>/gi, '')
-                 .replace(/&nbsp;/gi, ' ')
-                 .replace(/&amp;/gi, '&')
-                 .replace(/&lt;/gi, '<')
-                 .replace(/&gt;/gi, '>')
-                 .replace(/&quot;/gi, '"')
-                 .replace(/<[^>]+>/g, '');
+      .replace(/<p[^>]*>/gi, '')
+      .replace(/<\/p>/gi, '')
+      .replace(/<div[^>]*>/gi, '')
+      .replace(/<\/div>/gi, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/<[^>]+>/g, '');
     return notes.trim();
   }
 
@@ -160,7 +196,7 @@ var ImportNPC = ImportNPC || (function () {
     }
 
     var charName = data.character.name || 'NPC importé';
-    var avatar   = data.character.avatar || '';
+    var avatar = data.character.avatar || '';
 
     // Vérifier si un personnage du même nom existe déjà
     var existants = findObjs({ _type: 'character', name: charName });
@@ -172,7 +208,7 @@ var ImportNPC = ImportNPC || (function () {
 
     // Créer le personnage
     var charObj = createObj('character', {
-      name:   charName,
+      name: charName,
       avatar: avatar,
     });
 
@@ -181,8 +217,8 @@ var ImportNPC = ImportNPC || (function () {
       return;
     }
 
-    var charId  = charObj.id;
-    var nbOk    = 0;
+    var charId = charObj.id;
+    var nbOk = 0;
     var nbTotal = data.attributes.length;
 
     // Créer tous les attributs (current + max)
@@ -191,21 +227,44 @@ var ImportNPC = ImportNPC || (function () {
       if (!a || !a.name) continue;
       var obj = createObj('attribute', {
         characterid: charId,
-        name:        String(a.name),
-        current:     a.current !== undefined ? a.current : '',
-        max:         a.max     !== undefined ? a.max     : '',
+        name: String(a.name),
+        current: a.current !== undefined ? a.current : '',
+        max: a.max !== undefined ? a.max : '',
       });
       if (obj) nbOk++;
     }
 
-    // Mode token : lier le token au personnage et le renommer
+    // Mode token : lier le token au personnage, le renommer,
+    // et synchroniser l'avatar/_defaulttoken du personnage sur l'image du token.
+    // (Lier représente le token <-> fiche pour les jets, mais ne copie pas
+    //  l'image : la fiche et le token restent deux objets distincts.)
     if (token) {
       token.set({
         represents: charId,
-        name:       charName,
+        name: charName,
       });
+
+      var imgsrc = token.get('imgsrc');
+      var cleanSrc = getCleanImgsrc(imgsrc);
+      if (cleanSrc) {
+        charObj.set({
+          avatar: cleanSrc,
+          _defaulttoken: JSON.stringify({
+            name: charName,
+            imgsrc: cleanSrc,
+            width: token.get('width'),
+            height: token.get('height'),
+            layer: 'token',
+          }),
+        });
+      } else {
+        log('[ImportNPC] Avertissement : image du token (' + imgsrc + ') hors bibliothèque'
+          + ' utilisateur — avatar/_defaulttoken non synchronisés (limitation API Roll20).');
+      }
+
       whisper(who,
         '✅ **' + charName + '** importé et lié au token sélectionné.'
+        + (cleanSrc ? ' Avatar synchronisé.' : ' ⚠️ Avatar non synchronisé (image hors bibliothèque).')
         + ' (' + nbOk + '/' + nbTotal + ' attributs créés)'
       );
       log('[ImportNPC] Import token terminé : ' + charName + ' (charId=' + charId
@@ -219,6 +278,21 @@ var ImportNPC = ImportNPC || (function () {
     );
     log('[ImportNPC] Import handout terminé : ' + charName + ' (charId=' + charId
       + ', attrs=' + nbOk + '/' + nbTotal + ')');
+  }
+
+  // ── Conversion d'une URL d'image vers sa variante "thumb" ─────
+  // L'API Roll20 ne peut écrire un avatar/_defaulttoken que si la source
+  // est la variante "thumb" d'une image déjà présente dans la bibliothèque
+  // utilisateur. Retourne undefined si l'URL ne correspond pas à ce format
+  // (image externe, upload hors bibliothèque…).
+  // Pattern documenté : Roll20 Wiki > Mod Scripts (API): Cookbook.
+
+  function getCleanImgsrc(imgsrc) {
+    var parts = imgsrc && imgsrc.match(/(.*\/images\/.*)(thumb|med|original|max)([^?]*)(\?[^?]+)?$/);
+    if (parts) {
+      return parts[1] + 'thumb' + parts[3] + (parts[4] ? parts[4] : ('?' + Math.round(Math.random() * 9999999)));
+    }
+    return undefined;
   }
 
   // ── Utilitaire whisper ────────────────────────────────
