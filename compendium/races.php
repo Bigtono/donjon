@@ -56,6 +56,9 @@ $listConfig = [
   'champ_id'      => 'ra.ra_id',
   'champ_res'     => 'ra.ra_res_id',
   'champ_ruleset' => 'ra.ra_ruleset_var_id',
+  'champ_public'    => 'ra.ra_public',
+  'champ_visible'   => 'ra.ra_visible',
+  'champ_res_owner' => 'res.res_j_id',
   'tri_defaut'    => 'ra.ra_rat_id ASC, ra.ra_nom ASC',
   'colonnes'      => [
     [

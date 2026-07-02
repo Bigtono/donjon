@@ -25,7 +25,7 @@ endif;
 // Données principales du sort
 // ============================================================
 $stmt = $db->prepare('
-  SELECT so.*, co.co_nom, res.res_nom,
+  SELECT so.*, co.co_nom, res.res_nom, res.res_j_id,
          camp.camp_nom,
          var.var_valeur AS ruleset_label
   FROM   dd_sorts so
@@ -134,7 +134,7 @@ endif;
   <div class="sort-detail__header">
     <h2 class="sort-detail__nom">
       <?= h($so['so_nom']) ?>
-      <?php if (canEditCompendium()): ?>
+      <?php if (canEditCompendiumEntry($db, $so['res_j_id'] !== null ? (int)$so['res_j_id'] : null)): ?>
         <button class="sort-detail__edit-btn"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/sort.php', <?= $id ?>)"
                 title="Modifier ce sort">

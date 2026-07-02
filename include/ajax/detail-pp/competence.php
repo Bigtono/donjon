@@ -21,6 +21,7 @@ $stmt = $db->prepare('
   SELECT comp.*,
          car.car_nom,
          res.res_nom,
+         res.res_j_id,
          var.var_valeur AS ruleset_label
   FROM   dd_competences comp
   LEFT JOIN dd_caracteristiques car ON car.car_id = comp.comp_car_id
@@ -44,7 +45,7 @@ endif;
   <div class="sort-detail__header">
     <h2 class="sort-detail__nom">
       <?= h($competence['comp_nom']) ?>
-      <?php if (canEditCompendium()): ?>
+      <?php if (canEditCompendiumEntry($db, $competence['res_j_id'] !== null ? (int)$competence['res_j_id'] : null)): ?>
         <button class="sort-detail__edit-btn"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/competence.php', <?= $id ?>)"
                 title="Modifier cette compétence">

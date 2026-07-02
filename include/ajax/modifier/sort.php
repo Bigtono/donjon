@@ -19,6 +19,7 @@ endif;
 
 $id      = intParam($_GET['id'] ?? 0);
 $ruleset = $_SESSION['rulesetRep'] ?? 'DD3.5';
+$uid     = (int)($_SESSION['j_id'] ?? 0);
 $res_ids = getActiveResIds($db);
 
 // ============================================================
@@ -47,6 +48,8 @@ $so = [
   'so_description'       => '',
   'so_res_id'            => '',
   'so_camp_id'           => '',
+  'so_public'            => 0,
+  'so_visible'           => 1,
 ];
 
 if ($id > 0):
@@ -101,13 +104,42 @@ if ($ruleset === 'DD3.5'):
   $domaines = $db->query('SELECT do_id, do_nom FROM dd_domaines ORDER BY do_nom')->fetchAll();
 endif;
 
-// Ressources actives
-$sources = [];
+// Ressources actives — scindées en 2 groupes pour le select du formulaire :
+// sources officielles (res_j_id IS NULL) vs supplément personnel de
+// l'utilisateur courant (le seul supplément qu'il a le droit d'alimenter).
+$sources_officielles = [];
 if (!empty($res_ids)):
   $ph   = resIdsPlaceholders($res_ids);
-  $stmt = $db->prepare("SELECT res_id, res_nom FROM dd_ressources WHERE res_id IN ($ph) ORDER BY res_nom");
+  $stmt = $db->prepare("
+    SELECT res_id, res_nom
+    FROM   dd_ressources
+    WHERE  res_id IN ($ph) AND res_j_id IS NULL
+    ORDER  BY res_nom
+  ");
   $stmt->execute($res_ids);
-  $sources = $stmt->fetchAll();
+  $sources_officielles = $stmt->fetchAll();
+endif;
+
+// Supplément de l'utilisateur courant : peut ne pas encore exister. Dans ce
+// cas, l'option du select porte la valeur sentinelle 'supplement' ; la
+// ressource sera créée à la volée au save (getOrCreateUserSupplement()).
+$so_supplement_res_id = getUserSupplementResId($db, $uid, $ruleset_id);
+$so_supplement_nom    = '';
+if ($so_supplement_res_id !== null):
+  $stmt = $db->prepare('SELECT res_nom FROM dd_ressources WHERE res_id = ?');
+  $stmt->execute([$so_supplement_res_id]);
+  $so_supplement_nom = (string)$stmt->fetchColumn();
+else:
+  $stmt = $db->prepare('SELECT j_pseudo FROM dd_joueurs WHERE j_id = ?');
+  $stmt->execute([$uid]);
+  $pseudo = $stmt->fetchColumn();
+  $so_supplement_nom = 'Supplément de ' . ($pseudo !== false ? $pseudo : 'utilisateur');
+endif;
+
+// Valeur actuellement sélectionnée par le formulaire pour so_res_id
+$so_res_id_select = (string)$so['so_res_id'];
+if ($so_supplement_res_id !== null && (int)$so['so_res_id'] === $so_supplement_res_id):
+  $so_res_id_select = 'supplement';
 endif;
 
 // Campagnes de l'utilisateur (pour homebrew)
@@ -233,13 +265,36 @@ $niveaux_dd2024 = range(0, 20);
           <label for="so_res_id">Source <span class="required">*</span></label>
           <select id="so_res_id" name="so_res_id" required>
             <option value="">— Choisir —</option>
-            <?php foreach ($sources as $src): ?>
-              <option value="<?= (int)$src['res_id'] ?>"
-                <?= (int)$so['so_res_id'] === (int)$src['res_id'] ? 'selected' : '' ?>>
-                <?= h($src['res_nom']) ?>
+            <optgroup label="Sources officielles">
+              <?php foreach ($sources_officielles as $src): ?>
+                <option value="<?= (int)$src['res_id'] ?>" data-supplement="0"
+                  <?= $so_res_id_select === (string)$src['res_id'] ? 'selected' : '' ?>>
+                  <?= h($src['res_nom']) ?>
+                </option>
+              <?php endforeach ?>
+            </optgroup>
+            <optgroup label="Mon supplément">
+              <option value="supplement" data-supplement="1"
+                <?= $so_res_id_select === 'supplement' ? 'selected' : '' ?>>
+                <?= h($so_supplement_nom) ?>
               </option>
-            <?php endforeach ?>
+            </optgroup>
           </select>
+        </div>
+
+        <!-- Visibilité (supplément uniquement) -->
+        <div class="form-group" id="so-supplement-visibilite" hidden>
+          <label class="form-label--checkbox">
+            <input type="checkbox" id="so_public" name="so_public" value="1"
+              <?= (int)$so['so_public'] === 1 ? 'checked' : '' ?>>
+            Partagé (visible des autres utilisateurs ayant ce supplément comme source)
+          </label>
+          <label class="form-label--checkbox">
+            <input type="checkbox" id="so_visible" name="so_visible" value="1"
+              <?= (int)$so['so_visible'] === 1 ? 'checked' : '' ?>>
+            Visible (décoché = brouillon masqué, accessible via « Afficher mes brouillons »)
+          </label>
+          <span class="form-hint">Une entrée partagée est forcément visible.</span>
         </div>
 
         <?php if (!empty($campagnes)): ?>
@@ -410,6 +465,41 @@ $niveaux_dd2024 = range(0, 20);
 
   </form>
 </div>
+
+<script>
+(function () {
+  // Affiche/masque le bloc public/visible selon le groupe de la source
+  // sélectionnée (officielle vs supplément personnel), et applique la
+  // contrainte client _public=1 => _visible coché + désactivé.
+  var selectRes  = document.getElementById('so_res_id');
+  var blocVisib  = document.getElementById('so-supplement-visibilite');
+  var chkPublic  = document.getElementById('so_public');
+  var chkVisible = document.getElementById('so_visible');
+
+  if (!selectRes || !blocVisib) return;
+
+  function appliquerContrainte() {
+    if (chkPublic.checked) {
+      chkVisible.checked = true;
+      chkVisible.disabled = true;
+    } else {
+      chkVisible.disabled = false;
+    }
+  }
+
+  function actualiserAffichage() {
+    var option = selectRes.options[selectRes.selectedIndex];
+    var estSupplement = option && option.getAttribute('data-supplement') === '1';
+    blocVisib.hidden = !estSupplement;
+    if (estSupplement) appliquerContrainte();
+  }
+
+  selectRes.addEventListener('change', actualiserAffichage);
+  if (chkPublic) chkPublic.addEventListener('change', appliquerContrainte);
+
+  actualiserAffichage();
+}());
+</script>
 
 <!-- TinyMCE via jsDelivr (sans clé API requise) -->
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>

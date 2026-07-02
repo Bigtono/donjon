@@ -40,6 +40,9 @@ $listConfig = [
   'champ_id'      => 'do.do_id',
   'champ_res'     => 'do.do_res_id',
   'champ_ruleset' => 'do.do_ruleset_var_id',
+  'champ_public'    => 'do.do_public',
+  'champ_visible'   => 'do.do_visible',
+  'champ_res_owner' => 'res.res_j_id',
   'colonnes'      => [
     ['sql' => 'do.do_nom',           'champ' => 'do_nom',        'label' => 'Nom',       'mobile' => true,  'tri' => true],
     ['sql' => 'dad.dado_nom',        'champ' => 'dado_nom',      'label' => 'Catégorie', 'mobile' => false, 'tri' => true],

@@ -17,6 +17,7 @@ endif;
 $id         = intParam($_GET['id'] ?? 0);
 $ruleset_id = (int)($_SESSION['ruleset_var_id'] ?? 1);
 $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
+$uid        = (int)($_SESSION['j_id'] ?? 0);
 $res_ids    = getActiveResIds($db);
 
 // Valeurs par défaut (création)
@@ -31,6 +32,7 @@ $om = [
   'om_variantes'    => '',
   'om_description'  => '',
   'om_visible'      => 1,
+  'om_public'       => 0,
   'om_res_id'       => '',
   'om_camp_id'      => null,
 ];
@@ -62,13 +64,42 @@ endforeach;
 $formats = $db->query('SELECT fom_id, fom_nom FROM dd_format_objet_magique ORDER BY fom_id')
   ->fetchAll();
 
-// Ressources actives
-$sources = [];
+// Ressources actives — scindées en 2 groupes pour le select du formulaire :
+// sources officielles (res_j_id IS NULL) vs supplément personnel de
+// l'utilisateur courant (le seul supplément qu'il a le droit d'alimenter).
+$sources_officielles = [];
 if (!empty($res_ids)):
   $ph   = resIdsPlaceholders($res_ids);
-  $stmt = $db->prepare("SELECT res_id, res_nom FROM dd_ressources WHERE res_id IN ($ph) ORDER BY res_nom");
+  $stmt = $db->prepare("
+    SELECT res_id, res_nom
+    FROM   dd_ressources
+    WHERE  res_id IN ($ph) AND res_j_id IS NULL
+    ORDER  BY res_nom
+  ");
   $stmt->execute($res_ids);
-  $sources = $stmt->fetchAll();
+  $sources_officielles = $stmt->fetchAll();
+endif;
+
+// Supplément de l'utilisateur courant : peut ne pas encore exister. Dans ce
+// cas, l'option du select porte la valeur sentinelle 'supplement' ; la
+// ressource sera créée à la volée au save (getOrCreateUserSupplement()).
+$om_supplement_res_id = getUserSupplementResId($db, $uid, $ruleset_id);
+$om_supplement_nom    = '';
+if ($om_supplement_res_id !== null):
+  $stmt = $db->prepare('SELECT res_nom FROM dd_ressources WHERE res_id = ?');
+  $stmt->execute([$om_supplement_res_id]);
+  $om_supplement_nom = (string)$stmt->fetchColumn();
+else:
+  $stmt = $db->prepare('SELECT j_pseudo FROM dd_joueurs WHERE j_id = ?');
+  $stmt->execute([$uid]);
+  $pseudo = $stmt->fetchColumn();
+  $om_supplement_nom = 'Supplément de ' . ($pseudo !== false ? $pseudo : 'utilisateur');
+endif;
+
+// Valeur actuellement sélectionnée par le formulaire pour om_res_id
+$om_res_id_select = (string)$om['om_res_id'];
+if ($om_supplement_res_id !== null && (int)$om['om_res_id'] === $om_supplement_res_id):
+  $om_res_id_select = 'supplement';
 endif;
 
 // Pré-remplissage du label de sort (en modification avec sort lié)
@@ -144,12 +175,20 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
           <label for="om_res_id">Source <span class="required">*</span></label>
           <select id="om_res_id" name="om_res_id" required>
             <option value="">— Choisir —</option>
-            <?php foreach ($sources as $src): ?>
-              <option value="<?= (int)$src['res_id'] ?>"
-                <?= (int)$om['om_res_id'] === (int)$src['res_id'] ? 'selected' : '' ?>>
-                <?= h($src['res_nom']) ?>
+            <optgroup label="Sources officielles">
+              <?php foreach ($sources_officielles as $src): ?>
+                <option value="<?= (int)$src['res_id'] ?>" data-supplement="0"
+                  <?= $om_res_id_select === (string)$src['res_id'] ? 'selected' : '' ?>>
+                  <?= h($src['res_nom']) ?>
+                </option>
+              <?php endforeach ?>
+            </optgroup>
+            <optgroup label="Mon supplément">
+              <option value="supplement" data-supplement="1"
+                <?= $om_res_id_select === 'supplement' ? 'selected' : '' ?>>
+                <?= h($om_supplement_nom) ?>
               </option>
-            <?php endforeach ?>
+            </optgroup>
           </select>
         </div>
 
@@ -165,10 +204,20 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
         <!-- Visible (édition uniquement) -->
         <div class="form-group">
           <label class="form-label--checkbox">
-            <input type="checkbox" name="om_visible" value="1"
+            <input type="checkbox" id="om_visible" name="om_visible" value="1"
               <?= $om['om_visible'] ? 'checked' : '' ?>>
             Visible par les joueurs
           </label>
+        </div>
+
+        <!-- Partagé (supplément uniquement) -->
+        <div class="form-group" id="om-supplement-visibilite" hidden>
+          <label class="form-label--checkbox">
+            <input type="checkbox" id="om_public" name="om_public" value="1"
+              <?= (int)$om['om_public'] === 1 ? 'checked' : '' ?>>
+            Partagé (visible des autres utilisateurs ayant ce supplément comme source)
+          </label>
+          <span class="form-hint">Une entrée partagée est forcément visible.</span>
         </div>
 
       </div><!-- .modif-grid -->
@@ -312,4 +361,37 @@ var BASE_URL = <?= json_encode(BASE_URL) ?>;
 // Initialisation des comportements au chargement du formulaire
 omToggleSections();
 initSortAutocomplete();
+</script>
+
+<script>
+(function () {
+  var selectRes  = document.getElementById('om_res_id');
+  var blocPublic = document.getElementById('om-supplement-visibilite');
+  var chkPublic  = document.getElementById('om_public');
+  var chkVisible = document.getElementById('om_visible');
+
+  if (!selectRes || !blocPublic) return;
+
+  function appliquerContrainte() {
+    if (chkPublic.checked) {
+      chkVisible.checked = true;
+      chkVisible.disabled = true;
+    } else {
+      chkVisible.disabled = false;
+    }
+  }
+
+  function actualiserAffichage() {
+    var option = selectRes.options[selectRes.selectedIndex];
+    var estSupplement = option && option.getAttribute('data-supplement') === '1';
+    blocPublic.hidden = !estSupplement;
+    if (estSupplement) appliquerContrainte();
+    else chkVisible.disabled = false;
+  }
+
+  selectRes.addEventListener('change', actualiserAffichage);
+  if (chkPublic) chkPublic.addEventListener('change', appliquerContrainte);
+
+  actualiserAffichage();
+}());
 </script>

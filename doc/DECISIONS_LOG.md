@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-30 12:11 -->
+<!-- Mis à jour : 2026-07-01 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -1060,6 +1060,78 @@ Vérification exhaustive avant suppression (`grep -rn` sur tout le dépôt) :
 → L'entrée `[2026-05] modifier/monstre-old.php — ancienne version conservée` plus haut dans ce
 journal reste en l'état pour traçabilité historique ; elle est résolue par celle-ci.
 
+**[2026-07-01] SP-C2→C5 — Répliqué sur les 7 entités restantes (Dons, Sorts, Compétences, Races, Classes, Objets magiques, Historiques).**
+
+*Contenu livré*, sur le modèle exact de Monstres (seule entité déjà traitée avant ce jour) :
+- **SP-C2** : `champ_public`/`champ_visible`/`champ_res_owner` déclarés dans `$listConfig` des 7 contrôleurs
+  (`compendium/{dons,sorts,competences,races,classes,objets,historiques}.php`). Moteur `compendium-liste.php`
+  inchangé (déjà générique depuis le passage de Monstres).
+- **SP-C3** : bouton Modifier de `detail-pp/*.php` conditionné par `canEditCompendiumEntry($db, res_j_id)`
+  au lieu de `canEditCompendium()` — nécessite `res.res_j_id` ajouté au `SELECT` de chacune des 7 fiches.
+- **SP-C4** : `modifier/*.php` — `<select>` source à 2 `<optgroup>` (officielles / « Mon supplément », sentinelle
+  `'supplement'`), checkboxes `_public`/`_visible` affichées uniquement pour une source de supplément, script
+  JS de bascule + contrainte client (`_public` coché ⇒ `_visible` coché et désactivé) — copié du pattern Monstres
+  sur les 7 formulaires.
+- **SP-C5** : `enregistrement.php` — chaque `enregistrer{Don,Sort,Competence,Race,Classe,Objet,Historique}()`
+  résout désormais la source via `getOrCreateUserSupplement()` (sentinelle `'supplement'`) ou valide
+  l'appartenance d'un `res_id` de supplément existant (garde-fou anti-forgerie de requête), calcule
+  `_public`/`_visible` avec la contrainte serveur `_public=1 ⇒ _visible=1`. Suppression : nouvelles fonctions
+  dédiées `supprimer{Don,Competence,Objet,Historique}()` (gating per-entry via `canEditCompendiumEntry()`),
+  remplaçant `supprimerEntite()` générique qui n'avait aucune notion de propriétaire ; `supprimerSort()` et
+  `supprimerRace()`/`supprimerClasse()` (déjà dédiées pour leurs vérifications de dépendances) complétées avec
+  la même garde per-entry, insérée *avant* leurs vérifications métier existantes.
+
+*Cas particulier — Objets magiques (`dd_objets_magiques`)* : `om_visible` préexistait à SP-C avec une sémantique
+propre (« visible par les joueurs », librement modifiable quelle que soit la source, y compris officielle) —
+conservée telle quelle, non fusionnée avec le mécanisme de brouillon des 7 autres entités. Seul `om_public` est
+nouveau et n'agit que sur les entrées de supplément (forcé à 0 côté serveur pour les entrées officielles). Le
+formulaire n'affiche donc qu'une checkbox « Partagé » conditionnelle (pas de checkbox « Visible » dupliquée,
+celle-ci restant affichée en permanence comme avant). `detail-pp/objet.php` : le masquage préexistant
+(`!canEditCompendium() && !om_visible`) est passé à `canEditCompendiumEntry()` pour laisser un propriétaire de
+supplément voir ses propres brouillons — amélioration mineure alignée sur le pattern Monstres, aucune régression
+(un éditeur global voyait déjà tout).
+
+*Vérifications effectuées* (pas d'accès UI navigateur — pas de compte de test) :
+- `php -l` sans erreur sur les 24 fichiers modifiés (7 contrôleurs liste + 7 detail-pp + 7 modifier +
+  `enregistrement.php`).
+- Smoke test HTTP (Apache + MySQL locaux démarrés pour l'occasion) : 302 (redirection login) sur les 21
+  endpoints AJAX/contrôleurs, aucune 500.
+- Script de validation SQL ponctuel (transactions ouvertes puis `ROLLBACK`, mêmes options PDO que
+  `include/db.php` dont `ATTR_EMULATE_PREPARES=false`) : chaque `INSERT`/`UPDATE` des 7 `enregistrer*()`
+  exécuté avec des valeurs factices contre le schéma réel — tous valides. Script supprimé après usage
+  (fichier `_sp5_sql_test.php`, jamais committé).
+→ **Non vérifié** : rendu visuel des formulaires, comportement JS du toggle source officielle/supplément,
+  toggle "Afficher mes brouillons" en conditions réelles — à valider en navigateur à la prochaine session
+  si besoin.
+
+**[2026-07-01] SP-C5/SP-C6 — Blocage levé. `_public`/`_visible` existent déjà en base sur les 7 tables.**
+
+*Action réalisée* : `SHOW CREATE TABLE` exécuté en direct sur la base de dev locale (`maikasteiymaika`,
+MySQL XAMPP démarré pour l'occasion) sur les 7 tables listées dans l'audit du 2026-06-20 ci-dessous.
+
+*Résultat* : `_public`/`_visible` (ou `_public` seul pour `dd_objets_magiques`, `om_visible` déjà
+existant) sont **déjà présentes en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`,
+`dd_races`, `dd_classes`, `dd_historiques`, `dd_objets_magiques` — mêmes noms, mêmes types, même
+sémantique par défaut (`_public` défaut 0, `_visible` défaut 1) que sur `dd_monstres`. La migration
+SP-C0 a donc bien été appliquée en base pour les 8 entités, exactement comme pour Monstres avant sa
+régularisation — seul le fichier `sql/patch_004_supplements.sql` et `SCHEMA_SQL.md` n'avaient pas
+suivi (`patch_004_supplements.sql` reste introuvable dans le dépôt, non committé à l'époque).
+`SCHEMA_SQL.md` mis à jour (v1.5) avec les 7 tables.
+
+Écart annexe repéré sans rapport avec SP-C, noté pour mémoire, non traité ici : `dd_dons.do_page_source`
+(int NOT NULL) existe en base sans documentation ni usage identifié dans le code audité jusqu'ici.
+
+*Conséquence* : plus d'ambiguïté schéma/base. SP-C5 (`enregistrement.php` ownership + `_public`/
+`_visible`) et SP-C4 (formulaire, dropdown 2 groupes) peuvent être répliqués directement sur le modèle
+Monstres pour les 7 entités restantes, comme prévu par l'option "colonnes déjà présentes" de l'audit
+du 2026-06-20 (ci-dessous, conservé pour traçabilité). SP-C6 (profil "Mes sources") n'a jamais été
+bloquée par ce point — reprise possible indépendamment.
+
+*Ordre retenu* : Dons en premier (structure la plus simple, cf. audit du 2026-06-20), puis Sorts,
+Compétences, Races, Classes, Objets, Historiques.
+
+---
+
 **[2026-06-20] SP-C5/SP-C6 — Mis en pause après audit. Écart schéma à lever avant reprise.**
 
 *Décision* : SP-C5 (enregistrement.php ownership, 7 entités restantes) et SP-C6 (profil "Mes
@@ -1126,10 +1198,10 @@ Styles dans `compendium-modules.css`.
 |---|---|---|---|
 | SP-C0 | SQL : 8 ALTER TABLE + migration mo_j_id + `patch_004_supplements.sql` | Modérée | ✅ livré (2026-06-17) |
 | SP-C1 | Socle : `getOrCreateUserSupplement`, `getUserSupplementResId`, `canEditCompendiumEntry` | Faible | ✅ livré (2026-06-17) |
-| SP-C2 | Moteur : `compendium-liste.php` (générique) + 8 contrôleurs (`champ_public`/`champ_visible`/`champ_res_owner`) | Élevée | 🟢 moteur générique livré (2026-06-20) ; Monstres branché, 7 contrôleurs restants |
-| SP-C3 | `detail-pp/*.php` × 8 : bouton Modifier per-entry | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
-| SP-C4 | `modifier/*.php` × 8 : source dropdown 2 groupes + champs `_public`/`_visible` | Modérée | 🟡 Monstres fait (2026-06-20), 7 restantes |
-| SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément + suppression per-entry | Modérée | ⏸ **en pause** (Monstres fait 2026-06-20 ; 7 restantes bloquées — cf. [2026-06-20] SP-C5/SP-C6 audit) |
+| SP-C2 | Moteur : `compendium-liste.php` (générique) + 8 contrôleurs (`champ_public`/`champ_visible`/`champ_res_owner`) | Élevée | ✅ livré (2026-07-01) — 8/8 entités branchées |
+| SP-C3 | `detail-pp/*.php` × 8 : bouton Modifier per-entry | Modérée | ✅ livré (2026-07-01) — 8/8 entités |
+| SP-C4 | `modifier/*.php` × 8 : source dropdown 2 groupes + champs `_public`/`_visible` | Modérée | ✅ livré (2026-07-01) — 8/8 entités |
+| SP-C5 | `enregistrement.php` : ownership + `_public`/`_visible` + auto-create supplément + suppression per-entry | Modérée | ✅ livré (2026-07-01) — 8/8 entités |
 | SP-C6 | `profil/index.php` : "Mes sources" — suppléments publics d'autres utilisateurs | Faible | ⏸ **en pause** (non bloquée techniquement, mise de côté à la demande utilisateur — cf. [2026-06-20] SP-C5/SP-C6 audit) |
 | SP-C7 | Monstres : nettoyage `monstre-old.php` + `monstre-parser.php` (rm refs `mo_j_id`) | Faible | ✅ livré (2026-06-20) |
 

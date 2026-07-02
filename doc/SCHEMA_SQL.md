@@ -17,6 +17,7 @@
 | 1.2 | 2026-06-02 | JM | dd_sorts : ajout `so_concentration` / `so_rituel` (0/1, DD2024). Import en masse des sorts SRD 5.2.1 (res_id 93) par lots à IDs explicites |
 | 1.3 | 2026-06-20 | JM | `dd_equipements` : CRÉÉE (équipement mondain, distincte de `dd_objets_magiques`). SQL committé : `sql/2026-06-20_equipements_sp-e0.sql`. Module compendium correspondant non développé — cf. plan SP-E (ARCHITECTURE_0_REFERENCE.md) |
 | 1.4 | 2026-06-20 | JM | `dd_oppositions.opp_mo_id` rendu NULLABLE — monstre d'origine optionnel, saisie d'opposition 100% manuelle possible. SQL committé : `sql/2026-06-20_oppositions_monstre_optionnel.sql` |
+| 1.5 | 2026-07-01 | JM | Audit `SHOW CREATE TABLE` sur les 7 tables restantes du Supplément (SP-C5/C6, débloquant) : `_public`/`_visible` **existent déjà en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques` (+ `om_public` sur `dd_objets_magiques`, `om_visible` déjà documenté). Colonnes ajoutées à la doc ci-dessous. `sql/patch_004_supplements.sql` reste introuvable dans le dépôt (appliqué directement en base, jamais committé — même écart que l'incident `mo_j_id`). Écart noté au passage : `dd_dons.do_page_source` (int NOT NULL) présent en base, non documenté, sans rapport avec SP-C — non traité ici |
 
 ---
 
@@ -232,7 +233,11 @@ Sorts du compendium.
 | so_resume | text | null | Résumé en quelques mots du sort |
 | so_res_id | int unsigned | nn | Source -> dd_ressources |
 | so_camp_id | int unsigned | null | null = compendium global ; sinon homebrew -> dd_campagnes |
+| so_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| so_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | so_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> `so_public`/`so_visible` confirmées en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5) — mécanisme Supplément (SP-C), même sémantique que `mo_public`/`mo_visible`.
 
 ---
 
@@ -324,7 +329,11 @@ Classes de personnage (base et prestige).
 | cla_cla_id | int unsigned | null | *[DD2024]* Classe parente d'une sous-classe (cla_clt_id=5) -> dd_classes ; null pour Base/Prestige |
 | cla_res_id | int unsigned | nn | Source -> dd_ressources |
 | cla_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
+| cla_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| cla_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | cla_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> `cla_public`/`cla_visible` confirmées en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5).
 
 ---
 
@@ -417,7 +426,12 @@ Capacités spéciales attribuables aux classes.
 | do_resume | text | null | Résumé court |
 | do_res_id | int unsigned | nn | Source -> dd_ressources |
 | do_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
+| do_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| do_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | do_ruleset_var_id | int unsigned | nn | -> dd_variables |
+| do_page_source | int(11) | nn | ⚠️ Colonne présente en base, non documentée avant l'audit du 2026-07-01, usage à clarifier — sans rapport avec le mécanisme Supplément |
+
+> `do_public`/`do_visible` confirmées en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5).
 
 ---
 
@@ -445,7 +459,11 @@ Catégories de dons (Combat, Métamagie, Création d'objets...).
 | comp_formation | int | nn | |
 | comp_description | text | nn | |
 | comp_res_id | int unsigned | nn | Source -> dd_ressources |
+| comp_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| comp_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | comp_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> `comp_public`/`comp_visible` confirmées en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5).
 
 ---
 
@@ -460,7 +478,11 @@ Catégories de dons (Combat, Métamagie, Création d'objets...).
 | ra_mod_niveau | int | nn, défaut 0 | *[DD3.5]* Modificateur de niveau global |
 | ra_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | ra_res_id | int unsigned | nn | Source -> dd_ressources |
+| ra_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| ra_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | ra_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> `ra_public`/`ra_visible` confirmées en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5). Table héritée v1 : MyISAM/utf8 (cf. écart déjà documenté ailleurs dans ce fichier pour `dd_domaines`/`dd_sortdomaine`), `ra_res_id` nullable en base réelle (documenté `nn` ici par cohérence applicative — l'appli exige toujours une valeur).
 
 ---
 
@@ -501,7 +523,11 @@ historiques de personnages (*[DD2024]*).
 | hi_description | text | nn | |
 | hi_res_id | int unsigned | nn | Source -> dd_ressources |
 | hi_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
+| hi_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| hi_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | hi_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> `hi_public`/`hi_visible` confirmées en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5).
 
 ---
 
@@ -551,10 +577,13 @@ Objets magiques du compendium.
 | om_description | text | null | Description HTML TinyMCE (format libre) |
 | om_harmonisation | tinyint(4) | nn, défaut 0 | *[DD2024]*, 1 : harmonisation requise |
 | om_rarete | int(10) | null | *[DD2024]*, -> dd_objets_magiques_rarete |
-| om_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs |
+| om_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs (sémantique propre, conservée) |
+| om_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
 | om_res_id | int unsigned | nn | Source -> dd_ressources |
 | om_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | om_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> `om_public` confirmée en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5) — `om_visible` existait déjà avant SP-C, réutilisée telle quelle comme `_visible`.
 
 ### dd_objets_magiques_rarete
 Rareté des bjets magiques du compendium.

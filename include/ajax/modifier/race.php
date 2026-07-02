@@ -20,6 +20,7 @@ endif;
 $id         = intParam($_GET['id'] ?? 0);
 $ruleset    = $_SESSION['rulesetRep'] ?? 'DD3.5';
 $ruleset_id = (int)($_SESSION['ruleset_var_id'] ?? 1);
+$uid        = (int)($_SESSION['j_id'] ?? 0);
 $res_ids    = getActiveResIds($db);
 
 // ============================================================
@@ -34,6 +35,8 @@ $ra = [
   'ra_mod_niveau'  => 0,
   'ra_res_id'      => 0,
   'ra_camp_id'     => 0,
+  'ra_public'      => 0,
+  'ra_visible'     => 1,
 ];
 
 if ($id > 0):
@@ -74,12 +77,42 @@ $stmt_rat = $db->prepare('
 $stmt_rat->execute([$ruleset_id]);
 $types_race = $stmt_rat->fetchAll();
 
-$sources = [];
+// Ressources actives — scindées en 2 groupes pour le select du formulaire :
+// sources officielles (res_j_id IS NULL) vs supplément personnel de
+// l'utilisateur courant (le seul supplément qu'il a le droit d'alimenter).
+$sources_officielles = [];
 if (!empty($res_ids)):
   $ph   = resIdsPlaceholders($res_ids);
-  $stmt = $db->prepare("SELECT res_id, res_nom FROM dd_ressources WHERE res_id IN ($ph) ORDER BY res_nom");
+  $stmt = $db->prepare("
+    SELECT res_id, res_nom
+    FROM   dd_ressources
+    WHERE  res_id IN ($ph) AND res_j_id IS NULL
+    ORDER  BY res_nom
+  ");
   $stmt->execute($res_ids);
-  $sources = $stmt->fetchAll();
+  $sources_officielles = $stmt->fetchAll();
+endif;
+
+// Supplément de l'utilisateur courant : peut ne pas encore exister. Dans ce
+// cas, l'option du select porte la valeur sentinelle 'supplement' ; la
+// ressource sera créée à la volée au save (getOrCreateUserSupplement()).
+$ra_supplement_res_id = getUserSupplementResId($db, $uid, $ruleset_id);
+$ra_supplement_nom    = '';
+if ($ra_supplement_res_id !== null):
+  $stmt = $db->prepare('SELECT res_nom FROM dd_ressources WHERE res_id = ?');
+  $stmt->execute([$ra_supplement_res_id]);
+  $ra_supplement_nom = (string)$stmt->fetchColumn();
+else:
+  $stmt = $db->prepare('SELECT j_pseudo FROM dd_joueurs WHERE j_id = ?');
+  $stmt->execute([$uid]);
+  $pseudo = $stmt->fetchColumn();
+  $ra_supplement_nom = 'Supplément de ' . ($pseudo !== false ? $pseudo : 'utilisateur');
+endif;
+
+// Valeur actuellement sélectionnée par le formulaire pour ra_res_id
+$ra_res_id_select = (string)$ra['ra_res_id'];
+if ($ra_supplement_res_id !== null && (int)$ra['ra_res_id'] === $ra_supplement_res_id):
+  $ra_res_id_select = 'supplement';
 endif;
 
 $campagnes = [];
@@ -150,13 +183,36 @@ endforeach;
           <label for="ra_res_id">Source <span class="required">*</span></label>
           <select id="ra_res_id" name="ra_res_id" required>
             <option value="">— Choisir —</option>
-            <?php foreach ($sources as $src): ?>
-              <option value="<?= (int)$src['res_id'] ?>"
-                <?= (int)$ra['ra_res_id'] === (int)$src['res_id'] ? 'selected' : '' ?>>
-                <?= h($src['res_nom']) ?>
+            <optgroup label="Sources officielles">
+              <?php foreach ($sources_officielles as $src): ?>
+                <option value="<?= (int)$src['res_id'] ?>" data-supplement="0"
+                  <?= $ra_res_id_select === (string)$src['res_id'] ? 'selected' : '' ?>>
+                  <?= h($src['res_nom']) ?>
+                </option>
+              <?php endforeach ?>
+            </optgroup>
+            <optgroup label="Mon supplément">
+              <option value="supplement" data-supplement="1"
+                <?= $ra_res_id_select === 'supplement' ? 'selected' : '' ?>>
+                <?= h($ra_supplement_nom) ?>
               </option>
-            <?php endforeach ?>
+            </optgroup>
           </select>
+        </div>
+
+        <!-- Visibilité (supplément uniquement) -->
+        <div class="form-group" id="ra-supplement-visibilite" hidden>
+          <label class="form-label--checkbox">
+            <input type="checkbox" id="ra_public" name="ra_public" value="1"
+              <?= (int)$ra['ra_public'] === 1 ? 'checked' : '' ?>>
+            Partagé (visible des autres utilisateurs ayant ce supplément comme source)
+          </label>
+          <label class="form-label--checkbox">
+            <input type="checkbox" id="ra_visible" name="ra_visible" value="1"
+              <?= (int)$ra['ra_visible'] === 1 ? 'checked' : '' ?>>
+            Visible (décoché = brouillon masqué, accessible via « Afficher mes brouillons »)
+          </label>
+          <span class="form-hint">Une entrée partagée est forcément visible.</span>
         </div>
 
         <?php if (!empty($campagnes)): ?>
@@ -255,6 +311,38 @@ endforeach;
 
   </form>
 </div>
+
+<script>
+(function () {
+  var selectRes  = document.getElementById('ra_res_id');
+  var blocVisib  = document.getElementById('ra-supplement-visibilite');
+  var chkPublic  = document.getElementById('ra_public');
+  var chkVisible = document.getElementById('ra_visible');
+
+  if (!selectRes || !blocVisib) return;
+
+  function appliquerContrainte() {
+    if (chkPublic.checked) {
+      chkVisible.checked = true;
+      chkVisible.disabled = true;
+    } else {
+      chkVisible.disabled = false;
+    }
+  }
+
+  function actualiserAffichage() {
+    var option = selectRes.options[selectRes.selectedIndex];
+    var estSupplement = option && option.getAttribute('data-supplement') === '1';
+    blocVisib.hidden = !estSupplement;
+    if (estSupplement) appliquerContrainte();
+  }
+
+  selectRes.addEventListener('change', actualiserAffichage);
+  if (chkPublic) chkPublic.addEventListener('change', appliquerContrainte);
+
+  actualiserAffichage();
+}());
+</script>
 
 <!-- ====================================================
      OVERLAY — Formulaire capacité (nouvelle / modifier)

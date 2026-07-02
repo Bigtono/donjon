@@ -34,6 +34,9 @@ $listConfig = [
   'champ_id'      => 'hi.hi_id',
   'champ_res'     => 'hi.hi_res_id',
   'champ_ruleset' => 'hi.hi_ruleset_var_id',
+  'champ_public'    => 'hi.hi_public',
+  'champ_visible'   => 'hi.hi_visible',
+  'champ_res_owner' => 'res.res_j_id',
   'colonnes'      => [
     [
       'sql'    => 'hi.hi_nom',

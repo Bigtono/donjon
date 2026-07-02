@@ -32,6 +32,7 @@ $stmt = $db->prepare('
          mag.mag_nom,   mag.mag_abreviation,
          car.car_nom    AS car_ls_nom,
          res.res_nom,
+         res.res_j_id,
          camp.camp_nom,
          var.var_valeur AS ruleset_label,
          clapar.cla_nom AS cla_parente_nom
@@ -170,7 +171,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
       <?php if ($cla['cla_abreviation']): ?>
         <span class="sort-detail__college">(<?= h($cla['cla_abreviation']) ?>)</span>
       <?php endif ?>
-      <?php if (canEditCompendium()): ?>
+      <?php if (canEditCompendiumEntry($db, $cla['res_j_id'] !== null ? (int)$cla['res_j_id'] : null)): ?>
         <button class="sort-detail__edit-btn"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/classe.php', <?= $id ?>)"
                 title="Modifier cette classe">

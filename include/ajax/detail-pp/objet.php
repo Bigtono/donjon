@@ -23,6 +23,7 @@ $stmt = $db->prepare('
     com.com_nom,
     com.com_est_calcule,
     res.res_nom,
+    res.res_j_id,
     var.var_valeur AS ruleset_label
   FROM   dd_objets_magiques            om
   LEFT JOIN dd_categorie_objet_magique com ON com.com_id = om.om_com_id
@@ -39,8 +40,10 @@ if (!$om):
   exit;
 endif;
 
-// Masquage aux non-éditeurs si invisible
-if (!canEditCompendium() && !(int)$om['om_visible']):
+// Masquage si invisible — sauf pour l'éditeur global ou le propriétaire de
+// l'entrée (canEditCompendiumEntry, cohérent avec le mécanisme Supplément).
+$om_res_j_id = $om['res_j_id'] !== null ? (int)$om['res_j_id'] : null;
+if (!canEditCompendiumEntry($db, $om_res_j_id) && !(int)$om['om_visible']):
   http_response_code(403);
   echo '<p class="erreur">Accès refusé.</p>';
   exit;
@@ -192,7 +195,7 @@ endif;
           <i class="fa fa-eye-slash"></i>
         </span>
       <?php endif ?>
-      <?php if (canEditCompendium()): ?>
+      <?php if (canEditCompendiumEntry($db, $om_res_j_id)): ?>
         <button class="sort-detail__edit-btn"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/objet.php', <?= $id ?>)"
                 title="Modifier cet objet magique">

@@ -74,6 +74,9 @@ $listConfig = [
   'champ_id'      => 'so.so_id',
   'champ_res'     => 'so.so_res_id',
   'champ_ruleset' => 'so.so_ruleset_var_id',
+  'champ_public'    => 'so.so_public',
+  'champ_visible'   => 'so.so_visible',
+  'champ_res_owner' => 'res.res_j_id',
   'colonnes'      => [
     [
       'sql'    => 'so.so_nom',

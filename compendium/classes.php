@@ -55,6 +55,9 @@ $listConfig = [
   'champ_id'      => 'cla.cla_id',
   'champ_res'     => 'cla.cla_res_id',
   'champ_ruleset' => 'cla.cla_ruleset_var_id',
+  'champ_public'    => 'cla.cla_public',
+  'champ_visible'   => 'cla.cla_visible',
+  'champ_res_owner' => 'res.res_j_id',
   'tri_defaut'    => 'cla.cla_clt_id ASC, cla.cla_nom ASC',
   'colonnes'      => [
     [

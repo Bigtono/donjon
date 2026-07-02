@@ -29,6 +29,7 @@ $stmt = $db->prepare('
   SELECT ra.*,
          rat.rat_nom,
          res.res_nom,
+         res.res_j_id,
          camp.camp_nom,
          var.var_valeur AS ruleset_label
   FROM   dd_races ra
@@ -68,7 +69,7 @@ $capacites = $stmt_cap->fetchAll();
   <div class="sort-detail__header">
     <h2 class="sort-detail__nom">
       <?= h($ra['ra_nom']) ?>
-      <?php if (canEditCompendium()): ?>
+      <?php if (canEditCompendiumEntry($db, $ra['res_j_id'] !== null ? (int)$ra['res_j_id'] : null)): ?>
         <button class="sort-detail__edit-btn"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/race.php', <?= $id ?>)"
                 title="Modifier cette race">

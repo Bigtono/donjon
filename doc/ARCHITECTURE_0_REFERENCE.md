@@ -1,13 +1,13 @@
-<!-- Mis à jour : 2026-06-30 12:12 -->
+<!-- Mis à jour : 2026-07-01 -->
 
 # Codex DD v2 — Document de référence architecture
 
 > Source de vérité pour tous les développements.
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
-> Dernière mise à jour : Compendium Classes — sous-classes DD2024, affichage des capacités
-> spéciales en « Niveau XX : Nom » ; Phase 2 SP-C — conception supplément utilisateur validée
-> (plan SP-C0→SP-C7) ; Phase 3 sous-phase 3.2 livrée (éditeur Classes inline +
-> domaines divins DD3.5)
+> Dernière mise à jour : Phase 2 SP-C2→C5 — répliqué sur les 7 entités restantes du compendium
+> (Dons, Sorts, Compétences, Races, Classes, Objets magiques, Historiques), sur le modèle Monstres.
+> SP-C0→C5 et C7 désormais complets sur les 8 entités ; seul SP-C6 (profil "Mes sources") reste
+> en pause.
 
 ---
 
@@ -1756,32 +1756,42 @@ rattachées à une source "Supplément de {pseudo}" (1 par ruleset par utilisate
 | **SP-C2** | Moteur : `compendium-liste.php` JOIN + filtre visibilité + per-entry menu ⋮ + badge ; 8 contrôleurs | Élevée |
 | **SP-C3** | `detail-pp/*.php` × 8 : bouton Modifier per-entry (`canEditCompendiumEntry`) | Modérée |
 | **SP-C4** | `modifier/*.php` × 8 : source dropdown 2 groupes + `_public`/`_visible` | Modérée |
-| **SP-C5** | `enregistrement.php` : ownership + save `_public`/`_visible` + auto-create supplément ⚠️ **en pause** | Modérée |
-| **SP-C6** | `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers ⚠️ **en pause** | Faible |
+| **SP-C5** | `enregistrement.php` : ownership + save `_public`/`_visible` + auto-create supplément | Modérée |
+| **SP-C6** | `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers | Faible |
 
-> ⚠️ **SP-C5 (7 entités restantes) et SP-C6 mis en pause le 2026-06-20.** Point bloquant pour SP-C5 :
-> écart schéma non vérifié sur Dons/Sorts/Compétences/Races/Classes/Objets/Historiques (colonnes
-> `_public`/`_visible` non documentées dans `SCHEMA_SQL.md`, fichier de migration introuvable dans le
-> dépôt). Détail complet de l'audit, ne pas refaire l'analyse : `DECISIONS_LOG.md` [2026-06-20]
-> "SP-C5/SP-C6 — Mis en pause après audit". SP-C6 n'est pas bloquée techniquement, juste reportée.
+> ✅ **Blocage levé le 2026-07-01.** `SHOW CREATE TABLE` exécuté sur les 7 tables restantes (base de
+> dev locale) : `_public`/`_visible` **existent déjà en base** (migration SP-C0 appliquée en base sans
+> que `SCHEMA_SQL.md` ni `patch_004_supplements.sql` committé n'aient suivi — même écart doc/base que
+> l'incident `mo_j_id`, cf. `DECISIONS_LOG.md` [2026-06-20] et [2026-07-01]). `SCHEMA_SQL.md` mis à
+> jour (v1.5). SP-C4/SP-C5 repris directement sur le modèle Monstres, entité par entité.
 | **SP-C7** | Nettoyage monstres post-migration (suppression `monstre-old.php`, vérif `monstre-parser.php`) | Faible |
 
 #### Avancement par entité
 
 SP-C0 et SP-C1 sont des phases transverses (socle SQL + helpers), livrées pour les 8 entités.
-SP-C2 à SP-C7 s'implémentent entité par entité. État au 2026-06-20 :
+SP-C2 à SP-C7 s'implémentent entité par entité. État au 2026-07-01 :
 
 | Entité | SP-C2 (moteur liste) | SP-C3 (detail-pp) | SP-C4 (formulaire) | SP-C5 (enregistrement) | SP-C6 | SP-C7 |
 |---|---|---|---|---|---|---|
 | **Monstres** | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | — (transverse) | ✅ fait (2026-06-20) |
-| Sorts, dons, compétences, classes, races, objets, historiques | ⏳ à faire | ⏳ à faire | ⏳ à faire | ⏳ à faire | — (transverse) | n/a |
+| **Dons** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
+| **Sorts** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
+| **Compétences** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
+| **Races** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
+| **Classes** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
+| **Objets magiques** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01)* | ✅ fait (2026-07-01)* | — (transverse) | n/a |
+| **Historiques** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
 
-> Monstres est désormais traitée intégralement (C0 à C7). Le moteur `compendium-liste.php` mis à jour
-> pour C2 est **générique** (clés `champ_public`/`champ_visible`/`champ_res_owner` dans `$listConfig`)
-> — répliquer le pattern aux 7 autres entités consiste à déclarer ces 3 clés dans chaque page
-> contrôleur et appliquer le même pattern de formulaire/enregistrement/suppression/detail-pp que
-> Monstres, sans retoucher le moteur ni la fonction `supprimerEntite()` générique (chaque entité aura
-> sa propre fonction `supprimer*()` dédiée, sur le modèle de `supprimerMonstre()`).
+> \* Objets magiques : `om_visible` préexistait à SP-C avec une sémantique propre (« visible par les
+> joueurs », toujours modifiable, y compris sur une entrée officielle) — **conservée telle quelle**,
+> non alignée sur le couple `_public`/`_visible` strict des 7 autres entités. Seul `om_public` (nouveau)
+> suit le mécanisme Supplément, forcé à `0` côté serveur pour les entrées officielles. Formulaire :
+> une seule checkbox « Partagé » conditionnelle (source = supplément), pas de checkbox « Visible »
+> dupliquée — celle-ci reste affichée en permanence comme avant SP-C.
+>
+> Toutes les entités sont désormais traitées C0 à C5 (+ C7 pour Monstres uniquement, nettoyage
+> spécifique à sa migration `mo_j_id`). Seul **SP-C6** (profil "Mes sources" — suppléments publics
+> d'autres utilisateurs) reste en pause, cf. `DECISIONS_LOG.md` [2026-06-20] et [2026-07-01].
 
 ### Phase Admin — Zone d'administration TERMINE
 
@@ -2076,14 +2086,14 @@ document.querySelectorAll('.tinymce-basic').forEach(function(el) {
 - [ ] Compendium : _detailPpContext correctement passé à actualiserPage()
 - [ ] Compendium : enregistrement.php?ajax=1 retourne JSON, mode normal retourne redirect
 - [ ] Compendium : historiques.php et ses endpoints conditionnés au ruleset DD2024
-- [ ] **Supplément : `champ_public`, `champ_visible` et `champ_res_owner` déclarés dans `$listConfig` pour les 8 pages contrôleurs** — 🟡 Monstres fait (2026-06-20), 7 restantes
-- [ ] **Supplément : filtre visibilité moteur — implémenté dans `compendium-liste.php` (générique, actif dès que les 3 clés sont déclarées) ; appliqué effectivement pour Monstres, 7 entités restantes à brancher**
-- [ ] **Supplément : menu ⋮ (liste) et bouton Modifier (`detail-pp`) conditionnés par `canEditCompendiumEntry($db, $_res_j_id)` (per-entry)** — 🟡 Monstres fait (2026-06-20), 7 restantes
-- [ ] **Supplément : formulaire `modifier/*.php` — source dropdown 2 groupes (officiel + supplément) ; `_public`/`_visible` masqués pour sources officielles** — 🟡 Monstres fait (2026-06-20), 7 restantes
-- [x] **Supplément : contrainte serveur — si `_public = 1` alors `_visible` forcé à 1 au save** → implémenté dans `enregistrerMonstre()`, à répliquer identiquement pour les 7 autres `enregistrer*()`
-- [x] **Supplément : auto-création ressource supplément + auto-add `dd_joueurs_sources` sur premier save** → mécanisme transverse (`getOrCreateUserSupplement()`), déjà utilisable par toutes les entités
-- [ ] **Supplément : badge `.comp-ligne--homebrew` sur toutes les lignes de supplément dans les listes** — 🟡 Monstres fait (2026-06-20), styles dans `compendium-modules.css`, 7 entités restantes
-- [ ] **Supplément : suppression per-entry (`supprimerEntite()` générique n'a pas de garde per-entry) — fonction dédiée avec garde `canEditCompendiumEntry()` requise pour chaque entité du compendium** — 🟡 Monstres fait (2026-06-20, `supprimerMonstre()`), 7 restantes (utilisent encore `supprimerEntite()` générique sans garde)
+- [x] **Supplément : `champ_public`, `champ_visible` et `champ_res_owner` déclarés dans `$listConfig` pour les 8 pages contrôleurs** → ✅ 8/8 (2026-07-01)
+- [x] **Supplément : filtre visibilité moteur — implémenté dans `compendium-liste.php` (générique, actif dès que les 3 clés sont déclarées)** → ✅ actif sur 8/8 entités (2026-07-01)
+- [x] **Supplément : menu ⋮ (liste) et bouton Modifier (`detail-pp`) conditionnés par `canEditCompendiumEntry($db, $_res_j_id)` (per-entry)** → ✅ 8/8 (2026-07-01)
+- [x] **Supplément : formulaire `modifier/*.php` — source dropdown 2 groupes (officiel + supplément) ; `_public`/`_visible` masqués pour sources officielles** → ✅ 8/8 (2026-07-01) ; Objets magiques : cas particulier `om_visible` conservé (cf. § Avancement par entité)
+- [x] **Supplément : contrainte serveur — si `_public = 1` alors `_visible` forcé à 1 au save** → ✅ répliqué dans les 8 `enregistrer*()` (2026-07-01)
+- [x] **Supplément : auto-création ressource supplément + auto-add `dd_joueurs_sources` sur premier save** → mécanisme transverse (`getOrCreateUserSupplement()`), utilisé par les 8 entités
+- [x] **Supplément : badge `.comp-ligne--homebrew` sur toutes les lignes de supplément dans les listes** → ✅ actif sur 8/8 (moteur générique, styles `compendium-modules.css`)
+- [x] **Supplément : suppression per-entry — fonction dédiée avec garde `canEditCompendiumEntry()` requise pour chaque entité du compendium** → ✅ 8/8 (2026-07-01) : `supprimerMonstre()`, `supprimerDon()`, `supprimerSort()`, `supprimerCompetence()`, `supprimerRace()`, `supprimerClasse()`, `supprimerObjet()`, `supprimerHistorique()` — `supprimerEntite()` générique n'est plus utilisée que par Équipements (hors périmètre SP-C)
 - [ ] **Monstres : `mo_j_id` absent de toutes les requêtes (colonne supprimée via `patch_004_supplements.sql`)**
 - [ ] **Campagnes : tout nouveau niveau hiérarchique (ou handler `detail-pp/*.php` modifié) vérifie
       les 4 points d'intégration du contexte de navigation — `setLast*()` dans `helpers.php`, appel

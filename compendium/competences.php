@@ -55,6 +55,9 @@ $listConfig = [
   'champ_res'     => 'comp.comp_res_id',
   'champ_ruleset' => 'comp.comp_ruleset_var_id',
   'champ_camp'    => false,
+  'champ_public'    => 'comp.comp_public',
+  'champ_visible'   => 'comp.comp_visible',
+  'champ_res_owner' => 'res.res_j_id',
   'colonnes'      => [
     ['sql' => 'comp.comp_nom', 'champ' => 'comp_nom', 'label' => 'Nom',              'mobile' => true,  'tri' => true],
     ['sql' => 'car.car_nom',   'champ' => 'car_nom',  'label' => 'Caractéristique',  'mobile' => false, 'tri' => true],

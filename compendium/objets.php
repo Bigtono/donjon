@@ -93,6 +93,9 @@ $listConfig = [
   'champ_res'     => 'om.om_res_id',
   'champ_ruleset' => 'om.om_ruleset_var_id',
   'champ_camp'    => 'om.om_camp_id',
+  'champ_public'    => 'om.om_public',
+  'champ_visible'   => 'om.om_visible',
+  'champ_res_owner' => 'res.res_j_id',
   'extra_where'   => $extra_where,
   'colonnes'      => [
     ['sql' => 'om.om_nom',           'champ' => 'om_nom',          'label' => 'Nom',       'mobile' => true,  'tri' => true],

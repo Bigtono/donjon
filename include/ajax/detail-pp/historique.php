@@ -20,6 +20,7 @@ endif;
 $stmt = $db->prepare('
   SELECT hi.*,
          res.res_nom,
+         res.res_j_id,
          camp.camp_nom,
          var.var_valeur AS ruleset_label
   FROM   dd_historiques hi
@@ -44,7 +45,7 @@ endif;
   <div class="sort-detail__header">
     <h2 class="sort-detail__nom">
       <?= h($historique['hi_nom']) ?>
-      <?php if (canEditCompendium()): ?>
+      <?php if (canEditCompendiumEntry($db, $historique['res_j_id'] !== null ? (int)$historique['res_j_id'] : null)): ?>
         <button class="sort-detail__edit-btn"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/historique.php', <?= $id ?>)"
                 title="Modifier cet historique">

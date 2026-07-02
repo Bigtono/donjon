@@ -67,10 +67,8 @@ switch ($entite):
         enregistrerCompetence($db, $is_ajax, $redirect);
         break;
       case 'supprimer':
-        supprimerEntite($db, 'dd_competences', 'comp_id', $is_ajax, $redirect);
-        break;
       case 'bulk_supprimer':
-        supprimerEntite($db, 'dd_competences', 'comp_id', $is_ajax, $redirect);
+        supprimerCompetence($db, $is_ajax, $redirect);
         break;
       default:
         repondreErreur($is_ajax, 'Action inconnue.', $redirect);
@@ -83,10 +81,8 @@ switch ($entite):
         enregistrerDon($db, $is_ajax, $redirect);
         break;
       case 'supprimer':
-        supprimerEntite($db, 'dd_dons', 'do_id', $is_ajax, $redirect);
-        break;
       case 'bulk_supprimer':
-        supprimerEntite($db, 'dd_dons', 'do_id', $is_ajax, $redirect);
+        supprimerDon($db, $is_ajax, $redirect);
         break;
       default:
         repondreErreur($is_ajax, 'Action inconnue.', $redirect);
@@ -164,7 +160,7 @@ switch ($entite):
         break;
       case 'supprimer':
       case 'bulk_supprimer':
-        supprimerEntite($db, 'dd_objets_magiques', 'om_id', $is_ajax, $redirect);
+        supprimerObjet($db, $is_ajax, $redirect);
         break;
       default:
         repondreErreur($is_ajax, 'Action inconnue.', $redirect);
@@ -192,7 +188,7 @@ switch ($entite):
         break;
       case 'supprimer':
       case 'bulk_supprimer':
-        supprimerEntite($db, 'dd_historiques', 'hi_id', $is_ajax, $redirect);
+        supprimerHistorique($db, $is_ajax, $redirect);
         break;
       default:
         repondreErreur($is_ajax, 'Action inconnue.', $redirect);
@@ -214,13 +210,17 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
   $do_id      = intParam($_POST['do_id']             ?? 0);
   $nom        = strParam($_POST['do_nom']            ?? '');
   $ruleset_id = intParam($_POST['do_ruleset_var_id'] ?? 1);
+  $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
     repondreErreur($is_ajax, 'Le nom du don est obligatoire.', $redirect);
   endif;
 
-  $res_id = intParam($_POST['do_res_id'] ?? 0);
-  if (!$res_id):
+  // do_res_id : soit l'id réel d'une source active (officielle ou supplément
+  // déjà créé), soit la sentinelle 'supplement' si l'utilisateur n'a encore
+  // aucun supplément pour ce ruleset (cf. § Supplément utilisateur).
+  $res_raw = strParam($_POST['do_res_id'] ?? '');
+  if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
 
@@ -233,12 +233,41 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
   try {
     $db->beginTransaction();
 
+    // ---- Résolution de la source (mécanisme commun supplément utilisateur) ----
+    if ($res_raw === 'supplement'):
+      $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+      $est_supplement = true;
+    else:
+      $res_id = (int)$res_raw;
+      $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+      $stmt->execute([$res_id]);
+      $res_j_id       = $stmt->fetchColumn();
+      $est_supplement = ($res_j_id !== false && $res_j_id !== null);
+
+      if ($est_supplement && (int)$res_j_id !== $uid && !isAdmin()):
+        $db->rollBack();
+        repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+      endif;
+    endif;
+
+    // ---- Visibilité — pertinente uniquement pour une entrée de supplément ----
+    if ($est_supplement):
+      $public  = isset($_POST['do_public'])  ? 1 : 0;
+      $visible = isset($_POST['do_visible']) ? 1 : 0;
+      if ($public):
+        $visible = 1;
+      endif;
+    else:
+      $public  = 1;
+      $visible = 1;
+    endif;
+
     if ($do_id === 0):
       $stmt = $db->prepare('
         INSERT INTO dd_dons
           (do_nom, do_dado_id, do_conditions, do_texte, do_resume,
-           do_res_id, do_camp_id, do_ruleset_var_id)
-        VALUES (?,?,?,?,?,?,?,?)
+           do_res_id, do_camp_id, do_public, do_visible, do_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
@@ -248,6 +277,8 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
         $resume,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $ruleset_id
       ]);
       $do_id = (int)$db->lastInsertId();
@@ -261,6 +292,8 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
           do_resume         = ?,
           do_res_id         = ?,
           do_camp_id        = ?,
+          do_public         = ?,
+          do_visible        = ?,
           do_ruleset_var_id = ?
         WHERE do_id = ?
       ');
@@ -272,6 +305,8 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
         $resume,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $ruleset_id,
         $do_id
       ]);
@@ -283,6 +318,67 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
     $db->rollBack();
     error_log('enregistrerDon : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// Suppression — garde per-entry (SP-C5) : un compendium manager ne peut
+// supprimer que les entrées officielles ou ses propres entrées de supplément,
+// jamais le supplément d'un autre utilisateur. supprimerEntite() générique ne
+// fait pas cette distinction — fonction dédiée, sur le modèle supprimerMonstre().
+function supprimerDon($db, bool $is_ajax, string $redirect): void
+{
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_values(array_unique(array_filter(array_map('intval', (array)$ids))));
+
+  if (empty($ids)):
+    repondreErreur($is_ajax, 'Aucun élément à supprimer.', $redirect);
+  endif;
+
+  try {
+    $db->beginTransaction();
+
+    $ph   = resIdsPlaceholders($ids);
+    $stmt = $db->prepare("
+      SELECT do.do_id, res.res_j_id
+      FROM   dd_dons          do
+      LEFT JOIN dd_ressources res ON res.res_id = do.do_res_id
+      WHERE  do.do_id IN ($ph)
+    ");
+    $stmt->execute($ids);
+    $lignes = $stmt->fetchAll();
+
+    $ids_autorises = [];
+    foreach ($lignes as $ligne):
+      $res_j_id = $ligne['res_j_id'] !== null ? (int)$ligne['res_j_id'] : null;
+      if (canEditCompendiumEntry($db, $res_j_id)):
+        $ids_autorises[] = (int)$ligne['do_id'];
+      endif;
+    endforeach;
+
+    if (empty($ids_autorises)):
+      $db->rollBack();
+      repondreErreur($is_ajax, 'Aucun élément autorisé à la suppression.', $redirect);
+    endif;
+
+    $ph2  = resIdsPlaceholders($ids_autorises);
+    $stmt = $db->prepare("DELETE FROM dd_dons WHERE do_id IN ($ph2)");
+    $stmt->execute($ids_autorises);
+
+    $db->commit();
+
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Élément(s) supprimé(s).'];
+    header('Location: ' . $redirect);
+    exit;
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('supprimerDon : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
   }
 }
 
@@ -404,13 +500,16 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
   $so_id      = intParam($_POST['so_id'] ?? 0);
   $nom        = strParam($_POST['so_nom']               ?? '');
   $ruleset_id = intParam($_POST['so_ruleset_var_id']    ?? 1);
+  $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
     repondreErreur($is_ajax, 'Le nom du sort est obligatoire.', $redirect);
   endif;
 
-  $res_id = intParam($_POST['so_res_id'] ?? 0);
-  if (!$res_id):
+  // so_res_id : soit l'id réel d'une source active (officielle ou supplément
+  // déjà créé), soit la sentinelle 'supplement' (cf. § Supplément utilisateur).
+  $res_raw = strParam($_POST['so_res_id'] ?? '');
+  if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
 
@@ -448,6 +547,35 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
   try {
     $db->beginTransaction();
 
+    // ---- Résolution de la source (mécanisme commun supplément utilisateur) ----
+    if ($res_raw === 'supplement'):
+      $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+      $est_supplement = true;
+    else:
+      $res_id = (int)$res_raw;
+      $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+      $stmt->execute([$res_id]);
+      $res_j_id       = $stmt->fetchColumn();
+      $est_supplement = ($res_j_id !== false && $res_j_id !== null);
+
+      if ($est_supplement && (int)$res_j_id !== $uid && !isAdmin()):
+        $db->rollBack();
+        repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+      endif;
+    endif;
+
+    // ---- Visibilité — pertinente uniquement pour une entrée de supplément ----
+    if ($est_supplement):
+      $public  = isset($_POST['so_public'])  ? 1 : 0;
+      $visible = isset($_POST['so_visible']) ? 1 : 0;
+      if ($public):
+        $visible = 1;
+      endif;
+    else:
+      $public  = 1;
+      $visible = 1;
+    endif;
+
     if ($so_id === 0):
       // ---- CRÉATION ----
       $stmt = $db->prepare('
@@ -456,9 +584,10 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
            so_focalisateur, so_focalisateur_divin, so_composante, so_portee,
            so_cible, so_zone_effet, so_duree_incantation, so_duree_sort,
            so_jet_sauvegarde, so_resistance, so_niveau, so_resume,
-           so_description, so_res_id, so_camp_id, so_ruleset_var_id)
+           so_description, so_res_id, so_camp_id, so_public, so_visible,
+           so_ruleset_var_id)
         VALUES
-          (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
@@ -482,6 +611,8 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
         $description,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $ruleset_id,
       ]);
       $so_id = (int)$db->lastInsertId();
@@ -511,6 +642,8 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
           so_description        = ?,
           so_res_id             = ?,
           so_camp_id            = ?,
+          so_public             = ?,
+          so_visible            = ?,
           so_ruleset_var_id     = ?
         WHERE so_id = ?
       ');
@@ -536,6 +669,8 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
         $description,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $ruleset_id,
         $so_id,
       ]);
@@ -583,7 +718,7 @@ function supprimerSort($db, bool $is_ajax, string $redirect): void
   $ids = $_POST['ids'] ?? [];
   if (!empty($_POST['id'])) $ids[] = $_POST['id'];
   $ids = array_map('intval', (array)$ids);
-  $ids = array_filter($ids);
+  $ids = array_values(array_unique(array_filter($ids)));
 
   if (empty($ids)):
     repondreErreur($is_ajax, 'Aucun sort à supprimer.', $redirect);
@@ -591,7 +726,33 @@ function supprimerSort($db, bool $is_ajax, string $redirect): void
 
   try {
     $db->beginTransaction();
-    foreach ($ids as $so_id):
+
+    // Garde per-entry (SP-C5) : seules les entrées officielles ou le
+    // supplément de l'utilisateur courant peuvent être supprimées.
+    $ph   = resIdsPlaceholders($ids);
+    $stmt = $db->prepare("
+      SELECT so.so_id, res.res_j_id
+      FROM   dd_sorts         so
+      LEFT JOIN dd_ressources res ON res.res_id = so.so_res_id
+      WHERE  so.so_id IN ($ph)
+    ");
+    $stmt->execute($ids);
+    $lignes = $stmt->fetchAll();
+
+    $ids_autorises = [];
+    foreach ($lignes as $ligne):
+      $res_j_id = $ligne['res_j_id'] !== null ? (int)$ligne['res_j_id'] : null;
+      if (canEditCompendiumEntry($db, $res_j_id)):
+        $ids_autorises[] = (int)$ligne['so_id'];
+      endif;
+    endforeach;
+
+    if (empty($ids_autorises)):
+      $db->rollBack();
+      repondreErreur($is_ajax, 'Aucun élément autorisé à la suppression.', $redirect);
+    endif;
+
+    foreach ($ids_autorises as $so_id):
       $db->prepare('DELETE FROM dd_sortclasse  WHERE sc_so_id = ?')->execute([$so_id]);
       $db->prepare('DELETE FROM dd_sortdomaine WHERE sd_so_id = ?')->execute([$so_id]);
       $db->prepare('DELETE FROM dd_sorts       WHERE so_id    = ?')->execute([$so_id]);
@@ -633,13 +794,14 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
   $comp_id    = intParam($_POST['comp_id']             ?? 0);
   $nom        = strParam($_POST['comp_nom']            ?? '');
   $ruleset_id = intParam($_POST['comp_ruleset_var_id'] ?? 1);
+  $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
     repondreErreur($is_ajax, 'Le nom de la compétence est obligatoire.', $redirect);
   endif;
 
-  $res_id = intParam($_POST['comp_res_id'] ?? 0);
-  if (!$res_id):
+  $res_raw = strParam($_POST['comp_res_id'] ?? '');
+  if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
 
@@ -655,12 +817,42 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
   try {
     $db->beginTransaction();
 
+    // ---- Résolution de la source (mécanisme commun supplément utilisateur) ----
+    if ($res_raw === 'supplement'):
+      $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+      $est_supplement = true;
+    else:
+      $res_id = (int)$res_raw;
+      $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+      $stmt->execute([$res_id]);
+      $res_j_id       = $stmt->fetchColumn();
+      $est_supplement = ($res_j_id !== false && $res_j_id !== null);
+
+      if ($est_supplement && (int)$res_j_id !== $uid && !isAdmin()):
+        $db->rollBack();
+        repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+      endif;
+    endif;
+
+    // ---- Visibilité — pertinente uniquement pour une entrée de supplément ----
+    if ($est_supplement):
+      $public  = isset($_POST['comp_public'])  ? 1 : 0;
+      $visible = isset($_POST['comp_visible']) ? 1 : 0;
+      if ($public):
+        $visible = 1;
+      endif;
+    else:
+      $public  = 1;
+      $visible = 1;
+    endif;
+
     if ($comp_id === 0):
       $stmt = $db->prepare('
         INSERT INTO dd_competences
           (comp_nom, comp_car_id, comp_formation, comp_malusArmure,
-           comp_description, comp_res_id, comp_ruleset_var_id)
-        VALUES (?,?,?,?,?,?,?)
+           comp_description, comp_res_id, comp_public, comp_visible,
+           comp_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
@@ -669,6 +861,8 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
         $malusArmure,
         $description,
         $res_id,
+        $public,
+        $visible,
         $ruleset_id,
       ]);
       $comp_id = (int)$db->lastInsertId();
@@ -681,6 +875,8 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
           comp_malusArmure    = ?,
           comp_description    = ?,
           comp_res_id         = ?,
+          comp_public         = ?,
+          comp_visible        = ?,
           comp_ruleset_var_id = ?
         WHERE comp_id = ?
       ');
@@ -691,6 +887,8 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
         $malusArmure,
         $description,
         $res_id,
+        $public,
+        $visible,
         $ruleset_id,
         $comp_id,
       ]);
@@ -705,6 +903,64 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
   }
 }
 
+// Suppression — garde per-entry (SP-C5), sur le modèle supprimerMonstre()/supprimerDon().
+function supprimerCompetence($db, bool $is_ajax, string $redirect): void
+{
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_values(array_unique(array_filter(array_map('intval', (array)$ids))));
+
+  if (empty($ids)):
+    repondreErreur($is_ajax, 'Aucun élément à supprimer.', $redirect);
+  endif;
+
+  try {
+    $db->beginTransaction();
+
+    $ph   = resIdsPlaceholders($ids);
+    $stmt = $db->prepare("
+      SELECT comp.comp_id, res.res_j_id
+      FROM   dd_competences   comp
+      LEFT JOIN dd_ressources res ON res.res_id = comp.comp_res_id
+      WHERE  comp.comp_id IN ($ph)
+    ");
+    $stmt->execute($ids);
+    $lignes = $stmt->fetchAll();
+
+    $ids_autorises = [];
+    foreach ($lignes as $ligne):
+      $res_j_id = $ligne['res_j_id'] !== null ? (int)$ligne['res_j_id'] : null;
+      if (canEditCompendiumEntry($db, $res_j_id)):
+        $ids_autorises[] = (int)$ligne['comp_id'];
+      endif;
+    endforeach;
+
+    if (empty($ids_autorises)):
+      $db->rollBack();
+      repondreErreur($is_ajax, 'Aucun élément autorisé à la suppression.', $redirect);
+    endif;
+
+    $ph2  = resIdsPlaceholders($ids_autorises);
+    $stmt = $db->prepare("DELETE FROM dd_competences WHERE comp_id IN ($ph2)");
+    $stmt->execute($ids_autorises);
+
+    $db->commit();
+
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Élément(s) supprimé(s).'];
+    header('Location: ' . $redirect);
+    exit;
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('supprimerCompetence : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
+  }
+}
+
 // ============================================================
 // RACE — Enregistrement (création + modification)
 // ============================================================
@@ -714,13 +970,14 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
   $ra_id      = intParam($_POST['ra_id']             ?? 0);
   $nom        = strParam($_POST['ra_nom']            ?? '');
   $ruleset_id = intParam($_POST['ra_ruleset_var_id'] ?? 1);
+  $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
     repondreErreur($is_ajax, 'Le nom de la race est obligatoire.', $redirect);
   endif;
 
-  $res_id = intParam($_POST['ra_res_id'] ?? 0);
-  if (!$res_id):
+  $res_raw = strParam($_POST['ra_res_id'] ?? '');
+  if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
 
@@ -737,13 +994,42 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
   try {
     $db->beginTransaction();
 
+    // ---- Résolution de la source (mécanisme commun supplément utilisateur) ----
+    if ($res_raw === 'supplement'):
+      $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+      $est_supplement = true;
+    else:
+      $res_id = (int)$res_raw;
+      $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+      $stmt->execute([$res_id]);
+      $res_j_id       = $stmt->fetchColumn();
+      $est_supplement = ($res_j_id !== false && $res_j_id !== null);
+
+      if ($est_supplement && (int)$res_j_id !== $uid && !isAdmin()):
+        $db->rollBack();
+        repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+      endif;
+    endif;
+
+    // ---- Visibilité — pertinente uniquement pour une entrée de supplément ----
+    if ($est_supplement):
+      $public  = isset($_POST['ra_public'])  ? 1 : 0;
+      $visible = isset($_POST['ra_visible']) ? 1 : 0;
+      if ($public):
+        $visible = 1;
+      endif;
+    else:
+      $public  = 1;
+      $visible = 1;
+    endif;
+
     // ---- INSERT ou UPDATE dd_races ----
     if ($ra_id === 0):
       $stmt = $db->prepare('
         INSERT INTO dd_races
           (ra_nom, ra_rat_id, ra_description, ra_mod_niveau,
-           ra_res_id, ra_camp_id, ra_ruleset_var_id)
-        VALUES (?,?,?,?,?,?,?)
+           ra_res_id, ra_camp_id, ra_public, ra_visible, ra_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
@@ -752,6 +1038,8 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
         $mod_niveau,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $ruleset_id,
       ]);
       $ra_id = (int)$db->lastInsertId();
@@ -764,6 +1052,8 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
           ra_mod_niveau     = ?,
           ra_res_id         = ?,
           ra_camp_id        = ?,
+          ra_public         = ?,
+          ra_visible        = ?,
           ra_ruleset_var_id = ?
         WHERE ra_id = ?
       ');
@@ -774,6 +1064,8 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
         $mod_niveau,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $ruleset_id,
         $ra_id,
       ]);
@@ -874,6 +1166,26 @@ function supprimerRace($db, bool $is_ajax, string $redirect): void
   $ok_ids  = [];
 
   foreach ($ids as $ra_id):
+    // Garde per-entry (SP-C5) : seules les entrées officielles ou le
+    // supplément de l'utilisateur courant peuvent être supprimées.
+    $stmt_own = $db->prepare('
+      SELECT res.res_j_id
+      FROM   dd_races ra
+      LEFT JOIN dd_ressources res ON res.res_id = ra.ra_res_id
+      WHERE  ra.ra_id = ?
+    ');
+    $stmt_own->execute([$ra_id]);
+    $res_j_id_raw = $stmt_own->fetchColumn();
+    $res_j_id     = ($res_j_id_raw !== false && $res_j_id_raw !== null) ? (int)$res_j_id_raw : null;
+
+    if (!canEditCompendiumEntry($db, $res_j_id)):
+      $stmt_nom = $db->prepare('SELECT ra_nom FROM dd_races WHERE ra_id = ?');
+      $stmt_nom->execute([$ra_id]);
+      $ra_nom = $stmt_nom->fetchColumn() ?: "race #$ra_id";
+      $refus[] = "« $ra_nom » : non autorisé";
+      continue;
+    endif;
+
     // Vérification dépendances personnages (race de base ET archétype)
     $stmt = $db->prepare('
       SELECT COUNT(*) FROM dd_personnages
@@ -949,13 +1261,14 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
   $cla_id     = intParam($_POST['cla_id']             ?? 0);
   $nom        = strParam($_POST['cla_nom']             ?? '');
   $ruleset_id = intParam($_POST['cla_ruleset_var_id']  ?? 1);
+  $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
     repondreErreur($is_ajax, 'Le nom de la classe est obligatoire.', $redirect);
   endif;
 
-  $res_id = intParam($_POST['cla_res_id'] ?? 0);
-  if (!$res_id):
+  $res_raw = strParam($_POST['cla_res_id'] ?? '');
+  if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
 
@@ -1041,6 +1354,35 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
   try {
     $db->beginTransaction();
 
+    // ---- Résolution de la source (mécanisme commun supplément utilisateur) ----
+    if ($res_raw === 'supplement'):
+      $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+      $est_supplement = true;
+    else:
+      $res_id = (int)$res_raw;
+      $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+      $stmt->execute([$res_id]);
+      $res_j_id       = $stmt->fetchColumn();
+      $est_supplement = ($res_j_id !== false && $res_j_id !== null);
+
+      if ($est_supplement && (int)$res_j_id !== $uid && !isAdmin()):
+        $db->rollBack();
+        repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+      endif;
+    endif;
+
+    // ---- Visibilité — pertinente uniquement pour une entrée de supplément ----
+    if ($est_supplement):
+      $public  = isset($_POST['cla_public'])  ? 1 : 0;
+      $visible = isset($_POST['cla_visible']) ? 1 : 0;
+      if ($public):
+        $visible = 1;
+      endif;
+    else:
+      $public  = 1;
+      $visible = 1;
+    endif;
+
     // ---- 1. INSERT ou UPDATE dd_classes ----
 
     $params = [
@@ -1078,6 +1420,8 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
       ':cla_res_id'           => $res_id,
       ':cla_camp_id'          => $camp_id,
       ':cla_cla_id'           => $cla_cla_id,
+      ':cla_public'           => $public,
+      ':cla_visible'          => $visible,
     ];
 
     if ($cla_id === 0):
@@ -1091,7 +1435,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           cla_sauvegardes, cla_equipement, cla_competences, cla_sorts,
           cla_caracteristiques, cla_traits, cla_critere_rec,
           cla_pouvoir1, cla_pouvoir2, cla_pouvoir3, cla_pouvoir4, cla_pouvoir5,
-          cla_res_id, cla_camp_id, cla_cla_id, cla_ruleset_var_id
+          cla_res_id, cla_camp_id, cla_cla_id, cla_public, cla_visible, cla_ruleset_var_id
         ) VALUES (
           :cla_nom, :cla_abreviation, :cla_clt_id, :cla_dV, :cla_niveauMax,
           :cla_mag_id, :cla_car_id, :cla_sort_connu, :cla_sort_compris, :cla_sort_prepare,
@@ -1100,7 +1444,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           :cla_sauvegardes, :cla_equipement, :cla_competences, :cla_sorts,
           :cla_caracteristiques, :cla_traits, :cla_critere_rec,
           :cla_pouvoir1, :cla_pouvoir2, :cla_pouvoir3, :cla_pouvoir4, :cla_pouvoir5,
-          :cla_res_id, :cla_camp_id, :cla_cla_id, :cla_ruleset_var_id
+          :cla_res_id, :cla_camp_id, :cla_cla_id, :cla_public, :cla_visible, :cla_ruleset_var_id
         )
       ');
       $stmt->execute($params);
@@ -1142,7 +1486,9 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           cla_pouvoir5         = :cla_pouvoir5,
           cla_res_id           = :cla_res_id,
           cla_camp_id          = :cla_camp_id,
-          cla_cla_id           = :cla_cla_id
+          cla_cla_id           = :cla_cla_id,
+          cla_public           = :cla_public,
+          cla_visible          = :cla_visible
         WHERE cla_id = :cla_id
       ');
       $stmt->execute($params);
@@ -1365,6 +1711,26 @@ function supprimerClasse($db, bool $is_ajax, string $redirect): void
   $ok_ids = [];
 
   foreach ($ids as $cla_id):
+    // Garde per-entry (SP-C5) : seules les entrées officielles ou le
+    // supplément de l'utilisateur courant peuvent être supprimées.
+    $stmt_own = $db->prepare('
+      SELECT res.res_j_id
+      FROM   dd_classes cla
+      LEFT JOIN dd_ressources res ON res.res_id = cla.cla_res_id
+      WHERE  cla.cla_id = ?
+    ');
+    $stmt_own->execute([$cla_id]);
+    $res_j_id_raw = $stmt_own->fetchColumn();
+    $res_j_id     = ($res_j_id_raw !== false && $res_j_id_raw !== null) ? (int)$res_j_id_raw : null;
+
+    if (!canEditCompendiumEntry($db, $res_j_id)):
+      $stmt_nom = $db->prepare('SELECT cla_nom FROM dd_classes WHERE cla_id = ?');
+      $stmt_nom->execute([$cla_id]);
+      $nom = $stmt_nom->fetchColumn() ?: "classe #$cla_id";
+      $refus[] = "« $nom » : non autorisé";
+      continue;
+    endif;
+
     // Vérification : personnages utilisant cette classe
     $stmt = $db->prepare('
       SELECT COUNT(*) FROM dd_personnages_classes WHERE pc_cla_id = ?
@@ -1451,13 +1817,16 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
   $om_id      = intParam($_POST['om_id']             ?? 0);
   $nom        = strParam($_POST['om_nom']            ?? '');
   $ruleset_id = intParam($_POST['om_ruleset_var_id'] ?? 1);
+  $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
     repondreErreur($is_ajax, "Le nom de l'objet magique est obligatoire.", $redirect);
   endif;
 
-  $res_id = intParam($_POST['om_res_id'] ?? 0);
-  if (!$res_id):
+  // om_res_id : soit l'id réel d'une source active (officielle ou supplément
+  // déjà créé), soit la sentinelle 'supplement' (cf. § Supplément utilisateur).
+  $res_raw = strParam($_POST['om_res_id'] ?? '');
+  if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
 
@@ -1471,6 +1840,8 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
   $so_niveau    = intParam($_POST['om_so_niveau']      ?? 0);
   $modificateurs = intParam($_POST['om_modificateurs'] ?? 0);
   $variantes    = strParam($_POST['om_variantes']      ?? '') ?: null;
+  // om_visible garde sa sémantique propre pré-SP-C ("visible par les joueurs"),
+  // librement modifiable quelle que soit la source (officielle ou supplément).
   $visible      = isset($_POST['om_visible']) ? 1 : 0;
   $camp_id      = intParam($_POST['om_camp_id']       ?? 0) ?: null;
   $description  = $_POST['om_description'] ?? '';   // HTML TinyMCE — pas de h()
@@ -1478,13 +1849,40 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
   try {
     $db->beginTransaction();
 
+    // ---- Résolution de la source (mécanisme commun supplément utilisateur) ----
+    if ($res_raw === 'supplement'):
+      $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+      $est_supplement = true;
+    else:
+      $res_id = (int)$res_raw;
+      $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+      $stmt->execute([$res_id]);
+      $res_j_id       = $stmt->fetchColumn();
+      $est_supplement = ($res_j_id !== false && $res_j_id !== null);
+
+      if ($est_supplement && (int)$res_j_id !== $uid && !isAdmin()):
+        $db->rollBack();
+        repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+      endif;
+    endif;
+
+    // ---- om_public — pertinent uniquement pour une entrée de supplément ----
+    if ($est_supplement):
+      $public = isset($_POST['om_public']) ? 1 : 0;
+      if ($public):
+        $visible = 1;
+      endif;
+    else:
+      $public = 0;
+    endif;
+
     if ($om_id === 0):
       $stmt = $db->prepare('
         INSERT INTO dd_objets_magiques
           (om_nom, om_com_id, om_fom_id, om_so_id, om_so_niveau,
-           om_modificateurs, om_variantes, om_description, om_visible,
+           om_modificateurs, om_variantes, om_description, om_visible, om_public,
            om_res_id, om_camp_id, om_ruleset_var_id)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
@@ -1496,6 +1894,7 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
         $variantes,
         $description,
         $visible,
+        $public,
         $res_id,
         $camp_id,
         $ruleset_id,
@@ -1513,6 +1912,7 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
           om_variantes      = ?,
           om_description    = ?,
           om_visible        = ?,
+          om_public         = ?,
           om_res_id         = ?,
           om_camp_id        = ?
         WHERE om_id = ?
@@ -1527,6 +1927,7 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
         $variantes,
         $description,
         $visible,
+        $public,
         $res_id,
         $camp_id,
         $om_id,
@@ -1539,6 +1940,64 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
     $db->rollBack();
     error_log('enregistrerObjet : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// Suppression — garde per-entry (SP-C5), sur le modèle supprimerMonstre()/supprimerDon().
+function supprimerObjet($db, bool $is_ajax, string $redirect): void
+{
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_values(array_unique(array_filter(array_map('intval', (array)$ids))));
+
+  if (empty($ids)):
+    repondreErreur($is_ajax, 'Aucun élément à supprimer.', $redirect);
+  endif;
+
+  try {
+    $db->beginTransaction();
+
+    $ph   = resIdsPlaceholders($ids);
+    $stmt = $db->prepare("
+      SELECT om.om_id, res.res_j_id
+      FROM   dd_objets_magiques om
+      LEFT JOIN dd_ressources   res ON res.res_id = om.om_res_id
+      WHERE  om.om_id IN ($ph)
+    ");
+    $stmt->execute($ids);
+    $lignes = $stmt->fetchAll();
+
+    $ids_autorises = [];
+    foreach ($lignes as $ligne):
+      $res_j_id = $ligne['res_j_id'] !== null ? (int)$ligne['res_j_id'] : null;
+      if (canEditCompendiumEntry($db, $res_j_id)):
+        $ids_autorises[] = (int)$ligne['om_id'];
+      endif;
+    endforeach;
+
+    if (empty($ids_autorises)):
+      $db->rollBack();
+      repondreErreur($is_ajax, 'Aucun élément autorisé à la suppression.', $redirect);
+    endif;
+
+    $ph2  = resIdsPlaceholders($ids_autorises);
+    $stmt = $db->prepare("DELETE FROM dd_objets_magiques WHERE om_id IN ($ph2)");
+    $stmt->execute($ids_autorises);
+
+    $db->commit();
+
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Élément(s) supprimé(s).'];
+    header('Location: ' . $redirect);
+    exit;
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('supprimerObjet : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
   }
 }
 
@@ -1753,13 +2212,14 @@ function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
   $hi_id      = intParam($_POST['hi_id']              ?? 0);
   $nom        = strParam($_POST['hi_nom']             ?? '');
   $ruleset_id = intParam($_POST['hi_ruleset_var_id']  ?? 2);
+  $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
     repondreErreur($is_ajax, "Le nom de l'historique est obligatoire.", $redirect);
   endif;
 
-  $res_id = intParam($_POST['hi_res_id'] ?? 0);
-  if (!$res_id):
+  $res_raw = strParam($_POST['hi_res_id'] ?? '');
+  if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
 
@@ -1769,17 +2229,49 @@ function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
   try {
     $db->beginTransaction();
 
+    // ---- Résolution de la source (mécanisme commun supplément utilisateur) ----
+    if ($res_raw === 'supplement'):
+      $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+      $est_supplement = true;
+    else:
+      $res_id = (int)$res_raw;
+      $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+      $stmt->execute([$res_id]);
+      $res_j_id       = $stmt->fetchColumn();
+      $est_supplement = ($res_j_id !== false && $res_j_id !== null);
+
+      if ($est_supplement && (int)$res_j_id !== $uid && !isAdmin()):
+        $db->rollBack();
+        repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+      endif;
+    endif;
+
+    // ---- Visibilité — pertinente uniquement pour une entrée de supplément ----
+    if ($est_supplement):
+      $public  = isset($_POST['hi_public'])  ? 1 : 0;
+      $visible = isset($_POST['hi_visible']) ? 1 : 0;
+      if ($public):
+        $visible = 1;
+      endif;
+    else:
+      $public  = 1;
+      $visible = 1;
+    endif;
+
     if ($hi_id === 0):
       $stmt = $db->prepare('
         INSERT INTO dd_historiques
-          (hi_nom, hi_description, hi_res_id, hi_camp_id, hi_ruleset_var_id)
-        VALUES (?,?,?,?,?)
+          (hi_nom, hi_description, hi_res_id, hi_camp_id, hi_public, hi_visible,
+           hi_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
         $description,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $ruleset_id,
       ]);
       $hi_id = (int)$db->lastInsertId();
@@ -1790,6 +2282,8 @@ function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
           hi_description    = ?,
           hi_res_id         = ?,
           hi_camp_id        = ?,
+          hi_public         = ?,
+          hi_visible        = ?,
           hi_ruleset_var_id = ?
         WHERE hi_id = ?
       ');
@@ -1798,6 +2292,8 @@ function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
         $description,
         $res_id,
         $camp_id,
+        $public,
+        $visible,
         $ruleset_id,
         $hi_id,
       ]);
@@ -1809,5 +2305,63 @@ function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
     $db->rollBack();
     error_log('enregistrerHistorique : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// Suppression — garde per-entry (SP-C5), sur le modèle supprimerMonstre()/supprimerDon().
+function supprimerHistorique($db, bool $is_ajax, string $redirect): void
+{
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_values(array_unique(array_filter(array_map('intval', (array)$ids))));
+
+  if (empty($ids)):
+    repondreErreur($is_ajax, 'Aucun élément à supprimer.', $redirect);
+  endif;
+
+  try {
+    $db->beginTransaction();
+
+    $ph   = resIdsPlaceholders($ids);
+    $stmt = $db->prepare("
+      SELECT hi.hi_id, res.res_j_id
+      FROM   dd_historiques   hi
+      LEFT JOIN dd_ressources res ON res.res_id = hi.hi_res_id
+      WHERE  hi.hi_id IN ($ph)
+    ");
+    $stmt->execute($ids);
+    $lignes = $stmt->fetchAll();
+
+    $ids_autorises = [];
+    foreach ($lignes as $ligne):
+      $res_j_id = $ligne['res_j_id'] !== null ? (int)$ligne['res_j_id'] : null;
+      if (canEditCompendiumEntry($db, $res_j_id)):
+        $ids_autorises[] = (int)$ligne['hi_id'];
+      endif;
+    endforeach;
+
+    if (empty($ids_autorises)):
+      $db->rollBack();
+      repondreErreur($is_ajax, 'Aucun élément autorisé à la suppression.', $redirect);
+    endif;
+
+    $ph2  = resIdsPlaceholders($ids_autorises);
+    $stmt = $db->prepare("DELETE FROM dd_historiques WHERE hi_id IN ($ph2)");
+    $stmt->execute($ids_autorises);
+
+    $db->commit();
+
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Élément(s) supprimé(s).'];
+    header('Location: ' . $redirect);
+    exit;
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('supprimerHistorique : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
   }
 }
