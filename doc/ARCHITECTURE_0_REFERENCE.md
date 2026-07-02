@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-01 -->
+<!-- Mis à jour : 2026-07-02 20:17 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -350,8 +350,25 @@ générique `filtres[]` à checkbox — gérée directement par le moteur, pas p
 
 - Auto-ajouté dans `dd_joueurs_sources` du propriétaire dès sa création.
 - Visible dans "Mes sources" d'autres utilisateurs uniquement si ≥1 entrée est publique et visible.
-- Ajout à une campagne : **manuel** (via la configuration des sources de la campagne).
+- Ajout explicite à une campagne (configuration des sources de la campagne) : possible mais **non
+  requis** — la priorité 1 de `getActiveResIds()` et `getActiveResIdsCampagne()` incluent désormais
+  toutes deux systématiquement le supplément personnel pertinent, même sans sélection explicite
+  (voir bug corrigé ci-dessous et § Oppositions, Usage Oppositions — 2026-06-20).
 - La priorité 3 de `getActiveResIds()` (défaut absolu) reste limitée aux ressources officielles (`res_j_id IS NULL`).
+
+> ✅ **Bug corrigé le 2026-07-02 — supplément personnel absent de la priorité 1 de `getActiveResIds()`
+> (régression, listes du compendium dont Monstres).** `getActiveResIds()` possède sa propre branche
+> priorité 1 (personnage actif en session via `last_pe_id`, rattaché à une campagne à sources
+> explicites), distincte de `getActiveResIdsCampagne()` : elle retournait directement les
+> `cs_res_id` de `dd_campagnes_sources` sans jamais appeler `getUserSupplementResId()`. Conséquence :
+> dès qu'un personnage était actif dans une telle campagne, le supplément personnel de l'utilisateur
+> disparaissait à la fois des résultats de liste (filtre `champ_res`) **et** du menu de sélection des
+> sources dans `compendium-liste.php` (`$sources_dispo`, construit à partir du même tableau). Le
+> correctif du 2026-06-22 sur `getActiveResIdsCampagne()` n'avait pas couvert cette branche sœur.
+> Corrigé en ajoutant systématiquement `getUserSupplementResId($db, $j_id, $ruleset_var_id)`
+> (utilisateur courant — cette fonction est scopée personnage/joueur, contrairement à
+> `getActiveResIdsCampagne()` qui est scopée MJ et utilise `camp_j_id`) au tableau de sources
+> retourné par la priorité 1, s'il n'y figure pas déjà.
 
 #### Helpers dédiés dans `helpers.php`
 

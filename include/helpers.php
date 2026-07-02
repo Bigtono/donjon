@@ -88,7 +88,21 @@ function getActiveResIds($db): array {
     ');
     $stmt->execute([$pe_id]);
     $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    if (!empty($ids)) return $ids;
+
+    if (!empty($ids)) {
+      // Le supplément personnel de l'utilisateur courant est systématiquement
+      // ajouté, même s'il n'a jamais été sélectionné explicitement dans les
+      // sources de la campagne — cf. correctif équivalent du 2026-06-22 sur
+      // getActiveResIdsCampagne(), qui n'avait pas été reporté ici (régression
+      // corrigée le 2026-07-02). Cette fonction est scopée personnage/joueur
+      // (pas MJ) : c'est donc le supplément de l'utilisateur courant ($j_id),
+      // et non celui du propriétaire de la campagne, qui doit être ajouté.
+      $supplement_res_id = $j_id > 0 ? getUserSupplementResId($db, $j_id, $ruleset_var_id) : null;
+      if ($supplement_res_id !== null && !in_array($supplement_res_id, $ids, true)) {
+        $ids[] = $supplement_res_id;
+      }
+      return $ids;
+    }
   }
 
   // Priorité 2 : sélection personnelle

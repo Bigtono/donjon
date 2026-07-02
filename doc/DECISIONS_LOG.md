@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-01 -->
+<!-- Mis à jour : 2026-07-02 20:17 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -713,6 +713,42 @@ entrées en brouillon (`mo_visible = 0`) de ce tiers pourraient apparaître dans
 faible (nécessite une action explicite du MJ pour ajouter une source tierce) et hors périmètre de ce
 signalement (qui portait sur l'absence du supplément **personnel**, pas sur une fuite de
 confidentialité tierce) — à corriger si signalé séparément.
+
+**[2026-07-02] Bug — supplément personnel absent de la liste Monstres du compendium (régression)**
+
+*Signalement* : dans le compendium, section Monstres, les monstres du supplément personnel de
+l'utilisateur n'apparaissent plus dans la liste, et l'option pour afficher/masquer le contenu du
+supplément a disparu du menu de sélection des sources.
+
+*Cause* : `getActiveResIds()` (`include/helpers.php`, utilisée par le moteur commun
+`include/compendium-liste.php` — donc par toutes les listes du compendium, dont Monstres) possède
+sa **propre branche priorité 1**, distincte de `getActiveResIdsCampagne()` : quand un personnage est
+actif en session (`$_SESSION['last_pe_id']`) et rattaché à une campagne disposant d'une sélection de
+sources explicite (`dd_campagnes_sources`), la fonction retourne directement les `cs_res_id` de
+cette table, sans jamais appeler `getUserSupplementResId()`. Le supplément personnel de
+l'utilisateur est donc absent du tableau retourné dès qu'un tel personnage est actif — ce qui exclut
+à la fois ses entrées (filtre SQL sur `champ_res`) et l'entrée correspondante du menu de sélection
+des sources (`$sources_dispo` dans `compendium-liste.php`, construit à partir du même tableau),
+expliquant les deux symptômes signalés simultanément.
+
+Cause racine plus large : cette branche de `getActiveResIds()` est le pendant, côté personnage/
+joueur, du repli \"sources explicites\" de `getActiveResIdsCampagne()` (contexte MJ) — corrigé le
+2026-06-22 (cf. entrée `[2026-06-22]` ci-après). Les deux fonctions dupliquent une logique proche
+mais restent des fonctions distinctes (l'une scopée personnage/joueur via `last_pe_id`, l'autre
+scopée MJ via `camp_id` explicite) ; le correctif du 22/06 n'avait porté que sur la seconde, laissant
+celle-ci non corrigée depuis l'origine de SP-C1 pour ce cas précis (personnage actif dans une
+campagne à sources explicites — le cas \"sans sources explicites\", couvert par la priorité 2, n'était
+pas affecté).
+
+*Correctif* : la branche priorité 1 de `getActiveResIds()` ajoute désormais systématiquement le
+supplément personnel de l'**utilisateur courant** (`$_SESSION['j_id']`, via `getUserSupplementResId()`)
+au tableau des `cs_res_id` de la campagne, s'il n'y figure pas déjà. Choix de `$j_id` (utilisateur
+courant) plutôt que `camp_j_id` (propriétaire de la campagne, comme dans `getActiveResIdsCampagne()`)
+: cette fonction est scopée personnage/joueur (le point de vue est celui du joueur qui consulte le
+compendium avec son personnage actif), alors que `getActiveResIdsCampagne()` sert un contexte MJ où
+la distinction avec le visiteur courant a du sens (admin consultant la campagne d'un tiers). Aucun
+changement nécessaire côté `compendium-liste.php` ni côté formulaire de sources de campagne — le
+supplément est désormais inclus implicitement, comme pour `getActiveResIdsCampagne()`.
 
 **[2026-06-21] Bug — la liste des oppositions de la rencontre ne se rafraîchit pas après modification**
 
