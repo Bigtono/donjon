@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-02 20:17 -->
+<!-- Mis à jour : 2026-07-02 22:29 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -6,8 +6,11 @@
 > À ouvrir dans VS Code à chaque session pour contextualiser Claude Code.
 > Dernière mise à jour : Phase 2 SP-C2→C5 — répliqué sur les 7 entités restantes du compendium
 > (Dons, Sorts, Compétences, Races, Classes, Objets magiques, Historiques), sur le modèle Monstres.
-> SP-C0→C5 et C7 désormais complets sur les 8 entités ; seul SP-C6 (profil "Mes sources") reste
-> en pause.
+> SP-C0→C5 et C7 désormais complets sur les 8 entités. Deux bugs de régression corrigés le
+> 2026-07-02 : disparition du supplément personnel dans `getActiveResIds()` priorité 1 (contexte
+> personnage/campagne) et priorité 2 (`profil/index.php` "Mes sources" écrasait le supplément à
+> chaque save). SP-C6 reste partiel : la sélection propre est désormais robuste, l'affichage des
+> suppléments publics d'autres utilisateurs n'est toujours pas implémenté.
 
 ---
 
@@ -1246,11 +1249,20 @@ DEV_MODE = true dans include/db.php → lien reset MDP affiché en page.
 L'utilisateur peut choisir, pour le ruleset actif, quelles ressources alimentent son compendium.
 Cette sélection correspond à la priorité 2 de getActiveResIds().
 
-**Périmètre affiché :**
-- Ressources globales officielles du ruleset actif (`res_j_id IS NULL`)
-- Suppléments publics d'autres utilisateurs (section distincte) — visibles uniquement si ≥1 entrée est `_public=1 AND _visible=1`
+**Périmètre affiché (cible SP-C6, partiellement implémenté) :**
+- Ressources globales officielles du ruleset actif (`res_j_id IS NULL`) — ✅ implémenté
+- Suppléments publics d'autres utilisateurs (section distincte) — visibles uniquement si ≥1 entrée est `_public=1 AND _visible=1` — ⏳ **non implémenté**, `profil/index.php` ne requête à ce jour que les ressources officielles
 
-Le supplément de l'utilisateur lui-même **n'apparaît pas** dans cette section (il est auto-sélectionné via `dd_joueurs_sources`).
+Le supplément de l'utilisateur lui-même **n'apparaît pas** comme case à cocher dans cette section
+(il est auto-sélectionné via `dd_joueurs_sources`, sans UI dédiée).
+
+> ✅ **Bug corrigé le 2026-07-02** — le supplément personnel n'étant jamais dans les cases cochées
+> (aucune case ne le représente), le `DELETE` + `INSERT` en bloc de la sauvegarde l'effaçait de
+> `dd_joueurs_sources` à chaque enregistrement de "Mes sources", faisant disparaître tout le contenu
+> homebrew de l'utilisateur des listes du compendium jusqu'à ce qu'il resélectionne son supplément —
+> ce qu'aucune UI ne permet de faire explicitement. Corrigé en réinjectant systématiquement
+> `getUserSupplementResId($db, $j_id, $ruleset_var_id_actif)` dans `$ids_valides` avant la sauvegarde.
+> Cf. `DECISIONS_LOG.md` [2026-07-02] "Bug (suite) — supplément personnel toujours absent…".
 
 **Comportement zéro sélection :** autorisé. getActiveResIds() retombe sur la priorité 3 (res_selection = 1).
 

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-02 20:17 -->
+<!-- Mis à jour : 2026-07-02 22:29 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -749,6 +749,57 @@ compendium avec son personnage actif), alors que `getActiveResIdsCampagne()` ser
 la distinction avec le visiteur courant a du sens (admin consultant la campagne d'un tiers). Aucun
 changement nécessaire côté `compendium-liste.php` ni côté formulaire de sources de campagne — le
 supplément est désormais inclus implicitement, comme pour `getActiveResIdsCampagne()`.
+
+**[2026-07-02] Bug (suite) — supplément personnel toujours absent après le correctif `getActiveResIds()` priorité 1**
+
+*Signalement* : après le correctif ci-dessus (branche priorité 1 de `getActiveResIds()`), l'utilisateur
+confirme que ses monstres de supplément (res_id 95) n'apparaissent toujours pas dans la liste
+Monstres, et que l'option correspondante reste absente du menu Sources — « la régression n'est pas
+corrigée ».
+
+*Diagnostic* (interrogation directe de la base de dev locale, `SHOW CREATE TABLE` + `SELECT`) :
+l'utilisateur (`j_id=1`) n'a **pas** de `last_pe_id` actif rattaché à une campagne à sources
+explicites au moment du test — `getActiveResIds()` ne passe donc jamais par la branche priorité 1
+corrigée plus haut, mais tombe directement en **priorité 2** (`dd_joueurs_sources`, sélection
+personnelle). Or `dd_joueurs_sources` pour cet utilisateur/ruleset ne contenait **pas** `res_id=95`
+(vérifié : 5 lignes présentes — 91, 93, 94, 96, 97 — toutes officielles, aucune référence au
+supplément). Deux bugs distincts, donc, avec le même symptôme : le correctif du jour ne couvrait que
+la branche priorité 1, pas la priorité 2.
+
+*Cause racine (priorité 2)* : `profil/index.php`, section "Mes sources" (`$section === 'sources'`).
+Le supplément personnel n'est **jamais proposé comme case à cocher** dans cette section (par design —
+cf. `ARCHITECTURE_0_REFERENCE.md` § Supplément comme source sélectionnable : « le supplément de
+l'utilisateur lui-même n'apparaît pas dans cette section, il est auto-sélectionné »). Mais le
+handler de sauvegarde fait un `DELETE FROM dd_joueurs_sources WHERE js_j_id=? AND
+js_ruleset_var_id=?` puis ré-insère **uniquement** les `res_id` cochés, validés contre la liste des
+ressources officielles (`res_j_id IS NULL`). Le supplément n'étant jamais dans les cases cochées
+(il n'existe pas de case pour lui), il disparaît de `dd_joueurs_sources` à la **première
+sauvegarde de "Mes sources"** suivant sa création — quelle que soit la raison de cette sauvegarde
+(changement de ruleset par défaut, de thème, etc., dès lors que la section "sources" est soumise).
+C'est très probablement ce qui s'est produit ici : le supplément (créé au premier ajout de monstre
+homebrew) a été retiré de la sélection active dès la sauvegarde suivante du profil.
+
+*Correctif immédiat (données)* : ligne réinsérée manuellement dans `dd_joueurs_sources` pour
+`j_id=1, res_id=95, ruleset_var_id=2` (requête directe, base de dev locale) — débloque
+l'utilisateur immédiatement, sans attendre un nouveau save de profil.
+
+*Correctif structurel (code)* : `profil/index.php`, juste avant le `DELETE` + `INSERT` en bloc de
+la section "sources" — ajout de `getUserSupplementResId($db, $j_id, $ruleset_var_id_actif)` au
+tableau `$ids_valides` s'il n'y figure pas déjà (le supplément n'étant jamais dans `$ids_post`
+puisqu'il n'a pas de case à cocher, ce test est systématiquement vrai en pratique, mais la garde
+`!in_array` documente l'invariant plutôt que de le supposer). Corrige le bug pour tout futur save de
+"Mes sources", quel que soit le contexte priorité 1/2/3 de `getActiveResIds()`.
+
+*Portée du correctif* : couvre uniquement la disparition du **propre** supplément de l'utilisateur.
+La partie affichage des « suppléments publics d'autres utilisateurs » dans "Mes sources"
+(deuxième moitié de SP-C6, cf. `ARCHITECTURE_0_REFERENCE.md` § Section "Mes sources") reste non
+implémentée — non liée à ce bug, non prioritaire à ce jour, `profil/index.php` continue de ne
+lister que les ressources officielles comme choix explicites.
+
+*Non vérifié* : rendu navigateur du save de profil après correctif (pas de compte de test
+disponible dans cette session) — logique validée par lecture de code et cohérence avec le
+mécanisme déjà utilisé ailleurs (`getUserSupplementResId()`, fonction transverse existante et
+déjà éprouvée par SP-C1/SP-C5).
 
 **[2026-06-21] Bug — la liste des oppositions de la rencontre ne se rafraîchit pas après modification**
 

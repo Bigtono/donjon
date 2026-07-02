@@ -173,6 +173,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
       if (in_array($rid, $ids_autorises)) $ids_valides[] = $rid;
     endforeach;
 
+    // Le supplément personnel de l'utilisateur n'est pas proposé comme case à
+    // cocher dans cette section (auto-sélectionné par design, cf. § Supplément
+    // utilisateur / ARCHITECTURE_0_REFERENCE.md). Sans ce réajout, le DELETE +
+    // INSERT ci-dessous l'effacerait de dd_joueurs_sources à chaque sauvegarde
+    // de "Mes sources" — régression constatée le 2026-07-02 (contenu homebrew
+    // de l'utilisateur disparaissant des listes du compendium après un simple
+    // enregistrement de profil).
+    $supplement_res_id = getUserSupplementResId($db, $j_id, $ruleset_var_id_actif);
+    if ($supplement_res_id !== null && !in_array($supplement_res_id, $ids_valides, true)):
+      $ids_valides[] = $supplement_res_id;
+    endif;
+
     // DELETE + INSERT en bloc
     $del = $db->prepare('
       DELETE FROM dd_joueurs_sources
