@@ -50,13 +50,16 @@ $filtres = [
                          WHERE  sc_so_id = so.so_id
                            AND  sc_cla_id = ?
                        )',
+    // cla_clt_id "Base" : littéral 1 en DD3.5 (2 = Prestige), 4 en DD2024
+    // (5 = Sous-classe) — cf. dd_classe_type, pas de constante partagée
+    // dans le projet (même convention que cla_clt_id===2/5 ailleurs).
     'query'        => 'SELECT cla_id val, cla_nom lab
                        FROM   dd_classes
                        WHERE  cla_mag_id > 0
                          AND  cla_ruleset_var_id = ?
-                         AND  cla_clt_id = 1
+                         AND  cla_clt_id = ?
                        ORDER  BY cla_nom',
-    'query_params' => [$ruleset_id],
+    'query_params' => [$ruleset_id, $ruleset_rep === 'DD3.5' ? 1 : 4],
   ],
 ];
 

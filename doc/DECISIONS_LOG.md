@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-02 22:29 -->
+<!-- Mis à jour : 2026-07-03 12:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2323,6 +2323,58 @@ Remplacé par l'appel à la fonction utilitaire globale Roll20 dédiée
 `setDefaultTokenForCharacter(character, token)`, qui capture l'état courant du token
 (image, taille, barres, position des barres…) — appelée en tout dernier, après toutes les
 modifications du token, pour que le snapshot soit complet.
+
+
+---
+
+### D-R16 — Parser `mo_stats` : formats d'incantation DD2024 v2 et dégâts alternatifs
+
+#### D-R16.1 — Format des sous-listes de sorts avec séparateur tiret
+
+**Bug constaté :** Sur le Prêtre de Baine (et a priori tous les lanceurs du MM2024 ayant
+ce format), la description de l'action Incantation était tronquée (première ligne seulement)
+et aucun sort n'était généré (`noms_sorts` vide).
+
+**Cause :** Le parser `parseActionBlock` collectait les sous-listes de sorts en cherchant
+uniquement le séparateur `:`. Le format observé sur ce monstre utilise `-` avec espaces :
+
+```
+Tour de magie - assistance, lumière, thaumaturgie
+Niveau 1 (3/J) - blessure, injonction, Protection contre le mal et le bien
+Niveau 2 (2/J) - immobilisation de personne, silence
+Niveau 3 (2/J) - fusion dans la pierre
+```
+
+Le `while` se cassait immédiatement faute de `:` → `$full_text` n'incluait que la première
+ligne de l'Incantation, `parseIncantation` recevait un texte incomplet, `noms_sorts = []`.
+
+**Correction :**
+- Nouvelle fonction `estPrefixeSousListeSorts(string $ligne): bool` — teste les deux formats
+  de séparateur (`:` et ` - `) et reconnaît les préfixes normalisés :
+  `a volonte`, `\d+/jour`, `tour de magie`, `niveau \d`, `cantrip`
+- `parseActionBlock` : remplace le `preg_match` inliné par `estPrefixeSousListeSorts($next)`
+- `parseIncantation` : idem, remplace la double-condition `preg_match` par
+  `estPrefixeSousListeSorts($sl)` + extraction de la partie noms après le séparateur
+
+**Rétro-compatibilité :** Le format `:` précédent (Mage, Cultiste) continue de fonctionner.
+
+#### D-R16.2 — Dégâts avec texte "En cas de coup réussi"
+
+**Bug constaté :** L'action "Rafale oppressante" du Prêtre de Baine était parsée en
+TYPE B (description seule) au lieu de TYPE A (attaque avec bouton de jet), car le parser
+ne reconnaissait pas son format de résultat de toucher :
+
+```
+En cas de coup réussi : 16 (2d10 + 5) points de dégâts psychiques
+```
+
+**Cause :** Le regex ne cherchait que `Touché :` (format standard MM2024 de base), pas
+`En cas de coup réussi :` ni l'intercalaire `points de` avant `dégâts`.
+
+**Correction :** Le regex de dégâts principaux dans `parseAction()` est élargi :
+- Alternative `(Touch[eé]|En cas de coup r[eé]ussi)` pour le mot déclencheur
+- `(?:points de\s+)?` avant `d[eé]g[aâ]ts?` (optionnel)
+- Les groupes capturants sont décalés : avg = `$m[2]`, formule = `$m[3]`, type = `$m[4]`
 
 ---
 

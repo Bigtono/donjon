@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-02 22:29 -->
+<!-- Mis à jour : 2026-07-03 12:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -2292,6 +2292,31 @@ La ligne `Équipement : …` du header `mo_stats` (présente sur les PNJ humano�
 porteurs d'objets) n'a pas d'équivalent dans les champs scalaires Roll20. Elle
 est convertie en un trait `repeating_npctrait` nommé **Équipement**, inséré en
 première position, avec le texte de la ligne en description. Voir DECISIONS_LOG D-R3.
+
+### Formats `mo_stats` supportés pour l'Incantation
+
+Deux formats de sous-listes reconnus (séparateur `:` ou ` - `) :
+
+```
+// Format 1 — séparateur ":" (ex : Mage, Cultiste)
+À volonté : lumière, thaumaturgie
+2/jour chacun : boule de feu, invisibilité
+
+// Format 2 — séparateur " - " (ex : Prêtre de Baine)
+Tour de magie - assistance, lumière, thaumaturgie
+Niveau 1 (3/J) - blessure, injonction
+Niveau 2 (2/J) - immobilisation de personne
+```
+
+Préfixes reconnus (insensibles à la casse/accents) : `À volonté`, `N/jour`, `N/jour chacun`,
+`Tour de magie`, `Niveau N`, `Cantrip`. Voir `estPrefixeSousListeSorts()` dans `monstre-roll20.php`.
+
+### Formats de dégâts supportés dans les actions
+
+```
+Touché : 6 (1d6 + 3) dégâts contondants           ← format standard
+En cas de coup réussi : 16 (2d10 + 5) points de dégâts psychiques  ← format alternatif
+```
 
 ### Limitations connues (V1)
 
