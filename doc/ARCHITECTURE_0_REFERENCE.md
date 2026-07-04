@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-03 14:00 -->
+<!-- Mis à jour : 2026-07-04 10:52 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -11,6 +11,12 @@
 > personnage/campagne) et priorité 2 (`profil/index.php` "Mes sources" écrasait le supplément à
 > chaque save). SP-C6 reste partiel : la sélection propre est désormais robuste, l'affichage des
 > suppléments publics d'autres utilisateurs n'est toujours pas implémenté.
+> 2026-07-04 : `config/db.config.php` refondu en fichier unique DEV/OVH à détection automatique
+> d'environnement, suite à un écrasement accidentel de la config de prod (voir D-CFG1).
+> 2026-07-04 (suite) : la mise en prod du fichier unique déclenche un 503 "Err1" (échec connexion
+> PDO) sur OVH alors que le local fonctionne. Cause précise non confirmée (log serveur OVH non
+> consulté) — `include/db.php` instrumenté pour journaliser l'environnement détecté et l'hôte DSN
+> ciblé à chaque échec, sans exposer les identifiants (voir D-CFG2, diagnostic en cours).
 
 ---
 
@@ -28,7 +34,7 @@
 
 ### URL de base — règle absolue
 
-define('BASE_URL', '/donjon') dans include/db.php.
+define('BASE_URL', '/donjon') dans config/db.config.php (chargé par require_once dans include/db.php).
 
 Toutes les URLs du projet passent par BASE_URL — aucune URL absolue codée en dur.
 
@@ -38,6 +44,51 @@ Toutes les URLs du projet passent par BASE_URL — aucune URL absolue codée en 
 | Attribut action | action="<?= BASE_URL ?>/chemin/page.php" |
 | Redirection PHP | header('Location: ' . BASE_URL . '/chemin'); |
 | Asset CSS/JS | href="<?= BASE_URL ?>/css/main.css" |
+
+### config/db.config.php — fichier commun DEV / OVH (détection automatique)
+
+Depuis le 2026-07-04, `config/db.config.php` est un fichier **unique et strictement
+identique** sur les deux hébergements (local XAMPP et OVH prod). Il n'est plus
+composé de deux versions distinctes maintenues séparément : il embarque les deux
+jeux d'identifiants et choisit le bon au runtime.
+
+Détection : `$_SERVER['HTTP_HOST']` (repli sur `SERVER_NAME`) est comparé au
+domaine de production `maikastel.fr`. Match → jeu OVH ; sinon → jeu local (repli
+par défaut, y compris si le hôte est vide, par exemple en CLI).
+
+```php
+$domaineHote = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? '');
+
+if (strpos($domaineHote, 'maikastel.fr') !== false):
+  // identifiants OVH
+else:
+  // identifiants locaux (XAMPP) — défaut de repli
+endif;
+```
+
+Conséquence : écraser accidentellement `config/db.config.php` d'un environnement
+avec la version de l'autre (transfert FTP/zip complet, mauvaise manipulation de
+déploiement) n'a plus d'impact — le fichier se reconnaît lui-même. Voir D-CFG1
+dans DECISIONS_LOG.md pour la décision complète et ses limites (CLI hors contexte
+web non couvert par ce mécanisme).
+
+Le fichier reste exclu du dépôt git (`.gitignore`) ; `config/db.config.example.php`
+documente la structure pour un nouvel environnement, mais ne doit plus être copié
+tel quel pour OVH et local séparément : c'est désormais le même fichier physique
+qui est déployé aux deux endroits.
+
+#### Diagnostic renforcé (D-CFG2, suite à échec OVH)
+
+Le déploiement du fichier unique a produit un 503 `"Err1"` sur OVH (connexion PDO
+en échec) alors que le local fonctionnait, sans que la cause exacte soit
+consultable à distance. `include/db.php` journalise désormais, à chaque échec de
+connexion, l'environnement détecté (`DEV_MODE`), l'hôte extrait de `DB_DSN` et
+`$_SERVER['HTTP_HOST']` — **jamais** `DB_USER` ni `DB_PASS`. Objectif : distinguer
+en un coup d'œil dans le log serveur si le problème vient d'une mauvaise branche
+de détection (D-CFG1 : l'environnement détecté ne correspond pas à l'hébergement
+réel) ou d'identifiants OVH invalides (mot de passe, utilisateur ou hôte MySQL
+incorrects). Diagnostic définitif en attente de consultation du log OVH par
+Jean-Michel.
 
 ---
 
@@ -1232,7 +1283,7 @@ Seuil : 992px.
 ## 11. Profil utilisateur
 
 Quatre sections indépendantes (champ hidden section) : identité, mot de passe, paramètres, sources.
-DEV_MODE = true dans include/db.php → lien reset MDP affiché en page.
+DEV_MODE = true (défini dans config/db.config.php, actif automatiquement en local) → lien reset MDP affiché en page.
 
 ### Paramètres utilisateur
 
@@ -1724,7 +1775,7 @@ donjon/
     regles-modules.css
     admin-modules.css
   include/
-    db.php           PDO + BASE_URL + DEV_MODE
+    db.php           PDO (charge config/db.config.php pour BASE_URL + DEV_MODE + DB_*)
     auth.php         + canEditCompendium() + chargement j_theme en session
     helpers.php      + canEditCompendiumEntry() + getOrCreateUserSupplement() + getUserSupplementResId()
     header.php

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-03 14:00 -->
+<!-- Mis à jour : 2026-07-04 10:52 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2408,3 +2408,83 @@ bibliothèque produira un token avec des PV initiaux indépendants.
 - [ ] Détection automatique de l'image du token (API Roll20 non disponible sans Pro+)
 - [ ] Export groupé (plusieurs monstres → ZIP de JSONs)
 - [ ] Support du `npc_type` pour les monstres DD3.5 (format `mo_stats` différent)
+
+---
+
+### D-CFG1 — [2026-07-04] Config DB : fichier unique DEV/OVH à détection automatique
+
+**Contexte :** Le fichier `config/db.config.php` de production (OVH) a été écrasé accidentellement
+par la version locale (XAMPP), rendant le site inaccessible. Bien que ce fichier soit exclu du
+dépôt git (`.gitignore`), rien n'empêchait un transfert manuel (FTP, zip complet de déploiement)
+de copier la version d'un environnement sur l'autre.
+
+**Décision :** `config/db.config.php` devient un fichier **unique, physiquement identique** sur
+les deux hébergements. Il embarque les deux jeux d'identifiants (local + OVH) et sélectionne le
+bon jeu au runtime via une détection d'environnement, plutôt que de reposer sur deux fichiers
+distincts à ne jamais confondre.
+
+**Mécanisme de détection :** Test de `$_SERVER['HTTP_HOST']` (repli sur `SERVER_NAME`) contre le
+domaine de production `maikastel.fr`.
+- Contient `maikastel.fr` → identifiants OVH, `DEV_MODE = false`
+- Sinon (y compris hôte vide) → identifiants locaux, `DEV_MODE = true` (repli par défaut)
+
+**Raison du choix du repli par défaut vers DEV plutôt que vers OVH :** Un faux négatif (prod
+détectée comme dev) casserait immédiatement et visiblement la connexion DB en prod (host/user/pass
+OVH incorrects) — erreur explicite et rapide à diagnostiquer. Un faux négatif inverse (dev détecté
+comme prod) risquerait d'écrire silencieusement des données de test dans la base de production
+si jamais la détection échouait côté OVH. Le repli vers DEV est donc le sens d'erreur le moins
+dangereux.
+
+**Limite connue :** Cette détection repose sur les variables de requête HTTP (`HTTP_HOST` /
+`SERVER_NAME`). Un script PHP exécuté en ligne de commande (CLI, ex. cron) sur le serveur OVH ne
+positionne pas ces variables et tomberait par défaut sur les identifiants locaux, donc échouerait
+à se connecter à la base OVH. Aucun script CLI n'existe à ce jour dans le projet ; si un besoin de
+ce type apparaît (ex. tâche planifiée sur OVH), ajouter une détection complémentaire (ex.
+`gethostname()`, variable d'environnement dédiée, ou fichier marqueur) avant d'écrire ce script.
+
+**Impact :** Le fichier `config/db.config.php` peut désormais être copié sans risque d'un
+environnement vers l'autre lors d'un déploiement ; il continue d'être exclu du dépôt git.
+`config/db.config.example.php` reste le gabarit de référence pour comprendre la structure des
+constantes attendues, mais ne représente plus qu'un seul environnement — le fichier réel en
+combine deux.
+
+---
+
+### D-CFG2 — [2026-07-04] 503 "Err1" sur OVH après déploiement du fichier commun (D-CFG1) — diagnostic en cours
+
+**Contexte :** Immédiatement après déploiement du fichier `config/db.config.php` commun (D-CFG1),
+le site fonctionne en local mais renvoie une erreur 503 avec le message `"Service temporairement
+indisponible Err1."` sur OVH.
+
+**Analyse :** Le message `Err1` est émis par le bloc `catch (PDOException $e)` de `include/db.php`,
+**après** le chargement réussi de `config/db.config.php` (aucune erreur fatale PHP en amont — donc
+la détection d'environnement s'exécute et une constante `DEV_MODE`/`DB_DSN` valide est bien
+définie). L'échec se situe précisément dans `new PDO(DB_DSN, DB_USER, DB_PASS, ...)` : la tentative
+de connexion MySQL elle-même est refusée par le serveur OVH.
+
+**Deux causes possibles, non départagées à ce stade** (le contenu exact de `$e->getMessage()`
+n'a pas encore été consulté dans les logs OVH) :
+1. Identifiants OVH invalides (host, user, mot de passe ou nom de base incorrects/désynchronisés
+   par rapport à ce qui est réellement configuré côté OVH Manager).
+2. Mauvaise branche de détection D-CFG1 : si `$_SERVER['HTTP_HOST']` sur OVH ne contient pas
+   `maikastel.fr` (accès via un alias `clusterXXX.hosting.ovh.net`, un proxy, ou toute
+   configuration modifiant le Host vu par PHP), le fichier utiliserait par erreur les identifiants
+   **locaux** (`host=localhost`) au lieu des identifiants OVH, provoquant un échec de connexion
+   identique en apparence.
+
+**Correctif appliqué (diagnostic uniquement, pas de correction de cause) :** `include/db.php` est
+instrumenté : à chaque échec PDO, le log serveur reçoit désormais l'environnement détecté
+(`DEV_MODE`), l'hôte extrait de `DB_DSN`, et `$_SERVER['HTTP_HOST']` — jamais `DB_USER` ni
+`DB_PASS`, pour ne pas exposer de secret dans les logs. Ceci permettra, à la prochaine occurrence,
+de lire directement dans le log lequel des deux scénarios ci-dessus s'est produit.
+
+**Prochaine étape :** Jean-Michel consulte le log d'erreur OVH (espace client OVH → Hébergement →
+Logs, ou le fichier `error_log` généré par Apache/PHP dans l'espace FTP) après un nouvel essai, et
+transmet la ligne exacte pour trancher entre les deux causes. Selon le résultat :
+- Si cause 1 (identifiants) : revérifier host/user/pass/dbname exacts dans l'espace OVH Manager,
+  attention en particulier aux espaces invisibles et à la casse lors d'un copier-coller.
+- Si cause 2 (détection) : renforcer la condition de D-CFG1 avec un signal plus fiable que
+  `HTTP_HOST` (ex. vérification combinée avec `DOCUMENT_ROOT`, ou variable d'environnement dédiée
+  positionnée dans la configuration Apache/OVH).
+
+**Statut : ouvert.**
