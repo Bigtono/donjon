@@ -41,6 +41,9 @@
 //           Barre3=PV) et la position des barres sur "En dessous"
 //         - Mode token : utilise setDefaultTokenForCharacter() pour que ces réglages
 //           soient aussi repris dans le token par défaut de la fiche
+//  v1.4 : Barre 3 (PV) : suppression du lien bar3_link — valeurs directes
+//         (bar3_value / bar3_max) sur le token pour permettre une gestion
+//         indépendante des PV entre différentes instances du même PNJ
 //
 // V2 PRÉVUE
 //   - Support spelloutput = "ATTACK" pour les sorts offensifs des PNJ
@@ -59,7 +62,7 @@ var ImportNPC = ImportNPC || (function () {
   // ── Écoute des commandes chat ─────────────────────────
 
   on('ready', function () {
-    log('[ImportNPC] v1.3 chargé et prêt. Commandes disponibles : '
+    log('[ImportNPC] v1.4 chargé et prêt. Commandes disponibles : '
       + CMD_HANDOUT + ' [nom_handout]  |  '
       + CMD_TOKEN + ' (token sélectionné)  |  '
       + CMD_PING + ' (test de connectivité)');
@@ -325,14 +328,18 @@ var ImportNPC = ImportNPC || (function () {
   }
 
   // ── Configuration des barres de jeton ─────────────────
-  // Barre 1 = CA (npc_ac), Barre 2 = Perception passive (passive_wisdom),
-  // Barre 3 = PV (hp). Décision confirmée par Jean-Michel (2026-06-30).
-  // Chaque barre est liée (bar*_link) à l'attribut correspondant : Roll20
-  // resynchronise alors automatiquement la barre <-> l'attribut.
+  // Barre 1 = CA  (npc_ac)          → liée à l'attribut (valeur statique)
+  // Barre 2 = Perception passive     → liée à l'attribut (valeur statique)
+  // Barre 3 = PV  (hp)              → valeur DIRECTE, sans lien
+  //   Raison : avec bar3_link tous les tokens du même PNJ partagent les
+  //   mêmes PV via l'attribut hp de la fiche. Sans lien, chaque token
+  //   instancié sur la carte dispose de ses propres PV indépendants,
+  //   ce qui est indispensable pour gérer plusieurs exemplaires du même
+  //   PNJ lors d'un combat.
 
   function configurerBarresToken(token, attrByName) {
-    appliquerBarre(token, 1, attrByName['npc_ac']);
-    appliquerBarre(token, 2, attrByName['passive_wisdom']);
+    appliquerBarre(token, 1, attrByName['npc_ac'], false);
+    appliquerBarre(token, 2, attrByName['passive_wisdom'], false);
     appliquerBarre(token, 3, attrByName['hp'], true);
   }
 
@@ -342,16 +349,19 @@ var ImportNPC = ImportNPC || (function () {
     var current = attrObj.get('current');
     var max = attrObj.get('max');
 
-    // Filet de sécurité : si les PV courants sont vides (valeur connue côté
-    // export pour les nouveaux PNJ), afficher les PV max plutôt qu'une barre
-    // vide, et resynchroniser l'attribut en conséquence.
+    // Barre PV : si le current est vide (cas fréquent sur un PNJ fraîchement
+    // exporté où seul hp.max est renseigné), initialiser la barre à max.
+    // Ne pas modifier l'attribut hp lui-même : seule la valeur du token compte.
     if (estPv && (current === '' || current === undefined || current === null)) {
       current = max;
-      attrObj.set('current', current);
     }
 
     var props = {};
-    props['bar' + numero + '_link'] = attrObj.id;
+    // Barres CA et Perception passive : liées à l'attribut pour synchronisation auto.
+    // Barre PV : sans lien — chaque token conserve ses propres PV.
+    if (!estPv) {
+      props['bar' + numero + '_link'] = attrObj.id;
+    }
     props['bar' + numero + '_value'] = current;
     if (max !== '' && max !== undefined && max !== null) {
       props['bar' + numero + '_max'] = max;

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-03 12:30 -->
+<!-- Mis à jour : 2026-07-03 14:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -2250,7 +2250,7 @@ Trois commandes chat, deux modes d'import :
 |---|---|---|
 | `!import-npc-ping` | — | Test de connectivité (whisper de confirmation, aucun import) |
 | `!import-npc [nom_handout]` | GM Notes d'un Handout (défaut : "Import NPC") | Crée le personnage dans la bibliothèque, sans token lié |
-| `!import-npc-token` | GM Notes du token sélectionné | Crée le personnage, lie le token, configure taille/barres/position, synchronise avatar + token par défaut |
+| `!import-npc-token` | GM Notes du token sélectionné | Crée le personnage, lie le token, configure taille/barres (B1=CA lié, B2=Perc. liée, B3=PV direct)/position, synchronise avatar + token par défaut |
 
 ```
 1. Lecture des GM Notes (Handout ou token sélectionné) — unescape + nettoyage HTML
@@ -2259,7 +2259,9 @@ Trois commandes chat, deux modes d'import :
 4. Pour chaque attribut : createObj('attribute', {characterid, name, current, max})
 5. wtype forcé à '/w gm ' (chuchotage toujours actif) — voir DECISIONS_LOG D-R15
 6. (mode token) token.set({represents, name, width:70, height:70, bar_location:'bottom'})
-7. (mode token) Barres liées : Barre1=npc_ac, Barre2=passive_wisdom, Barre3=hp
+7. (mode token) Barres :
+   - Barre1=npc_ac liée (`bar1_link`) ; Barre2=passive_wisdom liée (`bar2_link`)
+   - Barre3=hp **valeur directe** sans `bar3_link` (PV indépendants par token, cf. D-R17)
 8. (mode token) avatar synchronisé depuis l'image du token (getCleanImgsrc)
 9. (mode token) setDefaultTokenForCharacter(character, token) — capture l'état
    courant du token (image, taille, barres, position) comme token par défaut de la fiche

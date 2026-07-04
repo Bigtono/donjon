@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-03 12:30 -->
+<!-- Mis à jour : 2026-07-03 14:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2300,15 +2300,14 @@ ce point (cf. D-R8 pour le contexte du choix initial `/w gm `).
 appliqué systématiquement à l'import. Valeur fixe en pixels, non paramétrable pour l'instant.
 
 **D3 — Barres de jeton (mode token uniquement) :** Répartition confirmée par Jean-Michel :
-- Barre 1 = `npc_ac` (CA)
-- Barre 2 = `passive_wisdom` (Perception passive)
-- Barre 3 = `hp` (PV, current/max)
+- Barre 1 = `npc_ac` (CA) — **liée** à l'attribut (`bar1_link`)
+- Barre 2 = `passive_wisdom` (Perception passive) — **liée** à l'attribut (`bar2_link`)
+- Barre 3 = `hp` (PV) — **valeur directe**, sans lien (voir D-R17)
 
-Chaque barre est liée à son attribut via `bar{N}_link` (Roll20 resynchronise alors
-automatiquement barre ↔ attribut pour les futures modifications en jeu). Filet de sécurité
-sur la barre PV : si l'attribut `hp` a un `current` vide (cas observé côté export — `hp`
-n'a souvent qu'un `max` renseigné, `current` à `''`), la barre affiche et resynchronise les
-PV max plutôt qu'une barre vide.
+Les barres 1 et 2 sont liées à leur attribut via `bar{N}_link` : Roll20 resynchronise
+automatiquement la barre si l'attribut change. La barre 3 est intentionnellement non liée
+(voir D-R17 pour la raison). Filet de sécurité : si `hp.current` est vide (cas fréquent
+côté export), la barre est initialisée à `hp.max` sans modifier l'attribut.
 
 **D4 — Position des barres :** `token.set({bar_location: 'bottom'})` — confirmé comme
 propriété officielle du Graphic dans la documentation Roll20 actuelle (valeurs possibles :
@@ -2375,6 +2374,31 @@ En cas de coup réussi : 16 (2d10 + 5) points de dégâts psychiques
 - Alternative `(Touch[eé]|En cas de coup r[eé]ussi)` pour le mot déclencheur
 - `(?:points de\s+)?` avant `d[eé]g[aâ]ts?` (optionnel)
 - Les groupes capturants sont décalés : avg = `$m[2]`, formule = `$m[3]`, type = `$m[4]`
+
+---
+
+### D-R17 — Barre 3 (PV) : suppression de `bar3_link` pour gestion indépendante par token
+
+**Contexte :** En combat, un même PNJ peut être instancié plusieurs fois sur la carte (2 gardes,
+3 cultistes…). Chaque token est une occurrence distincte du même personnage Roll20.
+
+**Problème avec `bar3_link` :** Quand une barre est liée (`bar{N}_link = attribut.id`), Roll20
+synchronise la valeur affichée **sur tous les tokens** représentant ce personnage avec la valeur
+de l'attribut hp de la fiche. Résultat : blesser un cultiste modifie les PV affichés sur TOUS
+les tokens du même personnage — comportement impossible pour une gestion individuelle des PV.
+
+**Correction (v1.4) :** La barre 3 est désormais configurée avec des valeurs directes uniquement :
+- `bar3_value = hp.current` (ou `hp.max` si current est vide)
+- `bar3_max = hp.max`
+- `bar3_link` : **non défini** — chaque token garde ses PV indépendants
+
+Les barres 1 (CA) et 2 (Perception passive) conservent leur lien (`bar{N}_link`) car ces valeurs
+sont statiques et identiques sur toutes les instances d'un même PNJ — la synchronisation via
+l'attribut est ici souhaitable.
+
+**Impact sur `setDefaultTokenForCharacter` :** La fonction capture l'état courant du token,
+y compris l'absence de lien sur bar3. Tout futur glisser-déposer du personnage depuis la
+bibliothèque produira un token avec des PV initiaux indépendants.
 
 ---
 
