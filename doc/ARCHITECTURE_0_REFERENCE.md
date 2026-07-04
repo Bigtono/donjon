@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-04 10:52 -->
+<!-- Mis à jour : 2026-07-04 14:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -2363,6 +2363,10 @@ Niveau 2 (2/J) - immobilisation de personne
 
 Préfixes reconnus (insensibles à la casse/accents) : `À volonté`, `N/jour`, `N/jour chacun`,
 `Tour de magie`, `Niveau N`, `Cantrip`. Voir `estPrefixeSousListeSorts()` dans `monstre-roll20.php`.
+
+L'ordre des sections dans `mo_stats` est **quelconque** — `sentinelleBloc()` trouve
+toujours la prochaine section qui suit la section courante dans le texte, sans liste
+codée en dur de successeurs attendus (cf. DECISIONS_LOG D-R20).
 
 ### Formats de dégâts supportés dans les actions
 

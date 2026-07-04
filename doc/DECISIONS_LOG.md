@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-04 10:52 -->
+<!-- Mis à jour : 2026-07-04 14:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2399,6 +2399,47 @@ l'attribut est ici souhaitable.
 **Impact sur `setDefaultTokenForCharacter` :** La fonction capture l'état courant du token,
 y compris l'absence de lien sur bar3. Tout futur glisser-déposer du personnage depuis la
 bibliothèque produira un token avec des PV initiaux indépendants.
+
+---
+
+### D-R20 — Bug : sections `mo_stats` dans un ordre non-standard (Traits après Actions)
+
+**Bug constaté :** Pour certains monstres dont `mo_stats` place `Traits` après `Actions`
+(format non-standard mais valide), le trait concerné était importé comme une Action dans
+Roll20, et la section Traits était vide.
+
+**Exemple :**
+```
+Actions
+  Attaques multiples...
+  Masse d'armes...
+  Incantation...
+Traits                          ← Traits APRÈS Actions
+  Lumière divine. ...           ← absorbé par la section Actions (bug)
+Actions Bonus
+  Soutien divin...
+```
+
+**Cause :** La fonction `sentinelleBloc(array $bloc, array $cles, int $defaut): int`
+calculait la borne de fin de chaque section en cherchant le minimum parmi une liste
+**codée en dur** de sections-candidates. Les bornes pour Actions étaient
+`['legendary','bonus','reactions']` — `traits` était délibérément absent (car, dans le
+format standard, Traits est toujours avant Actions). Quand Traits apparaissait après
+Actions dans le texte, la section Actions lisait jusqu'à Actions Bonus, engloutissant
+le contenu de Traits. La sentinelle pour Traits trouvait `actions` (ligne 13) comme
+minimum, inférieur à son propre début (ligne 19) → `$fin < $debut` → bloc vide.
+
+**Correction :** Réécriture de `sentinelleBloc` avec une nouvelle signature
+`sentinelleBloc(array $bloc, int $apres, int $defaut): int` :
+- Paramètre `$apres` (position de début de la section courante) remplace `array $cles`
+- La fonction cherche la première position du tableau `$bloc` qui est **strictement
+  supérieure à `$apres`** — quel que soit le nom de la section
+- Tous les appels de `parseMonstreStats` mis à jour : chaque section passe
+  `$bloc['section_courante']` comme `$apres`
+
+**Résultat :** L'ordre des sections dans `mo_stats` n'a plus d'importance —
+l'algorithme trouve toujours la prochaine section qui vient après dans le texte.
+Testé sur ordre standard (Traits→Actions→...) et non-standard (Actions→Traits→...).
 
 ---
 

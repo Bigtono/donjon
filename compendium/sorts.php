@@ -80,7 +80,7 @@ $listConfig = [
   'champ_public'    => 'so.so_public',
   'champ_visible'   => 'so.so_visible',
   'champ_res_owner' => 'res.res_j_id',
-  'colonnes'      => [
+  'colonnes'      => array_values(array_filter([
     [
       'sql'    => 'so.so_nom',
       'champ'  => 'so_nom',
@@ -95,6 +95,15 @@ $listConfig = [
       'mobile' => false,
       'tri'    => true,
     ],
+    // Niveau direct (so_niveau) uniquement en DD2024 — en DD3.5 le niveau
+    // dépend de la classe (dd_sortclasse), pas d'une valeur unique par sort.
+    $ruleset_rep === 'DD2024' ? [
+      'sql'    => 'so.so_niveau',
+      'champ'  => 'so_niveau',
+      'label'  => 'Niveau',
+      'mobile' => false,
+      'tri'    => true,
+    ] : null,
     [
       'sql'    => 'res.res_abreviation',
       'champ'  => 'res_abreviation',
@@ -102,7 +111,7 @@ $listConfig = [
       'mobile' => false,
       'tri'    => false,
     ],
-  ],
+  ])),
   'filtres'       => $filtres,
   'url_detail'    => BASE_URL . '/include/ajax/detail-pp/sort.php',
   'url_modifier'  => BASE_URL . '/include/ajax/modifier/sort.php',

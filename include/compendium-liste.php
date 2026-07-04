@@ -168,7 +168,7 @@ foreach ($listConfig['filtres'] as $f):
   // leur effet est géré par extra_where dans la page contrôleur
   if ($f['type'] === 'checkbox') continue;
   $val = strParam($_GET[$f['name']] ?? '');
-  if ($val === '' || $val === '0') continue;
+  if ($val === '') continue;
   if ($f['type'] === 'exists' || $f['type'] === 'exists_range'):
     // Filtre via sous-requête EXISTS — évite les doublons liés aux JOINs
     $where_parts[] = $f['sql'];

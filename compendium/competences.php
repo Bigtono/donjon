@@ -16,8 +16,9 @@ $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
 // ============================================================
 // Filtres spécifiques
 // comp_car_id → dd_caracteristiques (filtre SELECT via query)
-// comp_formation → formation requise (filtre booléen, valeur 1 uniquement —
-//   le moteur ignore val=0, donc "sans formation" n'est pas filtrable)
+// comp_formation → formation requise (seule l'option "Formation requise" est
+//   proposée dans le select ; "Sans formation" pourrait être ajouté au besoin,
+//   le moteur ne l'ignore plus — cf. DECISIONS_LOG.md [2026-07-04])
 // ============================================================
 
 $filtres = [
