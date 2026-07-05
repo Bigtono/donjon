@@ -42,9 +42,11 @@ if ($id > 0):
 endif;
 
 // Catégories de dons
-$categories = $db->query(
-  'SELECT dado_id, dado_nom FROM dd_data_don ORDER BY dado_nom'
-)->fetchAll();
+$stmt = $db->prepare(
+  'SELECT dado_id, dado_nom FROM dd_data_don WHERE dado_ruleset_var_id = ? ORDER BY dado_nom'
+);
+$stmt->execute([$ruleset_id]);
+$categories = $stmt->fetchAll();
 
 // Ressources actives — scindées en 2 groupes pour le select du formulaire :
 // sources officielles (res_j_id IS NULL) vs supplément personnel de

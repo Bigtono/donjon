@@ -23,8 +23,8 @@ $filtres = [
     'name'         => 'f_dado_id',
     'label'        => 'Catégorie',
     'champ'        => 'do.do_dado_id',
-    'query'        => 'SELECT dado_id val, dado_nom lab FROM dd_data_don ORDER BY dado_nom',
-    'query_params' => [],
+    'query'        => 'SELECT dado_id val, dado_nom lab FROM dd_data_don WHERE dado_ruleset_var_id = ? ORDER BY dado_nom',
+    'query_params' => [$ruleset_id],
   ],
 ];
 

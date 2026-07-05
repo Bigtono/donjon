@@ -401,6 +401,35 @@ function lierDons(string $txt, array $index, array &$rapport): string
 }
 
 // ============================================================
+// 6bis. ANNOTATIONS PAR ETOILE (*)
+// ============================================================
+// Toute etoile presente dans une valeur affichee est mise en exposant.
+// Certains contextes precis declenchent en plus l'ajout d'une legende
+// explicative (DD2024 uniquement), collectee au fil du parsing et inseree
+// une seule fois juste avant le premier bloc de section (Traits, Actions...).
+// Extensible : pour un nouveau contexte d'etoile (ex. dans un trait, une
+// action...), ajouter sa detection dans detecterLegendesEtoile() ; le
+// mecanisme de collecte/insertion (formaterBlocDD2024()) n'a pas a changer.
+
+function exposantEtoiles(string $html): string
+{
+  return str_replace('*', '<sup>*</sup>', $html);
+}
+
+function detecterLegendesEtoile(string $label, string $valeurBrute): array
+{
+  $legendes = [];
+  if (normaliserNomMonstre($label) === normaliserNomMonstre('Competences')):
+    // Etoile juste apres le modificateur numerique d'une competence,
+    // ex : "Discretion +7*, Perception +5"
+    if (preg_match('/[+-]\s*\d+\*/u', $valeurBrute)):
+      $legendes[] = '* Expertise dans la compétence';
+    endif;
+  endif;
+  return $legendes;
+}
+
+// ============================================================
 // 7. TABLEAU DES CARACTERISTIQUES DD2024
 // ============================================================
 
@@ -551,15 +580,24 @@ function classerLigneDD2024(string $ligne): array
 function formaterBlocDD2024(
   array $lignes, PDO $db, array $index, array $indexAuto, array &$rapport
 ): string {
-  $out       = [];
-  $i         = 0;
-  $n         = count($lignes);
-  $carac_buf = [];
+  $out            = [];
+  $i              = 0;
+  $n              = count($lignes);
+  $carac_buf      = [];
+  $legendes_etoile = [];
 
   $flushCarac = function () use (&$carac_buf, &$out) {
     if (empty($carac_buf)) return;
     $out[]     = '<div class="mo-carac-wrap">' . rendreTableauCarac($carac_buf) . '</div>';
     $carac_buf = [];
+  };
+
+  $flushLegendesEtoile = function () use (&$legendes_etoile, &$out) {
+    if (empty($legendes_etoile)) return;
+    foreach (array_keys($legendes_etoile) as $texte):
+      $out[] = '<div class="mo-stat-ligne mo-mention">' . exposantEtoiles($texte) . '</div>';
+    endforeach;
+    $legendes_etoile = [];
   };
 
   while ($i < $n):
@@ -590,7 +628,8 @@ function formaterBlocDD2024(
 
       case 'section_titre':
         $flushCarac();
-        $out[] = '<div class="mo-section-titre">' . h($cl['texte']) . '</div>';
+        $flushLegendesEtoile();
+        $out[] = '<div class="mo-section-titre">' . exposantEtoiles(h($cl['texte'])) . '</div>';
         $i++; break;
 
       case 'label_inline':
@@ -598,6 +637,7 @@ function formaterBlocDD2024(
         // Pré-passe tags + liaison auto sur la valeur
         $val = resoudreTagsExplicites($cl['valeur'], $db, $index, 0, $rapport);
         $val = lierAuto($val, $indexAuto, $rapport);
+        $val = exposantEtoiles($val);
         $out[] = '<div class="mo-stat-ligne">'
                . '<strong class="mo-stat-label">' . h($cl['label']) . '</strong> '
                . $val . '</div>';
@@ -605,6 +645,9 @@ function formaterBlocDD2024(
 
       case 'label_gras':
         $flushCarac();
+        foreach (detecterLegendesEtoile($cl['label'], $cl['valeur']) as $leg):
+          $legendes_etoile[$leg] = true;
+        endforeach;
         $gNorm        = normaliserNomMonstre($cl['label']);
         $sansLiaison  = array_map('normaliserNomMonstre', labelsGrasSansLiaisonDD2024());
         if (in_array($gNorm, $sansLiaison, true)):
@@ -619,6 +662,7 @@ function formaterBlocDD2024(
           // Pour Resistances/Immunites etc. : liaison auto (peut contenir des termes de glossaire)
           $val = lierAuto($val, $indexAuto, $rapport);
         endif;
+        $val = exposantEtoiles($val);
         $out[] = '<div class="mo-stat-ligne">'
                . '<strong class="mo-stat-label">' . h($cl['label']) . '</strong>'
                . ($cl['valeur'] !== '' ? ' ' . $val : '')
@@ -630,6 +674,7 @@ function formaterBlocDD2024(
         $flushCarac();
         $val = resoudreTagsExplicites($cl['valeur'], $db, $index, 0, $rapport);
         $val = lierSorts($val, $index, $rapport);
+        $val = exposantEtoiles($val);
         $out[] = '<div class="mo-sous-liste">'
                . '<span class="mo-sous-liste-label">' . h($cl['label']) . ' :</span> '
                . $val . '</div>';
@@ -638,10 +683,11 @@ function formaterBlocDD2024(
       case 'pouvoir':
         $flushCarac();
         // NOM : affiche tel quel, jamais parse automatiquement
-        $nomHtml = h($cl['nom']);
+        $nomHtml = exposantEtoiles(h($cl['nom']));
         // DESCRIPTION : pré-passe tags + liaison auto (sorts + glossaire)
         $desc = resoudreTagsExplicites($cl['description'], $db, $index, 0, $rapport);
         $desc = lierAuto($desc, $indexAuto, $rapport);
+        $desc = exposantEtoiles($desc);
         $out[] = '<div class="mo-pouvoir">'
                . '<span class="mo-pouvoir-nom">' . $nomHtml . '.</span> '
                . $desc . '</div>';
@@ -651,6 +697,7 @@ function formaterBlocDD2024(
         $flushCarac();
         $txt = resoudreTagsExplicites(trim($ligne), $db, $index, 0, $rapport);
         $txt = lierAuto($txt, $indexAuto, $rapport);
+        $txt = exposantEtoiles($txt);
         $out[] = '<div class="mo-stat-ligne">' . $txt . '</div>';
         $i++; break;
 
@@ -658,6 +705,9 @@ function formaterBlocDD2024(
   endwhile;
 
   $flushCarac();
+  // Repli : si aucun bloc de section (Traits, Actions...) n'a ete rencontre,
+  // la legende n'a pas encore ete inseree — on la place en fin de bloc.
+  $flushLegendesEtoile();
   return implode("\n", $out);
 }
 
@@ -686,11 +736,11 @@ function formaterLigneDD35(
       else:
         $valeur = lierAuto($droite, $indexAuto, $rapport);
       endif;
-      return $labelHtml . ' : ' . $valeur;
+      return $labelHtml . ' : ' . exposantEtoiles($valeur);
     endif;
   endif;
   $ligne = resoudreTagsExplicites($ligne, $db, $index, 0, $rapport);
-  return lierAuto($ligne, $indexAuto, $rapport);
+  return exposantEtoiles(lierAuto($ligne, $indexAuto, $rapport));
 }
 
 // ============================================================

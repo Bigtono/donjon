@@ -873,6 +873,14 @@
   color: var(--clr-text-muted);
 }
 
+/* ---- Mention explicative (ex. "* Expertise dans la compétence") ----
+   Style dédié, réutilisable pour toute mention ajoutée au parser monstre. */
+.mo-mention {
+  font-style: italic;
+  font-size: .78rem;
+  color: var(--clr-text-muted);
+}
+
 /* ============================================================
    DD2024 — Grille des caractéristiques
    Deux rangées de 3 colonnes (For/Dex/Con puis Int/Sag/Cha),
