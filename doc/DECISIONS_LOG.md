@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-04 14:30 -->
+<!-- Mis à jour : 2026-07-05 09:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2440,6 +2440,37 @@ minimum, inférieur à son propre début (ligne 19) → `$fin < $debut` → bloc
 **Résultat :** L'ordre des sections dans `mo_stats` n'a plus d'importance —
 l'algorithme trouve toujours la prochaine section qui vient après dans le texte.
 Testé sur ordre standard (Traits→Actions→...) et non-standard (Actions→Traits→...).
+
+---
+
+### D-R21 — Accents dans le nom du fichier JSON exporté
+
+**Bug constaté :** Le nom du fichier JSON téléchargé contenait des doubles underscores `__`
+à la place des caractères accentués :
+
+```
+roll20_Squelette_enflamm__.json   (attendu : roll20_Squelette_enflamme.json)
+roll20_Rodeur_M__nestrel.json     (attendu : roll20_Rodeur_Menestrel.json)
+```
+
+**Cause :** La construction du nom de fichier utilisait `preg_replace('/[^a-z0-9_-]/i', '_', $nom)`.
+Sans le flag `/u` (Unicode), `preg_replace` opère octet par octet en PHP. Un caractère
+accentué UTF-8 est encodé sur 2 octets (ex : `é` → `\xC3\xA9`) — chaque octet hors de
+`[a-z0-9_-]` est remplacé indépendamment → **2 underscores** par caractère accentué.
+
+**Correction :** Passer `mo_nom` dans `strtr()` avec une table de correspondance complète
+(a–z + A–Z, avec leurs variantes accentuées) **avant** le `preg_replace` :
+
+```php
+$_nom_brut = strtr((string)$mo['mo_nom'], [
+  'à'=>'a', 'é'=>'e', 'ê'=>'e', 'ç'=>'c', ...  // minuscules
+  'À'=>'A', 'É'=>'E', 'Ê'=>'E', 'Ç'=>'C', ...  // majuscules
+]);
+$filename = 'roll20_' . preg_replace('/[^a-z0-9_-]/i', '_', $_nom_brut) . '.json';
+```
+
+La casse du nom original est préservée (`Squelette_enflamme`, `Rodeur_Menestrel`).
+
 
 ---
 

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-04 14:30 -->
+<!-- Mis à jour : 2026-07-05 09:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
