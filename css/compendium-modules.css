@@ -364,10 +364,12 @@
 }
 
 .comp-menu-dropdown {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  z-index: 50;
+  /* position: fixed (calculée en JS depuis le bouton, cf. compToggleMenu())
+     plutôt qu'absolute/top:100% — évite que le menu soit découpé par
+     .comp-liste-wrapper (overflow-x:auto force overflow-y:auto) quand la
+     ligne est en bas du tableau. */
+  position: fixed;
+  z-index: 400;
   background: var(--clr-surface);
   border: 1px solid var(--clr-border);
   border-radius: var(--radius-sm);

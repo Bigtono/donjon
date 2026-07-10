@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-05 09:00 -->
+<!-- Mis à jour : 2026-07-05 13:15 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2560,3 +2560,136 @@ transmet la ligne exacte pour trancher entre les deux causes. Selon le résultat
   positionnée dans la configuration Apache/OVH).
 
 **Statut : ouvert.**
+
+---
+
+## [2026-07-04] Incident — Crash MySQL local, restauration incomplète du 28/06, récupération complète
+
+> **Note de session [2026-07-05] :** cette entrée avait été rédigée le 04/07 puis a disparu du
+> fichier (écrasée par une sauvegarde concurrente d'une autre session travaillant sur D-CFG1/D-CFG2
+> ci-dessus, sans connaissance de cet ajout). Reconstituée à l'identique le 05/07 après constat de
+> l'absence. **Leçon distincte à ajouter au bilan** : ce fichier journal lui-même a été victime d'un
+> écrasement concurrent (deux sessions Claude Code éditant `DECISIONS_LOG.md` en parallèle sans se
+voir) — un risque à garder en tête si plusieurs sessions travaillent le même jour.
+
+### Signalement
+
+Suite à un plantage MySQL local ce matin, Jean-Michel restaure une sauvegarde du 28/06 dans une
+nouvelle base `donjon` (l'ancienne base `maikasteiymaika` semblait inaccessible) et repointe
+`config/db.config.php` dessus. Premier symptôme : les monstres du supplément personnel de tono
+(cf. mécanisme Supplément, SP-C, [2026-06-15]) ont disparu de la liste Monstres du compendium.
+
+### Diagnostic 1 — Le schéma n'est pas en cause
+
+Inspection directe de la base `donjon` restaurée : toutes les colonnes du mécanisme Supplément
+(`mo_public`, `mo_visible`, `mo_res_id`, et leurs équivalents sur les 7 autres entités), ainsi que
+`dd_monstres_categories`, `dd_monstres_groupes`, `dd_fp`, sont bien présentes — ces migrations
+(`patch_004_supplements.sql` et la réplication du 2026-07-01, cf. plus haut) datent toutes d'avant
+le 28/06. Aucun patch de schéma appliqué directement en base n'est donc perdu par cette restauration.
+
+### Diagnostic 2 — Un data-only fix du 2026-07-02 n'avait jamais quitté le poste de dev
+
+Cause réelle : `dd_joueurs_sources` ne contient plus la ligne du supplément de tono (`res_id=95`,
+ruleset DD2024). C'est exactement le bug documenté le [2026-07-02] ci-dessus — sauf que sa
+correction ponctuelle ("ligne réinsérée manuellement... base de dev locale") n'avait, comme
+explicitement noté à l'époque, jamais été répliquée ailleurs. La restauration du 28/06 (antérieure
+au 02/07) ne pouvait donc pas l'avoir.
+
+→ **Leçon retenue :** un correctif de **données** (par opposition à un correctif de **schéma**,
+lui documenté et committable dans `sql/`) appliqué en urgence sur un environnement doit être noté
+explicitement comme *à répliquer* sur les autres environnements (ici : OVH production), pas
+seulement comme "fait". Le correctif code (`profil/index.php`) empêche la récidive *future* du
+bug, mais ne répare jamais rétroactivement une ligne déjà perdue ailleurs — ce qui explique
+pourquoi le même symptôme est réapparu sur OVH (cf. plus bas), indépendamment du crash local.
+
+### Diagnostic 3 — La base `maikasteiymaika` d'origine n'était pas juste "en retard", elle était récupérable
+
+Investigation plus poussée sur l'ancienne base (celle qui a crashé) : 57 des 58 tables InnoDB
+renvoyaient `ERROR 1932 : Table '...' doesn't exist in engine`, alors que les fichiers `.frm`/`.ibd`
+sur disque étaient intacts et datés jusqu'au 3-4/07 (donc bien postérieurs au 28/06). Le journal
+d'erreur MySQL révèle qu'un `innodb_force_recovery=6` (niveau le plus agressif, saute le rejeu du
+redo log) avait déjà été tenté ce matin avant cette session, sans succès apparent — seul le
+dictionnaire interne InnoDB était cassé, pas les tablespaces eux-mêmes.
+
+**Procédure de récupération appliquée :**
+1. Sauvegarde complète du dossier `data` MySQL avant toute manipulation (non destructif).
+2. Pour chacune des 57 tables cassées : `DROP TABLE` (nettoyage des métadonnées orphelines),
+   `CREATE TABLE` avec la structure exacte empruntée à `donjon` (schéma identique, confirmé par le
+   diagnostic 1), `ALTER TABLE ... DISCARD TABLESPACE`, copie du fichier `.ibd` d'origine à sa
+   place, `ALTER TABLE ... IMPORT TABLESPACE`, puis reconstruction des index secondaires et
+   contraintes FK (nécessaire : `IMPORT TABLESPACE` sans fichier `.cfg` exige l'absence d'index
+   secondaires au moment de l'import).
+3. Cas particulier `dd_regles` (seule table avec un index `FULLTEXT`) : l'import échouait même
+   après suppression de tous les index listés par `SHOW INDEX` — recréer la table **sans jamais
+   déclarer l'index FULLTEXT** (plutôt que le déclarer puis le supprimer) a permis l'import, suivi
+   d'un `ADD FULLTEXT KEY` a posteriori.
+4. Script de traitement par lot : `recover.php` (PDO, information_schema pour capturer/rejouer les
+   définitions d'index et de FK) — non committé au dépôt, outil ponctuel d'incident.
+
+**Résultat :** 68/68 tables accessibles. Comparaison ligne à ligne avec le snapshot `donjon`
+(28/06) : aucune table n'affiche un compte inférieur ; plusieurs en affichent un supérieur
+(`dd_monstres` 24 vs 19, `dd_joueurs_sources` 28 vs 27, `dd_classe_niveau` 810 vs 770, etc.),
+confirmant la récupération de l'activité réelle du 28/06 au 04/07 sans perte de données.
+
+### Bascule finale et régression annexe
+
+`config/db.config.php` repointé sur `maikasteiymaika` (récupérée) plutôt que `donjon`. La base
+`donjon` est conservée (non supprimée) par précaution. Pendant l'intervention, une modification
+indépendante du même fichier (unification config locale/OVH, cf. D-CFG1 ci-dessus) a transitoirement
+réintroduit `dbname=donjon` en local, faisant réapparaître le symptôme une seconde fois — corrigé en
+repointant sur `maikasteiymaika`.
+
+### Volet OVH — même bug, jamais patché en production
+
+Une fois le local rétabli, Jean-Michel signale le **même symptôme sur OVH**. Cause confirmée :
+le correctif de données du 2026-07-02 n'ayant été appliqué qu'en local (cf. Diagnostic 2), la
+production portait le même défaut depuis l'origine, sans lien avec le crash du jour. Corrigé par
+Jean-Michel lui-même via phpMyAdmin OVH, avec une requête idempotente et générique (ne présuppose
+aucun ID) :
+
+```sql
+INSERT INTO dd_joueurs_sources (js_j_id, js_res_id, js_ruleset_var_id)
+SELECT r.res_j_id, r.res_id, r.res_ruleset_var_id
+FROM dd_ressources r
+WHERE r.res_j_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM dd_joueurs_sources s
+    WHERE s.js_j_id = r.res_j_id
+      AND s.js_res_id = r.res_id
+      AND s.js_ruleset_var_id = r.res_ruleset_var_id
+  );
+```
+
+**Statut initial : résolu en local et sur OVH.** Sauvegarde de sécurité du dossier `data` MySQL
+local conservée hors dépôt (scratchpad de session, à rapatrier manuellement si besoin de rejouer
+l'incident).
+
+### Suite [2026-07-05] — Effet de bord découvert : compteurs AUTO_INCREMENT désynchronisés
+
+**Signalement :** en testant une nouvelle action "Dupliquer" sur Monstres (session du 05/07, sans
+rapport avec l'incident ci-dessus au départ), erreur `SQLSTATE[23000]: ... 1062 Duplicate entry '22'
+for key 'PRIMARY'` sur `dd_monstres` lors d'un simple `INSERT` sans `mo_id` explicite.
+
+**Cause :** conséquence directe de la procédure de récupération du 04/07 (Diagnostic 3 ci-dessus).
+Chaque `CREATE TABLE` de reconstruction empruntait la DDL de `donjon` (snapshot du 28/06), DDL qui
+embarque une valeur `AUTO_INCREMENT=N` littérale figée à cette date. `ALTER TABLE ... IMPORT
+TABLESPACE` réimporte les lignes réelles mais **ne remet pas à jour ce compteur** vers le nouveau
+`MAX(id)` — contrairement à un `INSERT` normal, InnoDB ne le recalcule pas non plus tout seul au
+redémarrage du serveur dans ce cas précis (table reconstruite par import, pas par activité DML
+continue). Le compteur restait donc bloqué sur l'ancienne valeur du 28/06 pour toute table ayant
+reçu d'authentiques nouvelles lignes entre le 28/06 et le crash du 04/07 — les premiers `INSERT`
+post-recovery rentrent alors en collision avec des lignes réelles déjà présentes (ex. mo_id 22/23/24
+= Squelette/Zombi/Goule, déjà en base, pas des artefacts).
+
+**Portée :** balayage systématique de toutes les tables InnoDB de `maikasteiymaika` (comparaison
+`AUTO_INCREMENT` vs `MAX(pk)` réel via `information_schema`) — 4 tables concernées, corrigées par
+`ALTER TABLE ... AUTO_INCREMENT = MAX(pk)+1` :
+`dd_capacites_speciales` (452→459), `dd_classe_capacite` (768→790), `dd_joueurs_sources` (56→62),
+`dd_monstres` (25→27). Les 53 autres tables recréées le 04/07 n'ont reçu aucun nouvel `INSERT`
+depuis (compteur déjà correct par coïncidence, aucune activité pour révéler l'écart) — même risque
+latent si une entrée y est ajoutée sans repasser par ce correctif ; aucun signe qu'il faille agir
+préventivement ailleurs, mais à garder en tête si un autre "Duplicate entry" apparaît sur une table
+touchée par la récupération du 04/07.
+
+**Statut : corrigé (4 tables), pas de récidive attendue — `ALTER TABLE ... AUTO_INCREMENT` est
+persistant, contrairement au comportement transitoire qui a permis l'écart initial.**

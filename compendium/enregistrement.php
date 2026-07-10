@@ -176,6 +176,9 @@ switch ($entite):
       case 'bulk_supprimer':
         supprimerMonstre($db, $is_ajax, $redirect);
         break;
+      case 'dupliquer':
+        dupliquerMonstre($db, $is_ajax, $redirect);
+        break;
       default:
         repondreErreur($is_ajax, 'Action inconnue.', $redirect);
     endswitch;
@@ -2202,6 +2205,65 @@ function supprimerMonstre($db, bool $is_ajax, string $redirect): void
   }
 }
 
+
+// Duplication — même garde per-entry que la suppression (SP-C2/SP-C3) :
+// dupliquer une entrée suppose le même droit que la modifier. Copie
+// intégrale (mêmes stats/catégorie/source/visibilité), nom préfixé.
+function dupliquerMonstre($db, bool $is_ajax, string $redirect): void
+{
+  $mo_id = intParam($_POST['ids'][0] ?? $_POST['id'] ?? 0);
+  if (!$mo_id):
+    repondreErreur($is_ajax, 'Monstre introuvable.', $redirect);
+  endif;
+
+  $stmt = $db->prepare('
+    SELECT mo.*, res.res_j_id
+    FROM   dd_monstres      mo
+    LEFT JOIN dd_ressources res ON res.res_id = mo.mo_res_id
+    WHERE  mo.mo_id = ?
+  ');
+  $stmt->execute([$mo_id]);
+  $mo = $stmt->fetch();
+  if (!$mo):
+    repondreErreur($is_ajax, 'Monstre introuvable.', $redirect);
+  endif;
+
+  $res_j_id = $mo['res_j_id'] !== null ? (int)$mo['res_j_id'] : null;
+  if (!canEditCompendiumEntry($db, $res_j_id)):
+    repondreErreur($is_ajax, 'Accès refusé.', $redirect);
+  endif;
+
+  try {
+    $db->beginTransaction();
+    $stmt = $db->prepare('
+      INSERT INTO dd_monstres
+        (mo_nom, mo_mocat_id, mo_mogr_id, mo_stats, mo_fp_id,
+         mo_res_id, mo_camp_id, mo_public, mo_visible, mo_ruleset_var_id)
+      VALUES (?,?,?,?,?,?,?,?,?,?)
+    ');
+    $stmt->execute([
+      'Copie de ' . $mo['mo_nom'],
+      $mo['mo_mocat_id'],
+      $mo['mo_mogr_id'],
+      $mo['mo_stats'],
+      $mo['mo_fp_id'],
+      $mo['mo_res_id'],
+      $mo['mo_camp_id'],
+      $mo['mo_public'],
+      $mo['mo_visible'],
+      $mo['mo_ruleset_var_id'],
+    ]);
+    $new_id = (int)$db->lastInsertId();
+    $db->commit();
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('dupliquerMonstre : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+    return;
+  }
+
+  repondreOk($is_ajax, $new_id, 'monstre', $redirect);
+}
 
 // ============================================================
 // HISTORIQUE — Enregistrement (DD2024 uniquement)

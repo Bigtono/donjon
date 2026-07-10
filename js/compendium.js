@@ -84,7 +84,7 @@ function majSourcesBadge(entite) {
 // MENU LIGNE (⋮)
 // ============================================================
 
-function compToggleMenu(id) {
+function compToggleMenu(id, btn) {
   const menu = document.getElementById('comp-menu-' + id);
   if (!menu) return;
 
@@ -92,19 +92,31 @@ function compToggleMenu(id) {
   document.querySelectorAll('.comp-menu-dropdown').forEach(m => {
     if (m !== menu) m.classList.add('noDisplay');
   });
-  menu.classList.toggle('noDisplay');
+
+  if (!menu.classList.contains('noDisplay')) {
+    menu.classList.add('noDisplay');
+    return;
+  }
+
+  // Position fixe calculée depuis le bouton (cf. css/compendium-modules.css
+  // .comp-menu-dropdown) — le menu peut ainsi déborder de .comp-liste-wrapper
+  // au lieu d'être découpé en bas de page pour les dernières lignes.
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    menu.style.top = rect.bottom + 'px';
+    menu.style.left = rect.left + 'px';
+  }
+  menu.classList.remove('noDisplay');
 
   // Ferme au clic extérieur
-  if (!menu.classList.contains('noDisplay')) {
-    setTimeout(() => {
-      document.addEventListener('click', function handler(e) {
-        if (!menu.contains(e.target)) {
-          menu.classList.add('noDisplay');
-          document.removeEventListener('click', handler);
-        }
-      });
-    }, 0);
-  }
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      if (!menu.contains(e.target)) {
+        menu.classList.add('noDisplay');
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 0);
 }
 
 // ============================================================
@@ -137,6 +149,20 @@ function compConfirmerSuppression(id) {
   if (!form) return;
 
   document.getElementById('comp-bulk-action-hidden').value = 'supprimer';
+  document.getElementById('comp-bulk-ids').innerHTML =
+    `<input type="hidden" name="ids[]" value="${id}">`;
+
+  form.submit();
+}
+
+// Duplique une seule ligne (menu ⋮ — cf. $listConfig['action_dupliquer']).
+// Réutilise le même formulaire bulk que la suppression, pas de confirmation
+// nécessaire (action non destructive).
+function compDupliquer(id) {
+  const form = document.getElementById('comp-bulk-form');
+  if (!form) return;
+
+  document.getElementById('comp-bulk-action-hidden').value = 'dupliquer';
   document.getElementById('comp-bulk-ids').innerHTML =
     `<input type="hidden" name="ids[]" value="${id}">`;
 

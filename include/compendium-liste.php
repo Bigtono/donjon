@@ -24,6 +24,9 @@
 //                            require_edit=false → item visible pour tous dans le menu ⋮
 //                                                 (le menu ⋮ s'affiche même pour les non-éditeurs)
 //                            require_edit=true  → item réservé aux éditeurs dans le menu ⋮
+//   action_dupliquer bool  — (optionnel) affiche "Dupliquer" dans le menu ⋮ (réservé aux éditeurs,
+//                            même garde que Modifier). Nécessite un case 'dupliquer' dans le
+//                            dispatch de compendium/enregistrement.php pour l'entité concernée.
 //
 //   --- Supplément utilisateur (SP-C2) — les 3 clés suivantes sont optionnelles,
 //       et doivent être déclarées ENSEMBLE pour activer le mécanisme :
@@ -552,13 +555,19 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
                 <?php if ($_afficher_menu): ?>
                   <div class="comp-menu-ligne">
                     <button class="btn btn-icon btn-sm comp-menu-btn"
-                      onclick="compToggleMenu(<?= $id ?>)"
+                      onclick="compToggleMenu(<?= $id ?>, this)"
                       title="Actions">⋮</button>
                     <div id="comp-menu-<?= $id ?>" class="comp-menu-dropdown noDisplay">
                       <?php if ($peut_modifier_ligne): ?>
                         <button class="comp-menu-item"
                           onclick="compToggleMenu(<?= $id ?>); ouvrirModifier(compUrlModifier, <?= $id ?>)">
                           <i class="fa fa-edit"></i> Modifier
+                        </button>
+                      <?php endif ?>
+                      <?php if ($peut_modifier_ligne && !empty($listConfig['action_dupliquer'])): ?>
+                        <button class="comp-menu-item"
+                          onclick="compToggleMenu(<?= $id ?>); compDupliquer(<?= $id ?>)">
+                          <i class="fa fa-copy"></i> Dupliquer
                         </button>
                       <?php endif ?>
                       <?php // Toutes les row_actions visibles selon les droits ?>

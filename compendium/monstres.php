@@ -103,6 +103,7 @@ $listConfig = [
   'bulk_actions'    => [
     ['valeur' => 'supprimer', 'label' => 'Supprimer la sélection'],
   ],
+  'action_dupliquer' => true,
   // Bouton d'export Roll20 visible pour tous les utilisateurs authentifiés
   'row_actions'     => [
     [
