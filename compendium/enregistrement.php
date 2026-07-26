@@ -1848,6 +1848,10 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
   $visible      = isset($_POST['om_visible']) ? 1 : 0;
   $camp_id      = intParam($_POST['om_camp_id']       ?? 0) ?: null;
   $description  = $_POST['om_description'] ?? '';   // HTML TinyMCE — pas de h()
+  // om_harmonisation / om_rarete : DD2024 uniquement, absents du POST en DD3.5.
+  // om_rarete est NOT NULL en base (pas de défaut) : 0 = "aucune rareté".
+  $harmonisation = isset($_POST['om_harmonisation']) ? 1 : 0;
+  $rarete        = intParam($_POST['om_rarete'] ?? 0);
 
   try {
     $db->beginTransaction();
@@ -1883,9 +1887,9 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
       $stmt = $db->prepare('
         INSERT INTO dd_objets_magiques
           (om_nom, om_com_id, om_fom_id, om_so_id, om_so_niveau,
-           om_modificateurs, om_variantes, om_description, om_visible, om_public,
-           om_res_id, om_camp_id, om_ruleset_var_id)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+           om_modificateurs, om_variantes, om_description, om_harmonisation, om_rarete,
+           om_visible, om_public, om_res_id, om_camp_id, om_ruleset_var_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
@@ -1896,6 +1900,8 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
         $modificateurs,
         $variantes,
         $description,
+        $harmonisation,
+        $rarete,
         $visible,
         $public,
         $res_id,
@@ -1914,6 +1920,8 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
           om_modificateurs  = ?,
           om_variantes      = ?,
           om_description    = ?,
+          om_harmonisation  = ?,
+          om_rarete         = ?,
           om_visible        = ?,
           om_public         = ?,
           om_res_id         = ?,
@@ -1929,6 +1937,8 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
         $modificateurs,
         $variantes,
         $description,
+        $harmonisation,
+        $rarete,
         $visible,
         $public,
         $res_id,

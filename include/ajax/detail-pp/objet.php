@@ -24,11 +24,15 @@ $stmt = $db->prepare('
     com.com_est_calcule,
     res.res_nom,
     res.res_j_id,
-    var.var_valeur AS ruleset_label
+    var.var_valeur AS ruleset_label,
+    omr.omr_nom AS rarete_nom,
+    camp.camp_nom
   FROM   dd_objets_magiques            om
-  LEFT JOIN dd_categorie_objet_magique com ON com.com_id = om.om_com_id
-  LEFT JOIN dd_ressources              res ON res.res_id = om.om_res_id
-  LEFT JOIN dd_variables               var ON var.var_id = om.om_ruleset_var_id
+  LEFT JOIN dd_categorie_objet_magique com  ON com.com_id  = om.om_com_id
+  LEFT JOIN dd_ressources              res  ON res.res_id  = om.om_res_id
+  LEFT JOIN dd_variables               var  ON var.var_id  = om.om_ruleset_var_id
+  LEFT JOIN dd_objets_magiques_rarete  omr  ON omr.omr_id  = om.om_rarete
+  LEFT JOIN dd_campagnes               camp ON camp.camp_id = om.om_camp_id
   WHERE  om.om_id = ?
 ');
 $stmt->execute([$id]);
@@ -210,6 +214,8 @@ endif;
     if ($om['com_nom'])          $meta[] = h($om['com_nom']);
     if ($om['om_variantes'])     $meta[] = h($om['om_variantes']);
     if ($om['om_modificateurs'] > 0) $meta[] = '+' . (int)$om['om_modificateurs'];
+    if ($ruleset_rep === 'DD2024' && $om['rarete_nom'])       $meta[] = h($om['rarete_nom']);
+    if ($ruleset_rep === 'DD2024' && (int)$om['om_harmonisation'] === 1) $meta[] = 'Harmonisation requise';
     ?>
     <?php if (!empty($meta)): ?>
       <p class="sort-detail__college">
@@ -230,6 +236,11 @@ endif;
     <span class="sort-detail__source">
       <i class="fa fa-book"></i> <?= h($om['res_nom']) ?>
     </span>
+    <?php if ($om['om_camp_id'] && $om['camp_nom']): ?>
+      <span class="sort-detail__homebrew">
+        <i class="fa fa-flask"></i> <?= h($om['camp_nom']) ?>
+      </span>
+    <?php endif ?>
     <span class="sort-detail__ruleset"><?= h($om['ruleset_label']) ?></span>
   </div>
 

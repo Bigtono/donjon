@@ -31,6 +31,8 @@ $om = [
   'om_modificateurs'=> 0,
   'om_variantes'    => '',
   'om_description'  => '',
+  'om_harmonisation'=> 0,
+  'om_rarete'       => 0,
   'om_visible'      => 1,
   'om_public'       => 0,
   'om_res_id'       => '',
@@ -126,6 +128,28 @@ endif;
 // Catégorie sélectionnée → calcule ?
 $com_id_sel      = (int)($om['om_com_id'] ?? 0);
 $cat_est_calcule = $cat_calcule_map[$com_id_sel] ?? 0;
+
+// Raretés — DD2024 uniquement
+$raretes = [];
+if ($ruleset_rep === 'DD2024'):
+  $stmt = $db->prepare('
+    SELECT omr_id, omr_nom
+    FROM   dd_objets_magiques_rarete
+    WHERE  omr_ruleset_var_id = ?
+    ORDER  BY omr_id
+  ');
+  $stmt->execute([$ruleset_id]);
+  $raretes = $stmt->fetchAll();
+endif;
+
+// Campagnes de l'utilisateur — DD2024 uniquement (homebrew)
+$campagnes = [];
+if ($ruleset_rep === 'DD2024' && !empty($_SESSION['j_mode_campagne'])):
+  [$owWhere, $owParams] = ownerFilter('camp');
+  $stmt = $db->prepare("SELECT camp_id, camp_nom FROM dd_campagnes WHERE $owWhere ORDER BY camp_nom");
+  $stmt->execute($owParams);
+  $campagnes = $stmt->fetchAll();
+endif;
 
 $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
 ?>
@@ -302,6 +326,57 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
 
       </div><!-- .modif-grid -->
     </div><!-- #section-dd35-auto -->
+    <?php elseif ($ruleset_rep === 'DD2024'): ?>
+    <!-- ===== Section DD2024 uniquement : rareté + harmonisation + campagne ===== -->
+    <div class="modif-section" id="section-dd2024">
+
+      <div class="modif-section__header">
+        <span class="modif-section__label">Paramètres DD2024</span>
+      </div>
+
+      <div class="modif-grid">
+
+        <!-- Rareté -->
+        <div class="form-group">
+          <label for="om_rarete">Rareté</label>
+          <select id="om_rarete" name="om_rarete">
+            <option value="0">— Aucune —</option>
+            <?php foreach ($raretes as $rar): ?>
+              <option value="<?= (int)$rar['omr_id'] ?>"
+                <?= (int)$om['om_rarete'] === (int)$rar['omr_id'] ? 'selected' : '' ?>>
+                <?= h($rar['omr_nom']) ?>
+              </option>
+            <?php endforeach ?>
+          </select>
+        </div>
+
+        <!-- Harmonisation -->
+        <div class="form-group">
+          <label class="form-label--checkbox">
+            <input type="checkbox" id="om_harmonisation" name="om_harmonisation" value="1"
+              <?= (int)$om['om_harmonisation'] === 1 ? 'checked' : '' ?>>
+            Harmonisation requise
+          </label>
+        </div>
+
+        <!-- Campagne homebrew -->
+        <?php if (!empty($campagnes)): ?>
+          <div class="form-group">
+            <label for="om_camp_id">Campagne (homebrew)</label>
+            <select id="om_camp_id" name="om_camp_id">
+              <option value="">— Compendium global —</option>
+              <?php foreach ($campagnes as $camp): ?>
+                <option value="<?= (int)$camp['camp_id'] ?>"
+                  <?= (int)$om['om_camp_id'] === (int)$camp['camp_id'] ? 'selected' : '' ?>>
+                  <?= h($camp['camp_nom']) ?>
+                </option>
+              <?php endforeach ?>
+            </select>
+          </div>
+        <?php endif ?>
+
+      </div><!-- .modif-grid -->
+    </div><!-- #section-dd2024 -->
     <?php endif ?>
 
     <!-- ===== Description TinyMCE ===== -->
