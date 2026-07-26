@@ -92,6 +92,7 @@ $listConfig = [
   'champ_res'       => 'mo.mo_res_id',
   'champ_ruleset'   => 'mo.mo_ruleset_var_id',
   'champ_camp'      => 'mo.mo_camp_id',
+  'camp_filtre'     => true,
   'champ_public'    => 'mo.mo_public',
   'champ_visible'   => 'mo.mo_visible',
   'champ_res_owner' => 'res.res_j_id',

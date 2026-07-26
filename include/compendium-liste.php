@@ -35,6 +35,14 @@
 //   champ_res_owner  string — champ res_j_id de la ressource liée ('res.res_j_id'),
 //                             nécessite que 'from' joigne déjà dd_ressources sous cet alias.
 //   Si absentes : comportement strictement inchangé (rétro-compatible).
+//
+//   --- Filtre Campagne (optionnel) :
+//   camp_filtre  bool  — true active un select "Campagne" dans la barre de filtre (GET f_camp),
+//                         qui bascule le filtre homebrew de "compendium global" (comportement
+//                         par défaut, camp_id IS NULL) vers "homebrew d'une campagne du MJ"
+//                         (camp_id = f_camp). Nécessite champ_camp (déclaré ou auto-inféré).
+//                         Absent/false : comportement strictement inchangé (camp_id IS NULL
+//                         toujours, aucun select affiché).
 
 // ============================================================
 // 1. PARAMÈTRES GET — tri, filtres, page
@@ -112,7 +120,7 @@ if (!empty($listConfig['champ_ruleset'])):
   $params[]      = (int)($_SESSION['ruleset_var_id'] ?? 1);
 endif;
 
-// Filtre homebrew : compendium global uniquement (camp_id IS NULL)
+// Filtre homebrew : compendium global par défaut (camp_id IS NULL).
 // Trois comportements selon champ_camp :
 //   non déclaré → auto-inférer depuis champ_id (convention <prefix>_camp_id)
 //   string      → utiliser cette colonne directement
@@ -120,14 +128,43 @@ endif;
 if (!array_key_exists('champ_camp', $listConfig)):
   // Auto-inférence : so_camp_id, cla_camp_id, do_camp_id...
   preg_match('/(\w+)\.(\w+)_id/', $listConfig['champ_id'], $m);
-  if (!empty($m[2])):
-    $prefix_table = $m[1];
-    $where_parts[] = $prefix_table . '.' . $m[2] . '_camp_id IS NULL';
-  endif;
+  $champ_camp = !empty($m[2]) ? $m[1] . '.' . $m[2] . '_camp_id' : null;
 elseif ($listConfig['champ_camp'] !== false):
-  $where_parts[] = $listConfig['champ_camp'] . ' IS NULL';
+  $champ_camp = $listConfig['champ_camp'];
+else:
+  $champ_camp = null; // champ_camp === false → pas de filtre camp
 endif;
-// champ_camp === false → filtre omis
+
+// Filtre "Campagne" (optionnel, listConfig['camp_filtre'] === true) : bascule
+// le filtre homebrew de "compendium global" vers "homebrew d'une campagne du
+// MJ" via un select dans la barre de filtre (GET f_camp). Rétro-compatible :
+// sans ce flag, comportement strictement inchangé (camp_id IS NULL).
+$camp_filtre_actif = !empty($listConfig['camp_filtre']) && $champ_camp !== null;
+$mes_campagnes     = [];
+$camp_get          = 0;
+if ($camp_filtre_actif && $uid_courant):
+  [$owWhereCamp, $owParamsCamp] = ownerFilter('camp');
+  $stmt_camp = $db->prepare("SELECT camp_id, camp_nom FROM dd_campagnes WHERE $owWhereCamp ORDER BY camp_nom");
+  $stmt_camp->execute($owParamsCamp);
+  $mes_campagnes = $stmt_camp->fetchAll();
+
+  $camp_get_raw = intParam($_GET['f_camp'] ?? 0);
+  foreach ($mes_campagnes as $c):
+    if ((int)$c['camp_id'] === $camp_get_raw):
+      $camp_get = $camp_get_raw;
+      break;
+    endif;
+  endforeach;
+endif;
+
+if ($champ_camp !== null):
+  if ($camp_get > 0):
+    $where_parts[] = $champ_camp . ' = ?';
+    $params[]      = $camp_get;
+  else:
+    $where_parts[] = $champ_camp . ' IS NULL';
+  endif;
+endif;
 
 // Filtre sources
 if (!empty($res_ids)):
@@ -295,6 +332,7 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
   $sources_actives = count($res_get);
   if ($sources_actives > 0) $filtres_actifs++;
   if ($gere_supplement && $afficher_brouillons) $filtres_actifs++;
+  if ($camp_get > 0) $filtres_actifs++;
   ?>
 
   <div class="comp-filtre-bar">
@@ -372,6 +410,24 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
             <?php endif ?>
           </div>
         <?php endforeach ?>
+
+        <?php // ── Campagne (homebrew) : bascule compendium global / homebrew
+        // d'une campagne du MJ. Visible uniquement si listConfig['camp_filtre']
+        // === true et que l'utilisateur MJ au moins une campagne.
+        ?>
+        <?php if ($camp_filtre_actif && !empty($mes_campagnes)): ?>
+          <div class="comp-filtre-item">
+            <select name="f_camp" class="comp-filtre-select" title="Campagne">
+              <option value="">— Compendium global —</option>
+              <?php foreach ($mes_campagnes as $c): ?>
+                <option value="<?= (int)$c['camp_id'] ?>"
+                  <?= $camp_get === (int)$c['camp_id'] ? 'selected' : '' ?>>
+                  <?= h($c['camp_nom']) ?>
+                </option>
+              <?php endforeach ?>
+            </select>
+          </div>
+        <?php endif ?>
 
         <?php // ── Supplément (SP-C2) : toggle "Afficher mes brouillons"
         // Visible uniquement si l'utilisateur a ≥1 entrée _visible=0 dans

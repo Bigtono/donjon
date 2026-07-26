@@ -113,6 +113,15 @@ if ($mon_supplement_res_id !== null && (int)$mo['mo_res_id'] === $mon_supplement
   $mo_res_id_select = 'supplement';
 endif;
 
+// Campagnes de l'utilisateur (pour homebrew)
+$campagnes = [];
+if (!empty($_SESSION['j_mode_campagne'])):
+  [$owWhere, $owParams] = ownerFilter('camp');
+  $stmt = $db->prepare("SELECT camp_id, camp_nom FROM dd_campagnes WHERE $owWhere ORDER BY camp_nom");
+  $stmt->execute($owParams);
+  $campagnes = $stmt->fetchAll();
+endif;
+
 $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
 ?>
 
@@ -222,6 +231,21 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
           </label>
           <span class="form-hint">Une entrée partagée est forcément visible.</span>
         </div>
+
+        <?php if (!empty($campagnes)): ?>
+          <div class="form-group">
+            <label for="mo_camp_id">Campagne (homebrew)</label>
+            <select id="mo_camp_id" name="mo_camp_id">
+              <option value="">— Compendium global —</option>
+              <?php foreach ($campagnes as $camp): ?>
+                <option value="<?= (int)$camp['camp_id'] ?>"
+                  <?= (int)$mo['mo_camp_id'] === (int)$camp['camp_id'] ? 'selected' : '' ?>>
+                  <?= h($camp['camp_nom']) ?>
+                </option>
+              <?php endforeach ?>
+            </select>
+          </div>
+        <?php endif ?>
 
       </div><!-- .modif-grid -->
     </div><!-- .modif-section -->

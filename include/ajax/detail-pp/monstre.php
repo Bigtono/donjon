@@ -29,11 +29,13 @@ $stmt = $db->prepare('
     mogr.mogr_nom,
     res.res_nom,
     res.res_j_id,
+    camp.camp_nom,
     var.var_valeur AS ruleset_label
   FROM   dd_monstres               mo
   LEFT JOIN dd_monstres_categories mocat ON mocat.mocat_id = mo.mo_mocat_id
   LEFT JOIN dd_monstres_groupes    mogr  ON mogr.mogr_id   = mo.mo_mogr_id
   LEFT JOIN dd_ressources          res   ON res.res_id     = mo.mo_res_id
+  LEFT JOIN dd_campagnes           camp  ON camp.camp_id   = mo.mo_camp_id
   LEFT JOIN dd_variables           var   ON var.var_id     = mo.mo_ruleset_var_id
   WHERE  mo.mo_id = ?
 ');
@@ -105,6 +107,11 @@ $detail_base = BASE_URL . '/include/ajax/detail-pp/';
     <span class="sort-detail__source">
       <i class="fa fa-book"></i> <?= h($mo['res_nom']) ?>
     </span>
+    <?php if ($mo['mo_camp_id'] && $mo['camp_nom']): ?>
+      <span class="sort-detail__homebrew">
+        <i class="fa fa-flask"></i> <?= h($mo['camp_nom']) ?>
+      </span>
+    <?php endif ?>
     <span class="sort-detail__ruleset"><?= h($mo['ruleset_label']) ?></span>
   </div>
 
