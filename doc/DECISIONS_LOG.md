@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-26 11:57 -->
+<!-- Mis à jour : 2026-07-26 12:19 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2550,6 +2550,45 @@ la **première** ligne non reconnue — elle ne "saute" pas une ligne isolée po
 sur les suivantes. Tout futur ajout de formulation doit donc être testé sur la ligne
 **Tours/Cantrips**, qui est structurellement la première de la liste et conditionne la
 lecture de toutes les suivantes.
+
+---
+
+### D-R24 — Bug : section "Équipement" absorbée par Actions
+
+**Bug constaté :** Sur les monstres dont `mo_stats` place un bloc "Équipement" dédié
+(titre seul sur sa ligne, suivi d'un ou plusieurs paragraphes) **après** la section
+Actions — cas de Minuit —, ce contenu se retrouvait rattaché à Actions dans Roll20 au
+lieu de former un trait "Équipement" séparé.
+
+**Cause :** `$sections_norm` (détection des titres de section dans `mo_stats`) ne
+listait que `traits`, `actions`, `actions legendaires`, `actions bonus`, `reactions`.
+"Équipement" n'y figurait pas. `sentinelleBloc()` cherchant la prochaine section
+détectée **après** Actions pour en fixer la borne de fin, l'absence d'"Équipement"
+dans `$bloc` faisait lire la section Actions jusqu'à la fin du texte (`$n`), avalant
+le titre "Équipement" et son paragraphe.
+
+Le mécanisme de synthèse en trait "Équipement" (`equipment_text` → `repeating_npctrait`,
+voir §18 ARCHITECTURE) existait déjà, mais n'était alimenté que par la forme **ligne
+d'en-tête** `Équipement : dague, arc court` (`parseOptionalLine()`), jamais par la forme
+**section dédiée** utilisée par les statblocks à équipement conséquent (objets magiques,
+grimoires...).
+
+**Correction :**
+- Ajout de `'equipment' => ['equipement']` à `$sections_norm` : "Équipement" devient une
+  borne de section reconnue au même titre que les autres.
+- Nouveau bloc d'extraction dans `parseMonstreStats()`, sur le même modèle que
+  Traits/Actions/Réactions : capture les lignes entre "Équipement" et la prochaine
+  section (ou la fin du texte), les assemble, et alimente `equipment_text` — réutilisant
+  sans modification la synthèse en trait déjà en place dans `buildRoll20NpcJson()`.
+- **Effet de bord corrigé au passage :** la section Réactions lisait jusqu'à la fin du
+  texte sans passer par `sentinelleBloc()` (`array_slice($lignes, $debut)` non borné).
+  Si un futur monstre plaçait "Équipement" après "Réactions", ce même bug se serait
+  reproduit côté Réactions. Bornée désormais par `sentinelleBloc()` comme les autres
+  sections, par cohérence avec D-R20.
+
+**Résultat validé** sur le texte de Minuit (Traits → Actions → Équipement) : Actions ne
+contient plus que Dague et Bâton ; le paragraphe Équipement (dagues, bâton, grimoires...)
+est isolé et route vers `equipment_text`.
 
 ---
 

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-26 11:57 -->
+<!-- Mis à jour : 2026-07-26 12:19 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -2341,10 +2341,20 @@ manuel sur la fiche. Voir DECISIONS_LOG D-R8.
 
 ### Trait "Équipement"
 
-La ligne `Équipement : …` du header `mo_stats` (présente sur les PNJ humanoïdes
-porteurs d'objets) n'a pas d'équivalent dans les champs scalaires Roll20. Elle
-est convertie en un trait `repeating_npctrait` nommé **Équipement**, inséré en
-première position, avec le texte de la ligne en description. Voir DECISIONS_LOG D-R3.
+L'équipement n'a pas d'équivalent dans les champs scalaires Roll20. Il est converti en un
+trait `repeating_npctrait` nommé **Équipement**, inséré en première position, alimenté par
+`$result['equipment_text']`. Deux formats `mo_stats` sont reconnus, au choix :
+
+1. **Ligne d'en-tête** — `Équipement : dague, arc court` sur une seule ligne, avant Traits.
+   Géré par `parseOptionalLine()`. Voir DECISIONS_LOG D-R3.
+2. **Section dédiée** — "Équipement" seul sur sa ligne (comme Traits/Actions/Réactions),
+   suivi d'un ou plusieurs paragraphes. Utile pour les PNJ à équipement conséquent
+   (objets magiques, grimoires...). `equipement` est une section reconnue par
+   `$sections_norm` dans `parseMonstreStats()`, bornée comme les autres sections via
+   `sentinelleBloc()` — indépendante de sa position dans le texte. Voir DECISIONS_LOG D-R24.
+
+Les deux formes alimentent le même champ `equipment_text` ; en pratique un monstre donné
+n'utilise que l'une ou l'autre.
 
 ### Formats `mo_stats` supportés pour l'Incantation
 

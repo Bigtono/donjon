@@ -287,6 +287,7 @@ function parseMonstreStats(string $texte): array
     'legendary' => ['actions legendaires'],
     'bonus'     => ['actions bonus'],
     'reactions' => ['reactions'],
+    'equipment' => ['equipement'],
   ];
 
   $bloc = [];
@@ -342,7 +343,27 @@ function parseMonstreStats(string $texte): array
   // ── Réactions ─────────────────────────────────────────
   if (isset($bloc['reactions'])):
     $debut = $bloc['reactions'] + 1;
-    $result['reactions'] = parseActionBlock(array_slice($lignes, $debut), $result);
+    $fin   = sentinelleBloc($bloc, $bloc['reactions'], $n);
+    $result['reactions'] = parseActionBlock(array_slice($lignes, $debut, $fin - $debut), $result);
+  endif;
+
+  // ── Équipement (section dédiée : "Équipement" seul sur sa ligne, suivi
+  // d'un ou plusieurs paragraphes — distinct de la ligne d'en-tête
+  // "Équipement : ..." gérée par parseOptionalLine). Le texte collecté
+  // est stocké dans 'equipment_text', même champ que la forme ligne
+  // d'en-tête, pour réutiliser sans changement la synthèse en trait
+  // "Équipement" dans buildRoll20NpcJson(). Voir DECISIONS_LOG D-R24.
+  if (isset($bloc['equipment'])):
+    $debut     = $bloc['equipment'] + 1;
+    $fin       = sentinelleBloc($bloc, $bloc['equipment'], $n);
+    $eq_lignes = [];
+    foreach (array_slice($lignes, $debut, $fin - $debut) as $eq_ligne):
+      $eq_ligne = trim($eq_ligne);
+      if ($eq_ligne !== '') $eq_lignes[] = $eq_ligne;
+    endforeach;
+    if (!empty($eq_lignes)):
+      $result['equipment_text'] = implode("\n", $eq_lignes);
+    endif;
   endif;
 
   return $result;
