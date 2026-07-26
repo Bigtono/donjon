@@ -127,19 +127,19 @@ function normaliserRoll20(string $s): string
  *   "Prefix - noms"   → "Tour de magie - assistance", "Niveau 1 (3/J) - blessure"
  *
  * Préfixes reconnus (normalisés) :
- *   a volonte, \d+/jour, tour de magie, niveau \d, cantrip
+ *   a volonte, \d+/jour, tours? de magie, niveau \d, cantrip
  */
 function estPrefixeSousListeSorts(string $ligne): bool
 {
   // Séparateur ":" — max 40 chars non-":" avant
   if (preg_match('/^([^:]{1,40}):\s*.+$/u', $ligne, $m)):
-    if (preg_match('/^(a volonte|\d+\/jour|tour de magie|niveau\s*\d|cantrip)/u', normaliserRoll20(trim($m[1])))):
+    if (preg_match('/^(a volonte|\d+\/jour|tours? de magie|niveau\s*\d|cantrip)/u', normaliserRoll20(trim($m[1])))):
       return true;
     endif;
   endif;
   // Séparateur " - " — max 60 chars avant (permet "(3/J)" dans le préfixe)
   if (preg_match('/^(.{1,60}?)\s+-\s+.+$/u', $ligne, $m)):
-    if (preg_match('/^(a volonte|\d+\/jour|tour de magie|niveau\s*\d|cantrip)/u', normaliserRoll20(trim($m[1])))):
+    if (preg_match('/^(a volonte|\d+\/jour|tours? de magie|niveau\s*\d|cantrip)/u', normaliserRoll20(trim($m[1])))):
       return true;
     endif;
   endif;
@@ -701,7 +701,13 @@ function parseIncantation(string $texte, array &$result): void
   endforeach;
 
   // DD de sauvegarde
-  if (preg_match('/DD\s+de\s+sauvegarde\s+(\d+)/iu', $texte, $m)):
+  // \D{0,30}? plutôt que \s+ : tolère du texte entre "sauvegarde" et le chiffre
+  // (ex : "DD de sauvegarde des sorts 14", "DD de sauvegarde de sorts 14"),
+  // formulation standard des blocs stat officiels traduits — pas seulement
+  // "DD de sauvegarde 14". Borné à 30 caractères pour éviter d'accrocher un
+  // chiffre sans rapport plus loin dans le texte si "sauvegarde" apparaît
+  // sans DD à proximité (comportement de repli identique : save_dc reste 0).
+  if (preg_match('/DD\s+de\s+sauvegarde\D{0,30}?(\d+)/iu', $texte, $m)):
     $inc['save_dc'] = (int)$m[1];
   endif;
 

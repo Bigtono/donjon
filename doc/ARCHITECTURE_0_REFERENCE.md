@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-05 09:00 -->
+<!-- Mis à jour : 2026-07-26 11:57 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -2362,7 +2362,20 @@ Niveau 2 (2/J) - immobilisation de personne
 ```
 
 Préfixes reconnus (insensibles à la casse/accents) : `À volonté`, `N/jour`, `N/jour chacun`,
-`Tour de magie`, `Niveau N`, `Cantrip`. Voir `estPrefixeSousListeSorts()` dans `monstre-roll20.php`.
+`Tour(s) de magie` (singulier ou pluriel), `Niveau N`, `Cantrip`. Voir
+`estPrefixeSousListeSorts()` dans `monstre-roll20.php`.
+
+Le DD de sauvegarde est extrait via une recherche tolérante — `DD de sauvegarde` suivi,
+à moins de 30 caractères, du chiffre. Couvre aussi bien `DD de sauvegarde 14` que la
+formulation standard des blocs stat traduits `DD de sauvegarde des sorts 14`.
+
+> ⚠️ **Point de vigilance.** La boucle de collecte des sous-listes de sorts s'arrête à la
+> **première** ligne qui ne matche aucun préfixe reconnu — elle ne saute pas une ligne
+> isolée pour reprendre sur les suivantes. La ligne des tours de magie/cantrips étant
+> toujours la première de la liste dans un bloc Incantation standard, un préfixe non
+> reconnu sur cette seule ligne suffit à faire perdre **tous** les sorts du monstre, pas
+> seulement les tours de magie. Toute nouvelle formulation à supporter doit donc être
+> testée en priorité sur cette première ligne. Voir DECISIONS_LOG D-R23.
 
 L'ordre des sections dans `mo_stats` est **quelconque** — `sentinelleBloc()` trouve
 toujours la prochaine section qui suit la section courante dans le texte, sans liste

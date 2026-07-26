@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-05 13:15 -->
+<!-- Mis à jour : 2026-07-26 11:57 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2471,6 +2471,85 @@ $filename = 'roll20_' . preg_replace('/[^a-z0-9_-]/i', '_', $_nom_brut) . '.json
 
 La casse du nom original est préservée (`Squelette_enflamme`, `Rodeur_Menestrel`).
 
+---
+
+### D-R22 — Bug : `.gitignore` non ancré excluait silencieusement `include/ajax/export/`
+
+**Bug constaté :** `include/ajax/export/monstre-roll20.php` n'a jamais été présent dans le
+dépôt, malgré plusieurs livraisons ZIP successives contenant ce fichier. Le dossier
+apparaissait grisé dans VS Code, signe d'une exclusion Git.
+
+**Cause :** La règle `.gitignore` ajoutée pour exclure le dossier `export/` à la racine
+(fichiers de test JSON, scripts tiers) était écrite sans `/` en tête :
+
+```
+export/
+```
+
+En syntaxe `.gitignore`, un motif sans `/` initial n'est pas ancré à la racine — il exclut
+**tout dossier nommé `export`, à n'importe quelle profondeur**. Cette règle attrapait donc
+aussi `include/ajax/export/`, empêchant tout `git add` sur ce répertoire, silencieusement
+et sans aucune erreur.
+
+**Correction :** Ancrage de la règle à la racine du dépôt :
+
+```diff
+-export/
++/export/
+```
+
+`include/ajax/export/monstre-roll20.php` est désormais versionné (commit `7819b08`).
+
+**Point de vigilance retenu :** toute règle `.gitignore` visant un dossier à la racine doit
+être ancrée avec `/` en tête, sauf intention explicite de l'appliquer à tous les niveaux de
+l'arborescence.
+
+---
+
+### D-R23 — Bug : bloc "Incantation" non reconnu — formulations SRD standard non couvertes
+
+**Bug constaté :** Export d'un monstre lanceur de sorts (Minuit, magicienne niveau 7) →
+JSON généré sans aucun attribut `repeating_spell-*`, alors que `npcspellcastingflag = 1`
+(le bloc Incantation était bien détecté) et `spell_save_dc = 0` (DD non trouvé).
+
+**Cause — deux formulations officielles non couvertes :**
+
+1. **DD de sauvegarde.** Le texte source dit `DD de sauvegarde des sorts 14` (formulation
+   standard des blocs stat traduits), mais la regex `/DD\s+de\s+sauvegarde\s+(\d+)/iu`
+   exigeait un chiffre immédiatement après "sauvegarde" — `des sorts` intercalé fait
+   échouer le match, `save_dc` reste à 0.
+
+2. **Tours de magie (pluriel).** La ligne `Tours de magie (à volonté) : lumière, ...` ne
+   matchait pas le préfixe attendu `tour de magie` (singulier) dans
+   `estPrefixeSousListeSorts()`. Cette ligne étant la **première** ligne de sous-liste
+   scannée par la boucle de collecte (`parseAction`, bloc Incantation), son échec arrêtait
+   immédiatement la boucle — **avant même d'examiner les lignes `Niveau 1` à `Niveau 4`**,
+   pourtant correctement formatées. Un seul préfixe non reconnu en tête de liste a donc
+   fait perdre la totalité des 15 sorts du monstre, pas seulement les sorts mineurs.
+
+**Correction :**
+
+```diff
+- if (preg_match('/DD\s+de\s+sauvegarde\s+(\d+)/iu', $texte, $m)):
++ if (preg_match('/DD\s+de\s+sauvegarde\D{0,30}?(\d+)/iu', $texte, $m)):
+```
+```diff
+- '/^(a volonte|\d+\/jour|tour de magie|niveau\s*\d|cantrip)/u'
++ '/^(a volonte|\d+\/jour|tours? de magie|niveau\s*\d|cantrip)/u'
+```
+
+`\D{0,30}?` (non-gourmand, borné à 30 caractères) tolère un intercalaire libre entre
+"sauvegarde" et le chiffre sans risquer d'accrocher un chiffre sans rapport plus loin
+dans le texte. `tours?` rend le `s` du pluriel optionnel, sans toucher au reste du motif.
+
+**Résultat validé** sur le texte de Minuit : `save_dc = 14`, 15 noms de sorts extraits
+(4 tours de magie + 4 niveau 1 + 3 niveau 2 + 3 niveau 3 + 1 niveau 4).
+
+**Point de vigilance retenu :** la boucle de collecte des sous-listes de sorts s'arrête à
+la **première** ligne non reconnue — elle ne "saute" pas une ligne isolée pour continuer
+sur les suivantes. Tout futur ajout de formulation doit donc être testé sur la ligne
+**Tours/Cantrips**, qui est structurellement la première de la liste et conditionne la
+lecture de toutes les suivantes.
 
 ---
 
