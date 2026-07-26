@@ -86,13 +86,31 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
 
   <!-- Description -->
   <?php if (!empty($re['re_description'])): ?>
-    <div class="camp-detail__description"><?= $re['re_description'] ?></div>
+    <div class="camp-detail__section">
+      <div class="camp-section__header">
+        <h3 class="camp-detail__section-title">Description</h3>
+        <button type="button" class="accordion-trigger" onclick="togglePlus('rencontre-description')" title="Replier / déplier">
+          <i class="fa fa-bars"></i>
+        </button>
+      </div>
+      <div id="rencontre-description" class="accordion-content noDisplay">
+        <div class="camp-detail__description"><?= $re['re_description'] ?></div>
+      </div>
+    </div>
   <?php endif ?>
 
   <!-- Composition (champ texte mis en évidence) -->
   <?php if (!empty($re['re_composition'])): ?>
-    <div class="camp-rencontre__composition">
-      <?= $re['re_composition'] ?>
+    <div class="camp-detail__section">
+      <div class="camp-section__header">
+        <h3 class="camp-detail__section-title">Composition</h3>
+        <button type="button" class="accordion-trigger" onclick="togglePlus('rencontre-composition')" title="Replier / déplier">
+          <i class="fa fa-bars"></i>
+        </button>
+      </div>
+      <div id="rencontre-composition" class="accordion-content noDisplay">
+        <div class="camp-detail__description"><?= $re['re_composition'] ?></div>
+      </div>
     </div>
   <?php endif ?>
 

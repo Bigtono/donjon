@@ -77,13 +77,20 @@ $base_modifier = BASE_URL . '/include/ajax/modifier';
         <i class="fa fa-edit"></i>
       </button>
     </h2>
-    <?php if ((int)$scc['scc_ordre'] > 0): ?>
-      <span class="text-muted" style="font-size:.85em;">Ordre : <?= (int)$scc['scc_ordre'] ?></span>
-    <?php endif ?>
   </div>
 
   <?php if (!empty($scc['scc_description'])): ?>
-    <div class="camp-detail__description"><?= $scc['scc_description'] ?></div>
+    <div class="camp-detail__section">
+      <div class="camp-section__header">
+        <h3 class="camp-detail__section-title">Description</h3>
+        <button type="button" class="accordion-trigger" onclick="togglePlus('chapitre-description')" title="Replier / déplier">
+          <i class="fa fa-bars"></i>
+        </button>
+      </div>
+      <div id="chapitre-description" class="accordion-content noDisplay">
+        <div class="camp-detail__description"><?= $scc['scc_description'] ?></div>
+      </div>
+    </div>
   <?php endif ?>
 
   <!-- Rencontres -->
