@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-27 19:55 -->
+<!-- Mis à jour : 2026-07-27 21:10 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2933,3 +2933,21 @@ vérifiée sur les 13 tableaux migrés — **0 divergence** — et sur une séri
 > Note : les deux environnements n'ont pas la même version d'ICU (71.1 local / 63.1 OVH). Sans
 > conséquence ici — `Any-Latin; Latin-ASCII` est stable sur le latin accenté depuis bien avant
 > ICU 63 — mais à garder en tête si un slug devait un jour être régénéré côté serveur.
+
+**[2026-07-27] Découpage d'un tableau en blocs côte à côte — étudié, écarté**
+Certains tableaux du livre source présentent un tableau à N colonnes logiques coupé en K moitiés
+posées côte à côte (en-tête répété), pour économiser de la hauteur sur la page imprimée.
+Proposition étudiée : sortir ce découpage du contenu vers une métadonnée `tab_blocs`, le rendu
+produisant K `<table>` frères dans un conteneur `flex-wrap` (responsive gratuit, en-têtes
+légitimes, `colspan`/`rowspan` préservés, override possible au rendu).
+
+**Écarté — décision utilisateur : la contrainte de hauteur de page n'existe pas en affichage web,
+le motif y perd sa raison d'être.** Aucune phase créée, rien n'est inscrit dans §0.
+
+État conservé : un seul tableau porte le motif gravé dans son contenu — « Modificateurs de
+caractéristique » (`[[tab:modificateurs-de-caracteristique]]`, 4 colonnes physiques = 2 blocs de
+2 colonnes logiques, `tab_align = lrlr`). Il fonctionne tel quel, aucune reprise nécessaire.
+
+> À rouvrir si **SP-TB8** (écran du MJ) le justifie : les colonnes y seront plus étroites qu'une
+> page de règle, et un tableau dont le découpage est gravé dans le contenu ne pourra ni se
+> déplier en 1 bloc ni se replier en 3. C'est le seul contexte où le sujet redevient bloquant.

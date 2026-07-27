@@ -261,58 +261,11 @@
   background-color: rgba(128, 128, 128, .10);
 }
 
-/* Tableaux dans les textes règles (contenu BDD/TinyMCE) */
-
-.regles-noeud__texte table,
-.regle-detail__texte table {
-  border-collapse: collapse;
-  width: fit-content;
-  max-width: 100%;
-  margin: .75rem 0;
-  font-size: .875rem;
-  display: block;
-  overflow-x: auto;
-}
-
-.regles-noeud__texte table th,
-.regles-noeud__texte table td,
-.regle-detail__texte table th,
-.regle-detail__texte table td {
-  border: none;
-  padding: 3px 0;
-  text-align: left;
-  vertical-align: middle;
-}
-
-.regles-noeud__texte table th:not(:first-child),
-.regles-noeud__texte table td:not(:first-child),
-.regle-detail__texte table th:not(:first-child),
-.regle-detail__texte table td:not(:first-child) {
-  padding-left: 2rem;
-}
-
-
-/* Alternance gris perle / rien sur les lignes tbody */
-.regles-noeud__texte table tbody tr:nth-child(odd) td,
-.regle-detail__texte table tbody tr:nth-child(odd) td {
-  background: rgba(128, 128, 128, .10);
-}
-
-.regles-noeud__texte table tbody tr:nth-child(even) td,
-.regle-detail__texte table tbody tr:nth-child(even) td {
-  background: transparent;
-}
-
-/* Fallback sans <thead> */
-.regles-noeud__texte table:not(:has(thead)) tr:not(:first-child):nth-child(odd) td,
-.regle-detail__texte table:not(:has(thead)) tr:not(:first-child):nth-child(odd) td {
-  background: rgba(128, 128, 128, .10);
-}
-
-.regles-noeud__texte table:not(:has(thead)) tr:not(:first-child):nth-child(even) td,
-.regle-detail__texte table:not(:has(thead)) tr:not(:first-child):nth-child(even) td {
-  background: transparent;
-}
+/* Les styles de tableaux HTML inline (`.regles-noeud__texte table`, …) ont été
+   retirés le 2026-07-27 avec la migration SP-TB5 : plus aucun <table> ne subsiste
+   dans reg_texte, tous les tableaux passent par dd_tableaux et le bloc ci-dessous.
+   Ces sélecteurs, plus spécifiques que `.reg-tab__table`, écrasaient le nouveau
+   rendu — dont un `display: block` qui neutralise colspan/rowspan. */
 
 /* ============================================================
    TABLEAUX DE DONNÉES — dd_tableaux (SP-TB)
@@ -320,15 +273,27 @@
    la présentation vit ici et nulle part ailleurs.
    ============================================================ */
 
+/* Le rendu ne doit hériter d'aucun contexte typographique : le même tableau
+   s'affiche dans le corps d'une règle (.regles-noeud__texte, line-height 1.7),
+   dans le gestionnaire, dans l'aperçu du formulaire, dans un bloc de stats de
+   monstre — et demain sur l'écran du MJ. On fixe donc ici tout ce qui, sinon,
+   serait hérité et rendrait le tableau différent d'un écran à l'autre.
+   Valeur alignée sur celle du corps de règle, qui fait référence. */
 .reg-tab {
   margin: var(--sp-lg, 24px) 0;
+  line-height: 1.7;
+  color: var(--clr-text, #2a2015);
+  text-align: left;
 }
 
+/* Titre collé à son tableau : la proximité fait le lien, pas la taille.
+   Couleur du texte courant (et non l'accent) — var(--clr-text) vaut #2a2015
+   en thème Parchemin et #e0e0e0 en thème sombre, où un noir dur serait illisible. */
 .reg-tab__titre {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--clr-accent, #8b2020);
-  margin-bottom: var(--sp-sm, 8px);
+  color: var(--clr-text, #2a2015);
+  margin-bottom: 0;
 }
 
 /* Le débordement est porté par le conteneur, jamais par <table> :
@@ -357,6 +322,13 @@
   color: var(--clr-accent, #8b2020);
   border-bottom: 2px solid var(--clr-accent, #8b2020);
   white-space: nowrap;
+}
+
+/* Titre et tableau quasi collés : la première ligne d'en-tête ne doit pas
+   rouvrir un écart avec son padding haut. */
+.reg-tab__table thead tr:first-child th,
+.reg-tab__table:not(:has(thead)) tbody tr:first-child td {
+  padding-top: 0;
 }
 
 /* En-tête groupé (colspan) : centré au-dessus de ses colonnes filles */
@@ -399,6 +371,20 @@
   color: var(--clr-danger, #c0392b);
   font-family: monospace;
   font-size: .8rem;
+}
+
+/* ---- Fiche détail du gestionnaire (detail-pp/tableau.php) ---- */
+
+/* Sépare nettement le tableau des blocs de métadonnées qui le suivent
+   (tag à insérer, « Utilisé par », source) — sans toucher à
+   .regle-detail__enfants, partagé avec la fiche d'une règle. */
+.tableau-detail .reg-tab {
+  margin-bottom: var(--sp-md, 16px);
+}
+
+.tableau-detail > .regle-detail__enfants,
+.tableau-detail > .text-muted {
+  margin-top: var(--sp-xl, 40px);
 }
 
 /* ---- Liste de gestion (regles/tableaux.php) ---- */
