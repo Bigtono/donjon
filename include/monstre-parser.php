@@ -19,6 +19,10 @@
 // ============================================================
 
 require_once __DIR__ . '/helpers.php';
+// Tableaux de règles (SP-TB6) — tag [[tab:slug]] sur une ligne seule de mo_stats.
+// require_once croisé avec tableau-parser.php : sans danger, les deux fichiers
+// ne contiennent que des définitions de fonctions (résolues à l'appel).
+require_once __DIR__ . '/tableau-parser.php';
 
 // ============================================================
 // 1. TYPES LIABLES (index base)
@@ -761,6 +765,21 @@ function rendreStatsMonstre(PDO $db, ?string $texte, int $ruleset_id, array $res
   $est_dd2024 = $ruleset_id !== 1;
   $lignes    = preg_split('/\r\n|\r|\n/', $texte);
 
+  // ---- Tableaux (SP-TB6) ----
+  // Une ligne réduite à [[tab:slug]] est sortie du flux avant formatage et
+  // remplacée par une sentinelle : sans cela, lierAuto() tokeniserait les mots
+  // du slug et injecterait un <span> au milieu du tag, le rendant irrésoluble.
+  // La sentinelle ne contient aucun mot de ≥ MO_LONGUEUR_MIN lettres, elle
+  // traverse donc les formateurs intacte.
+  $tableaux_html = [];
+  foreach ($lignes as $i => $ligne):
+    if (preg_match('/^\s*' . TAB_TAG_MOTIF . '\s*$/i', $ligne, $m)):
+      $tableaux_html['___TAB' . $i . '___'] =
+        resoudreTagsTableaux($db, '[[tab:' . $m[1] . ']]', $ruleset_id);
+      $lignes[$i] = '___TAB' . $i . '___';
+    endif;
+  endforeach;
+
   if ($est_dd2024):
     $html = formaterBlocDD2024($lignes, $db, $index, $indexAuto, $rapport);
   else:
@@ -784,6 +803,10 @@ function rendreStatsMonstre(PDO $db, ?string $texte, int $ruleset_id, array $res
              . '</div>';
     endforeach;
     $html = implode("\n", $out);
+  endif;
+
+  if (!empty($tableaux_html)):
+    $html = strtr($html, $tableaux_html);
   endif;
 
   return ['html' => $html, 'rapport' => $rapport];

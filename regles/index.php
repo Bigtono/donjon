@@ -60,6 +60,11 @@ require_once '../include/header.php';
         </button>
       </form>
 
+      <a class="btn btn--sm btn--secondary" href="<?= BASE_URL ?>/regles/tableaux.php"
+         title="Tableaux de données des règles">
+        <i class="fa fa-table"></i> Tableaux
+      </a>
+
       <?php if ($peut_editer): ?>
         <button class="btn btn--sm btn--secondary"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/regle.php', 0)"

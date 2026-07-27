@@ -133,9 +133,34 @@ Après toute livraison significative, mettre à jour :
 - Les deux fichiers sont livrés **complets** (prêts à écraser l'existant), avec en tête :
   `<!-- Mis à jour : AAAA-MM-JJ HH:MM -->`
 
+### ⚠️ Suivi des phases — OBLIGATOIRE ET PRIORITAIRE
+
+`doc/ARCHITECTURE_0_REFERENCE.md` **§0 — Suivi des phases de développement** est le tableau de
+bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** :
+
+1. **Tout nouveau chantier reçoit un code projet** (`SP-<lettres>`) et ses phases sont
+   **numérotées** dès l'arbitration : `SP-TB0`, `SP-TB1`, … Codes en service : `SP-C`
+   (supplément compendium), `SP-E` (équipements), `SP-T` (transfert d'opposition),
+   `SP-TB` (tableaux de règles).
+2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
+   dans §0, au format checklist markdown :
+   ```markdown
+   - [x] SP-TB1 — Moteur de rendu des tableaux
+   - [ ] SP-TB8 — Écran du MJ
+   ```
+3. **Les phases non livrées y figurent explicitement**, avec un libellé qui suffit à
+   reprendre le travail plus tard. Une phase abandonnée est retirée, pas laissée décochée.
+4. §0 ne contient **que** la checklist — les détails techniques vont dans la section du
+   module, les décisions dans `DECISIONS_LOG.md`.
+
+Ne jamais clôturer une tâche sans avoir mis §0 à jour.
+
 ---
 
-## État courant du projet (juin 2026)
+## État courant du projet (juillet 2026)
+
+> **L'état d'avancement fait foi dans `doc/ARCHITECTURE_0_REFERENCE.md` §0** (checklist des
+> phases). La section ci-dessous n'en est qu'un résumé narratif.
 
 ### Implémenté
 - Compendium complet : sorts, classes (+ sous-classes DD2024), races, dons, compétences, objets magiques, historiques (DD2024), monstres
@@ -144,10 +169,15 @@ Après toute livraison significative, mettre à jour :
 - Transfert/Duplication opposition SP-T0 (même campagne) : fait
 - Équipements SP-E0 : table `dd_equipements` créée (`sql/2026-06-20_equipements_sp-e0.sql`)
 - Header context buttons : cascade setters, partial `include/header-context.php`, endpoint AJAX
+- Tableaux de règles SP-TB0→TB6 : table `dd_tableaux`, convention texte, tag `[[tab:slug]]`,
+  UI de gestion, migration des tableaux HTML existants, portée `reg_texte` + `mo_stats` (voir §9c)
 
 ### À faire (priorités)
-- SP-C6/C7 pour les 7 entités restantes du compendium (après vérif schema)
-- SP-E1→E5 : module équipements (liste, formulaire, détail, parser, supplément)
+- SP-TB7 : portée du tag `[[tab:slug]]` étendue aux champs texte du compendium
+- SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)
+- SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
+- SP-C6 : profil "Mes sources" — suppléments publics tiers
+- SP-E4/E5 : parser équipement + alignement Supplément
 - SP-T1 : Transférer/Dupliquer vers une autre campagne
 
 ---

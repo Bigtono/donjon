@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-26 12:19 -->
+<!-- Mis à jour : 2026-07-27 19:55 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2811,3 +2811,125 @@ touchée par la récupération du 04/07.
 
 **Statut : corrigé (4 tables), pas de récidive attendue — `ALTER TABLE ... AUTO_INCREMENT` est
 persistant, contrairement au comportement transitoire qui a permis l'écart initial.**
+
+---
+
+## SP-TB — Tableaux de règles
+
+**[2026-07-27] Isolation des tableaux de données dans `dd_tableaux`**
+Les tableaux de règles étaient saisis en HTML dans `reg_texte`, au milieu du corps de la règle.
+Décision : table dédiée `dd_tableaux`, saisie en convention texte, insertion par tag `[[tab:slug]]`.
+→ Un tableau devient une **donnée adressable** : réutilisable dans plusieurs règles (« Bonus de
+maîtrise » était dupliqué), dans un bloc de stats de monstre, et — objectif final — dans l'écran
+du MJ (SP-TB8), qui n'aurait eu aucun moyen d'aller chercher un `<table>` noyé dans du HTML.
+
+**[2026-07-27] Convention de saisie plutôt que HTML**
+Lignes préfixées : `!` en-tête, `#` section pleine largeur, `>` note, `|` séparateur de cellules.
+→ Affranchit l'auteur du HTML, garantit une sortie homogène, et rend le design 100 % CSS.
+L'alignement est sorti du contenu (colonne `tab_align`) : le contenu reste de la donnée pure.
+
+**[2026-07-27] Fusions limitées aux lignes d'en-tête**
+Cellule vide = fusion à gauche (`colspan`), `^` = fusion vers le haut (`rowspan`) — **uniquement**
+dans les lignes `!`.
+→ Les en-têtes sur deux niveaux sont un besoin réel des tableaux restant à saisir. Étendre les
+fusions aux lignes de données rendrait impossible d'exprimer une cellule légitimement vide, dont
+les grilles irrégulières (colonnes de longueurs inégales) ont un besoin constant.
+
+**[2026-07-27] Tag `[[tab:slug]]` — délimiteur double, référence par slug**
+Écarté : la famille de délimiteurs mono-caractère `#`/`$`/`&`/`@`/`%` déjà en place dans `mo_stats`.
+→ `reg_texte` est du HTML TinyMCE et non du texte brut : `&` collisionne avec les entités et un
+caractère isolé ne survit pas au nettoyage de collage. Référence par **slug** et non par id
+(contrairement à `@id@`/`%id%`) : les ids ne survivent pas au passage local → OVH, alors que les
+règles sont réimportées par script. Le renommage d'un slug est répercuté dans `reg_texte` et
+`mo_stats`, sans quoi les insertions existantes deviendraient silencieusement irrésolubles.
+
+**[2026-07-27] Remplacement du `<p>` entier en passe 1**
+`resoudreTagsTableaux()` traite d'abord `<p>[[tab:slug]]</p>` avant les tags nus.
+→ Un `<table>` rendu à l'intérieur d'un `<p>` est du HTML invalide : le navigateur ferme le
+paragraphe et la mise en page casse. TinyMCE encapsule systématiquement le tag dans un `<p>`.
+
+**[2026-07-27] Liaison des cellules : tags explicites seuls, pas de `lierAuto()`**
+→ La liaison automatique par nom est trop coûteuse et trop bruyante dans une grille dense (chaque
+cellule serait tokenisée). L'échappement est délégué à `lierAvecSegmentsProteges($txt, 0, …)` :
+`maxWords = 0` court-circuite le tokenizer et `h()` s'applique à tout ce qui n'est pas un lien déjà
+produit — pas de logique d'échappement dupliquée.
+
+**[2026-07-27] `mo_stats` : sentinelle avant formatage (SP-TB6)**
+Les lignes réduites à un tag sont sorties du flux et remplacées par `___TAB<n>___` avant
+formatage, puis substituées à la fin.
+→ Résoudre le tag après coup l'exposerait à `lierAuto()`, qui tokenise les mots de ≥ 4 lettres et
+injecterait un `<span>` au milieu du slug, rendant le tag irrésoluble. La sentinelle ne contient
+aucun mot assez long pour être tokenisé.
+
+**[2026-07-27] Le picker ne propose pas la création d'un tableau**
+Le sélecteur ouvert depuis l'éditeur de règle (`#detail-pp-sub`, z-index 300) n'offre qu'un lien
+« Gérer » vers `regles/tableaux.php` en nouvel onglet.
+→ Un formulaire de création occuperait `#modification` (250), qui porte la règle en cours
+d'édition : l'utilisateur perdrait sa saisie. Contrainte structurelle du système de panels.
+
+**[2026-07-27] Liste dédiée plutôt que moteur `compendium-liste.php`**
+→ Conforme à §9b : le moteur ne s'applique pas au module Règles (scoping ruleset seul, pas de
+sources actives ni de mécanisme de supplément). Le forcer aurait exclu tout tableau à
+`tab_res_id IS NULL` via le filtre `IN (sources actives)`.
+
+**[2026-07-27] Périmètre ruleset : DD2024 seul**
+SP-TB0→TB6 n'alimentent que DD2024 (id 2). La saisie des tableaux DD3.5 (id 1) est isolée en
+**SP-TB9**.
+→ Décision utilisateur : ne pas mélanger les deux rulesets dans une même passe de saisie.
+
+**[2026-07-27] Migration : script PHP idempotent plutôt que SQL littéral**
+`sql/migrate_tableaux_sp-tb5.php`, simulation par défaut, `?go=1` pour appliquer.
+→ Le script opère sur l'état réel de la base plutôt que sur une transcription figée du fichier
+d'import. Résultat sur les données DD2024 : 10 blocs → 9 tableaux distincts, doublon « Bonus de
+maîtrise » détecté et fusionné, aucun bloc ignoré. Les tableaux à `colspan`/`rowspan` sont
+signalés et laissés intacts — les fusions ne sont pas devinables de façon fiable.
+
+**[2026-07-27] `_tabSlugify()` sans dépendance à l'extension intl**
+→ `extension=intl` est commentée dans le `php.ini` de XAMPP : un appel direct à
+`transliterator_transliterate()` est une erreur fatale. Repli par table de translittération.
+Le même défaut existe dans `_slugify()` (`include/regles-arbre.php`) — non corrigé ici, hors
+périmètre, signalé à l'utilisateur.
+
+**[2026-07-27] Suivi des phases de développement — consigne permanente**
+Ajout d'un §0 « Suivi des phases de développement » en tête de `ARCHITECTURE_0_REFERENCE.md` :
+checklist markdown de toutes les phases, tous projets confondus (SP-C, SP-E, SP-T, SP-TB).
+Consigne inscrite comme **obligatoire et prioritaire** dans `CLAUDE.md`.
+→ Demande utilisateur : disposer d'un tableau de bord unique de l'avancement, tenu à jour à
+chaque livraison, plutôt que des statuts dispersés dans les sections de chaque module.
+
+**[2026-07-27] SP-TB0 et SP-TB5 appliqués en base locale**
+Schéma `dd_tableaux` créé sur `maikasteiymaika`, migration exécutée sur le ruleset DD2024.
+Résultat : 14 blocs `<table>` dans 8 règles → 13 tableaux, 1 réutilisation, 0 ignoré.
+→ Le fichier d'import ne décrivait que 10 blocs ; 4 tableaux avaient été ajoutés depuis via
+l'interface. Confirme le choix d'un script opérant sur la base plutôt que sur le fichier.
+Sauvegarde préalable : `sql/backup/2026-07-27_reg_texte_avant_sp-tb5.sql`.
+
+**[2026-07-27] Script de migration exécutable en CLI**
+Ajout d'un mode CLI (`--ruleset=<id> [--go]`) court-circuitant `requireAuth()`/`requireAdmin()`.
+→ L'accès CLI implique déjà l'accès au système de fichiers : le garde ne protégerait rien et
+empêcherait simplement l'exécution (pas de session HTTP). Permet de rejouer et de vérifier la
+migration sans passer par le navigateur. Le ruleset devient obligatoire en CLI, faute de session.
+
+**[2026-07-27] `;` retiré des commentaires de colonne SQL**
+Le commentaire de `tab_camp_id` contenait `… -> dd_campagnes ; NULL = officiel`.
+→ Un point-virgule à l'intérieur d'une chaîne de commentaire casse tout découpeur de requêtes
+naïf (le nôtre l'a été). phpMyAdmin s'en accommode, pas un `explode(';')`. La convention
+existante (`reg_camp_id` dans le dump) porte le même piège — à éviter dans les futures DDL.
+
+**[2026-07-27] Extension `intl` — activée en local, confirmée sur OVH**
+`extension=intl` décommentée dans le `php.ini` XAMPP (ICU **71.1**). OVH l'expose déjà
+(ICU **63.1**, `intl.error_level=0`, `intl.use_exceptions=Off`).
+→ Clôt le défaut signalé le même jour sur `_slugify()` (`include/regles-arbre.php`), qui appelait
+`transliterator_transliterate()` sans garde : la fonction ne peut plus être indéfinie dans aucun
+des deux environnements. **Aucune modification de code** — correction par configuration.
+
+Le repli `strtr()` de `_tabSlugify()` (`include/tableau-parser.php`) est **conservé** : il ne coûte
+rien (branche jamais prise) et protège d'un changement d'hébergement. Équivalence des deux chemins
+vérifiée sur les 13 tableaux migrés — **0 divergence** — et sur une série de cas limites français
+(œ, æ, apostrophes, majuscules accentuées, ponctuation). Seul écart relevé : l'eszett allemand
+(`Süß` → `suss` via intl, `su` via le repli), sans objet sur un corpus francophone. Ajouter
+`'ß'=>'ss'` à la table si un jour le repli redevient le chemin actif.
+
+> Note : les deux environnements n'ont pas la même version d'ICU (71.1 local / 63.1 OVH). Sans
+> conséquence ici — `Any-Latin; Latin-ASCII` est stable sur le latin accenté depuis bien avant
+> ICU 63 — mais à garder en tête si un slug devait un jour être régénéré côté serveur.

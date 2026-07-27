@@ -11,6 +11,7 @@ require_once '../include/db.php';
 require_once '../include/auth.php';
 require_once '../include/helpers.php';
 require_once '../include/regles-arbre.php';
+require_once '../include/tableau-parser.php';
 
 requireAuth();
 
@@ -156,7 +157,8 @@ require_once '../include/header.php';
     <?php // ---- Corps texte ---- ?>
     <?php if ($noeud['reg_texte']): ?>
       <div class="regles-noeud__texte" id="regles-texte">
-        <?= $noeud['reg_texte'] ?>
+        <?php // Tags [[tab:slug]] → tableaux dd_tableaux (SP-TB2) ?>
+        <?= resoudreTagsTableaux($db, $noeud['reg_texte'], $ruleset_id, $peut_editer) ?>
       </div>
     <?php elseif (empty($enfants) && $peut_editer): ?>
       <p class="regles-vide">

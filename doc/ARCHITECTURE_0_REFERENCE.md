@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-26 12:19 -->
+<!-- Mis à jour : 2026-07-27 19:25 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -17,6 +17,58 @@
 > PDO) sur OVH alors que le local fonctionne. Cause précise non confirmée (log serveur OVH non
 > consulté) — `include/db.php` instrumenté pour journaliser l'environnement détecté et l'hôte DSN
 > ciblé à chaque échec, sans exposer les identifiants (voir D-CFG2, diagnostic en cours).
+
+> 2026-07-27 : nouveau projet **SP-TB — Tableaux de règles**. Les tableaux de données quittent
+> `reg_texte` (HTML TinyMCE) pour une table dédiée `dd_tableaux`, saisis en convention texte et
+> insérés dans une règle par le tag `[[tab:slug]]`. SP-TB0→TB6 livrés ; SP-TB7 (extension aux
+> champs texte du compendium), SP-TB8 (écran du MJ) et SP-TB9 (tableaux DD3.5) restent à faire.
+> Voir §9c.
+
+---
+
+## 0. Suivi des phases de développement
+
+> **Tableau de bord unique du projet.** Toute livraison significative met cette liste à jour :
+> case cochée, code de phase, libellé court. Les détails vivent dans la section du module
+> concerné et dans `DECISIONS_LOG.md` — jamais ici.
+
+### SP-C — Supplément utilisateur du compendium
+
+- [x] SP-C0 — SQL : 8 × ALTER TABLE (`_public`/`_visible`) + migration `mo_j_id`
+- [x] SP-C1 — Socle helpers : `getOrCreateUserSupplement`, `getUserSupplementResId`, `canEditCompendiumEntry`
+- [x] SP-C2 — Moteur `compendium-liste.php` : filtre visibilité, menu ⋮ per-entry, badge homebrew (8 entités)
+- [x] SP-C3 — `detail-pp/*.php` × 8 : bouton Modifier per-entry
+- [x] SP-C4 — `modifier/*.php` × 8 : source dropdown 2 groupes + `_public`/`_visible`
+- [x] SP-C5 — `enregistrement.php` : ownership + sauvegarde `_public`/`_visible` + auto-création du supplément
+- [ ] SP-C6 — `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers *(partiel — sélection propre robuste, affichage des suppléments tiers non implémenté)*
+- [x] SP-C7 — Nettoyage monstres post-migration
+
+### SP-E — Module Équipements
+
+- [x] SP-E0 — SQL : `CREATE TABLE dd_equipements`
+- [x] SP-E1 — Contrôleur liste `compendium/equipements.php`
+- [x] SP-E2 — Formulaire `modifier/equipement.php` + `enregistrement.php`
+- [x] SP-E3 — Fiche détail `detail-pp/equipement.php`
+- [ ] SP-E4 — `monstre-parser.php` : type liable `equipement` + entrée `MO_LIEN_FICHIERS` *(débloquée)*
+- [ ] SP-E5 — Alignement sur le mécanisme Supplément utilisateur (`eqt_public`) *(à arbitrer, non prioritaire)*
+
+### SP-T — Transfert / Duplication d'opposition
+
+- [x] SP-T0 — Transférer/Dupliquer vers une rencontre de la **même** campagne
+- [ ] SP-T1 — Étendre vers une rencontre d'une **autre** campagne du MJ
+
+### SP-TB — Tableaux de règles
+
+- [x] SP-TB0 — SQL : `CREATE TABLE dd_tableaux`
+- [x] SP-TB1 — Moteur `include/tableau-parser.php` : convention texte → HTML (en-têtes multi-niveaux, sections, alignements, notes)
+- [x] SP-TB2 — Résolution du tag `[[tab:slug]]` dans `reg_texte` (vue règle + detail-pp)
+- [x] SP-TB3 — UI : liste `regles/tableaux.php`, formulaire, fiche détail, aperçu, enregistrement
+- [x] SP-TB4 — Insertion depuis l'éditeur de règle : bouton TinyMCE + picker `#detail-pp-sub`
+- [x] SP-TB5 — Migration des tableaux HTML existants (`sql/migrate_tableaux_sp-tb5.php`)
+- [x] SP-TB6 — Portée du tag étendue à `mo_stats` (monstres)
+- [ ] SP-TB7 — Portée du tag étendue aux champs texte du compendium (`do_texte`, `om_texte`, `hi_description`, …)
+- [ ] SP-TB8 — Écran du MJ : page dédiée alimentée par `tab_ecran_mj` / `tab_ecran_ordre`, mise en page multi-colonnes et impression
+- [ ] SP-TB9 — Saisie des tableaux du ruleset **DD3.5** (id 1) — SP-TB0→TB6 n'ont alimenté que DD2024 (id 2)
 
 ---
 
@@ -1261,6 +1313,207 @@ include/
 css/regles-modules.css
 js/regles.js
 ```
+
+---
+
+## 9c. Tableaux de règles — SP-TB
+
+Projet **SP-TB**. Les tableaux de données ne sont plus saisis en HTML dans `reg_texte` : ils
+vivent dans une table dédiée `dd_tableaux`, sont saisis selon une **convention texte** (aucun
+HTML), et sont insérés dans le corps d'une règle par un **tag**. Le HTML est produit au rendu,
+le design reste intégralement géré en CSS.
+
+Objectif structurant : un tableau devient une **donnée adressable**, réutilisable ailleurs —
+notamment par le futur écran du MJ (SP-TB8), qui regroupera les tableaux marqués `tab_ecran_mj`.
+
+### Schéma de la table dd_tableaux
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| tab_id | int unsigned | PK | |
+| tab_slug | varchar(120) | nn, UK(tab_slug, tab_ruleset_var_id) | **Clé du tag** `[[tab:slug]]` |
+| tab_nom | varchar(200) | nn | Titre affiché au-dessus du tableau |
+| tab_contenu | text | nn | Convention texte (voir ci-dessous) |
+| tab_align | varchar(40) | null | Une lettre par colonne : `l` / `c` / `r` (ex. `lrr`) |
+| tab_note | varchar(500) | null | Note de bas de tableau |
+| tab_ruleset_var_id | int unsigned | nn | -> `dd_variables` |
+| tab_res_id | int unsigned | null | -> `dd_ressources` (attribution) |
+| tab_camp_id | int unsigned | null | **RÉSERVÉ** house rules, comme `reg_camp_id` |
+| tab_ecran_mj | tinyint(1) | nn, défaut 0 | 1 = retenu pour l'écran du MJ (SP-TB8) |
+| tab_ecran_ordre | smallint unsigned | nn, défaut 0 | Ordre sur l'écran du MJ |
+| tab_visible | tinyint(1) | nn, défaut 1 | 0 = brouillon/masqué |
+| tab_date_creation / tab_date_modif | datetime | nn | |
+
+**Scoping ruleset uniquement**, droits d'édition `canEditCompendium()` — strictement calqué sur
+`dd_regles`. Le moteur `compendium-liste.php` **ne s'applique pas** (pas de sources actives,
+pas de mécanisme de supplément) : `regles/tableaux.php` est une liste dédiée.
+
+### Convention de saisie (`tab_contenu`)
+
+Une ligne = une ligne de tableau, `|` sépare les cellules.
+
+| Préfixe | Rôle |
+|---|---|
+| `!` | Ligne d'en-tête (`<th>`). Plusieurs `!` consécutifs = **en-tête à plusieurs niveaux** |
+| `#` | Ligne de **section**, fusionnée sur toute la largeur |
+| `>` | Note de bas de tableau |
+| *(aucun)* | Ligne de données (`<td>`) |
+| *(ligne vide)* | Ignorée |
+
+**Fusions — uniquement dans les lignes `!`** :
+
+| Cellule | Effet |
+|---|---|
+| *vide* | Fusion horizontale avec la cellule de gauche (`colspan`) |
+| `^` | Fusion verticale avec la cellule du dessus (`rowspan`) |
+
+Les lignes de données ne connaissent **aucune** fusion : une cellule vide reste une cellule
+vide — indispensable aux grilles irrégulières (colonnes de longueurs inégales).
+
+Exemple d'en-tête sur deux niveaux :
+
+```
+! | Rythme | | | Effet
+! Distance parcourue par… | Rapide | Normal | Lent | ^
+Minute | 120 m | 90 m | 60 m | —
+```
+
+Le **nombre de colonnes** est déduit de la ligne la plus large ; les lignes plus courtes sont
+complétées par des cellules vides. L'**alignement** vit hors du contenu, dans `tab_align` :
+le contenu reste de la donnée pure.
+
+### Tag d'insertion
+
+`[[tab:slug]]`, seul sur sa ligne (ou seul dans son `<p>` côté TinyMCE).
+
+Référence **par slug et non par id** — contrairement aux tags `@id@` / `%id%` de `mo_stats`,
+fragiles entre local et OVH. Le renommage d'un slug répercute automatiquement le tag dans
+`reg_texte` et `mo_stats` (`_tabPropagerSlug()`), sinon toutes les insertions existantes
+deviendraient silencieusement irrésolubles.
+
+> **Pourquoi `[[…]]` et pas un délimiteur mono-caractère** comme la famille `#`/`$`/`&`/`@`/`%` :
+> `reg_texte` est du HTML TinyMCE, pas du texte brut. `&` collisionne avec les entités, et un
+> caractère isolé ne survit pas de façon fiable au nettoyage de collage. `[[…]]` traverse
+> TinyMCE intact et reste lisible en saisie.
+
+**Passe 1 / passe 2** — `resoudreTagsTableaux()` remplace d'abord le `<p>` **entier** quand le
+tag en est le seul contenu, puis les tags nus résiduels. Sans la passe 1, un `<table>` se
+retrouverait à l'intérieur d'un `<p>` : HTML invalide, le navigateur ferme le `<p>` et la mise
+en page casse.
+
+Slug inconnu ou tableau en brouillon → le tag s'affiche tel quel, échappé, en
+`.reg-tab__manquant` (même politique de dégradation que `resoudreTagsExplicites()`).
+
+### Liaison des cellules
+
+Le contenu des cellules passe par `resoudreTagsExplicites()` — tags `#don#`, `$sort$`,
+`&objet&`, `@id@` (règle), `%id%` (glossaire). **Aucune liaison automatique** (`lierAuto()`) :
+trop coûteuse et trop bruyante dans une grille dense.
+
+L'échappement est délégué à `lierAvecSegmentsProteges($txt, 0, …)` : les `<span class="mo-lien">`
+produits transitent tels quels, tout le reste est `h()`-échappé, et `maxWords = 0` court-circuite
+le tokenizer. L'index (`chargerIndexMonstre()`) n'est chargé que si le contenu porte au moins un
+caractère de tag.
+
+Le conteneur `<figure class="reg-tab">` porte `data-detail-base` — sans cet attribut, le handler
+`.mo-lien` de `js/main.js` ne peut pas dériver l'URL des endpoints et les liens seraient inertes.
+
+### Portée du tag
+
+| Champ hôte | Phase | État |
+|---|---|---|
+| `reg_texte` (règles) | SP-TB2 | ✅ |
+| `mo_stats` (monstres) | SP-TB6 | ✅ — ligne réduite au tag, sortie du flux avant formatage |
+| `do_texte`, `om_texte`, `hi_description`, … | SP-TB7 | ⏳ à faire |
+
+> **`mo_stats` — pourquoi une sentinelle.** `mo_stats` est du texte brut formaté ligne à ligne.
+> Résoudre le tag après coup exposerait le slug à `lierAuto()`, qui tokenise les mots ≥ 4 lettres
+> et injecterait un `<span>` au milieu du tag. `rendreStatsMonstre()` sort donc les lignes-tag du
+> flux avant formatage, les remplace par `___TAB<n>___` (aucun mot de longueur suffisante pour
+> être tokenisé), puis substitue le HTML final.
+
+### Fichiers du module
+
+```
+regles/
+  tableaux.php                 liste + gestion
+  tableaux-enregistrement.php  écriture (sauvegarder / supprimer)
+
+include/
+  tableau-parser.php           moteur : parsing, rendu, résolution du tag, slug
+  ajax/
+    tableau-apercu.php               aperçu POST sans écriture
+    detail-pp/tableau.php            fiche détail
+    detail-pp-sub/tableaux-picker.php  sélecteur depuis l'éditeur de règle
+    modifier/tableau.php             formulaire
+
+sql/
+  2026-07-27_tableaux_sp-tb0.sql   schéma
+  migrate_tableaux_sp-tb5.php      migration des tableaux HTML existants
+```
+
+CSS : bloc `TABLEAUX DE DONNÉES` de `css/regles-modules.css`.
+JS : `reglesCopierTag()` / `tableauConfirmerSuppression()` dans `js/regles.js`.
+
+### Points d'attention
+
+- **Le picker ne crée pas de tableau.** Il s'affiche dans `#detail-pp-sub` (z-index 300)
+  au-dessus de `#modification` (250) qui porte la règle en cours d'édition. Ouvrir un
+  formulaire de création occuperait `#modification` et **écraserait la règle en saisie** —
+  le picker propose donc un lien « Gérer » vers `regles/tableaux.php` en nouvel onglet.
+- **Le débordement horizontal est porté par `.reg-tab__scroll`, jamais par `<table>`.**
+  Un `table { display:block }` (comme dans l'ancien style `.regles-noeud__texte table`)
+  casse `colspan`/`rowspan`.
+- **`_tabSlugify()` ne dépend pas de l'extension intl.** Garde `function_exists()` + repli
+  `strtr()`. L'extension est désormais active en local (ICU 71.1) et sur OVH (ICU 63.1) — le
+  repli n'est donc jamais pris, mais il est conservé comme filet en cas de changement
+  d'hébergement. Équivalence des deux chemins vérifiée (0 divergence sur les 13 tableaux
+  migrés). `_slugify()` (`include/regles-arbre.php`) appelle `transliterator_transliterate()`
+  sans garde : correct tant qu'intl reste activée dans les deux environnements.
+
+### Migration SP-TB5
+
+`sql/migrate_tableaux_sp-tb5.php` — script one-shot, **simulation par défaut**, idempotent.
+
+```
+navigateur (admin, ruleset = celui de la session) : …/sql/migrate_tableaux_sp-tb5.php[?go=1]
+CLI (ruleset explicite, pas de session)          : php sql/migrate_tableaux_sp-tb5.php --ruleset=2 [--go]
+```
+
+Extrait le motif `<p class="table-titre">TITRE</p>` + `<table>…</table>`, convertit en
+convention, crée le `dd_tableaux` et remplace le bloc par `<p>[[tab:slug]]</p>`. Deux tableaux
+de titre **et** contenu identiques ne sont créés qu'une fois et partagent le même tag — c'est
+le gain direct du refactor : « Bonus de maîtrise » était dupliqué dans deux règles.
+
+Un tableau portant `colspan`/`rowspan` est **signalé et laissé intact** : les fusions ne sont
+pas devinables de façon fiable, l'auteur les reprend à la main.
+
+> ✅ **Migration exécutée le 2026-07-27 sur la base locale `maikasteiymaika` (ruleset DD2024).**
+> **14 blocs répartis dans 8 règles → 13 tableaux distincts** (`dd_tableaux`), 1 réutilisation
+> (« Bonus de maîtrise », présent à l'identique dans `tests-d20` et `maitrise`), **0 ignoré**.
+> Vérification post-migration : 0 `<table>` restant dans `reg_texte`, 0 tag non résolu,
+> 0 `<figure>` imbriqué dans un `<p>`. Sauvegarde préalable du `reg_texte` des 8 règles dans
+> `sql/backup/2026-07-27_reg_texte_avant_sp-tb5.sql` (rejouable tel quel pour restaurer).
+>
+> Le fichier `sql/import_regles_dd2024.sql` ne décrivait que **10** de ces blocs : 4 tableaux
+> (règles `combat`, `allure-voyage`, `sorts-acquisition`, `sorts-ecoles-magie`) avaient été
+> ajoutés depuis via l'interface. C'est la raison pour laquelle la migration opère sur la base
+> et non sur le fichier d'import.
+>
+> ⚠ **Un titre à reprendre** : le premier tableau de la règle `combat` (catégories de taille et
+> espace occupé) n'était précédé d'aucun `<p class="table-titre">`. Le repli a donc pris le nom
+> de la règle : il s'appelle « Combat » / `[[tab:combat]]`. À renommer depuis
+> `regles/tableaux.php` — le renommage du slug se répercute automatiquement dans `reg_texte`.
+
+> ⚠ `sql/import_regles_dd2024.sql` contient encore les tableaux en HTML. Le rejouer **après**
+> la migration réintroduirait les blocs `<table>` dans `reg_texte`. Le relancer impose de
+> rejouer la migration derrière (elle est idempotente et re-détectera les blocs).
+
+> 🐛 **Classe de titre incohérente (constaté 2026-07-27).** Les données écrivent
+> `<p class="table-titre">`, alors que `css/regles-modules.css` définit `.titre-tableau` — c'est
+> aussi ce que produit le `style_formats` de TinyMCE. Les titres de tableaux importés n'étaient
+> donc pas stylés. Sans objet après SP-TB5 : le titre remonte dans `tab_nom` et la migration
+> supprime le paragraphe.
 
 ---
 

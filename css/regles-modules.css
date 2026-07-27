@@ -315,6 +315,213 @@
 }
 
 /* ============================================================
+   TABLEAUX DE DONNÉES — dd_tableaux (SP-TB)
+   Rendu par include/tableau-parser.php : la structure vient de la base,
+   la présentation vit ici et nulle part ailleurs.
+   ============================================================ */
+
+.reg-tab {
+  margin: var(--sp-lg, 24px) 0;
+}
+
+.reg-tab__titre {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--clr-accent, #8b2020);
+  margin-bottom: var(--sp-sm, 8px);
+}
+
+/* Le débordement est porté par le conteneur, jamais par <table> :
+   un table en display:block casse colspan/rowspan. */
+.reg-tab__scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.reg-tab__table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .875rem;
+}
+
+.reg-tab__table th,
+.reg-tab__table td {
+  padding: var(--sp-xs, 4px) var(--sp-sm, 8px);
+  text-align: left;
+  vertical-align: top;
+  border: none;
+}
+
+.reg-tab__table thead th {
+  font-weight: 700;
+  color: var(--clr-accent, #8b2020);
+  border-bottom: 2px solid var(--clr-accent, #8b2020);
+  white-space: nowrap;
+}
+
+/* En-tête groupé (colspan) : centré au-dessus de ses colonnes filles */
+.reg-tab__table thead th[colspan] {
+  text-align: center;
+  border-bottom: 1px solid var(--clr-border, #d5cfc3);
+}
+
+.reg-tab__table tbody tr:nth-child(odd) td {
+  background: rgba(128, 128, 128, .10);
+}
+
+/* Ligne de section : intertitre pleine largeur */
+.reg-tab__table tbody tr.reg-tab__section td {
+  background: transparent;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: .8rem;
+  letter-spacing: .04em;
+  color: var(--clr-text-muted, #7a6e5a);
+  border-bottom: 1px solid var(--clr-border, #d5cfc3);
+  padding-top: var(--sp-md, 16px);
+}
+
+.reg-tab__c--right  { text-align: right !important; }
+.reg-tab__c--center { text-align: center !important; }
+
+.reg-tab__note {
+  font-size: .8rem;
+  color: var(--clr-text-muted, #7a6e5a);
+  margin-top: var(--sp-sm, 8px);
+  font-style: italic;
+}
+
+/* Tag non résolu — slug inconnu ou tableau en brouillon */
+.reg-tab__manquant {
+  display: inline-block;
+  padding: 2px var(--sp-xs, 4px);
+  border: 1px dashed var(--clr-danger, #c0392b);
+  color: var(--clr-danger, #c0392b);
+  font-family: monospace;
+  font-size: .8rem;
+}
+
+/* ---- Liste de gestion (regles/tableaux.php) ---- */
+
+.regles-layout--pleine .regles-contenu {
+  flex: 1 1 100%;
+}
+
+.reg-tab-liste__nom {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reg-tab-liste__ligne--masque {
+  opacity: .6;
+}
+
+.reg-tab-liste__tag {
+  cursor: pointer;
+  font-size: .8rem;
+  padding: 2px var(--sp-xs, 4px);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--clr-surface-alt, #eae6dd);
+  color: var(--clr-text, #2a2015);
+  white-space: nowrap;
+}
+
+.reg-tab-liste__tag--copie {
+  background: var(--clr-success, #2a7a3b);
+  color: #fff;
+}
+
+/* ---- Formulaire de saisie ---- */
+
+.reg-tab-saisie {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: .85rem;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.reg-tab-aide {
+  margin-bottom: var(--sp-sm, 8px);
+  font-size: .85rem;
+  color: var(--clr-text-muted, #7a6e5a);
+}
+
+.reg-tab-aide summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.reg-tab-aide__table td {
+  padding: 2px var(--sp-sm, 8px) 2px 0;
+  vertical-align: top;
+}
+
+.reg-tab-aide__exemple {
+  background: var(--clr-surface-alt, #eae6dd);
+  padding: var(--sp-sm, 8px);
+  border-radius: var(--radius-sm, 4px);
+  font-size: .8rem;
+  overflow-x: auto;
+}
+
+.reg-tab-apercu:not(:empty) {
+  margin-top: var(--sp-md, 16px);
+  padding: var(--sp-md, 16px);
+  border: 1px solid var(--clr-border, #d5cfc3);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--clr-surface, #fff);
+}
+
+/* ---- Picker (#detail-pp-sub) ---- */
+
+.tableaux-picker__recherche {
+  display: flex;
+  gap: var(--sp-sm, 8px);
+  align-items: center;
+  margin-bottom: var(--sp-md, 16px);
+}
+
+.tableaux-picker__liste {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tableaux-picker__btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-sm, 8px);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--clr-border, #d5cfc3);
+  color: var(--clr-text, #2a2015);
+  cursor: pointer;
+}
+
+.tableaux-picker__btn:hover {
+  background: var(--clr-surface-alt, #eae6dd);
+}
+
+.tableaux-picker__nom {
+  font-weight: 600;
+}
+
+.tableaux-picker__meta,
+.tableaux-picker__tag {
+  font-size: .75rem;
+  color: var(--clr-text-muted, #7a6e5a);
+}
+
+.regles-badge--ecran {
+  background: var(--clr-warning, #a06010);
+  color: #fff;
+}
+
+/* ============================================================
    FIL D'ARIANE
    ============================================================ */
 
