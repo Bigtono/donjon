@@ -7,10 +7,14 @@
    LAYOUT DEUX COLONNES
    ============================================================ */
 
+/* En desktop, le sommaire et le corps de la règle sont deux colonnes de texte
+   sans séparateur : sous --sp-lg elles se lisent comme un seul bloc. --sp-xl
+   donne la respiration qui les distingue. Le gap retombe à --sp-md en mobile,
+   où les colonnes s'empilent (voir RESPONSIVE en fin de fichier). */
 .regles-layout {
   display: flex;
   align-items: flex-start;
-  gap: var(--sp-lg, 24px);
+  gap: var(--sp-xl, 40px);
   max-width: 1400px;
   margin: 0 auto;
   padding: var(--sp-md, 16px);
@@ -262,116 +266,13 @@
 }
 
 /* Les styles de tableaux HTML inline (`.regles-noeud__texte table`, …) ont été
-   retirés le 2026-07-27 avec la migration SP-TB5 : plus aucun <table> ne subsiste
-   dans reg_texte, tous les tableaux passent par dd_tableaux et le bloc ci-dessous.
-   Ces sélecteurs, plus spécifiques que `.reg-tab__table`, écrasaient le nouveau
-   rendu — dont un `display: block` qui neutralise colspan/rowspan. */
-
-/* ============================================================
-   TABLEAUX DE DONNÉES — dd_tableaux (SP-TB)
-   Rendu par include/tableau-parser.php : la structure vient de la base,
-   la présentation vit ici et nulle part ailleurs.
-   ============================================================ */
-
-/* Le rendu ne doit hériter d'aucun contexte typographique : le même tableau
-   s'affiche dans le corps d'une règle (.regles-noeud__texte, line-height 1.7),
-   dans le gestionnaire, dans l'aperçu du formulaire, dans un bloc de stats de
-   monstre — et demain sur l'écran du MJ. On fixe donc ici tout ce qui, sinon,
-   serait hérité et rendrait le tableau différent d'un écran à l'autre.
-   Valeur alignée sur celle du corps de règle, qui fait référence. */
-.reg-tab {
-  margin: var(--sp-lg, 24px) 0;
-  line-height: 1.7;
-  color: var(--clr-text, #2a2015);
-  text-align: left;
-}
-
-/* Titre collé à son tableau : la proximité fait le lien, pas la taille.
-   Couleur du texte courant (et non l'accent) — var(--clr-text) vaut #2a2015
-   en thème Parchemin et #e0e0e0 en thème sombre, où un noir dur serait illisible. */
-.reg-tab__titre {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--clr-text, #2a2015);
-  margin-bottom: 0;
-}
-
-/* Le débordement est porté par le conteneur, jamais par <table> :
-   un table en display:block casse colspan/rowspan. */
-.reg-tab__scroll {
-  overflow-x: auto;
-  max-width: 100%;
-}
-
-.reg-tab__table {
-  border-collapse: collapse;
-  width: 100%;
-  font-size: .875rem;
-}
-
-.reg-tab__table th,
-.reg-tab__table td {
-  padding: var(--sp-xs, 4px) var(--sp-sm, 8px);
-  text-align: left;
-  vertical-align: top;
-  border: none;
-}
-
-.reg-tab__table thead th {
-  font-weight: 700;
-  color: var(--clr-accent, #8b2020);
-  border-bottom: 2px solid var(--clr-accent, #8b2020);
-  white-space: nowrap;
-}
-
-/* Titre et tableau quasi collés : la première ligne d'en-tête ne doit pas
-   rouvrir un écart avec son padding haut. */
-.reg-tab__table thead tr:first-child th,
-.reg-tab__table:not(:has(thead)) tbody tr:first-child td {
-  padding-top: 0;
-}
-
-/* En-tête groupé (colspan) : centré au-dessus de ses colonnes filles */
-.reg-tab__table thead th[colspan] {
-  text-align: center;
-  border-bottom: 1px solid var(--clr-border, #d5cfc3);
-}
-
-.reg-tab__table tbody tr:nth-child(odd) td {
-  background: rgba(128, 128, 128, .10);
-}
-
-/* Ligne de section : intertitre pleine largeur */
-.reg-tab__table tbody tr.reg-tab__section td {
-  background: transparent;
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: .8rem;
-  letter-spacing: .04em;
-  color: var(--clr-text-muted, #7a6e5a);
-  border-bottom: 1px solid var(--clr-border, #d5cfc3);
-  padding-top: var(--sp-md, 16px);
-}
-
-.reg-tab__c--right  { text-align: right !important; }
-.reg-tab__c--center { text-align: center !important; }
-
-.reg-tab__note {
-  font-size: .8rem;
-  color: var(--clr-text-muted, #7a6e5a);
-  margin-top: var(--sp-sm, 8px);
-  font-style: italic;
-}
-
-/* Tag non résolu — slug inconnu ou tableau en brouillon */
-.reg-tab__manquant {
-  display: inline-block;
-  padding: 2px var(--sp-xs, 4px);
-  border: 1px dashed var(--clr-danger, #c0392b);
-  color: var(--clr-danger, #c0392b);
-  font-family: monospace;
-  font-size: .8rem;
-}
+   retirés le 2026-08-10 avec la migration SP-TB5 : plus aucun <table> ne subsiste
+   dans reg_texte, tous les tableaux passent par dd_tableaux. Ces sélecteurs, plus
+   spécifiques que `.reg-tab__table`, écrasaient le nouveau rendu — dont un
+   `display: block` qui neutralise colspan/rowspan.
+   Le composant de rendu lui-même (`.reg-tab`, `.reg-tab__*`) vit dans
+   css/modules.css : il est affiché hors du module Règles (compendium, monstres).
+   Ne subsiste ici que l'outillage propre au gestionnaire de tableaux. */
 
 /* ---- Fiche détail du gestionnaire (detail-pp/tableau.php) ---- */
 
@@ -427,29 +328,9 @@
   overflow-x: auto;
 }
 
-.reg-tab-aide {
-  margin-bottom: var(--sp-sm, 8px);
-  font-size: .85rem;
-  color: var(--clr-text-muted, #7a6e5a);
-}
 
-.reg-tab-aide summary {
-  cursor: pointer;
-  user-select: none;
-}
 
-.reg-tab-aide__table td {
-  padding: 2px var(--sp-sm, 8px) 2px 0;
-  vertical-align: top;
-}
 
-.reg-tab-aide__exemple {
-  background: var(--clr-surface-alt, #eae6dd);
-  padding: var(--sp-sm, 8px);
-  border-radius: var(--radius-sm, 4px);
-  font-size: .8rem;
-  overflow-x: auto;
-}
 
 .reg-tab-apercu:not(:empty) {
   margin-top: var(--sp-md, 16px);
@@ -744,21 +625,9 @@ mark.regles-surligné {
    BADGES
    ============================================================ */
 
-/* ============================================================
-   LIEN GLOSSAIRE inline dans les textes de règles
-   ============================================================ */
-
-.glossaire-lien {
-  color: #6b47a4;
-  text-decoration: underline dotted;
-  cursor: pointer;
-  transition: color .15s;
-}
-
-.glossaire-lien:hover {
-  color: var(--clr-text, #2a2015);
-  text-decoration: underline solid;
-}
+/* LIEN GLOSSAIRE inline (.glossaire-lien) — déplacé dans css/modules.css :
+   les renvois SP-GL apparaissent aussi hors du module Règles (#detail-pp,
+   glossaire en sous-panneau), où ce fichier n'est pas chargé. */
 
 /* ============================================================
    OVERLAY DETAIL-PP — variante règle
@@ -879,6 +748,7 @@ mark.regles-surligné {
 @media (max-width: 768px) {
   .regles-layout {
     flex-direction: column;
+    gap: var(--sp-md, 16px);
     padding: var(--sp-sm, 8px);
   }
 

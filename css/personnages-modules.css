@@ -3,7 +3,7 @@
    Réutilise les variables du design system (main.css / modules.css).
    Reprend les classes .comp-menu-* (compendium-modules.css n'est pas chargé ici).
 
-   SOUS-PHASE 3.0 : socle — barre de filtres + liste responsive.
+   SP-PE0 : socle — barre de filtres + liste responsive.
    Priorité responsive : usage majoritaire sur tablette / smartphone par les
    joueurs en cours de partie (breakpoint 991px aligné sur les autres modules).
 */
@@ -261,7 +261,7 @@
 }
 
 /* ============================================================
-   SOUS-PHASE 3.1 — Fiche personnage (vue unique responsive)
+   SP-PE1 — Fiche personnage (vue unique responsive)
    Vue dédiée — pas un detail-pp. Conteneur direct dans .site-main.
    ============================================================ */
 
@@ -633,7 +633,7 @@
 }
 
 /* ============================================================
-   SOUS-PHASE 3.2 — Éditeur Classes inline
+   SP-PE2 — Éditeur Classes inline
    ============================================================ */
 
 /* Header avec bouton Modifier aligné à droite */

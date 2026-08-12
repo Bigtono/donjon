@@ -382,7 +382,7 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
     <!-- ===== Description TinyMCE ===== -->
     <div class="modif-section" id="section-description">
       <div class="form-group">
-        <label for="om_description">Description</label>
+        <label for="om_description">Description<?= aideIcone('texte-parsers') ?></label>
         <textarea id="om_description" name="om_description"
                   class="tinymce-basic"><?= $om['om_description'] ?? '' ?></textarea>
       </div>
@@ -413,7 +413,12 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
     language:      'fr_FR',
     menubar:       false,
     plugins:       'lists link table code',
-    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
+    // Bouton d'insertion d'un tableau dd_tableaux (SP-TB7) —
+    // implémentation partagée dans js/main.js
+    setup: function (editor) {
+      if (typeof tableauxInitBouton === 'function') tableauxInitBouton(editor);
+    },
     height:        300,
     skin:          isLight ? 'oxide' : 'oxide-dark',
     content_css:   isLight ? 'default' : 'dark',

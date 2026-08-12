@@ -791,6 +791,50 @@
 }
 
 /* ============================================================
+   Listes de capacités dans les formulaires — .table-classe-modif--liste
+   Cibles : #classe-cap-table (classe §3) et #race-cap-table (race §3),
+   dont les lignes sont injectées en JS.
+
+   Sans ces règles, l'en-tête et les cellules ne s'alignaient pas : le reset
+   global de main.css (`*, *::before, *::after { padding: 0 }`) supprime le
+   padding natif des cellules, et les <th> restent centrés par défaut face à
+   des <td> alignés à gauche. Le modificateur --liste laisse la table de
+   progression (section 2), qui partage la classe de base, inchangée.
+   ============================================================ */
+.table-classe-modif--liste {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table-classe-modif--liste th,
+.table-classe-modif--liste td {
+  padding: var(--sp-xs) var(--sp-sm);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table-classe-modif--liste thead th {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--clr-text-muted);
+  background: var(--clr-surface-alt);
+  border-bottom: 1px solid var(--clr-border);
+  white-space: nowrap;
+}
+
+.table-classe-modif--liste tbody td {
+  border-bottom: 1px solid var(--clr-border);
+}
+
+/* Colonne Actions : les deux boutons restent sur une seule ligne, la colonne
+   ne doit pas se laisser comprimer par les colonnes de texte. */
+.table-classe-modif--liste .col-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* ============================================================
    Tables dans les descriptions TinyMCE — style DD3.5 brun chaud
    Cibles :
      .sort-detail__description — panneau detail-pp (affichage)

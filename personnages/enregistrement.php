@@ -3,8 +3,9 @@
 // Routeur d'actions transactionnelles (commit global, cf. ARCHITECTURE §7.4).
 //
 // Actions implémentées :
-//   - supprimerPersonnage   (sous-phase 3.0)
-//   - enregistrerPersonnage (sous-phase 3.1 : création + mise à jour identité)
+//   - supprimerPersonnage   (SP-PE0)
+//   - enregistrerPersonnage (SP-PE1 : création + mise à jour identité)
+//   - enregistrerClasses    (SP-PE2)
 //
 // Toutes les actions :
 //   - Vérifient le CSRF (verifyCsrf())
@@ -275,7 +276,7 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
 }
 
 // ============================================================
-// ENREGISTREMENT DES CLASSES (3.2)
+// ENREGISTREMENT DES CLASSES (SP-PE2)
 // ============================================================
 // Reçoit en POST :
 //   pe_id          int

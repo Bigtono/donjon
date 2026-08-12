@@ -1,7 +1,7 @@
 <?php
 // personnages/magie.php — Vue dédiée Magie du personnage.
 //
-// SOUS-PHASE 3.0 : placeholder. Contenu réel développé en sous-phase 3.6 :
+// SP-PE0 : placeholder. Contenu réel développé en SP-PE7 :
 // calcul NLS + sorts par jour par classe + listes sorts connus / compris /
 // préparés cliquables (detail-pp/sort.php). Liste des sorts bornée par
 // getActiveResIds() (chaîne campagne → perso → défaut).
@@ -35,7 +35,7 @@ require_once '../include/header.php';
 </div>
 
 <div class="alert alert-info">
-  <strong>Fonctionnalité à venir (sous-phase 3.6).</strong>
+  <strong>Fonctionnalité à venir.</strong>
   Cette vue affichera, par classe lanceuse de sorts : le nombre de sorts par
   jour par niveau (calcul NLS + bonus de caractéristique + domaines divins),
   les listes des sorts connus, compris et préparés, tous cliquables vers le

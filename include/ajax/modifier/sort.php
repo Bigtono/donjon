@@ -433,7 +433,7 @@ $niveaux_dd2024 = range(0, 20);
          ==================================================== -->
     <div class="modif-section">
       <div class="form-group">
-        <label for="so_description">Description</label>
+        <label for="so_description">Description<?= aideIcone('texte-parsers') ?></label>
         <textarea id="so_description" name="so_description"
                   class="tinymce-basic"><?= $so['so_description'] ?? '' ?></textarea>
       </div>
@@ -513,7 +513,12 @@ $niveaux_dd2024 = range(0, 20);
     language:      'fr_FR',
     menubar:       false,
     plugins:       'lists link table code',
-    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
+    // Bouton d'insertion d'un tableau dd_tableaux (SP-TB7) —
+    // implémentation partagée dans js/main.js
+    setup: function (editor) {
+      if (typeof tableauxInitBouton === 'function') tableauxInitBouton(editor);
+    },
     height:        400,
     skin:          isLight ? 'oxide' : 'oxide-dark',
     content_css:   isLight ? 'default' : 'dark',

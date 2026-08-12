@@ -6,10 +6,11 @@
 // Paramètres GET :
 //   id (int) — pe_id à modifier (0 = création)
 //
-// Sous-phase 3.1 : identité complète (nom, sexe, race, archétype DD3.5,
+// SP-PE1 : identité complète (nom, sexe, race, archétype DD3.5,
 // historique DD2024, alignement, caractéristiques, combat, background),
 // + première classe + niveau obligatoires à la création (option 1).
-// Les éditeurs Classes/NLS/Compétences/Dons/Sorts arrivent en 3.2 à 3.6.
+// L'éditeur Classes est livré en SP-PE2 (inline sur la fiche) ; les éditeurs
+// Compétences/Dons/NLS/Sorts arrivent en SP-PE3 à SP-PE7.
 
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/../../auth.php';
@@ -327,10 +328,10 @@ $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['p
     <!-- ====================================================
          SECTION 4 — Première classe (création UNIQUEMENT)
          Règle métier : ≥ 1 classe à la création (cf. archi §7.2).
-         L'éditeur complet multi-classes arrive en 3.2 ; en 3.1,
+         L'éditeur complet multi-classes est livré en SP-PE2 ; ici,
          on impose seulement la première ligne.
          En édition, on affiche pour information la classe la plus
-         ancienne (modification gérée par l'éditeur 3.2).
+         ancienne (modification gérée par l'éditeur SP-PE2).
          ==================================================== -->
     <?php if ($mode === 'creation'): ?>
       <div class="modif-section">
@@ -361,7 +362,7 @@ $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['p
         <p class="form-hint">
           À la création, un personnage doit avoir au moins une classe. Les classes
           supplémentaires et la modification des niveaux se gèrent ensuite depuis
-          la fiche (sous-phase 3.2).
+          la fiche.
         </p>
       </div>
     <?php elseif ($classe_existante): ?>
@@ -372,7 +373,7 @@ $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['p
         <p class="form-hint">
           Première classe : <strong><?= h($classe_existante['cla_nom']) ?></strong>
           (niveau <?= (int)$classe_existante['pc_niveau'] ?>). La gestion des
-          classes et des niveaux se fait depuis la fiche (sous-phase 3.2).
+          classes et des niveaux se fait depuis la fiche.
         </p>
       </div>
     <?php endif ?>

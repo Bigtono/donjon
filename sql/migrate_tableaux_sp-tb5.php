@@ -24,7 +24,7 @@
 //
 // Idempotent : une seconde exécution ne trouve plus aucun <table> à migrer.
 //
-// Prérequis : 2026-07-27_tableaux_sp-tb0.sql appliqué.
+// Prérequis : 2026-08-10_tableaux_sp-tb0.sql appliqué.
 // Référence : doc/ARCHITECTURE_0_REFERENCE.md §9c
 
 require_once __DIR__ . '/../include/db.php';

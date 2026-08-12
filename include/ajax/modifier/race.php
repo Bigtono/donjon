@@ -233,7 +233,7 @@ endforeach;
       </div><!-- .modif-grid -->
 
       <div class="form-group">
-        <label for="ra_description">Description</label>
+        <label for="ra_description">Description<?= aideIcone('texte-parsers') ?></label>
         <textarea id="ra_description" name="ra_description"
                   class="tinymce-basic"><?= $ra['ra_description'] ?? '' ?></textarea>
       </div>
@@ -279,7 +279,7 @@ endforeach;
         </p>
       <?php else: ?>
         <div class="table-scroll">
-          <table class="table-classe-modif" id="race-cap-table">
+          <table class="table-classe-modif table-classe-modif--liste" id="race-cap-table">
             <thead>
               <tr>
                 <th style="width:30px;"></th>
@@ -288,7 +288,7 @@ endforeach;
                   <th style="width:80px;">Type</th>
                 <?php endif ?>
                 <th>Description</th>
-                <th style="width:80px;">Actions</th>
+                <th class="col-actions">Actions</th>
               </tr>
             </thead>
             <tbody id="race-cap-tbody"></tbody>
@@ -369,7 +369,7 @@ endforeach;
     <?php endif ?>
 
     <div class="form-group">
-      <label for="ov_cap_description">Description</label>
+      <label for="ov_cap_description">Description<?= aideIcone('texte-parsers') ?></label>
       <textarea id="ov_cap_description" rows="6" style="width:100%;"></textarea>
     </div>
 
@@ -427,7 +427,12 @@ endforeach;
       language:      'fr_FR',
       menubar:       false,
       plugins:       'lists link table code',
-      toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
+      // Bouton d'insertion d'un tableau dd_tableaux (SP-TB7) —
+      // implémentation partagée dans js/main.js
+      setup: function (editor) {
+        if (typeof tableauxInitBouton === 'function') tableauxInitBouton(editor);
+      },
       height:        300,
       skin:          isLight ? 'oxide' : 'oxide-dark',
       content_css:   isLight ? 'default' : 'dark',
@@ -501,7 +506,7 @@ endforeach;
           '<td><em style="color:#888; font-size:.85em;">' +
             (cap.cap_description ? '(contenu)' : '—') +
           '</em></td>' +
-          '<td style="white-space:nowrap;">' +
+          '<td class="col-actions">' +
             '<button type="button" class="btn btn-sm"' +
               ' onclick="raceForm.editerCapacite(' + realIdx + ')" title="Modifier">' +
               '<i class="fa fa-pencil"></i>' +
@@ -579,7 +584,7 @@ endforeach;
         language:      'fr_FR',
         menubar:       false,
         plugins:       'lists link table code',
-        toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+        toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
         height:        220,
         skin:          isLight ? 'oxide' : 'oxide-dark',
         content_css:   isLight ? 'default' : 'dark',
@@ -591,6 +596,7 @@ endforeach;
         base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
         suffix:        '.min',
         setup: function(ed) {
+          if (typeof tableauxInitBouton === 'function') tableauxInitBouton(ed);
           ed.on('init', function() {
             // Restaurer le contenu depuis le textarea (valeur posée avant init)
             ed.setContent(textarea.value);

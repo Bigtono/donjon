@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../auth.php';
 require_once __DIR__ . '/../../helpers.php';
 require_once __DIR__ . '/../../regles-arbre.php';
 require_once __DIR__ . '/../../tableau-parser.php';
+require_once __DIR__ . '/../../glossaire-parser.php';
 
 requireAuth();
 
@@ -82,8 +83,13 @@ $enfants = $stmt_enfants->fetchAll();
 
   <?php if ($noeud['reg_texte']): ?>
     <div class="regle-detail__texte">
-      <?php // Tags [[tab:slug]] → tableaux dd_tableaux (SP-TB2) ?>
-      <?= resoudreTagsTableaux($db, $noeud['reg_texte'], $ruleset_id, $peut_editer) ?>
+      <?php // Glossaire (SP-GL) puis tableaux (SP-TB2) — cf. regles/regle.php ?>
+      <?= resoudreTagsTableaux(
+            $db,
+            lierGlossaireAuto($db, $noeud['reg_texte'], $ruleset_id, $id),
+            $ruleset_id,
+            $peut_editer
+          ) ?>
     </div>
   <?php endif ?>
 

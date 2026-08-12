@@ -38,6 +38,9 @@
 // Référence : doc/ARCHITECTURE_0_REFERENCE.md §9c
 
 require_once __DIR__ . '/monstre-parser.php';
+// Requis par rendreTexteEnrichi() (SP-GL3). glossaire-parser.php ne dépend que
+// de helpers.php : la dépendance reste à sens unique.
+require_once __DIR__ . '/glossaire-parser.php';
 
 // ============================================================
 // 1. PARSING — convention texte → structure
@@ -363,6 +366,33 @@ function resoudreTagsTableaux(
   );
 
   return $html;
+}
+
+// Point d'entrée unique des champs texte du compendium (SP-TB7 + SP-GL3).
+// Applique, dans l'ordre imposé, les deux parsers de rendu :
+//   1. lierGlossaireAuto()    — mentions de termes de glossaire -> ancres
+//   2. resoudreTagsTableaux() — tags [[tab:slug]] -> tableaux dd_tableaux
+//
+// L'ORDRE EST IMPÉRATIF (cf. §9d). Glossaire d'abord : le HTML des tableaux est
+// alors injecté après coup et ne traverse jamais le parser glossaire, ce qui met
+// l'intérieur des tableaux rendus hors de portée sans code dédié.
+//
+// Le ruleset est lu dans la session plutôt que reçu en paramètre — les endpoints
+// detail-pp du compendium ne définissent pas tous une variable $ruleset_id
+// locale, et un appel qui en dépendrait produirait un scoping silencieusement
+// faux là où elle est absente. Un appelant qui connaît son ruleset peut toujours
+// le passer.
+//
+// NE PAS UTILISER sur mo_stats : monstre-parser.php a sa propre liaison
+// glossaire (lierAuto() + tag %id%), l'ajout produirait des liens en double.
+//
+// À n'utiliser que sur un champ déjà rendu SANS h() : appliqué à une sortie
+// échappée, le tag resterait littéral ; appliqué pour contourner un
+// échappement, il ouvrirait une injection HTML.
+function rendreTexteEnrichi(PDO $db, ?string $html, ?int $ruleset_id = null): string
+{
+  $rs = $ruleset_id ?? (int)($_SESSION['ruleset_var_id'] ?? 1);
+  return resoudreTagsTableaux($db, lierGlossaireAuto($db, $html, $rs), $rs);
 }
 
 // ============================================================

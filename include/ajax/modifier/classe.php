@@ -416,7 +416,7 @@ $classesParentes = $stmt_par->fetchAll();
       </div>
 
       <div class="form-group" style="margin-top:.5rem;">
-        <label for="cla_description">Description</label>
+        <label for="cla_description">Description<?= aideIcone('texte-parsers') ?></label>
         <textarea id="cla_description" name="cla_description"
                   class="tinymce-basic"><?= $cla['cla_description'] ?? '' ?></textarea>
       </div>
@@ -718,14 +718,14 @@ $classesParentes = $stmt_par->fetchAll();
         </p>
       <?php else: ?>
         <div class="table-scroll">
-          <table class="table-classe-modif" id="classe-cap-table">
+          <table class="table-classe-modif table-classe-modif--liste" id="classe-cap-table">
             <thead>
               <tr>
                 <th style="width:60px;">Niveau(x)</th>
                 <th>Nom</th>
                 <th style="width:60px;">Type</th>
                 <th>Description</th>
-                <th style="width:80px;">Actions</th>
+                <th class="col-actions">Actions</th>
               </tr>
             </thead>
             <tbody id="classe-cap-tbody"></tbody>
@@ -803,7 +803,7 @@ $classesParentes = $stmt_par->fetchAll();
     </div>
 
     <div class="form-group">
-      <label for="ov_cap_description">Description</label>
+      <label for="ov_cap_description">Description<?= aideIcone('texte-parsers') ?></label>
       <textarea id="ov_cap_description" rows="5" style="width:100%;"></textarea>
     </div>
 
@@ -889,7 +889,12 @@ $classesParentes = $stmt_par->fetchAll();
       language:      'fr_FR',
       menubar:       false,
       plugins:       'lists link table code',
-      toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
+      // Bouton d'insertion d'un tableau dd_tableaux (SP-TB7) —
+      // implémentation partagée dans js/main.js
+      setup: function (editor) {
+        if (typeof tableauxInitBouton === 'function') tableauxInitBouton(editor);
+      },
       height:        220,
       skin:          isLight ? 'oxide' : 'oxide-dark',
       content_css:   isLight ? 'default' : 'dark',
@@ -942,13 +947,13 @@ $classesParentes = $stmt_par->fetchAll();
 
       const tr = document.createElement('tr');
       tr.innerHTML =
-        '<td style="font-size:.85rem;">' + esc(niveaux) + '</td>' +
+        '<td>' + esc(niveaux) + '</td>' +
         '<td>' + esc(cap.cap_nom) + '</td>' +
         '<td>' + esc(cap.cap_type || '') + '</td>' +
         '<td><em style="color:#888; font-size:.85em;">' +
           (cap.cap_description ? '(contenu)' : '—') +
         '</em></td>' +
-        '<td style="white-space:nowrap;">' +
+        '<td class="col-actions">' +
           '<button type="button" class="btn btn-sm"' +
             ' onclick="classeForm.editerCapacite(\'' + cap.cap_key + '\')"' +
             ' title="Modifier"><i class="fa fa-pencil"></i></button> ' +
@@ -1081,7 +1086,7 @@ $classesParentes = $stmt_par->fetchAll();
           language:      'fr_FR',
           menubar:       false,
           plugins:       'lists link table code',
-          toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+          toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
           height:        180,
           skin:          isLight ? 'oxide' : 'oxide-dark',
           content_css:   isLight ? 'default' : 'dark',
@@ -1093,6 +1098,7 @@ $classesParentes = $stmt_par->fetchAll();
           base_url:      'https://cdn.jsdelivr.net/npm/tinymce@6',
           suffix:        '.min',
           setup: function(ed) {
+          if (typeof tableauxInitBouton === 'function') tableauxInitBouton(ed);
             ed.on('init', function() { ed.setContent(desc); });
           },
         });

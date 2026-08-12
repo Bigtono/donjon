@@ -12,6 +12,7 @@ require_once '../include/auth.php';
 require_once '../include/helpers.php';
 require_once '../include/regles-arbre.php';
 require_once '../include/tableau-parser.php';
+require_once '../include/glossaire-parser.php';
 
 requireAuth();
 
@@ -157,8 +158,14 @@ require_once '../include/header.php';
     <?php // ---- Corps texte ---- ?>
     <?php if ($noeud['reg_texte']): ?>
       <div class="regles-noeud__texte" id="regles-texte">
-        <?php // Tags [[tab:slug]] → tableaux dd_tableaux (SP-TB2) ?>
-        <?= resoudreTagsTableaux($db, $noeud['reg_texte'], $ruleset_id, $peut_editer) ?>
+        <?php // Termes du glossaire → ancres (SP-GL), puis [[tab:slug]] → tableaux (SP-TB2).
+              // Cet ordre met le HTML des tableaux hors de portée du parser glossaire. ?>
+        <?= resoudreTagsTableaux(
+              $db,
+              lierGlossaireAuto($db, $noeud['reg_texte'], $ruleset_id, $id),
+              $ruleset_id,
+              $peut_editer
+            ) ?>
       </div>
     <?php elseif (empty($enfants) && $peut_editer): ?>
       <p class="regles-vide">

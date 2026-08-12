@@ -1,11 +1,12 @@
 <?php
 // personnages/fiche.php — Fiche personnage unique, responsive.
 //
-// SOUS-PHASE 3.1 : blocs Mode jeu (placeholder), Identité, Caracs, Combat.
-// SOUS-PHASE 3.2 : bloc Classes — éditeur DOM inline (ajout / suppression /
-//                  modification de niveau + domaines divins DD3.5).
+// SP-PE1 : blocs Mode jeu (placeholder), Identité, Caracs, Combat.
+// SP-PE2 : bloc Classes — éditeur DOM inline (ajout / suppression /
+//          modification de niveau + domaines divins DD3.5).
 //
-// Blocs à venir : 6. NLS (3.5), 7. Compétences (3.3), 8. Dons (3.4), 9. Campagnes.
+// Blocs à venir : Compétences (SP-PE3), Dons (SP-PE4), Campagnes (SP-PE5),
+// NLS prestige DD3.5 (SP-PE6).
 require_once '../include/db.php';
 require_once '../include/auth.php';
 require_once '../include/helpers.php';
@@ -129,7 +130,7 @@ require_once '../include/header.php';
     </div>
   </div>
 
-  <!-- BLOC 1 — MODE JEU (placeholder 3.7) -->
+  <!-- BLOC 1 — MODE JEU (placeholder SP-PE8) -->
   <section class="per-fiche__bloc per-fiche__bloc--mode-jeu">
     <header class="per-fiche__bloc-header">
       <h2 class="per-fiche__bloc-titre">
@@ -139,7 +140,7 @@ require_once '../include/header.php';
     <div class="per-fiche__bloc-body">
       <p class="text-muted text-sm">
         Emplacement réservé. Le suivi des PV, conditions et autres variables de
-        partie sera ajouté en sous-phase 3.7.
+        partie sera ajouté ultérieurement.
       </p>
     </div>
   </section>
@@ -214,7 +215,7 @@ require_once '../include/header.php';
   </section>
 
   <!-- ============================================================
-       BLOC 3 — CLASSES (éditeur DOM inline — 3.2)
+       BLOC 3 — CLASSES (éditeur DOM inline — SP-PE2)
        Remonté après Identité pour lecture rapide en partie.
        Deux modes : lecture (défaut) et édition (activé par bouton).
        ============================================================ -->
@@ -361,12 +362,12 @@ require_once '../include/header.php';
     </header>
     <div class="per-fiche__bloc-body">
       <ul class="per-avenir-liste">
-        <?php if ($ruleset_rep === 'DD3.5'): ?>
-          <li>NLS prestige (sous-phase 3.5)</li>
-        <?php endif ?>
-        <li>Compétences (sous-phase 3.3)</li>
-        <li>Dons (sous-phase 3.4)</li>
+        <li>Compétences</li>
+        <li>Dons</li>
         <li>Campagnes du personnage</li>
+        <?php if ($ruleset_rep === 'DD3.5'): ?>
+          <li>NLS prestige</li>
+        <?php endif ?>
         <li>
           Vue Magie dédiée —
           <a href="<?= BASE_URL ?>/personnages/magie.php?id=<?= (int)$perso['pe_id'] ?>">accéder</a>

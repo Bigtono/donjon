@@ -9,6 +9,8 @@
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/../../auth.php';
 require_once __DIR__ . '/../../helpers.php';
+// Tag [[tab:slug]] dans les champs texte du compendium (SP-TB7)
+require_once __DIR__ . '/../../tableau-parser.php';
 
 requireAuth();
 
@@ -99,7 +101,7 @@ $capacites = $stmt_cap->fetchAll();
   <?php // ---- Description ?>
   <?php if ($ra['ra_description']): ?>
     <div class="sort-detail__description" style="margin: 1rem 0;">
-      <?= $ra['ra_description'] ?>
+      <?= rendreTexteEnrichi($db, $ra['ra_description']) ?>
     </div>
   <?php endif ?>
 
@@ -116,7 +118,7 @@ $capacites = $stmt_cap->fetchAll();
           </div>
           <?php if ($cap['cap_description']): ?>
             <div class="race-detail__capacite-desc">
-              <?= $cap['cap_description'] ?>
+              <?= rendreTexteEnrichi($db, $cap['cap_description']) ?>
             </div>
           <?php endif ?>
         </div>

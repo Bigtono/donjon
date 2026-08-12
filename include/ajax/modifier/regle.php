@@ -166,7 +166,7 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
     <?php // ---- Texte (TinyMCE) ---- 
     ?>
     <div class="form-group">
-      <label for="<?= $tinymce_id ?>">Contenu</label>
+      <label for="<?= $tinymce_id ?>">Contenu<?= aideIcone('texte-parsers') ?></label>
       <textarea id="<?= $tinymce_id ?>" name="reg_texte"
         class="form-control tinymce-regle"
         rows="14"><?= htmlspecialchars($reg['reg_texte'], ENT_QUOTES, 'UTF-8') ?></textarea>
@@ -194,22 +194,7 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
   (function() {
     var TINYMCE_ID = <?= json_encode($tinymce_id) ?>;
     var URL_ENREG = <?= json_encode(BASE_URL . '/regles/enregistrement.php?ajax=1') ?>;
-    var URL_PICKER_TABLEAUX = <?= json_encode(BASE_URL . '/include/ajax/detail-pp-sub/tableaux-picker.php') ?>;
     var CSRF_TOKEN = <?= json_encode(csrfToken()) ?>;
-
-    // Appelée par le picker (#detail-pp-sub) — insère le tag dans son propre
-    // paragraphe : un <table> rendu à l'intérieur d'un <p> serait du HTML
-    // invalide et casserait la mise en page (cf. resoudreTagsTableaux()).
-    window.reglesInsererTableau = function (slug) {
-      var ed = (typeof tinymce !== 'undefined') ? tinymce.get(TINYMCE_ID) : null;
-      if (ed && ed.initialized) {
-        ed.insertContent('<p>[[tab:' + slug + ']]</p>');
-      } else {
-        var ta = document.getElementById(TINYMCE_ID);
-        if (ta) ta.value += '\n<p>[[tab:' + slug + ']]</p>';
-      }
-      if (typeof fermerSubPanel === 'function') fermerSubPanel();
-    };
 
     // ---- Initialisation TinyMCE ----
     (function initTMCE() {
@@ -227,22 +212,13 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
         plugins: 'lists link table code',
 
         toolbar: 'blocks styles | bold italic underline | bullist numlist | link unlink table | ' +
-          'tableauregle | removeformat | code',
+          'tableau | removeformat | code',
 
         // Bouton d'insertion d'un tableau dd_tableaux (SP-TB4).
-        // Ouvre le picker dans #detail-pp-sub (z-index 300), au-dessus de
-        // #modification (250) : la règle en cours d'édition n'est pas perdue.
+        // Implémentation partagée dans js/main.js — le même bouton équipe les
+        // formulaires du compendium (SP-TB7).
         setup: function (editor) {
-          editor.ui.registry.addButton('tableauregle', {
-            icon: 'table-row-properties',
-            tooltip: 'Insérer un tableau de règles',
-            onAction: function () {
-              window.REGLES_TINYMCE_ACTIF = TINYMCE_ID;
-              if (typeof actualiserPageSub === 'function') {
-                actualiserPageSub(URL_PICKER_TABLEAUX, {});
-              }
-            }
-          });
+          if (typeof tableauxInitBouton === 'function') tableauxInitBouton(editor);
         },
 
         block_formats: 'Paragraphe=p;Titre 1=h1;Titre 2=h2;Titre 3=h3;Titre 4=h4;Titre 5=h5;Titre 6=h6',

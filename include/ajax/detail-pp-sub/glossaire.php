@@ -15,6 +15,10 @@
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/../../auth.php';
 require_once __DIR__ . '/../../helpers.php';
+require_once __DIR__ . '/../../glossaire-parser.php';
+// Tag [[tab:slug]] dans une définition de glossaire — reg_texte comme une règle
+// (lacune SP-TB2 : seuls regle.php et detail-pp/regle.php avaient été câblés)
+require_once __DIR__ . '/../../tableau-parser.php';
 
 requireAuth();
 
@@ -86,7 +90,13 @@ endif;
 
   <div class="glossaire-sub__texte">
     <?php if ($terme['reg_texte']): ?>
-      <?= $terme['reg_texte'] ?>
+      <?php // SP-GL — renvois entre définitions. Le terme courant est exclu :
+            // il ne se lie pas à lui-même dans sa propre définition. ?>
+      <?php // Tableaux résolus après la liaison glossaire : lierGlossaireAuto()
+            // travaille sur le texte, le tag doit lui rester opaque. ?>
+      <?= resoudreTagsTableaux($db,
+            lierGlossaireAuto($db, $terme['reg_texte'], $ruleset_id, (int)$terme['reg_id']),
+            $ruleset_id) ?>
     <?php else: ?>
       <p class="regles-vide"><em>Aucune définition disponible.</em></p>
     <?php endif ?>

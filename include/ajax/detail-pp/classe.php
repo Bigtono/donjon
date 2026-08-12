@@ -9,6 +9,8 @@
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/../../auth.php';
 require_once __DIR__ . '/../../helpers.php';
+// Tag [[tab:slug]] dans les champs texte du compendium (SP-TB7)
+require_once __DIR__ . '/../../tableau-parser.php';
 
 requireAuth();
 
@@ -308,7 +310,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
   <?php // ---- Description ?>
   <?php if ($cla['cla_description']): ?>
     <div class="sort-detail__description" style="margin:.75rem 0;">
-      <?= $cla['cla_description'] ?>
+      <?= rendreTexteEnrichi($db, $cla['cla_description']) ?>
     </div>
   <?php endif ?>
 
@@ -515,7 +517,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
             </div>
             <?php if ($cap['cap_description']): ?>
               <div class="classe-detail__capacite-desc">
-                <?= $cap['cap_description'] ?>
+                <?= rendreTexteEnrichi($db, $cap['cap_description']) ?>
               </div>
             <?php endif ?>
           </div>
@@ -536,7 +538,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
           </div>
           <?php if ($cap['cap_description']): ?>
             <div class="classe-detail__capacite-desc">
-              <?= $cap['cap_description'] ?>
+              <?= rendreTexteEnrichi($db, $cap['cap_description']) ?>
             </div>
           <?php endif ?>
         </div>

@@ -98,27 +98,13 @@ $uid   = 'tab_' . ($id ?: 'new');
 
     <?php // ---- Contenu (convention texte) ---- ?>
     <div class="form-group">
-      <label for="<?= $uid ?>_contenu">Contenu <span class="form-required">*</span></label>
-
-      <details class="reg-tab-aide">
-        <summary>Rappel de la convention de saisie</summary>
-        <table class="reg-tab-aide__table">
-          <tr><td><code>|</code></td><td>sépare les cellules</td></tr>
-          <tr><td><code>!</code></td><td>ligne d'en-tête — plusieurs <code>!</code> consécutifs = en-tête à plusieurs niveaux</td></tr>
-          <tr><td><code>#</code></td><td>ligne de section, fusionnée sur toute la largeur</td></tr>
-          <tr><td><code>&gt;</code></td><td>note de bas de tableau</td></tr>
-          <tr><td><em>vide</em></td><td>dans une ligne <code>!</code> : fusion avec la cellule de gauche</td></tr>
-          <tr><td><code>^</code></td><td>dans une ligne <code>!</code> : fusion avec la cellule du dessus</td></tr>
-        </table>
-        <p class="form-hint">
-          Liens cliquables dans les cellules :
-          <code>#don#</code> · <code>$sort$</code> · <code>&amp;objet&amp;</code> ·
-          <code>@id_règle@</code> · <code>%id_glossaire%</code>
-        </p>
-        <pre class="reg-tab-aide__exemple">! | Rythme | | | Effet
-! Distance par… | Rapide | Normal | Lent | ^
-Minute | 120 m | 90 m | 60 m | —</pre>
-      </details>
+      <?php // Convention de saisie : bulle d'aide contextuelle du projet
+            // (aideIcone) plutôt qu'un <details> local — un seul mécanisme
+            // d'aide dans toute l'application, contenu centralisé dans
+            // include/aide-contextuelle.php. ?>
+      <label for="<?= $uid ?>_contenu">
+        Contenu <span class="form-required">*</span><?= aideIcone('tableau-convention') ?>
+      </label>
 
       <textarea id="<?= $uid ?>_contenu" class="form-control reg-tab-saisie"
                 rows="16" spellcheck="false"

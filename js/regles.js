@@ -20,27 +20,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // ============================================================
-  // HANDLER DÉLÉGUÉ — .glossaire-lien
-  // Ouvre la définition d'un terme dans #detail-pp-sub.
-  // Un clic dans le sous-panneau rappelle actualiserPageSub()
-  // et remplace le contenu sur place (pas d'empilement).
-  // Référence : doc/ARCHITECTURE_0_REFERENCE.md §9b + §12
-  // ============================================================
-
-  document.addEventListener('click', function (e) {
-    var lien = e.target.closest('.glossaire-lien');
-    if (!lien) return;
-    e.preventDefault();
-    var slug = lien.getAttribute('data-glossaire-slug');
-    if (!slug) return;
-    if (typeof actualiserPageSub === 'function') {
-      actualiserPageSub(
-        BASE_URL + '/include/ajax/detail-pp-sub/glossaire.php',
-        { slug: slug }
-      );
-    }
-  });
+  // Le handler délégué .glossaire-lien vit désormais dans main.js (SP-GL) :
+  // ces ancres apparaissent aussi hors du module Règles (#detail-pp, glossaire
+  // en sous-panneau), où regles.js n'est pas chargé.
 
   // ============================================================
   // SURLIGNAGE DU TERME DE RECHERCHE

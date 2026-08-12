@@ -122,7 +122,7 @@ $titre = $id > 0 ? 'Modifier ' . h($equipement['eqt_nom']) : 'Nouvel équipement
     <!-- Description TinyMCE -->
     <div class="modif-section">
       <div class="form-group">
-        <label for="eqt_description">Description</label>
+        <label for="eqt_description">Description<?= aideIcone('texte-parsers') ?></label>
         <textarea id="eqt_description" name="eqt_description"
                   class="tinymce-basic"><?= $equipement['eqt_description'] ?? '' ?></textarea>
       </div>
@@ -153,7 +153,12 @@ $titre = $id > 0 ? 'Modifier ' . h($equipement['eqt_nom']) : 'Nouvel équipement
     language:      'fr_FR',
     menubar:       false,
     plugins:       'lists link table code',
-    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | removeformat | code',
+    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
+    // Bouton d'insertion d'un tableau dd_tableaux (SP-TB7) —
+    // implémentation partagée dans js/main.js
+    setup: function (editor) {
+      if (typeof tableauxInitBouton === 'function') tableauxInitBouton(editor);
+    },
     height:        400,
     skin:          isLight ? 'oxide' : 'oxide-dark',
     content_css:   isLight ? 'default' : 'dark',

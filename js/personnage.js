@@ -2,9 +2,10 @@
 // Chargé uniquement sur les pages du module ($js_module = 'personnage').
 // perUrlDetail / perUrlModifier / perUrlEnreg / perUrlFiche injectés en inline par index.php.
 //
-// SOUS-PHASE 3.0 : socle — menu contextuel + suppression inline depuis la liste.
-// Les éditeurs DOM (classes, compétences, dons, NLS, sorts) seront ajoutés
-// dans les sous-phases 3.2 à 3.6.
+// SP-PE0 : socle — menu contextuel + suppression inline depuis la liste.
+// SP-PE2 : éditeur DOM Classes inline.
+// Les éditeurs DOM restants (compétences, dons, NLS, sorts) seront ajoutés
+// en SP-PE3 à SP-PE7.
 'use strict';
 
 // ============================================================
@@ -94,7 +95,7 @@ const personnageListe = {
 };
 
 // ============================================================
-// ÉDITEUR CLASSES INLINE (3.2)
+// ÉDITEUR CLASSES INLINE (SP-PE2)
 // Gère le bloc Classes de la fiche personnage :
 //   - Bascule entre mode lecture et mode édition
 //   - Construit les lignes DOM dynamiquement

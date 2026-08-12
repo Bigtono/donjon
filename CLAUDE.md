@@ -141,7 +141,7 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
 1. **Tout nouveau chantier reçoit un code projet** (`SP-<lettres>`) et ses phases sont
    **numérotées** dès l'arbitration : `SP-TB0`, `SP-TB1`, … Codes en service : `SP-C`
    (supplément compendium), `SP-E` (équipements), `SP-T` (transfert d'opposition),
-   `SP-TB` (tableaux de règles).
+   `SP-TB` (tableaux de règles), `SP-GL` (glossaire), `SP-PE` (module Personnages).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
    ```markdown
@@ -169,11 +169,20 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - Transfert/Duplication opposition SP-T0 (même campagne) : fait
 - Équipements SP-E0 : table `dd_equipements` créée (`sql/2026-06-20_equipements_sp-e0.sql`)
 - Header context buttons : cascade setters, partial `include/header-context.php`, endpoint AJAX
-- Tableaux de règles SP-TB0→TB6 : table `dd_tableaux`, convention texte, tag `[[tab:slug]]`,
-  UI de gestion, migration des tableaux HTML existants, portée `reg_texte` + `mo_stats` (voir §9c)
+- Tableaux de règles SP-TB0→TB7 : table `dd_tableaux`, convention texte, tag `[[tab:slug]]`,
+  UI de gestion, migration des tableaux HTML existants. Portée du tag : `reg_texte`, définitions
+  de glossaire, `mo_stats` et les champs description du compendium. Composant CSS `.reg-tab*`
+  dans `css/modules.css` (chargé partout) — voir §9c
+- Liaison auto du glossaire SP-GL0→GL3 : `include/glossaire-parser.php`, renvois produits au
+  rendu dans `reg_texte`, les définitions de glossaire et les descriptions du compendium.
+  Point de passage unique : `rendreTexteEnrichi()` — glossaire puis tableaux (voir §9d)
+- Aide à la saisie : `aideIcone()` sur les 13 champs soumis à un parser, contenu dans
+  `include/aide-contextuelle.php` (une clé par jeu de parsers réellement appliqué)
 
 ### À faire (priorités)
-- SP-TB7 : portée du tag `[[tab:slug]]` étendue aux champs texte du compendium
+- SP-PE3→PE8 : module Personnages, en pause depuis le 2026-06-14 (`SP-PE0→PE2` livrées :
+  socle, fiche identité, éditeur Classes inline). Reste : compétences, dons, bloc Campagnes,
+  NLS prestige DD3.5, vue Magie, mode jeu + passe responsive. Aucun patch SQL attendu
 - SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)
 - SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
 - SP-C6 : profil "Mes sources" — suppléments publics tiers
@@ -196,6 +205,8 @@ donjon/
     header.php / footer.php
     compendium-liste.php   moteur de liste générique
     monstre-parser.php     rendu stats monstre (rendreStatsMonstre())
+    tableau-parser.php     tableaux dd_tableaux + tag [[tab:slug]]
+    glossaire-parser.php   liaison auto des termes de glossaire (lierGlossaireAuto())
     header-context.php     fragment boutons contextuels
     ajax/detail-pp/        fiches détail (sort.php, monstre.php, …)
     ajax/modifier/         formulaires d'édition (sort.php, monstre.php, …)

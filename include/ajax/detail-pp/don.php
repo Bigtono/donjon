@@ -6,6 +6,8 @@
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/../../auth.php';
 require_once __DIR__ . '/../../helpers.php';
+// Tag [[tab:slug]] dans les champs texte du compendium (SP-TB7)
+require_once __DIR__ . '/../../tableau-parser.php';
 
 requireAuth();
 
@@ -72,7 +74,7 @@ endif;
   <!-- Description -->
   <?php if ($don['do_texte']): ?>
     <div class="sort-detail__description">
-      <?= $don['do_texte'] ?>
+      <?= rendreTexteEnrichi($db, $don['do_texte']) ?>
     </div>
   <?php endif ?>
 

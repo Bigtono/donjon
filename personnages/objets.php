@@ -1,7 +1,7 @@
 <?php
 // personnages/objets.php — Objets magiques du personnage (placeholder).
 //
-// Hors périmètre Phase 3 (cf. DECISIONS_LOG, arbitrage [D] :
+// Hors périmètre SP-PE (cf. DECISIONS_LOG, arbitrage [2026-06-12] [D] :
 // analyse métier non fiabilisée, dépend de la section compendium Objets
 // magiques). Aucune table créée pour l'instant.
 require_once '../include/db.php';

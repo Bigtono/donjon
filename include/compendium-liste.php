@@ -500,6 +500,19 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
               title="Ajouter">
               <i class="fa fa-plus"></i>
             </button>
+
+            <?php // Accès au gestionnaire de tableaux (SP-TB7).
+            // Ici plutôt que dans chaque page du compendium : le moteur sert les
+            // 9 entités, une seule déclaration les couvre toutes.
+            // Nouvel onglet — la liste courante (filtres, tri, page) est conservée,
+            // le tableau se crée à côté puis s'insère par son tag dans la fiche.
+            ?>
+            <a href="<?= BASE_URL ?>/regles/tableaux.php" target="_blank" rel="noopener"
+              class="btn btn-secondary btn-sm"
+              title="Tableaux de règles — créer ou modifier un tableau">
+              <i class="fa fa-table"></i>
+              <span class="comp-filtre-label-desktop">Tableaux</span>
+            </a>
           <?php endif ?>
         </div>
 

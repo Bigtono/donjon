@@ -95,13 +95,14 @@ $tableaux = $stmt->fetchAll();
     var racine = document.querySelector('.tableaux-picker');
     if (!racine) return;
 
-    // Insertion dans l'éditeur TinyMCE désigné par REGLES_TINYMCE_ACTIF
+    // Insertion dans l'éditeur mémorisé au clic sur le bouton (TAB_EDITEUR_ACTIF,
+    // js/main.js) — éditeur de règle ou n'importe quel formulaire du compendium.
     racine.addEventListener('click', function (e) {
       var btn = e.target.closest('.tableaux-picker__btn');
       if (!btn) return;
       var slug = btn.getAttribute('data-slug');
-      if (slug && typeof window.reglesInsererTableau === 'function') {
-        window.reglesInsererTableau(slug);
+      if (slug && typeof insererTableauDansEditeur === 'function') {
+        insererTableauDansEditeur(slug);
       }
     });
 

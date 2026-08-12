@@ -4,10 +4,10 @@
 // Chargé à la demande par les pages du module (fiche.php, modifier.php,
 // enregistrement.php, magie.php) — PAS automatiquement par header.php.
 //
-// SOUS-PHASE 3.0 : socle — chargement contexte + listes auxiliaires pour
+// SP-PE0 : socle — chargement contexte + listes auxiliaires pour
 // les selects de modification.
 // Les helpers métier plus lourds (calcul NLS, emplacements de sorts par
-// jour) seront ajoutés dans les sous-phases 3.5 et 3.6.
+// jour) seront ajoutés en SP-PE6 et SP-PE7.
 //
 // PRÉREQUIS : ce fichier suppose que include/db.php, include/auth.php et
 // include/helpers.php sont déjà chargés (variable globale $db disponible).

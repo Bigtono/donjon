@@ -370,6 +370,92 @@ document.addEventListener('click', function (e) {
 });
 
 // ============================================================
+// TABLEAUX — bouton d'insertion d'un tag [[tab:slug]] dans TinyMCE (SP-TB4/TB7)
+//
+// Ici plutôt que dans un formulaire : le bouton équipe l'éditeur de règle ET
+// les huit éditeurs du compendium (sort, classe ×2, race ×2, don, compétence,
+// objet, historique, équipement). Une définition par formulaire aurait été
+// recopiée neuf fois.
+//
+// Le picker s'ouvre dans #detail-pp-sub (z-index 300), au-dessus de
+// #modification (250) qui porte le formulaire : la saisie en cours n'est
+// jamais remplacée. C'est pourquoi le picker ne propose pas de créer un
+// tableau — cf. ARCHITECTURE §9c.
+//
+// Usage dans un tinymce.init() :
+//   toolbar: '… | tableau | …',
+//   setup: function (editor) { tableauxInitBouton(editor); }
+// ============================================================
+
+// Éditeur ayant ouvert le picker. Mémorisé au clic : au moment de l'insertion
+// le focus est passé au sous-panneau, tinymce.activeEditor n'est plus fiable.
+var TAB_EDITEUR_ACTIF = null;
+
+function tableauxInitBouton(editor) {
+  editor.ui.registry.addButton('tableau', {
+    icon: 'table-row-properties',
+    tooltip: 'Insérer un tableau de règles',
+    onAction: function () {
+      TAB_EDITEUR_ACTIF = editor.id;
+      if (typeof actualiserPageSub === 'function') {
+        actualiserPageSub(BASE_URL + '/include/ajax/detail-pp-sub/tableaux-picker.php', {});
+      }
+    }
+  });
+}
+
+// Appelée par le picker. Le tag occupe son propre paragraphe : un <table> rendu
+// à l'intérieur d'un <p> est du HTML invalide — le navigateur ferme le
+// paragraphe et la mise en page casse (cf. resoudreTagsTableaux(), passe 1).
+function insererTableauDansEditeur(slug) {
+  if (!slug || !TAB_EDITEUR_ACTIF) return;
+  var bloc = '<p>[[tab:' + slug + ']]</p>';
+  var ed   = (typeof tinymce !== 'undefined') ? tinymce.get(TAB_EDITEUR_ACTIF) : null;
+
+  if (ed && ed.initialized) {
+    ed.insertContent(bloc);
+  } else {
+    // Repli : TinyMCE absent ou pas encore initialisé
+    var ta = document.getElementById(TAB_EDITEUR_ACTIF);
+    if (ta) ta.value += '\n' + bloc;
+  }
+  if (typeof fermerSubPanel === 'function') fermerSubPanel();
+}
+
+// ============================================================
+// GLOSSAIRE — renvois inline dans les textes de règles (.glossaire-lien)
+// Ancres produites par include/glossaire-parser.php (SP-GL) ou écrites à la
+// main dans reg_texte. Elles portent data-glossaire-slug et ouvrent la
+// définition dans #detail-pp-sub ; un clic depuis le sous-panneau rappelle
+// actualiserPageSub() et remplace le contenu sur place (pas d'empilement).
+//
+// Ici plutôt que dans regles.js : ces ancres apparaissent aussi dans
+// #detail-pp (fiche règle ouverte depuis une campagne) et dans les
+// définitions du glossaire elles-mêmes, où regles.js n'est pas chargé.
+// Référence : doc/ARCHITECTURE_0_REFERENCE.md §9d + §12
+// ============================================================
+document.addEventListener('click', function (e) {
+  const lien = e.target.closest('.glossaire-lien');
+  if (!lien) return;
+  e.preventDefault();
+
+  const slug = lien.dataset.glossaireSlug;
+  if (!slug) return;
+
+  // Base résolue comme pour .mo-lien : conteneur data-detail-base si présent
+  // (contexte detail-pp), sinon le BASE_URL global posé par footer.php.
+  const cont       = lien.closest('[data-detail-base]');
+  const detailBase = cont ? cont.dataset.detailBase : '';
+  const appBase    = detailBase
+    ? detailBase.replace(/\/include\/ajax\/detail-pp\/$/, '')
+    : (typeof BASE_URL !== 'undefined' ? BASE_URL : '');
+
+  if (typeof actualiserPageSub === 'function') {
+    actualiserPageSub(appBase + '/include/ajax/detail-pp-sub/glossaire.php', { slug: slug });
+  }
+});
+
+// ============================================================
 // AIDE CONTEXTUELLE (.aide-icone)
 // La bulle est créée en enfant direct de <body> (jamais nichée dans
 // #modification / #detail-pp-sub, qui ont un transform — containing block

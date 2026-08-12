@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-07-27 21:10 -->
+<!-- Mis à jour : 2026-08-12 10:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -2816,26 +2816,26 @@ persistant, contrairement au comportement transitoire qui a permis l'écart init
 
 ## SP-TB — Tableaux de règles
 
-**[2026-07-27] Isolation des tableaux de données dans `dd_tableaux`**
+**[2026-08-10] Isolation des tableaux de données dans `dd_tableaux`**
 Les tableaux de règles étaient saisis en HTML dans `reg_texte`, au milieu du corps de la règle.
 Décision : table dédiée `dd_tableaux`, saisie en convention texte, insertion par tag `[[tab:slug]]`.
 → Un tableau devient une **donnée adressable** : réutilisable dans plusieurs règles (« Bonus de
 maîtrise » était dupliqué), dans un bloc de stats de monstre, et — objectif final — dans l'écran
 du MJ (SP-TB8), qui n'aurait eu aucun moyen d'aller chercher un `<table>` noyé dans du HTML.
 
-**[2026-07-27] Convention de saisie plutôt que HTML**
+**[2026-08-10] Convention de saisie plutôt que HTML**
 Lignes préfixées : `!` en-tête, `#` section pleine largeur, `>` note, `|` séparateur de cellules.
 → Affranchit l'auteur du HTML, garantit une sortie homogène, et rend le design 100 % CSS.
 L'alignement est sorti du contenu (colonne `tab_align`) : le contenu reste de la donnée pure.
 
-**[2026-07-27] Fusions limitées aux lignes d'en-tête**
+**[2026-08-10] Fusions limitées aux lignes d'en-tête**
 Cellule vide = fusion à gauche (`colspan`), `^` = fusion vers le haut (`rowspan`) — **uniquement**
 dans les lignes `!`.
 → Les en-têtes sur deux niveaux sont un besoin réel des tableaux restant à saisir. Étendre les
 fusions aux lignes de données rendrait impossible d'exprimer une cellule légitimement vide, dont
 les grilles irrégulières (colonnes de longueurs inégales) ont un besoin constant.
 
-**[2026-07-27] Tag `[[tab:slug]]` — délimiteur double, référence par slug**
+**[2026-08-10] Tag `[[tab:slug]]` — délimiteur double, référence par slug**
 Écarté : la famille de délimiteurs mono-caractère `#`/`$`/`&`/`@`/`%` déjà en place dans `mo_stats`.
 → `reg_texte` est du HTML TinyMCE et non du texte brut : `&` collisionne avec les entités et un
 caractère isolé ne survit pas au nettoyage de collage. Référence par **slug** et non par id
@@ -2843,80 +2843,80 @@ caractère isolé ne survit pas au nettoyage de collage. Référence par **slug*
 règles sont réimportées par script. Le renommage d'un slug est répercuté dans `reg_texte` et
 `mo_stats`, sans quoi les insertions existantes deviendraient silencieusement irrésolubles.
 
-**[2026-07-27] Remplacement du `<p>` entier en passe 1**
+**[2026-08-10] Remplacement du `<p>` entier en passe 1**
 `resoudreTagsTableaux()` traite d'abord `<p>[[tab:slug]]</p>` avant les tags nus.
 → Un `<table>` rendu à l'intérieur d'un `<p>` est du HTML invalide : le navigateur ferme le
 paragraphe et la mise en page casse. TinyMCE encapsule systématiquement le tag dans un `<p>`.
 
-**[2026-07-27] Liaison des cellules : tags explicites seuls, pas de `lierAuto()`**
+**[2026-08-10] Liaison des cellules : tags explicites seuls, pas de `lierAuto()`**
 → La liaison automatique par nom est trop coûteuse et trop bruyante dans une grille dense (chaque
 cellule serait tokenisée). L'échappement est délégué à `lierAvecSegmentsProteges($txt, 0, …)` :
 `maxWords = 0` court-circuite le tokenizer et `h()` s'applique à tout ce qui n'est pas un lien déjà
 produit — pas de logique d'échappement dupliquée.
 
-**[2026-07-27] `mo_stats` : sentinelle avant formatage (SP-TB6)**
+**[2026-08-10] `mo_stats` : sentinelle avant formatage (SP-TB6)**
 Les lignes réduites à un tag sont sorties du flux et remplacées par `___TAB<n>___` avant
 formatage, puis substituées à la fin.
 → Résoudre le tag après coup l'exposerait à `lierAuto()`, qui tokenise les mots de ≥ 4 lettres et
 injecterait un `<span>` au milieu du slug, rendant le tag irrésoluble. La sentinelle ne contient
 aucun mot assez long pour être tokenisé.
 
-**[2026-07-27] Le picker ne propose pas la création d'un tableau**
+**[2026-08-10] Le picker ne propose pas la création d'un tableau**
 Le sélecteur ouvert depuis l'éditeur de règle (`#detail-pp-sub`, z-index 300) n'offre qu'un lien
 « Gérer » vers `regles/tableaux.php` en nouvel onglet.
 → Un formulaire de création occuperait `#modification` (250), qui porte la règle en cours
 d'édition : l'utilisateur perdrait sa saisie. Contrainte structurelle du système de panels.
 
-**[2026-07-27] Liste dédiée plutôt que moteur `compendium-liste.php`**
+**[2026-08-10] Liste dédiée plutôt que moteur `compendium-liste.php`**
 → Conforme à §9b : le moteur ne s'applique pas au module Règles (scoping ruleset seul, pas de
 sources actives ni de mécanisme de supplément). Le forcer aurait exclu tout tableau à
 `tab_res_id IS NULL` via le filtre `IN (sources actives)`.
 
-**[2026-07-27] Périmètre ruleset : DD2024 seul**
+**[2026-08-10] Périmètre ruleset : DD2024 seul**
 SP-TB0→TB6 n'alimentent que DD2024 (id 2). La saisie des tableaux DD3.5 (id 1) est isolée en
 **SP-TB9**.
 → Décision utilisateur : ne pas mélanger les deux rulesets dans une même passe de saisie.
 
-**[2026-07-27] Migration : script PHP idempotent plutôt que SQL littéral**
+**[2026-08-10] Migration : script PHP idempotent plutôt que SQL littéral**
 `sql/migrate_tableaux_sp-tb5.php`, simulation par défaut, `?go=1` pour appliquer.
 → Le script opère sur l'état réel de la base plutôt que sur une transcription figée du fichier
 d'import. Résultat sur les données DD2024 : 10 blocs → 9 tableaux distincts, doublon « Bonus de
 maîtrise » détecté et fusionné, aucun bloc ignoré. Les tableaux à `colspan`/`rowspan` sont
 signalés et laissés intacts — les fusions ne sont pas devinables de façon fiable.
 
-**[2026-07-27] `_tabSlugify()` sans dépendance à l'extension intl**
+**[2026-08-10] `_tabSlugify()` sans dépendance à l'extension intl**
 → `extension=intl` est commentée dans le `php.ini` de XAMPP : un appel direct à
 `transliterator_transliterate()` est une erreur fatale. Repli par table de translittération.
 Le même défaut existe dans `_slugify()` (`include/regles-arbre.php`) — non corrigé ici, hors
 périmètre, signalé à l'utilisateur.
 
-**[2026-07-27] Suivi des phases de développement — consigne permanente**
+**[2026-08-10] Suivi des phases de développement — consigne permanente**
 Ajout d'un §0 « Suivi des phases de développement » en tête de `ARCHITECTURE_0_REFERENCE.md` :
 checklist markdown de toutes les phases, tous projets confondus (SP-C, SP-E, SP-T, SP-TB).
 Consigne inscrite comme **obligatoire et prioritaire** dans `CLAUDE.md`.
 → Demande utilisateur : disposer d'un tableau de bord unique de l'avancement, tenu à jour à
 chaque livraison, plutôt que des statuts dispersés dans les sections de chaque module.
 
-**[2026-07-27] SP-TB0 et SP-TB5 appliqués en base locale**
+**[2026-08-10] SP-TB0 et SP-TB5 appliqués en base locale**
 Schéma `dd_tableaux` créé sur `maikasteiymaika`, migration exécutée sur le ruleset DD2024.
 Résultat : 14 blocs `<table>` dans 8 règles → 13 tableaux, 1 réutilisation, 0 ignoré.
 → Le fichier d'import ne décrivait que 10 blocs ; 4 tableaux avaient été ajoutés depuis via
 l'interface. Confirme le choix d'un script opérant sur la base plutôt que sur le fichier.
-Sauvegarde préalable : `sql/backup/2026-07-27_reg_texte_avant_sp-tb5.sql`.
+Sauvegarde préalable : `sql/backup/2026-08-10_reg_texte_avant_sp-tb5.sql`.
 
-**[2026-07-27] Script de migration exécutable en CLI**
+**[2026-08-10] Script de migration exécutable en CLI**
 Ajout d'un mode CLI (`--ruleset=<id> [--go]`) court-circuitant `requireAuth()`/`requireAdmin()`.
 → L'accès CLI implique déjà l'accès au système de fichiers : le garde ne protégerait rien et
 empêcherait simplement l'exécution (pas de session HTTP). Permet de rejouer et de vérifier la
 migration sans passer par le navigateur. Le ruleset devient obligatoire en CLI, faute de session.
 
-**[2026-07-27] `;` retiré des commentaires de colonne SQL**
+**[2026-08-10] `;` retiré des commentaires de colonne SQL**
 Le commentaire de `tab_camp_id` contenait `… -> dd_campagnes ; NULL = officiel`.
 → Un point-virgule à l'intérieur d'une chaîne de commentaire casse tout découpeur de requêtes
 naïf (le nôtre l'a été). phpMyAdmin s'en accommode, pas un `explode(';')`. La convention
 existante (`reg_camp_id` dans le dump) porte le même piège — à éviter dans les futures DDL.
 
-**[2026-07-27] Extension `intl` — activée en local, confirmée sur OVH**
+**[2026-08-10] Extension `intl` — activée en local, confirmée sur OVH**
 `extension=intl` décommentée dans le `php.ini` XAMPP (ICU **71.1**). OVH l'expose déjà
 (ICU **63.1**, `intl.error_level=0`, `intl.use_exceptions=Off`).
 → Clôt le défaut signalé le même jour sur `_slugify()` (`include/regles-arbre.php`), qui appelait
@@ -2934,7 +2934,7 @@ vérifiée sur les 13 tableaux migrés — **0 divergence** — et sur une séri
 > conséquence ici — `Any-Latin; Latin-ASCII` est stable sur le latin accenté depuis bien avant
 > ICU 63 — mais à garder en tête si un slug devait un jour être régénéré côté serveur.
 
-**[2026-07-27] Découpage d'un tableau en blocs côte à côte — étudié, écarté**
+**[2026-08-10] Découpage d'un tableau en blocs côte à côte — étudié, écarté**
 Certains tableaux du livre source présentent un tableau à N colonnes logiques coupé en K moitiés
 posées côte à côte (en-tête répété), pour économiser de la hauteur sur la page imprimée.
 Proposition étudiée : sortir ce découpage du contenu vers une métadonnée `tab_blocs`, le rendu
@@ -2951,3 +2951,263 @@ caractéristique » (`[[tab:modificateurs-de-caracteristique]]`, 4 colonnes phys
 > À rouvrir si **SP-TB8** (écran du MJ) le justifie : les colonnes y seront plus étroites qu'une
 > page de règle, et un tableau dont le découpage est gravé dans le contenu ne pourra ni se
 > déplier en 1 bloc ni se replier en 3. C'est le seul contexte où le sujet redevient bloquant.
+
+---
+
+## Phase SP-GL — Liaison automatique du glossaire
+
+**[2026-08-10] Diagnostic — le « parser du glossaire » n'existait pas**
+Signalement : dans la règle Exploration (id 8), chapitre Dangers, les mots Asphyxie, Brûlures,
+Chutes, Déshydratation, Malnutrition ne sont pas cliquables.
+
+Analyse : le rendu d'un nœud de règle (`regles/regle.php`, `include/ajax/detail-pp/regle.php`)
+n'appliquait qu'une seule transformation, `resoudreTagsTableaux()` (tags `[[tab:slug]]`). Les
+mots cliquables observés ailleurs sont des ancres `.glossaire-lien` **écrites en dur** dans
+`reg_texte` par `sql/seed_regles_dd2024.sql`. Relevé en base : 94 nœuds porteurs d'ancres,
+**tous de type `glossaire`** ; les 31 nœuds `chapitre`/`regle` avec texte n'en portaient
+**aucune**. Le renvoi n'avait donc jamais fonctionné hors du glossaire — il ne s'agissait pas
+d'une régression mais d'une fonctionnalité absente.
+
+Deux points de contenu, indépendants du moteur : « Brûlures » n'est pas un terme du glossaire
+(le SRD 2024 le nomme **Embrasement**) ; « Chutes » est le pluriel de **Chute**.
+
+**[2026-08-10] Détection — casse exacte du terme, pas de liste noire**
+Le glossaire DD2024 compte 155 termes dont beaucoup de mots courants (Action, Arme, Cible,
+Créature, Objet, Sort, Mort, Vol, Danger, Ennemi…). Mesure sur les 31 nœuds de règles :
+
+| Stratégie | Occurrences | Nœuds touchés |
+|---|---|---|
+| Insensible à la casse | 1 024 (Combat : 265 à lui seul) | 31 |
+| **Casse exacte** | **278** | 14 |
+
+→ **Casse exacte retenue.** Le SRD 2024 capitalise ses termes de jeu en milieu de phrase ; le
+palmarès obtenu le confirme (Désavantage 26, Vitesse 21, Avantage 20, JS 18, Initiative 18,
+Réaction 14, Résistance 12, Terrain difficile 8). Signal de détection gratuit et fiable, qui
+évite d'avoir à maintenir une liste noire de mots courants — laquelle aurait dû être révisée à
+chaque ajout au glossaire.
+
+**[2026-08-10] Première occurrence seulement — par terme et par nœud**
+278 liens restaient trop pour un texte suivi. Une seule ancre par terme et par nœud : le lecteur
+a le renvoi là où il en a besoin, la page reste lisible. Les ancres manuelles déjà présentes dans
+le HTML sont pré-scannées et comptent comme la première occurrence — sans quoi le parser en
+aurait ajouté un doublon plus bas dans la même définition.
+→ Résultat final : **107 renvois** sur 186 nœuds.
+
+**[2026-08-10] Résolution au rendu, pas à l'enregistrement**
+Alternative écartée : figer les ancres dans `reg_texte` au moment de la sauvegarde, comme le fait
+le seed. Renommer ou masquer un terme aurait alors laissé des renvois périmés dans tous les nœuds
+déjà enregistrés, avec un script de re-migration à écrire. Coût mesuré du rendu sur le nœud le
+plus lourd (Combat, 18 ko) : **0,6 ms** — le sujet de la performance ne se pose pas.
+
+**[2026-08-10] Ordre d'appel — glossaire avant tableaux**
+`resoudreTagsTableaux($db, lierGlossaireAuto(...), ...)`. L'exclusion de « l'intérieur des
+tableaux rendus » est obtenue **par l'ordre d'appel** et non par du code de détection : le HTML
+des tableaux est injecté après la passe glossaire et ne la traverse jamais. Les tags `[[tab:slug]]`
+sont par ailleurs isolés pendant la passe, pour qu'aucune ancre ne vienne les couper.
+
+**[2026-08-10] Frontière de mot — le trait d'union en fait partie**
+Faux positif relevé au test : « Mort » se liait dans « Mort-vivant » (nœud 155, Type de créature).
+Les lookarounds incluent désormais le trait d'union et les tirets Unicode. Un terme peut lui-même
+en contenir (« Personnage non-joueur ») : sans incidence, la contrainte ne porte que sur les
+extrémités du match.
+
+**[2026-08-10] Décodage / ré-échappement des segments de texte**
+`reg_texte` stocke les accents en entités HTML (`D&eacute;shydratation`) : aucun motif accentué
+n'y matcherait. Les segments analysés sont donc décodés, puis tout ce qui n'est pas transformé est
+ré-échappé par `h()`. Page en UTF-8 et base en `utf8mb4` — les accents ressortent en clair, le HTML
+produit est équivalent. Le contenu textuel a été vérifié identique avant/après sur les 186 nœuds.
+
+**[2026-08-10] Handler et style portés en global**
+Le handler `.glossaire-lien` vivait dans `js/regles.js` et son style dans `css/regles-modules.css`,
+tous deux chargés uniquement sur le module Règles. Or ces ancres apparaissent aussi dans
+`#detail-pp` (fiche règle ouverte depuis une campagne) et dans le sous-panneau glossaire — où elles
+étaient donc **inertes et non stylées**, y compris pour les ancres manuelles du seed.
+→ Handler déplacé dans `js/main.js` (base d'URL résolue comme `.mo-lien` : conteneur
+`[data-detail-base]`, sinon `BASE_URL` global), style déplacé dans `css/modules.css` et repassé en
+`var(--clr-accent-2)` (il portait un hex en dur, `#6b47a4`).
+
+**[2026-08-10] Portée volontairement limitée aux règles**
+Le compendium (`do_texte`, `om_texte`, `hi_description`…) n'est pas branché : phase **SP-GL3**,
+à arbitrer conjointement avec **SP-TB7** qui vise exactement la même liste de champs. Le ruleset
+DD3.5 (id 1) ne possède aucun nœud `reg_type='glossaire'` — le parser y sort immédiatement, index
+vide ; sa saisie est la phase **SP-GL4**.
+
+**[2026-08-10] SP-TB7 — portée du tag étendue au compendium**
+Câblage de `[[tab:slug]]` sur 12 points de rendu : `so_description`, `cla_description`,
+`ra_description`, `do_texte`, `comp_description`, `om_description`, `hi_description`,
+`eqt_description`, `cap_description` (×3 fiches), plus la définition de glossaire.
+→ Seuls les champs **déjà rendus sans `h()`** ont été retenus. Un champ échappé conserve son
+échappement : retirer un `h()` pour y faire passer un tag ouvrirait une injection HTML sur un
+champ jamais conçu pour contenir du balisage. Écartés pour cette raison ou par périmètre :
+`do_conditions`, `do_resume`, les champs courts de classe (armes/armures/sorts/conditions),
+`res_description` et tout le module Campagnes.
+
+**[2026-08-10] Nouveau point d'entrée `rendreTexteAvecTableaux()`**
+Lit le ruleset dans la session, avec override possible en 3ᵉ paramètre.
+→ Un seul des neuf endpoints `detail-pp` du compendium définit une variable `$ruleset_id`
+locale. Appeler `resoudreTagsTableaux($db, $x, $ruleset_id)` directement aurait produit un
+scoping silencieusement faux (ruleset 0) dans les huit autres.
+
+**[2026-08-10] Composant CSS `.reg-tab*` déplacé vers `css/modules.css`**
+Le bloc de rendu quitte `regles-modules.css` ; seul l'outillage du gestionnaire y reste.
+→ `regles-modules.css` n'est chargé que si `$css_module = 'regles'`. Or le tableau s'affiche
+désormais sur les fiches du compendium et dans les blocs de stats de monstre — il y sortait
+**sans aucun style**. Précédent identique dans le projet : le CSS du glossaire avait déjà été
+déplacé vers `modules.css` pour la même raison.
+
+> 🐛 Ce déplacement corrige un défaut de **SP-TB6**, annoncé livré à tort : le tag était résolu
+> dans `mo_stats`, mais le tableau s'affichait sans style hors des pages Règles. La portée CSS
+> avait été vérifiée pour les règles et pas pour les monstres.
+
+**[2026-08-10] Lacune SP-TB2 comblée : sous-panneau glossaire**
+`detail-pp-sub/glossaire.php` rendait `reg_texte` sans passer par le parser de tableaux.
+→ SP-TB2 n'avait câblé que `regles/regle.php` et `detail-pp/regle.php`. Le tag est désormais
+résolu **après** `lierGlossaireAuto()` : la liaison glossaire travaille sur du texte, le tag
+doit lui rester opaque.
+
+**[2026-08-10] `.reg-tab` rendu indépendant de son contexte typographique**
+Ajout de `line-height`, `color` et `text-align` sur le composant.
+→ Le tableau héritait de son hôte : `line-height: 1.7` dans le corps d'une règle
+(`.regles-noeud__texte`), celle du `body` ailleurs — d'où un rendu différent entre le module
+Règles et le gestionnaire. Un composant affiché dans cinq contextes doit être auto-portant.
+
+**[2026-08-10] Bouton d'insertion de tableau généralisé aux formulaires du compendium**
+SP-TB7 avait livré la résolution du tag sans le moyen de l'insérer : le bouton n'existait que
+dans l'éditeur de règle (SP-TB4). Dans un formulaire du compendium, aucun bouton ni indication —
+le geste naturel était de coller la convention de saisie directement dans le champ riche, où
+TinyMCE la transforme en `<br>` et où elle n'a aucun sens (la convention ne vit que dans
+`dd_tableaux.tab_contenu`). Cas rencontré en test sur le don « Façonneur ».
+→ Bouton `tableau` ajouté aux **10 éditeurs** : règle, sort, classe (×2), race (×2), don,
+compétence, objet, historique, équipement.
+
+**[2026-08-10] Implémentation du bouton centralisée dans `js/main.js`**
+`tableauxInitBouton(editor)` + `insererTableauDansEditeur(slug)` + `TAB_EDITEUR_ACTIF`.
+Les formulaires ne portent plus que `toolbar: '… | tableau | …'` et un `setup:` d'une ligne.
+→ Une implémentation par formulaire aurait été recopiée dix fois. `modifier/regle.php` a été
+ramené sur la version partagée (suppression de son `window.reglesInsererTableau` local et de son
+`URL_PICKER_TABLEAUX`), et le picker appelle désormais la fonction globale.
+
+L'éditeur cible est mémorisé **au clic** sur le bouton, pas au moment de l'insertion : le picker
+s'ouvrant dans `#detail-pp-sub`, le focus a quitté l'éditeur et `tinymce.activeEditor` ne
+désigne plus le bon (ou plus rien).
+
+Les deux `setup:` préexistants — overlays de capacité de `classe.php` et `race.php`, qui
+restaurent le contenu du textarea sur `ed.on('init')` — ont été **étendus** par ajout de l'appel
+en première instruction, jamais remplacés : une seconde clé `setup:` dans le même objet
+littéral aurait écrasé la première sans erreur.
+
+> ⚠ Le bouton `table` natif de TinyMCE reste présent dans ces barres. Il insère un `<table>`
+> HTML dans le champ — précisément ce dont SP-TB affranchit le contenu, et ce que la migration
+> SP-TB5 a nettoyé. Son retrait est une décision produit, non prise à ce jour.
+
+**[2026-08-10] Bouton « Tableaux » ajouté aux listes du compendium**
+Déclaré dans la barre d'actions de `include/compendium-liste.php`, gaté sur
+`canEditCompendium()`, ouverture en nouvel onglet.
+→ Le moteur sert les 9 entités du compendium : une déclaration unique les couvre toutes, là où
+une modification page par page aurait été recopiée neuf fois. Nouvel onglet pour préserver
+l'état de la liste (filtres, tri, pagination) pendant la création du tableau.
+
+Complète le bouton d'insertion TinyMCE livré le même jour : celui-ci insère un tableau
+**existant** dans un texte, celui-là donne accès à la **création**. Les deux étaient nécessaires.
+
+**[2026-08-11] SP-GL3 — liaison glossaire étendue au compendium**
+`rendreTexteAvecTableaux()` devient `rendreTexteEnrichi()` et enchaîne
+`lierGlossaireAuto()` **puis** `resoudreTagsTableaux()`. Les 12 points de rendu du compendium
+en héritent sans être touchés.
+→ SP-TB7 avait fait de cette fonction le point de passage unique : SP-GL3 se réduit à une
+modification de fonction au lieu de 12. L'ordre est celui imposé par §9d — glossaire d'abord,
+le HTML des tableaux étant alors injecté après coup et ne traversant jamais le parser glossaire.
+
+Arbitrage utilisateur : la casse est respectée dans toutes les saisies, la règle de casse exacte
+s'applique donc telle quelle au compendium. `mo_stats` reste exclu — `monstre-parser.php` a sa
+propre liaison glossaire, l'ajout produirait des liens en double.
+
+Vérifié sur données réelles : ancres produites sur sorts/dons/historiques, aucune ancre à
+l'intérieur d'un tableau rendu, « le Désavantage » lié / « un désavantage » non lié,
+`mo_stats` inchangé (38 liens `.mo-lien`, 0 `.glossaire-lien`).
+
+**[2026-08-11] Aide à la saisie sur tous les champs soumis à un parser**
+Trois clés dans `include/aide-contextuelle.php` : `texte-parsers`, `tableau-convention`,
+`monstre-tags-description` (enrichie de `[[tab:slug]]`, oubliée lors de SP-TB6). 13 icônes `?`
+posées sur les étiquettes.
+→ **Une clé par jeu de parsers réellement appliqué**, et non une aide générique : les champs
+n'ont pas tous les mêmes passes. La bulle `texte-parsers` dit explicitement que
+`#don#`/`$sort$`/`&objet&` n'y fonctionnent pas — annoncer un tag là où il n'est pas résolu se
+paie en saisies inutilisables, c'est exactement le type d'erreur rencontré sur le don
+« Façonneur ».
+
+`texte-parsers` est dynamique : compte les termes de glossaire du ruleset actif et bascule sur
+« aucun terme saisi » quand il n'y en a pas. Sur DD3.5, l'auteur sait tout de suite qu'aucun
+renvoi ne sera produit.
+
+**[2026-08-11] `<details>` d'aide du formulaire de tableau remplacé par `aideIcone()`**
+→ Demande utilisateur : un seul mécanisme d'aide dans l'application, contenu centralisé.
+Le CSS devenu inutile (`.reg-tab-aide*`) a été retiré. `#aide-bulle` s'élargit et devient
+défilant selon son contenu (`:has(.aide-table)`) — pas de variante à passer depuis le PHP.
+
+**[2026-08-11] Correction de datation des entrées SP-TB**
+Les entrées SP-TB et les deux fichiers `sql/` créés dans cette session portaient la date
+**2026-07-27**, qui est celle des travaux SP-GL antérieurs. Corrigées en **2026-08-10**, date
+réelle de leur rédaction ; `2026-07-27_tableaux_sp-tb0.sql` et la sauvegarde `sql/backup/`
+renommés en conséquence.
+→ Un journal de décisions dont les dates sont fausses ne vaut plus rien : deux chantiers
+distincts y apparaissaient le même jour. Les occurrences légitimes de 2026-07-27 (SP-GL, §9d)
+ont été préservées.
+
+---
+
+## Module Personnages — passage au code projet SP-PE
+
+**[2026-08-12] Renumérotation des sous-phases « 3.x » en `SP-PE`**
+Constat lors d'un point de situation : le module Personnages était le **seul chantier du projet
+absent du §0 « Suivi des phases »** de `ARCHITECTURE_0_REFERENCE.md`. Son avancement ne vivait
+qu'en §7.11, sous forme d'une liste narrative (« 3.0 — *livrée* ») héritée du découpage par
+« Phases » antérieur aux codes projet `SP-*`. Conséquence directe : impossible de retrouver son
+état depuis le tableau de bord, alors que c'est précisément sa fonction.
+→ Décision (validée par l'utilisateur) : le module reçoit le code projet **`SP-PE`** et ses phases
+  sont renumérotées puis portées en checklist dans le §0, au même titre que `SP-C`, `SP-E`,
+  `SP-T`, `SP-TB` et `SP-GL`.
+→ **Aucune modification de code livré** : c'est une opération de documentation. `SP-PE0→PE2`
+  correspondent exactement à ce qui existe en base et dans le dépôt depuis le 2026-06-14.
+
+Table de correspondance (l'ancienne numérotation reste lisible dans les entrées du journal
+antérieures au 2026-08-12, qui ne sont pas réécrites) :
+
+| Nouveau | Ancien | Contenu | État |
+|---|---|---|---|
+| `SP-PE0` | 3.0 | Socle + SQL | livrée 2026-06-12 |
+| `SP-PE1` | 3.1 | Fiche identité + première classe à la création | livrée 2026-06-13 |
+| `SP-PE2` | 3.2 | Classes & niveaux (éditeur DOM inline) | livrée 2026-06-14 |
+| `SP-PE3` | 3.3 | Compétences | à faire |
+| `SP-PE4` | 3.4 | Dons | à faire |
+| `SP-PE5` | — | Bloc Campagnes de la fiche (lecture seule) | à faire |
+| `SP-PE6` | 3.5 | NLS prestige (DD3.5) | à faire |
+| `SP-PE7` | 3.6 | Vue Magie | à faire |
+| `SP-PE8` | 3.7 | Mode jeu + passe responsive < 992px | à faire |
+
+**[2026-08-12] `SP-PE5` — le bloc Campagnes devient une phase à part entière**
+Le bloc « Campagnes » figurait en position 9 de l'ordre des blocs de la fiche (archi §7.3) mais
+n'était rattaché à aucune sous-phase 3.x — il n'apparaissait que dans la liste « À venir » de
+`fiche.php`, sans propriétaire. Il aurait pu se perdre à la reprise.
+→ Isolé en `SP-PE5`, inséré avant les phases lourdes (NLS, Magie) : c'est de la lecture seule sur
+  des données déjà disponibles via `getCampagnesPersonnage()`, donc la phase la moins coûteuse
+  restante.
+
+**[2026-08-12] Objets magiques du personnage — hors périmètre `SP-PE`, pas de phase décochée**
+Conformément à la règle de tenue du §0 (« une phase abandonnée est retirée, pas laissée
+décochée »), `personnages/objets.php` ne reçoit **pas** de phase `SP-PE`. Le placeholder et son
+motif (analyse métier non fiabilisée, dépendance au compendium Objets magiques, aucune table)
+restent documentés en archi §7.9 et dans l'arbitrage [2026-06-12] [D].
+→ Le sujet reviendra comme chantier propre (code projet distinct) le jour où l'analyse métier
+  sera tranchée — pas comme une case perpétuellement vide du module Personnages.
+
+**[2026-08-12] État réel du module au moment de la renumérotation**
+Vérification faite dans le dépôt, et non d'après la doc : 3 commits seulement touchent
+`personnages/` (2026-06-12, 06-13, 06-14), `personnages/enregistrement.php` n'expose que trois
+actions (`supprimerPersonnage`, `enregistrerPersonnage`, `enregistrerClasses`), `magie.php` et
+`objets.php` sont des placeholders. Le module est en **pause depuis le 2026-06-14** — le travail
+a basculé sur Campagnes, puis SP-E, SP-T, SP-TB et SP-GL.
+→ La mention « Phase 3 — Personnages EN COURS » du §14 était trompeuse depuis deux mois :
+  corrigée en « EN PAUSE (`SP-PE`) » avec la date de dernière livraison.
+→ Les tables `dd_personnages_competences`, `_dons`, `_nls`, `_sorts`, `_sorts_prepares` existent
+  déjà en base : `SP-PE3→PE8` sont du code, pas du schéma. Aucun patch SQL attendu.
