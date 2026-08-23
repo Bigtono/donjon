@@ -64,6 +64,30 @@ $stmt_sce = $db->prepare('
 $stmt_sce->execute([$id]);
 $scenarios = $stmt_sce->fetchAll();
 
+// Personnages rattachés (SP-PE5) — lecture seule.
+// La source de vérité du rattachement est dd_campagnes_personnages ; le
+// marqueur « en cours » se lit sur le raccourci pe_camp_id du personnage.
+$stmt_per = $db->prepare('
+  SELECT pe.pe_id,
+         pe.pe_nom,
+         pe.pe_j_id,
+         ra.ra_nom,
+         cp.cp_actif,
+         (pe.pe_camp_id = ?) AS est_courante,
+         (SELECT GROUP_CONCAT(CONCAT(cla.cla_nom, \' \', pc.pc_niveau)
+                   ORDER BY cla.cla_nom SEPARATOR \' / \')
+            FROM dd_personnages_classes pc
+            JOIN dd_classes cla ON cla.cla_id = pc.pc_cla_id
+           WHERE pc.pc_pe_id = pe.pe_id) AS classes_txt
+  FROM   dd_campagnes_personnages cp
+  JOIN   dd_personnages pe ON pe.pe_id = cp.cp_pe_id
+  LEFT JOIN dd_races ra ON ra.ra_id = pe.pe_ra_id
+  WHERE  cp.cp_camp_id = ?
+  ORDER  BY est_courante DESC, pe.pe_nom ASC
+');
+$stmt_per->execute([$id, $id]);
+$personnages = $stmt_per->fetchAll();
+
 $base_enreg    = BASE_URL . '/campagnes/enregistrement.php?ajax=1';
 $base_modifier = BASE_URL . '/include/ajax/modifier';
 $base_detail   = BASE_URL . '/include/ajax/detail-pp';
@@ -174,6 +198,59 @@ $base_detail   = BASE_URL . '/include/ajax/detail-pp';
 
             </tr>
 
+          <?php endforeach ?>
+        </tbody>
+      </table>
+    <?php endif ?>
+  </div>
+
+  <!-- Personnages (SP-PE5) -->
+  <div class="camp-detail__section">
+    <h3 class="camp-detail__section-title">Personnages</h3>
+
+    <?php if (empty($personnages)): ?>
+      <p class="text-muted">
+        Aucun personnage rattaché. Le rattachement se fait depuis la fiche du personnage.
+      </p>
+    <?php else: ?>
+      <table class="camp-sous-liste">
+        <thead>
+          <tr>
+            <th>Personnage</th>
+            <th>Classes</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($personnages as $p): ?>
+            <?php
+              // La fiche détail d'un personnage est réservée à son propriétaire
+              // (canAccess) : on ne rend cliquables que ceux qui s'ouvriront.
+              $lisible = canAccess((int)$p['pe_j_id']);
+              $onclick = $lisible
+                ? 'naviguerDetailPP(\'' . $base_detail . '/personnage.php\', {id:' . (int)$p['pe_id'] . '})'
+                : '';
+            ?>
+            <tr>
+              <td <?= $lisible ? 'onclick="' . h($onclick) . '" style="cursor:pointer"' : '' ?>>
+                <?= h($p['pe_nom']) ?>
+                <?php if (!empty($p['ra_nom'])): ?>
+                  <span class="text-muted text-sm"><?= h($p['ra_nom']) ?></span>
+                <?php endif ?>
+              </td>
+              <td class="text-muted">
+                <?= $p['classes_txt'] ? h($p['classes_txt']) : '—' ?>
+              </td>
+              <td>
+                <?php if ((int)$p['est_courante'] === 1): ?>
+                  <span class="per-camp__badge per-camp__badge--courante">En cours</span>
+                <?php elseif ((int)$p['cp_actif'] !== 1): ?>
+                  <span class="per-camp__badge">Terminée</span>
+                <?php else: ?>
+                  <span class="text-muted">—</span>
+                <?php endif ?>
+              </td>
+            </tr>
           <?php endforeach ?>
         </tbody>
       </table>

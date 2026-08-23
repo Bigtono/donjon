@@ -107,7 +107,6 @@ $titre = $id > 0 ? 'Modifier ' . h($don['do_nom']) : 'Nouveau don';
     <input type="hidden" name="entite"           value="don">
     <input type="hidden" name="action"           value="sauvegarder">
     <input type="hidden" name="do_id"            value="<?= (int)$don['do_id'] ?>">
-    <input type="hidden" name="do_ruleset_var_id" value="<?= $ruleset_id ?>">
 
     <div class="modif-section">
       <div class="modif-grid">

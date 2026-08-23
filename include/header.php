@@ -20,9 +20,20 @@ $theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
 // Contexte de navigation (header) — derniers niveaux campagne consultés, ou
 // repli sur le dernier personnage si aucune campagne n'est active (cf. doc §12).
 $header_context_niveaux = [];
+$header_personnage      = null;
 if (!empty($_SESSION['j_id'])):
   $header_context_niveaux = getHeaderContextNiveaux($db);
+  // Raccourci vers le dernier personnage consulté (SP-RS6) — affiché sur la
+  // ligne de titre, indépendamment de la chaîne de contexte de campagne.
+  $header_personnage      = getHeaderPersonnage($db);
 endif;
+
+// Menu principal repliable : uniquement pour un utilisateur connecté (hors
+// connexion la nav ne contient qu'un lien, le bouton n'aurait pas d'objet).
+$nav_collapsible = !empty($_SESSION['j_id']);
+
+// Mode debug UI — activé depuis admin/index.php, réservé aux administrateurs
+$debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -43,6 +54,12 @@ endif;
 
 <body class="theme-<?= $theme_actif ?><?= $body_class ? ' ' . $body_class : '' ?>">
 
+  <? if ($debug_ui): ?>
+    <div id="debug-viewport" class="debug-viewport"
+         data-breakpoints="991,768,479"
+         title="Mode debug — cliquer pour déplacer le badge">…</div>
+  <? endif ?>
+
   <header class="site-header">
     <div class="site-header__brand">
       <a href="<?= BASE_URL ?>/index.php" class="site-header__logo">
@@ -53,7 +70,18 @@ endif;
       <? endif ?>
     </div>
 
-    <nav class="site-header__nav">
+    <? if ($nav_collapsible): ?>
+      <button type="button" class="site-header__burger" id="site-nav-toggle"
+              aria-controls="site-nav" aria-expanded="false"
+              onclick="toggleMenuPrincipal()">
+        <span class="site-header__burger-label">
+          <i class="fa fa-bars"></i> Menu
+        </span>
+        <i class="fa fa-chevron-down site-header__burger-chevron"></i>
+      </button>
+    <? endif ?>
+
+    <nav class="site-header__nav<?= $nav_collapsible ? ' site-header__nav--collapsible' : '' ?>" id="site-nav">
       <? if (!empty($_SESSION['j_id'])): ?>
         <a href="<?= BASE_URL ?>/regles/index.php">Règles</a>
         <a href="<?= BASE_URL ?>/compendium/index.php">Compendium</a>
@@ -70,11 +98,21 @@ endif;
         </a>
         <a href="<?= BASE_URL ?>/index.php?action=logout" class="site-header__logout" title="Déconnexion">
           <i class="fa fa-sign-out-alt"></i>
+          <span class="site-header__nav-label">Déconnexion</span>
         </a>
       <? else: ?>
         <a href="<?= BASE_URL ?>/index.php">Connexion</a>
       <? endif ?>
     </nav>
+
+    <? if (!empty($header_personnage)): ?>
+      <a class="site-header__perso"
+         href="<?= BASE_URL ?>/personnages/fiche.php?id=<?= (int)$header_personnage['id'] ?>"
+         title="Dernier personnage consulté">
+        <i class="fa fa-user" aria-hidden="true"></i>
+        <span class="site-header__perso-nom"><?= h($header_personnage['nom']) ?></span>
+      </a>
+    <? endif ?>
   </header>
 
   <div id="site-header-context-zone">

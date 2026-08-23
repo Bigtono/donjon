@@ -117,6 +117,15 @@ function rafraichirDetailPPCourant() {
   _chargerDetailPP(top.url, top.params, _detailPpStack.length > 1);
 }
 
+// Chrome commun aux trois panneaux (SP-RS4). En desktop la barre est en
+// `display: contents` : les boutons restent flottants (position: absolute) aux
+// coins du panneau, exactement comme avant. Sous 992px elle devient une vraie
+// barre d'en-tête dans le flux, avec des cibles de 44px — les boutons ne
+// recouvrent alors plus le titre du contenu. Voir css/main.css et doc §10g.
+function barrePanneau(boutons) {
+  return '<div class="overlay-panel__bar">' + boutons + '</div>';
+}
+
 // Worker interne — construit l'URL, fait le fetch, injecte le HTML.
 // withBack=true → ajoute le bouton ← Retour sous le bouton ✕.
 function _chargerDetailPP(url, params, withBack) {
@@ -141,7 +150,8 @@ function _chargerDetailPP(url, params, withBack) {
         ? '<button class="overlay-back" onclick="retourDetailPP()" title="Retour">'
           + '<i class="fa fa-arrow-left"></i> Retour</button>'
         : '';
-      panel.innerHTML = closeBtn + backBtn + '<div class="overlay-panel__inner">' + html + '</div>';
+      panel.innerHTML = barrePanneau(backBtn + closeBtn)
+        + '<div class="overlay-panel__inner">' + html + '</div>';
       actualiserContexteHeader();
     })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
@@ -156,9 +166,22 @@ function actualiserContexteHeader() {
   if (!zone) return;
   fetch(BASE_URL + '/include/ajax/header-context.php')
     .then(r => r.text())
-    .then(html => { zone.innerHTML = html; })
+    .then(html => {
+      zone.innerHTML = html;
+      contexteHeaderCadrer();
+    })
     .catch(() => {});
 }
+
+// Fil d'Ariane du header (≤991px) : amène le niveau courant — le plus profond,
+// donc le dernier — à l'écran. Sans effet en desktop, où la barre ne défile pas.
+function contexteHeaderCadrer() {
+  const bar = document.querySelector('.site-header__context');
+  if (!bar) return;
+  bar.scrollLeft = bar.scrollWidth;
+}
+
+document.addEventListener('DOMContentLoaded', contexteHeaderCadrer);
 
 // Charge #modification via GET — lecture initiale du formulaire
 function actualiserPageModif(url, params = {}) {
@@ -177,7 +200,12 @@ function actualiserPageModif(url, params = {}) {
   fetch(fullUrl)
     .then(r => { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
     .then(html => {
-      panel.innerHTML = '<div class="overlay-panel__inner">' + html + '</div>';
+      // Bouton Fermer (SP-RS4) : #modification n'en avait aucun. Sur mobile le
+      // panneau couvre tout l'écran, il ne reste aucun backdrop à toucher.
+      const closeBtn = '<button class="overlay-close" onclick="fermerModification()" title="Fermer">'
+        + '<i class="fa fa-times"></i></button>';
+      panel.innerHTML = barrePanneau(closeBtn)
+        + '<div class="overlay-panel__inner">' + html + '</div>';
       // Les <script> injectés via innerHTML ne s'exécutent pas — on les recrée
       panel.querySelectorAll('script').forEach(ancien => {
         const nouveau = document.createElement('script');
@@ -244,7 +272,8 @@ function actualiserPageSub(url, params = {}) {
     .then(html => {
       const closeBtn = '<button class="overlay-close" onclick="fermerSubPanel()" title="Fermer">'
         + '<i class="fa fa-times"></i></button>';
-      panel.innerHTML = closeBtn + '<div class="overlay-panel__inner">' + html + '</div>';
+      panel.innerHTML = barrePanneau(closeBtn)
+        + '<div class="overlay-panel__inner">' + html + '</div>';
       // Les <script> injectés via innerHTML ne s'exécutent pas — on les recrée
       panel.querySelectorAll('script').forEach(ancien => {
         const nouveau = document.createElement('script');
@@ -547,3 +576,178 @@ document.addEventListener('keydown', function (e) {
 document.addEventListener('scroll', function () {
   if (_aideBulleEl) _fermerAideBulle();
 }, true);
+
+// ============================================================
+// MENU PRINCIPAL DÉROULANT (mobile / tablette, ≤ 991px)
+// Le bouton #site-nav-toggle et le panneau #site-nav occupent toute la
+// largeur d'affichage ; au-dessus de 991px la nav redevient horizontale
+// et l'état ouvert/fermé est réinitialisé.
+// ============================================================
+
+var NAV_BREAKPOINT = 991;
+
+function toggleMenuPrincipal(forceOuvrir) {
+  const nav = document.getElementById('site-nav');
+  const btn = document.getElementById('site-nav-toggle');
+  if (!nav || !btn) return;
+
+  const ouvrir = (typeof forceOuvrir === 'boolean')
+    ? forceOuvrir
+    : !nav.classList.contains('is-open');
+
+  nav.classList.toggle('is-open', ouvrir);
+  btn.setAttribute('aria-expanded', ouvrir ? 'true' : 'false');
+}
+
+function fermerMenuPrincipal() {
+  toggleMenuPrincipal(false);
+}
+
+// Fermeture au clic hors du header
+document.addEventListener('click', function (e) {
+  const nav = document.getElementById('site-nav');
+  if (!nav || !nav.classList.contains('is-open')) return;
+  if (e.target && e.target.closest && e.target.closest('.site-header')) return;
+  fermerMenuPrincipal();
+});
+
+// Fermeture à la touche Échap
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') fermerMenuPrincipal();
+});
+
+// Retour en affichage desktop : on réinitialise l'état du menu
+window.addEventListener('resize', function () {
+  if (window.innerWidth > NAV_BREAKPOINT) fermerMenuPrincipal();
+});
+
+// ============================================================
+// MODE DEBUG — badge dimensions du viewport
+// Rendu par include/header.php lorsque $_SESSION['debug_ui'] est actif
+// (bascule dans admin/index.php). Un clic fait tourner le badge entre
+// les quatre coins, position mémorisée en localStorage.
+// ============================================================
+
+var DEBUG_COINS = ['', 'debug-viewport--right', 'debug-viewport--top debug-viewport--right', 'debug-viewport--top'];
+
+function _debugMajBadge() {
+  const badge = document.getElementById('debug-viewport');
+  if (!badge) return;
+
+  const l = window.innerWidth;
+  const h = window.innerHeight;
+  const dpr = window.devicePixelRatio || 1;
+  const paliers = (badge.dataset.breakpoints || '')
+    .split(',')
+    .map(v => parseInt(v, 10))
+    .filter(v => !isNaN(v));
+
+  let html = '<span class="debug-viewport__dim">' + l + ' × ' + h + '</span>';
+  html += '<span>dpr ' + (Math.round(dpr * 100) / 100) + '</span>';
+  paliers.forEach(bp => {
+    const actif = l <= bp;
+    html += '<span class="debug-viewport__bp' + (actif ? ' debug-viewport__bp--on' : '') + '">≤' + bp + '</span>';
+  });
+  badge.innerHTML = html;
+}
+
+function _debugAppliquerCoin(index) {
+  const badge = document.getElementById('debug-viewport');
+  if (!badge) return;
+  badge.classList.remove('debug-viewport--right', 'debug-viewport--top');
+  DEBUG_COINS[index].split(' ').filter(c => c).forEach(c => badge.classList.add(c));
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  const badge = document.getElementById('debug-viewport');
+  if (!badge) return;
+
+  let coin = parseInt(localStorage.getItem('debugViewportCoin') || '0', 10);
+  if (isNaN(coin) || coin < 0 || coin >= DEBUG_COINS.length) coin = 0;
+  _debugAppliquerCoin(coin);
+  _debugMajBadge();
+
+  badge.addEventListener('click', function () {
+    coin = (coin + 1) % DEBUG_COINS.length;
+    localStorage.setItem('debugViewportCoin', String(coin));
+    _debugAppliquerCoin(coin);
+  });
+
+  window.addEventListener('resize', _debugMajBadge);
+  window.addEventListener('orientationchange', _debugMajBadge);
+});
+
+// ============================================================
+// BARRE DE FILTRAGE — toggle mobile (composant partagé)
+// Déplacé de js/compendium.js le 2026-08-22 (SP-RS3b) : le composant sert
+// aussi au module Personnages, qui ne charge pas compendium.js.
+// Une seule barre de filtrage par page — d'où les identifiants fixes
+// #comp-filtre-content et #filtre-toggle-btn.
+// ============================================================
+
+function toggleFiltresMobile() {
+  const content = document.getElementById('comp-filtre-content');
+  const btn = document.getElementById('filtre-toggle-btn');
+  if (!content || !btn) return;
+
+  const isOpen = !content.classList.contains('is-closed');
+  if (isOpen) {
+    content.classList.add('is-closed');
+    btn.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+  } else {
+    content.classList.remove('is-closed');
+    btn.classList.add('is-open');
+    btn.setAttribute('aria-expanded', 'true');
+  }
+}
+
+// Initialisation : replié en mobile par défaut
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.innerWidth <= 991) {
+    const content = document.getElementById('comp-filtre-content');
+    if (content) content.classList.add('is-closed');
+  }
+});
+
+// ============================================================
+// RELEVÉ D'AFFICHAGE (SP-RS5)
+// Transmet une fois par session authentifiée les caractéristiques réelles du
+// navigateur, pour arbitrer les paliers responsive sur des mesures plutôt que
+// sur des hypothèses. Émis seulement si RELEVE_DEVICE (posé par footer.php) ;
+// le serveur pose ensuite un drapeau de session.
+// Aucune donnée personnelle supplémentaire n'est envoyée.
+// ============================================================
+
+function releveDevice() {
+  if (typeof RELEVE_DEVICE === 'undefined' || !RELEVE_DEVICE) return;
+
+  const nav = navigator;
+  const uaData = nav.userAgentData || null;
+
+  const donnees = {
+    vp_w: window.innerWidth,
+    vp_h: window.innerHeight,
+    dpr: window.devicePixelRatio || 1,
+    screen_w: (window.screen && window.screen.width) || '',
+    screen_h: (window.screen && window.screen.height) || '',
+    // Orientation déduite du viewport, et non de screen.orientation : c'est
+    // la mesure qui décide réellement du palier CSS appliqué.
+    orientation: window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait',
+    touch: nav.maxTouchPoints || 0,
+    plateforme: (uaData && uaData.platform) || '',
+    langue: nav.language || '',
+    ua: nav.userAgent || '',
+    csrf_token: getCsrfToken()
+  };
+
+  fetch(BASE_URL + '/include/ajax/releve-device.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(donnees).toString()
+  })
+    .then(() => { RELEVE_DEVICE = false; })
+    .catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', releveDevice);

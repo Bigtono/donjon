@@ -1,31 +1,11 @@
 // ============================================================
-// FILTRE MOBILE — toggle repliable
+// FILTRE MOBILE
+// toggleFiltresMobile() et son initialisation ont été déplacés dans
+// js/main.js le 2026-08-22 (SP-RS3b) : le composant barre de filtrage est
+// partagé avec le module Personnages, qui ne charge pas ce fichier.
 // ============================================================
 
-function toggleFiltresMobile() {
-  const content = document.getElementById('comp-filtre-content');
-  const btn = document.getElementById('filtre-toggle-btn');
-  if (!content || !btn) return;
-
-  const isOpen = !content.classList.contains('is-closed');
-  if (isOpen) {
-    content.classList.add('is-closed');
-    btn.classList.remove('is-open');
-    btn.setAttribute('aria-expanded', 'false');
-  } else {
-    content.classList.remove('is-closed');
-    btn.classList.add('is-open');
-    btn.setAttribute('aria-expanded', 'true');
-  }
-}
-
-// Initialisation : masqué en mobile par défaut
 document.addEventListener('DOMContentLoaded', () => {
-  if (window.innerWidth <= 991) {
-    const content = document.getElementById('comp-filtre-content');
-    if (content) content.classList.add('is-closed');
-  }
-
   // Ferme le menu sources si clic extérieur
   document.addEventListener('click', e => {
     document.querySelectorAll('.comp-filtre-sources-menu').forEach(menu => {
@@ -101,12 +81,30 @@ function compToggleMenu(id, btn) {
   // Position fixe calculée depuis le bouton (cf. css/compendium-modules.css
   // .comp-menu-dropdown) — le menu peut ainsi déborder de .comp-liste-wrapper
   // au lieu d'être découpé en bas de page pour les dernières lignes.
-  if (btn) {
-    const rect = btn.getBoundingClientRect();
-    menu.style.top = rect.bottom + 'px';
-    menu.style.left = rect.left + 'px';
-  }
+  // Affiché avant mesure : offsetWidth/offsetHeight valent 0 tant que le menu
+  // porte .noDisplay, et le recadrage ci-dessous a besoin de ses dimensions.
   menu.classList.remove('noDisplay');
+
+  if (btn) {
+    const rect  = btn.getBoundingClientRect();
+    const marge = 8;
+    let left = rect.left;
+    let top  = rect.bottom;
+
+    // Recadrage dans le viewport (SP-RS3) : sur un écran étroit le menu
+    // débordait à droite, et s'ouvrait hors écran pour les dernières lignes
+    // de la page — il bascule alors au-dessus du bouton.
+    if (left + menu.offsetWidth > window.innerWidth - marge) {
+      left = window.innerWidth - menu.offsetWidth - marge;
+    }
+    if (left < marge) left = marge;
+    if (top + menu.offsetHeight > window.innerHeight - marge) {
+      top = Math.max(marge, rect.top - menu.offsetHeight);
+    }
+
+    menu.style.top  = top + 'px';
+    menu.style.left = left + 'px';
+  }
 
   // Ferme au clic extérieur
   setTimeout(() => {

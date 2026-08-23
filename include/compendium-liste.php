@@ -15,6 +15,11 @@
 //   champ_ruleset string   — champ ruleset avec alias table (optionnel)
 //   colonnes      array    — [{sql, champ, label, mobile, tri}]
 //   filtres       array    — critères métier intermédiaires [{type, name, champ, label, ...}]
+//                            clé optionnelle submit_onchange (bool, types select/exists) :
+//                            soumet le formulaire dès le changement de valeur. Utile quand
+//                            la page contrôleur fait dépendre d'autres critères de celui-ci
+//                            (ex. classes.php : "Classe parente" n'apparaît que sur le type
+//                            Sous-classe).
 //   url_detail    string   — URL endpoint AJAX detail-pp
 //   url_modifier  string   — URL endpoint AJAX modifier ('' = pas de modification)
 //   url_enreg     string   — URL enregistrement.php
@@ -374,7 +379,10 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
               $opts = $opts_stmt->fetchAll();
               ?>
               <select name="<?= h($f['name']) ?>" class="comp-filtre-select"
-                title="<?= h($f['label']) ?>">
+                title="<?= h($f['label']) ?>"
+                <?php if (!empty($f['submit_onchange'])): ?>
+                  onchange="document.getElementById('form-filtre-<?= h($entite) ?>').submit()"
+                <?php endif ?>>
                 <option value="">— <?= h($f['label']) ?> —</option>
                 <?php foreach ($opts as $opt): ?>
                   <option value="<?= h($opt['val']) ?>"

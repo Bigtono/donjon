@@ -110,33 +110,52 @@ $niveaux = $stmt_niv->fetchAll();
 // Capacités spéciales complètes (pour la section descriptions)
 // ============================================================
 
-// Classe normale : une ligne par capacité (regroupe ses éventuelles affectations
-// multi-niveaux), inchangé — le niveau est déjà visible dans la table de progression.
-// Sous-classe DD2024 : pas de table de progression, donc une ligne par affectation
-// niveau/capacité, triée par niveau, pour afficher "Niveau XX : Nom".
-$capacites          = [];
-$capacitesParNiveau = [];
+// Une capacité affectée à plusieurs niveaux (itérations) n'apparaît qu'une
+// fois, titrée par son PREMIER niveau d'obtention — MIN(cc_niveau). Les
+// itérations suivantes restent lisibles dans la table de progression pour une
+// classe normale, et dans le texte de la capacité pour une sous-classe.
+// Le GROUP BY porte sur toutes les colonnes non agrégées (compatible
+// ONLY_FULL_GROUP_BY).
+$stmt_cap = $db->prepare('
+  SELECT cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type,
+         MIN(cc.cc_niveau) AS cap_niveau
+  FROM   dd_classe_capacite cc
+  JOIN   dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
+  WHERE  cc.cc_cla_id = ?
+  GROUP  BY cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type
+  ORDER  BY cap_niveau, cap.cap_nom
+');
+$stmt_cap->execute([$id]);
+$capacites = $stmt_cap->fetchAll();
 
-if ($isSousClasse):
-  $stmt_capn = $db->prepare('
-    SELECT cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type, cc.cc_niveau
-    FROM   dd_classe_capacite cc
-    JOIN   dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
-    WHERE  cc.cc_cla_id = ?
-    ORDER  BY cc.cc_niveau, cap.cap_nom
-  ');
-  $stmt_capn->execute([$id]);
-  $capacitesParNiveau = $stmt_capn->fetchAll();
-else:
-  $stmt_cap = $db->prepare('
-    SELECT DISTINCT cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type
-    FROM   dd_classe_capacite cc
-    JOIN   dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
-    WHERE  cc.cc_cla_id = ?
-    ORDER  BY cap.cap_nom
-  ');
-  $stmt_cap->execute([$id]);
-  $capacites = $stmt_cap->fetchAll();
+// ============================================================
+// Sous-classes rattachées (classe de base uniquement)
+// ============================================================
+// Même modèle d'affichage que "Classe parente" côté sous-classe : une liste
+// de renvois cliquables. Périmètre identique à la liste du compendium :
+// sources actives, et pour les entrées de supplément la règle de visibilité
+// (officielle | mienne et visible | publique et visible).
+
+$sousClasses = [];
+if (!$isSousClasse):
+  $res_ids_sc = getActiveResIds($db, $ruleset_id);
+  if (!empty($res_ids_sc)):
+    $ph_sc   = resIdsPlaceholders($res_ids_sc);
+    $uid_sc  = (int)($_SESSION['j_id'] ?? 0);
+    $stmt_sc = $db->prepare("
+      SELECT sc.cla_id, sc.cla_nom
+      FROM   dd_classes sc
+      LEFT JOIN dd_ressources res ON res.res_id = sc.cla_res_id
+      WHERE  sc.cla_cla_id = ?
+        AND  sc.cla_res_id IN ($ph_sc)
+        AND  (res.res_j_id IS NULL
+              OR (res.res_j_id = ? AND sc.cla_visible = 1)
+              OR (sc.cla_public = 1 AND sc.cla_visible = 1))
+      ORDER  BY sc.cla_nom
+    ");
+    $stmt_sc->execute(array_merge([$id], $res_ids_sc, [$uid_sc]));
+    $sousClasses = $stmt_sc->fetchAll();
+  endif;
 endif;
 
 // Bonus de maîtrise DD2024 — commun à toutes les classes, par niveau
@@ -209,10 +228,13 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
       <span class="sort-detail__value">d<?= (int)$cla['cla_dV'] ?></span>
     </div>
 
-    <div class="sort-detail__row">
-      <span class="sort-detail__label">Niveaux</span>
-      <span class="sort-detail__value"><?= $niveauMax ?></span>
-    </div>
+    <?php // Nombre de niveaux : non pertinent en DD2024 (progression commune) ?>
+    <?php if ($ruleset === 'DD3.5'): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label">Niveaux</span>
+        <span class="sort-detail__value"><?= $niveauMax ?></span>
+      </div>
+    <?php endif ?>
 
     <?php endif ?>
 
@@ -265,47 +287,60 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
 
     <?php endif ?>
 
+    <?php // ---- Compétences de classe ?>
+    <?php if (!empty($competences)): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label"><?= $ruleset === 'DD2024' ? 'Compétences maîtrisées' : 'Compétences de classe' ?></span>
+        <div class="sort-detail__value">
+          <?php foreach ($competences as $i => $comp): ?>
+            <?php if ($i > 0) echo ', ' ?>
+            <span class="lien-sub"
+                  onclick="actualiserPageSub('<?= $url_sub_comp ?>',{id:<?= (int)$comp['comp_id'] ?>})"
+                  title="Voir la compétence">
+              <?= h($comp['comp_nom']) ?>
+              <?php if ($comp['ccomp_precision']): ?>
+                (<?= h($comp['ccomp_precision']) ?>)
+              <?php endif ?>
+            </span>
+          <?php endforeach ?>
+        </div>
+      </div>
+    <?php endif ?>
+
+    <?php // ---- Armes (et armures en DD3.5) ?>
+    <?php if ($cla['cla_armes']): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label"><?= $ruleset === 'DD3.5' ? 'Armes &amp; armures' : 'Maîtrise d\'armes' ?></span>
+        <div class="sort-detail__value sort-detail__value--html"><?= $cla['cla_armes'] ?></div>
+      </div>
+    <?php endif ?>
+
+    <?php // ---- Armures DD2024 ?>
+    <?php if ($ruleset === 'DD2024' && $cla['cla_armures']): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label">Formation aux armures</span>
+        <div class="sort-detail__value sort-detail__value--html"><?= $cla['cla_armures'] ?></div>
+      </div>
+    <?php endif ?>
+
+    <?php // ---- Sous-classes rattachées (classe de base) ?>
+    <?php if (!empty($sousClasses)): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label">Sous-classes</span>
+        <div class="sort-detail__value">
+          <?php foreach ($sousClasses as $i => $sc): ?>
+            <?php if ($i > 0) echo ', ' ?>
+            <span class="lien-sub"
+                  onclick="naviguerDetailPP('<?= BASE_URL ?>/include/ajax/detail-pp/classe.php', {id:<?= (int)$sc['cla_id'] ?>})"
+                  title="Voir la sous-classe">
+              <?= h($sc['cla_nom']) ?>
+            </span>
+          <?php endforeach ?>
+        </div>
+      </div>
+    <?php endif ?>
+
   </div>
-
-  <?php // ---- Compétences de classe ?>
-  <?php if (!empty($competences)): ?>
-    <div class="classe-detail__section" style="margin-top:.75rem;">
-      <div class="sort-detail__label" style="margin-bottom:.3rem;">
-        <?= $ruleset === 'DD2024' ? 'Compétences maîtrisées' : 'Compétences de classe' ?>
-      </div>
-      <div class="classe-detail__competences">
-        <?php foreach ($competences as $i => $comp): ?>
-          <?php if ($i > 0) echo ', ' ?>
-          <span class="lien-sub"
-                onclick="actualiserPageSub('<?= $url_sub_comp ?>',{id:<?= (int)$comp['comp_id'] ?>})"
-                title="Voir la compétence">
-            <?= h($comp['comp_nom']) ?>
-            <?php if ($comp['ccomp_precision']): ?>
-              (<?= h($comp['ccomp_precision']) ?>)
-            <?php endif ?>
-          </span>
-        <?php endforeach ?>
-      </div>
-    </div>
-  <?php endif ?>
-
-  <?php // ---- Armes (et armures en DD3.5) ?>
-  <?php if ($cla['cla_armes']): ?>
-    <div class="classe-detail__section" style="margin-top:.5rem;">
-      <span class="sort-detail__label">
-        <?= $ruleset === 'DD3.5' ? 'Armes &amp; armures' : 'Maîtrise d\'armes' ?>
-      </span>
-      <div><?= $cla['cla_armes'] ?></div>
-    </div>
-  <?php endif ?>
-
-  <?php // ---- Armures DD2024 ?>
-  <?php if ($ruleset === 'DD2024' && $cla['cla_armures']): ?>
-    <div class="classe-detail__section" style="margin-top:.5rem;">
-      <span class="sort-detail__label">Formation aux armures</span>
-      <div><?= $cla['cla_armures'] ?></div>
-    </div>
-  <?php endif ?>
 
   <?php // ---- Description ?>
   <?php if ($cla['cla_description']): ?>
@@ -502,36 +537,17 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
   <?php endif ?>
 
   <?php // ---- Descriptions des capacités spéciales ?>
-  <?php if ($isSousClasse): ?>
-    <?php if (!empty($capacitesParNiveau)): ?>
-      <div class="classe-detail__capacites" style="margin-top:1rem;">
-        <div class="sort-detail__label" style="margin-bottom:.5rem;">Capacités spéciales</div>
-        <?php foreach ($capacitesParNiveau as $cap): ?>
-          <div class="classe-detail__capacite" id="capacite-<?= (int)$cap['cap_id'] ?>"
-               style="margin-bottom:.75rem;">
-            <div class="classe-detail__capacite-nom">
-              <strong>Niveau <?= (int)$cap['cc_niveau'] ?> : <?= h($cap['cap_nom']) ?></strong>
-              <?php if ($cap['cap_type']): ?>
-                <span class="cap-type">(<?= h($cap['cap_type']) ?>)</span>
-              <?php endif ?>
-            </div>
-            <?php if ($cap['cap_description']): ?>
-              <div class="classe-detail__capacite-desc">
-                <?= rendreTexteEnrichi($db, $cap['cap_description']) ?>
-              </div>
-            <?php endif ?>
-          </div>
-        <?php endforeach ?>
-      </div>
-    <?php endif ?>
-  <?php elseif (!empty($capacites)): ?>
-    <div class="classe-detail__capacites" style="margin-top:1rem;">
-      <div class="sort-detail__label" style="margin-bottom:.5rem;">Capacités spéciales</div>
+  <?php // Pas de libellé de section : chaque titre "Niveau X : Nom" se suffit
+        // et sert de séparation visuelle. Mise en forme dans compendium-modules.css. ?>
+  <?php if (!empty($capacites)): ?>
+    <div class="classe-detail__capacites">
       <?php foreach ($capacites as $cap): ?>
-        <div class="classe-detail__capacite" id="capacite-<?= (int)$cap['cap_id'] ?>"
-             style="margin-bottom:.75rem;">
+        <div class="classe-detail__capacite" id="capacite-<?= (int)$cap['cap_id'] ?>">
           <div class="classe-detail__capacite-nom">
-            <strong><?= h($cap['cap_nom']) ?></strong>
+            <?php // cc_niveau = 0 existe en DD3.5 sur quelques affectations non
+                  // renseignées : on affiche alors le nom seul plutôt qu'un
+                  // "Niveau 0" qui n'existe pas dans les règles. ?>
+            <?php if ((int)$cap['cap_niveau'] > 0): ?>Niveau <?= (int)$cap['cap_niveau'] ?> : <?php endif ?><?= h($cap['cap_nom']) ?>
             <?php if ($cap['cap_type']): ?>
               <span class="cap-type">(<?= h($cap['cap_type']) ?>)</span>
             <?php endif ?>

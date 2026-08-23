@@ -1222,3 +1222,569 @@
   font-size: .8rem;
 }
 
+
+/* ============================================================
+   SP-PE4 — Sélecteur de dons du personnage (.dons-picker)
+   Fragment injecté par AJAX dans #detail-pp depuis la fiche
+   personnage : ses styles vivent donc dans modules.css, chargé sur
+   toutes les pages (règle permanente du 2026-06-14), et non dans
+   personnages-modules.css.
+
+   Deux volets conservés à toutes les largeurs (choix utilisateur du
+   2026-08-13) : liste à gauche avec son propre ascenseur, zone fixe à
+   droite pour la fiche du don.
+   ============================================================ */
+
+.dons-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
+/* ---- En-tête et compteur ---- */
+
+.dons-picker__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+  /* Marge à droite pour ne pas passer sous le ✕ du panneau */
+  padding-right: var(--sp-lg);
+}
+
+.dons-picker__titre {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.dons-picker__compteur {
+  margin: 0;
+  color: var(--clr-text-muted);
+  font-size: .9rem;
+  white-space: nowrap;
+}
+
+.dons-picker__compteur strong {
+  color: var(--clr-accent);
+  font-size: 1.15rem;
+}
+
+/* ---- Barre de filtres ---- */
+
+.dons-picker__filtres {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+}
+
+.dons-picker__recherche,
+.dons-picker__select {
+  min-height: 38px;
+  padding: 4px var(--sp-sm);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: .95em;
+}
+
+.dons-picker__recherche { flex: 1 1 200px; }
+.dons-picker__select    { flex: 0 1 auto; }
+
+/* ---- Corps : deux volets ---- */
+
+.dons-picker__corps {
+  display: flex;
+  gap: var(--sp-md);
+  align-items: flex-start;
+  min-height: 0;
+}
+
+.dons-picker__liste {
+  flex: 0 0 45%;
+  max-width: 45%;
+  max-height: 60vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+}
+
+.dons-picker__detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-sm);
+}
+
+.dons-picker__vide {
+  text-align: center;
+  padding: var(--sp-lg) var(--sp-sm);
+  line-height: 1.8;
+}
+
+/* ---- Liste des dons ---- */
+
+.dons-picker__ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dons-picker__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: 4px var(--sp-sm);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.dons-picker__item:last-child { border-bottom: none; }
+
+/* Don déjà choisi — surbrillance */
+.dons-picker__item.is-possede {
+  background: var(--clr-surface-alt);
+}
+
+.dons-picker__item.is-possede .dons-picker__nom {
+  font-weight: 600;
+}
+
+/* Don affiché dans le volet droit */
+.dons-picker__item.is-courant {
+  box-shadow: inset 3px 0 0 var(--clr-accent);
+}
+
+.dons-picker__nom {
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.dons-picker__cat {
+  flex: 0 0 auto;
+  color: var(--clr-text-muted);
+  font-size: .8em;
+  white-space: nowrap;
+}
+
+/* ---- Bouton ajouter / retirer ---- */
+
+.dons-picker__btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 2px var(--sp-sm);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: .82em;
+  cursor: pointer;
+}
+
+.dons-picker__btn:hover:not(:disabled) {
+  border-color: var(--clr-accent);
+  color: var(--clr-accent);
+}
+
+.dons-picker__btn:disabled {
+  opacity: .5;
+  cursor: wait;
+}
+
+.dons-picker__btn--retirer {
+  color: var(--clr-danger);
+  border-color: var(--clr-danger);
+}
+
+.dons-picker__btn--retirer:hover:not(:disabled) {
+  background: rgba(231, 76, 60, .1);
+  color: var(--clr-danger);
+  border-color: var(--clr-danger);
+}
+
+/* Bouton posé en JS à droite du nom, dans la fiche du volet droit */
+.dons-picker__btn-detail {
+  margin-left: var(--sp-sm);
+  vertical-align: middle;
+}
+
+/* ---- Responsive : les deux volets sont conservés ---- */
+
+@media (max-width: 991px) {
+  .dons-picker__liste,
+  .dons-picker__detail {
+    max-height: 55vh;
+  }
+
+  .dons-picker__liste {
+    flex-basis: 42%;
+    max-width: 42%;
+  }
+
+  /* Cibles tactiles élargies */
+  .dons-picker__btn {
+    min-height: 40px;
+  }
+
+  .dons-picker__recherche,
+  .dons-picker__select {
+    min-height: 44px;
+  }
+
+  /* Place trop rare pour le libellé : l'icône seule porte l'action */
+  .dons-picker__btn-lbl { display: none; }
+
+  /* La catégorie passe sous le nom plutôt que de comprimer la colonne */
+  .dons-picker__item { flex-wrap: wrap; }
+  .dons-picker__nom  { flex-basis: calc(100% - 60px); }
+  .dons-picker__cat  { flex-basis: 100%; padding-left: 52px; }
+}
+
+/* ============================================================
+   SP-PE5 — Badge de statut d'un rattachement personnage / campagne
+   Placé ici et non dans personnages-modules.css : le panneau de détail
+   d'une campagne (fragment injecté en AJAX depuis le module Campagnes)
+   l'utilise autant que la fiche du personnage.
+   ============================================================ */
+
+.per-camp__badge {
+  padding: 1px 6px;
+  border: 1px solid var(--clr-border);
+  border-radius: 3px;
+  background: var(--clr-surface-2);
+  color: var(--clr-text-muted);
+  font-size: .75em;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.per-camp__badge--courante {
+  border-color: var(--clr-accent-2);
+  color: var(--clr-accent-2);
+}
+
+/* ============================================================
+   BARRE DE FILTRAGE — composant partagé (SP-RS3b)
+   Déplacé de css/compendium-modules.css vers modules.css le 2026-08-22 :
+   le module Personnages réutilise ce composant, et modules.css est le seul
+   fichier chargé sur toutes les pages. Noms de classes `comp-filtre-*`
+   conservés — les renommer imposerait de reprendre compendium-liste.php,
+   admin-liste.php, modifier/objet.php et compendium.js sans rien apporter.
+   Le JS associé, toggleFiltresMobile(), vit dans js/main.js.
+   ============================================================ */
+/* ============================================================
+   LISTES — Barre de filtrage
+   ============================================================ */
+
+/* Conteneur principal */
+.comp-filtre-bar {
+  margin-bottom: var(--sp-md);
+  position: relative;
+}
+
+/* Bouton toggle — visible uniquement en mobile */
+.comp-filtre-toggle {
+  display: none;
+  align-items: center;
+  gap: var(--sp-sm);
+  width: 100%;
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.comp-filtre-chevron {
+  margin-left: auto;
+  font-size: 0.75rem;
+  transition: transform 0.2s;
+}
+
+.comp-filtre-toggle.is-open .comp-filtre-chevron {
+  transform: rotate(180deg);
+}
+
+/* Badge compteur de filtres actifs */
+.comp-filtre-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--clr-accent);
+  color: #fff;
+  border-radius: 9px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.comp-filtre-badge--empty {
+  display: none !important;
+}
+
+/* Contenu de la barre (toujours visible en desktop) */
+.comp-filtre-content {
+  display: block;
+}
+
+/* Formulaire — flex wrap desktop */
+.comp-filtre-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+  align-items: center;
+}
+
+/* Chaque item de filtre */
+.comp-filtre-item {
+  display: flex;
+  align-items: center;
+}
+
+.comp-filtre-item--text {
+  flex: 0 1 180px;
+}
+
+/* largeur réduite */
+.comp-filtre-item--actions {
+  gap: var(--sp-xs);
+  margin-left: auto;
+}
+
+.comp-filtre-item--sources {
+  position: relative;
+}
+
+/* Input texte */
+.comp-filtre-input {
+  width: 100%;
+  padding: 5px 9px;
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.comp-filtre-input:focus {
+  outline: none;
+  border-color: var(--clr-accent-2);
+}
+
+/* Selects critères */
+.comp-filtre-select {
+  padding: 5px 7px;
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font-size: 0.85rem;
+  max-width: 160px;
+}
+
+/* Bouton Sources */
+.comp-filtre-sources-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding: 5px 10px;
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s;
+}
+
+.comp-filtre-sources-btn:hover {
+  border-color: var(--clr-accent-2);
+}
+
+.comp-filtre-sources-btn .comp-filtre-chevron {
+  margin-left: 2px;
+}
+
+.comp-filtre-sources-btn.is-open .comp-filtre-chevron {
+  transform: rotate(180deg);
+}
+
+/* Menu déroulant sources */
+.comp-filtre-sources-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  min-width: 200px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comp-filtre-source-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.1s;
+}
+
+.comp-filtre-source-item:hover {
+  background: var(--clr-surface-2);
+}
+
+.comp-filtre-source-item input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+/* Libellé texte masqué sur petits desktops */
+.comp-filtre-label-desktop {
+  display: inline;
+}
+
+/* ============================================================
+   RESPONSIVE ≤ 991px — Filtre mobile
+   ============================================================ */
+@media (max-width: 991px) {
+
+  /* Bouton toggle visible */
+  .comp-filtre-toggle {
+    display: flex;
+  }
+
+  /* Contenu masqué par défaut */
+  .comp-filtre-content.is-closed {
+    display: none;
+  }
+
+  /* Formulaire en colonne */
+  .comp-filtre-form {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--sp-sm);
+    background: var(--clr-surface-2);
+    border: 1px solid var(--clr-border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  }
+
+  .comp-filtre-item {
+    width: 100%;
+  }
+
+  .comp-filtre-item--text {
+    flex: 1 1 auto;
+  }
+
+  .comp-filtre-item--actions {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  /* SP-RS3 — cibles tactiles : mesuré 31px sur les selects, 32px sur le bouton
+     Sources et 20px sur les boutons d'action, contre 44px recommandés */
+  .comp-filtre-input,
+  .comp-filtre-select,
+  .comp-filtre-sources-btn {
+    width: 100%;
+    max-width: 100%;
+    min-height: 40px;
+  }
+
+  .comp-filtre-item--actions {
+    gap: var(--sp-sm);
+  }
+
+  .comp-filtre-item--actions .btn {
+    min-width: 44px;
+    min-height: 40px;
+    justify-content: center;
+  }
+
+  .comp-filtre-checkbox-label {
+    min-height: 40px;
+  }
+
+  .comp-filtre-checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+
+  .comp-filtre-source-item {
+    min-height: 40px;
+  }
+
+  /* Menu sources : position statique en mobile. Le conteneur doit alors passer
+     en colonne — .comp-filtre-item est en flex row, et un menu sorti du flux
+     absolu y devient un frère de ligne : mesuré à 375px, bouton et menu se
+     partageaient la largeur côte à côte (141px + 200px) au lieu de s'empiler. */
+  .comp-filtre-item--sources {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-xs);
+  }
+
+  .comp-filtre-sources-menu {
+    position: static;
+    box-shadow: none;
+    border: 1px solid var(--clr-border);
+    max-width: 100%;
+  }
+
+  .comp-filtre-label-desktop {
+    display: none;
+  }
+}
+/* ============================================================
+   Filtre checkbox — barre de filtres compendium
+   Ex : "Afficher les propriétés spéciales" (objets magiques)
+   ============================================================ */
+
+.comp-filtre-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: 0.875rem;
+  color: var(--clr-text);
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 5px 0;
+  user-select: none;
+}
+
+.comp-filtre-checkbox-label input[type="checkbox"] {
+  accent-color: var(--clr-accent-2);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}

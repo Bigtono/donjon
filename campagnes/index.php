@@ -1,5 +1,5 @@
 <?php
-// campagnes/index.php — Liste des campagnes du MJ courant.
+// campagnes/index.php — Liste des campagnes du MJ courant, filtrées par ruleset actif.
 // Liste dédiée (pas le moteur compendium-liste) : scope strict par propriétaire.
 require_once '../include/db.php';
 require_once '../include/auth.php';
@@ -11,25 +11,31 @@ $page_title = 'Campagnes';
 $js_module  = 'campagne';
 $css_module = 'campagnes';
 
-$j_id = (int)$_SESSION['j_id'];
+$j_id        = (int)$_SESSION['j_id'];
+$ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
+$ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
 
+// Le ruleset d'une campagne est figé à sa création (camp_ruleset_var_id) et
+// hérité par tout son contenu — scénarios, chapitres, rencontres, oppositions.
+// La liste ne montre donc que les campagnes du ruleset actif : le ruleset est
+// affiché dans le titre, pas en colonne (même pattern que personnages/index.php).
 $stmt = $db->prepare('
   SELECT camp.camp_id,
          camp.camp_nom,
          camp.camp_resume,
-         var.var_valeur AS ruleset_label,
-         un.un_nom      AS univers_nom,
+         un.un_nom AS univers_nom,
          (SELECT COUNT(*) FROM dd_scenarios sce
            WHERE sce.sce_camp_id = camp.camp_id AND sce.sce_supprime = 0) AS nb_scenarios,
          (SELECT COUNT(*) FROM dd_campagnes_personnages cp
            WHERE cp.cp_camp_id = camp.camp_id) AS nb_personnages
   FROM   dd_campagnes camp
-  LEFT JOIN dd_variables var ON var.var_id = camp.camp_ruleset_var_id
-  LEFT JOIN dd_univers   un  ON un.un_id   = camp.camp_un_id
-  WHERE  camp.camp_j_id = ? AND camp.camp_supprime = 0
+  LEFT JOIN dd_univers un ON un.un_id = camp.camp_un_id
+  WHERE  camp.camp_j_id = ?
+    AND  camp.camp_ruleset_var_id = ?
+    AND  camp.camp_supprime = 0
   ORDER  BY camp.camp_nom ASC
 ');
-$stmt->execute([$j_id]);
+$stmt->execute([$j_id, $ruleset_id]);
 $campagnes = $stmt->fetchAll();
 
 require_once '../include/header.php';
@@ -42,7 +48,7 @@ require_once '../include/header.php';
 </script>
 
 <div class="flex-between mb-md">
-  <h1>Campagnes</h1>
+  <h1>Campagnes <span class="text-muted text-sm">(<?= h($ruleset_rep) ?>)</span></h1>
   <button class="btn btn-primary btn-sm" onclick="ouvrirModifier(campUrlModifier, 0)">
     <i class="fa fa-plus"></i> Nouvelle campagne
   </button>
@@ -50,7 +56,9 @@ require_once '../include/header.php';
 
 <?php if (empty($campagnes)): ?>
 
-  <p class="text-muted">Aucune campagne pour le moment. Créez-en une pour commencer.</p>
+  <p class="text-muted">
+    Aucune campagne en <?= h($ruleset_rep) ?> pour le moment. Créez-en une pour commencer.
+  </p>
 
 <?php else: ?>
 
@@ -60,7 +68,6 @@ require_once '../include/header.php';
         <tr>
           <th class="col-action"></th>
           <th>Nom</th>
-          <th class="camp-liste__col-sec">Ruleset</th>
           <th class="camp-liste__col-sec">Univers</th>
           <th class="camp-liste__col-num">Scénarios</th>
           <th class="camp-liste__col-num">Personnages</th>
@@ -108,11 +115,6 @@ require_once '../include/header.php';
               <?php if (!empty($camp['camp_resume'])): ?>
                 <span class="camp-liste__resume"><?= h($camp['camp_resume']) ?></span>
               <?php endif ?>
-            </td>
-            <td class="camp-liste__col-sec"
-                onclick="actualiserPage(campUrlDetail, {id: <?= $cid ?>}, 'liste')"
-                style="cursor:pointer">
-              <?= h($camp['ruleset_label'] ?? '') ?>
             </td>
             <td class="camp-liste__col-sec"
                 onclick="actualiserPage(campUrlDetail, {id: <?= $cid ?>}, 'liste')"

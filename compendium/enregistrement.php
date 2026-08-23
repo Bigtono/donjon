@@ -212,7 +212,7 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
 {
   $do_id      = intParam($_POST['do_id']             ?? 0);
   $nom        = strParam($_POST['do_nom']            ?? '');
-  $ruleset_id = intParam($_POST['do_ruleset_var_id'] ?? 1);
+  $ruleset_id = rulesetEnregistrement($db, 'dd_dons', 'do_id', 'do_ruleset_var_id', $do_id);
   $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
@@ -296,8 +296,7 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
           do_res_id         = ?,
           do_camp_id        = ?,
           do_public         = ?,
-          do_visible        = ?,
-          do_ruleset_var_id = ?
+          do_visible        = ?
         WHERE do_id = ?
       ');
       $stmt->execute([
@@ -310,7 +309,6 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
         $camp_id,
         $public,
         $visible,
-        $ruleset_id,
         $do_id
       ]);
     endif;
@@ -393,7 +391,7 @@ function enregistrerEquipement($db, bool $is_ajax, string $redirect): void
 {
   $eqt_id     = intParam($_POST['eqt_id']             ?? 0);
   $nom        = strParam($_POST['eqt_nom']             ?? '');
-  $ruleset_id = intParam($_POST['eqt_ruleset_var_id']  ?? 1);
+  $ruleset_id = rulesetEnregistrement($db, 'dd_equipements', 'eqt_id', 'eqt_ruleset_var_id', $eqt_id);
 
   if (!$nom):
     repondreErreur($is_ajax, 'Le nom de l\'équipement est obligatoire.', $redirect);
@@ -434,8 +432,7 @@ function enregistrerEquipement($db, bool $is_ajax, string $redirect): void
           eqt_description    = ?,
           eqt_visible        = ?,
           eqt_res_id         = ?,
-          eqt_camp_id        = ?,
-          eqt_ruleset_var_id = ?
+          eqt_camp_id        = ?
         WHERE eqt_id = ?
       ');
       $stmt->execute([
@@ -444,7 +441,6 @@ function enregistrerEquipement($db, bool $is_ajax, string $redirect): void
         $visible,
         $res_id,
         $camp_id,
-        $ruleset_id,
         $eqt_id
       ]);
     endif;
@@ -502,7 +498,7 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
 {
   $so_id      = intParam($_POST['so_id'] ?? 0);
   $nom        = strParam($_POST['so_nom']               ?? '');
-  $ruleset_id = intParam($_POST['so_ruleset_var_id']    ?? 1);
+  $ruleset_id = rulesetEnregistrement($db, 'dd_sorts', 'so_id', 'so_ruleset_var_id', $so_id);
   $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
@@ -646,8 +642,7 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
           so_res_id             = ?,
           so_camp_id            = ?,
           so_public             = ?,
-          so_visible            = ?,
-          so_ruleset_var_id     = ?
+          so_visible            = ?
         WHERE so_id = ?
       ');
       $stmt->execute([
@@ -674,7 +669,6 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
         $camp_id,
         $public,
         $visible,
-        $ruleset_id,
         $so_id,
       ]);
     endif;
@@ -796,7 +790,7 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
 {
   $comp_id    = intParam($_POST['comp_id']             ?? 0);
   $nom        = strParam($_POST['comp_nom']            ?? '');
-  $ruleset_id = intParam($_POST['comp_ruleset_var_id'] ?? 1);
+  $ruleset_id = rulesetEnregistrement($db, 'dd_competences', 'comp_id', 'comp_ruleset_var_id', $comp_id);
   $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
@@ -879,8 +873,7 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
           comp_description    = ?,
           comp_res_id         = ?,
           comp_public         = ?,
-          comp_visible        = ?,
-          comp_ruleset_var_id = ?
+          comp_visible        = ?
         WHERE comp_id = ?
       ');
       $stmt->execute([
@@ -892,7 +885,6 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
         $res_id,
         $public,
         $visible,
-        $ruleset_id,
         $comp_id,
       ]);
     endif;
@@ -972,7 +964,7 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
 {
   $ra_id      = intParam($_POST['ra_id']             ?? 0);
   $nom        = strParam($_POST['ra_nom']            ?? '');
-  $ruleset_id = intParam($_POST['ra_ruleset_var_id'] ?? 1);
+  $ruleset_id = rulesetEnregistrement($db, 'dd_races', 'ra_id', 'ra_ruleset_var_id', $ra_id);
   $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
@@ -1056,8 +1048,7 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
           ra_res_id         = ?,
           ra_camp_id        = ?,
           ra_public         = ?,
-          ra_visible        = ?,
-          ra_ruleset_var_id = ?
+          ra_visible        = ?
         WHERE ra_id = ?
       ');
       $stmt->execute([
@@ -1069,7 +1060,6 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
         $camp_id,
         $public,
         $visible,
-        $ruleset_id,
         $ra_id,
       ]);
     endif;
@@ -1263,7 +1253,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
 {
   $cla_id     = intParam($_POST['cla_id']             ?? 0);
   $nom        = strParam($_POST['cla_nom']             ?? '');
-  $ruleset_id = intParam($_POST['cla_ruleset_var_id']  ?? 1);
+  $ruleset_id = rulesetEnregistrement($db, 'dd_classes', 'cla_id', 'cla_ruleset_var_id', $cla_id);
   $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
@@ -1819,7 +1809,7 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
 {
   $om_id      = intParam($_POST['om_id']             ?? 0);
   $nom        = strParam($_POST['om_nom']            ?? '');
-  $ruleset_id = intParam($_POST['om_ruleset_var_id'] ?? 1);
+  $ruleset_id = rulesetEnregistrement($db, 'dd_objets_magiques', 'om_id', 'om_ruleset_var_id', $om_id);
   $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
@@ -2025,7 +2015,7 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
 {
   $mo_id      = intParam($_POST['mo_id']             ?? 0);
   $nom        = strParam($_POST['mo_nom']            ?? '');
-  $ruleset_id = intParam($_POST['mo_ruleset_var_id'] ?? 1);
+  $ruleset_id = rulesetEnregistrement($db, 'dd_monstres', 'mo_id', 'mo_ruleset_var_id', $mo_id);
   $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
@@ -2283,7 +2273,7 @@ function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
 {
   $hi_id      = intParam($_POST['hi_id']              ?? 0);
   $nom        = strParam($_POST['hi_nom']             ?? '');
-  $ruleset_id = intParam($_POST['hi_ruleset_var_id']  ?? 2);
+  $ruleset_id = rulesetEnregistrement($db, 'dd_historiques', 'hi_id', 'hi_ruleset_var_id', $hi_id);
   $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
@@ -2355,8 +2345,7 @@ function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
           hi_res_id         = ?,
           hi_camp_id        = ?,
           hi_public         = ?,
-          hi_visible        = ?,
-          hi_ruleset_var_id = ?
+          hi_visible        = ?
         WHERE hi_id = ?
       ');
       $stmt->execute([
@@ -2366,7 +2355,6 @@ function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
         $camp_id,
         $public,
         $visible,
-        $ruleset_id,
         $hi_id,
       ]);
     endif;

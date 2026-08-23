@@ -188,6 +188,40 @@ button {
   display: flex;
   align-items: center;
   gap: var(--sp-lg);
+  /* Garde la nav et le raccourci personnage groupés à droite, la marque à
+     gauche — le header est en space-between et compte désormais 3 éléments */
+  margin-left: auto;
+}
+
+/* Raccourci vers le dernier personnage consulté (SP-RS6) — dernier élément du
+   header, donc à l'extrême droite de la ligne de titre à toutes les largeurs */
+.site-header__perso {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 40vw;
+  min-width: 0;
+  /* min-width: 0 — sans quoi le nom ne peut pas être tronqué et le raccourci
+     pousse la marque, jusqu'à passer à la ligne sur un nom long */
+  margin-left: var(--sp-md);
+  padding: 3px 10px;
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font-size: 0.85rem;
+}
+
+.site-header__perso:hover {
+  border-color: var(--clr-accent-2);
+  color: var(--clr-accent-2);
+  text-decoration: none;
+}
+
+.site-header__perso-nom {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .site-header__nav a {
@@ -198,6 +232,44 @@ button {
 .site-header__nav a:hover {
   color: var(--clr-accent-2);
   text-decoration: none;
+}
+
+/* Bouton d'ouverture du menu principal — visible sous 992px uniquement */
+.site-header__burger {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font-size: 0.95rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.site-header__burger:hover {
+  border-color: var(--clr-accent-2);
+  color: var(--clr-accent-2);
+}
+
+.site-header__burger-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.site-header__burger-chevron {
+  transition: transform 0.2s;
+}
+
+.site-header__burger[aria-expanded="true"] .site-header__burger-chevron {
+  transform: rotate(180deg);
+}
+
+/* Libellé texte des liens icône — affiché seulement dans le menu déroulant */
+.site-header__nav-label {
+  display: none;
 }
 
 .site-header__logout {
@@ -234,6 +306,21 @@ button {
   border-color: var(--clr-accent-2);
   color: var(--clr-accent-2);
   text-decoration: none;
+}
+
+/* Séparateurs du fil d'Ariane — masqués en desktop, où le type est écrit
+   en toutes lettres devant chaque nom.
+   Sélecteur à deux classes : Font Awesome est chargé après main.css et son
+   `.fa { display: inline-block }` l'emporterait à spécificité égale. */
+.site-header__context .site-header__context-sep {
+  display: none;
+  flex: 0 0 auto;
+  font-size: 0.65rem;
+  color: var(--clr-text-muted);
+}
+
+.site-header__context-nom {
+  min-width: 0;
 }
 
 /* ============================================================
@@ -326,6 +413,14 @@ button {
   transform: translate(-46%, -46%);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
   border-color: var(--clr-accent-muted, var(--clr-border));
+}
+
+/* Barre d'en-tête des panneaux (SP-RS4).
+   En desktop : `display: contents` — la boîte disparaît, les boutons restent
+   flottants aux coins du panneau, rendu strictement identique à avant.
+   Sous 992px elle devient une vraie barre dans le flux (cf. bloc responsive). */
+.overlay-panel__bar {
+  display: contents;
 }
 
 /* Bouton fermer */
@@ -637,15 +732,150 @@ textarea {
     gap: var(--sp-sm);
   }
 
+  .site-header__brand {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Le raccourci personnage reste sur la 1re ligne, calé à droite : la nav
+     (order 4) et le bouton Menu (order 3) occupent leurs propres lignes. */
+  .site-header__perso {
+    order: 2;
+    flex: 0 1 auto;
+    margin-left: auto;
+    min-height: 36px;
+    /* 40% : au-delà, un nom long ne tient plus à côté du logo et du badge de
+       ruleset et le raccourci bascule à la ligne suivante (mesuré à 375px). */
+    max-width: 40%;
+  }
+
+  /* Menu principal déroulant : le bouton et le panneau occupent
+     toute la largeur d'affichage, l'un sous l'autre */
+  .site-header__burger {
+    display: flex;
+    order: 3;
+    flex: 0 0 100%;
+    width: 100%;
+    min-height: 44px;
+    padding: var(--sp-sm) var(--sp-md);
+  }
+
   .site-header__nav {
     flex-wrap: wrap;
     gap: var(--sp-sm);
     font-size: 0.85rem;
   }
 
+  .site-header__nav--collapsible {
+    display: none;
+    order: 4;
+    flex: 0 0 100%;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--clr-surface-2);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+  }
+
+  .site-header__nav--collapsible.is-open {
+    display: flex;
+  }
+
+  .site-header__nav--collapsible a {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-sm);
+    width: 100%;
+    min-height: 44px;
+    padding: var(--sp-sm) var(--sp-md);
+    border-bottom: 1px solid var(--clr-border);
+    font-size: 0.95rem;
+  }
+
+  .site-header__nav--collapsible a:last-child {
+    border-bottom: none;
+  }
+
+  .site-header__nav--collapsible a:hover,
+  .site-header__nav--collapsible a:active {
+    background: var(--clr-surface);
+  }
+
+  .site-header__nav-label {
+    display: inline;
+  }
+
+  /* Contexte de navigation : fil d'Ariane sur une seule ligne, défilable
+     horizontalement — coût vertical constant quelle que soit la profondeur
+     de la cascade campagne → scénario → chapitre → rencontre */
+  #site-header-context-zone {
+    position: relative;
+  }
+
+  /* Dégradé de bord signalant qu'il reste des niveaux à droite. Posé sur la
+     zone (non scrollable) et non sur la barre : il reste collé au bord. Sur
+     un fil d'Ariane court il se superpose au fond de la barre, donc invisible. */
+  #site-header-context-zone::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    background: linear-gradient(to right, transparent, var(--clr-surface-2));
+    pointer-events: none;
+  }
+
   .site-header__context {
-    padding: var(--sp-sm) var(--sp-sm);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: var(--sp-xs);
+    padding: var(--sp-sm);
     font-size: 0.8rem;
+  }
+
+  .site-header__context::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* flex-shrink: 0 — sans quoi les boutons se compriment pour tenir dans la
+     ligne au lieu de déborder, et le fil d'Ariane ne défile jamais */
+  .site-header__context-btn {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: 45vw;
+    min-height: 40px;
+    padding: var(--sp-xs) var(--sp-sm);
+  }
+
+  /* Le type est porté par l'icône : le libellé texte disparaît */
+  .site-header__context-type {
+    display: none;
+  }
+
+  .site-header__context-nom {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .site-header__context .site-header__context-sep {
+    display: inline-block;
+  }
+
+  /* Niveau courant : jamais tronqué, mis en avant */
+  .site-header__context-btn--courant {
+    max-width: none;
+    border-color: var(--clr-accent-2);
+    color: var(--clr-accent-2);
   }
 
   .site-main {
@@ -659,14 +889,82 @@ textarea {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Overlay panels : pleine largeur sur mobile */
+  /* ------------------------------------------------------------
+     Panneaux en feuille plein écran (SP-RS4)
+     Corrige, mesuré à 375×812 : le sous-panneau qui sortait de l'écran à
+     droite (transform -46% pensé pour le desktop), les boutons flottants qui
+     recouvraient le titre du contenu, les cibles de 27 à 32px, et 95vh qui
+     ignore la barre d'URL rétractable des navigateurs mobiles.
+     ------------------------------------------------------------ */
   .overlay-panel {
-    width: 98%;
-    max-height: 95vh;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    /* dvh : hauteur réellement visible, barre d'URL déduite */
+    max-height: none;
+    transform: none;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  /* Sous-panneau : plein écran lui aussi, mais décalé vers le bas — la bande
+     laissée visible marque la profondeur et reste tactile (elle appartient au
+     backdrop du sous-panneau, donc un tap dessus le ferme). */
+  .overlay-panel--sub {
+    top: 24px;
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.55);
+  }
+
+  /* La barre reprend une vraie boîte : les boutons passent dans le flux */
+  .overlay-panel__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-sm);
+    flex: 0 0 auto;
+    padding: var(--sp-xs) var(--sp-sm);
+    background: var(--clr-surface);
+    border-bottom: 1px solid var(--clr-border);
+  }
+
+  .overlay-panel__bar .overlay-close,
+  .overlay-panel__bar .overlay-back {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Fermer toujours à droite, avec ou sans bouton Retour */
+  .overlay-panel__bar .overlay-close {
+    margin-left: auto;
   }
 
   .overlay-panel__inner {
     padding: var(--sp-md);
+  }
+
+  /* Marges hautes devenues inutiles : elles réservaient la bande occupée par
+     les boutons flottants, que la barre remplace. */
+  .overlay-panel .camp-detail {
+    margin-top: 0;
+  }
+
+  .glossaire-sub__header {
+    padding-top: 0;
+  }
+
+  .glossaire-sub__ligne-badge {
+    position: static;
+    height: auto;
+    margin-bottom: var(--sp-xs);
   }
 
   /* Boutons : pleine largeur dans form-actions sur mobile */
@@ -678,4 +976,60 @@ textarea {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* ============================================================
+   MODE DEBUG — badge dimensions du viewport
+   Activé depuis admin/index.php (session), réservé aux admins.
+   z-index au-dessus de tous les panneaux (max applicatif : 300).
+   ============================================================ */
+.debug-viewport {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: 3px 10px;
+  background: var(--clr-accent);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  border-radius: 0 var(--radius-sm) 0 0;
+  opacity: 0.92;
+  cursor: pointer;
+  user-select: none;
+}
+
+.debug-viewport--right {
+  left: auto;
+  right: 0;
+  border-radius: var(--radius-sm) 0 0 0;
+}
+
+.debug-viewport--top {
+  bottom: auto;
+  top: 0;
+  border-radius: 0 0 var(--radius-sm) 0;
+}
+
+.debug-viewport--top.debug-viewport--right {
+  border-radius: 0 0 0 var(--radius-sm);
+}
+
+.debug-viewport__dim {
+  font-weight: 700;
+}
+
+.debug-viewport__bp {
+  opacity: 0.5;
+}
+
+.debug-viewport__bp--on {
+  opacity: 1;
+  font-weight: 700;
+  text-decoration: underline;
 }

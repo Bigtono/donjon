@@ -147,7 +147,6 @@ endforeach;
     <input type="hidden" name="entite"            value="race">
     <input type="hidden" name="action"            value="sauvegarder">
     <input type="hidden" name="ra_id"             value="<?= (int)$ra['ra_id'] ?>">
-    <input type="hidden" name="ra_ruleset_var_id" value="<?= $ruleset_id ?>">
     <input type="hidden" id="capacites_payload"   name="capacites_payload" value="[]">
 
     <!-- ====================================================

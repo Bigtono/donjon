@@ -134,7 +134,6 @@ $titre = $id > 0 ? 'Modifier ' . h($mo['mo_nom']) : 'Nouveau monstre';
     <input type="hidden" name="entite"            value="monstre">
     <input type="hidden" name="action"            value="sauvegarder">
     <input type="hidden" name="mo_id"             value="<?= (int)$mo['mo_id'] ?>">
-    <input type="hidden" name="mo_ruleset_var_id" value="<?= $ruleset_id ?>">
 
     <!-- ===== Section principale ===== -->
     <div class="modif-section">

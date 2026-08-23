@@ -118,8 +118,12 @@ function enregistrerCampagne($db, bool $is_ajax, string $redirect): void
   $resume      = strParam($_POST['camp_resume'] ?? '');
   $description = $_POST['camp_description'] ?? '';
   $un_id       = intParam($_POST['camp_un_id'] ?? 0);
-  $ruleset_id  = intParam($_POST['camp_ruleset_var_id'] ?? 0);
   $j_id        = (int)$_SESSION['j_id'];
+
+  // Ruleset maître de la campagne : jamais saisi ni posté — session à la
+  // création, valeur en base ensuite (immuable). Cf. helpers.php.
+  $ruleset_id  = rulesetEnregistrement($db, 'dd_campagnes', 'camp_id',
+                                       'camp_ruleset_var_id', $camp_id);
 
   if (!$nom):
     campErreur($is_ajax, 'Le nom de la campagne est obligatoire.', $redirect);

@@ -141,11 +141,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
       ');
       $upd->execute([$ruleset_var_id, $mode_campagne, $affichage_ruleset, $items_par_page, $theme, $j_id]);
 
+      $ruleset_change = $ruleset_var_id !== $ruleset_var_id_actif;
+
       $_SESSION['ruleset_var_id']      = $ruleset_var_id;
       $_SESSION['rulesetRep']          = getRulesetRep($ruleset_var_id);
       $_SESSION['j_mode_campagne']     = $mode_campagne;
       $_SESSION['j_affichage_ruleset'] = $affichage_ruleset;
       $_SESSION['j_theme']             = $theme;
+
+      // Le contexte de navigation mémorisé (personnage, campagne, scénario,
+      // chapitre, rencontre) appartient au ruleset quitté : on le purge, sinon
+      // le header affiche des niveaux de l'autre ruleset et getActiveResIds()
+      // remonte les sources de la campagne du personnage précédent.
+      if ($ruleset_change):
+        resetContexteRuleset();
+
+        // Recharger l'affichage sur le nouveau ruleset (section « Mes sources »)
+        $ruleset_var_id_actif = $ruleset_var_id;
+        $ruleset_nom_actif    = '';
+        foreach ($rulesets as $r):
+          if ((int)$r['var_id'] === $ruleset_var_id_actif):
+            $ruleset_nom_actif = $r['var_valeur'];
+          endif;
+        endforeach;
+
+        $stmt_res->execute([$ruleset_var_id_actif]);
+        $ressources_dispo = $stmt_res->fetchAll();
+
+        $stmt_sel->execute([$j_id, $ruleset_var_id_actif]);
+        $res_selectionnes = $stmt_sel->fetchAll(PDO::FETCH_COLUMN);
+      endif;
 
       $ok = true;
       $stmt->execute([$j_id]);

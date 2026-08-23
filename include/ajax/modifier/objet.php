@@ -163,7 +163,6 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
     <input type="hidden" name="entite"           value="objet">
     <input type="hidden" name="action"           value="sauvegarder">
     <input type="hidden" name="om_id"            value="<?= (int)$om['om_id'] ?>">
-    <input type="hidden" name="om_ruleset_var_id" value="<?= $ruleset_id ?>">
     <!-- Contexte pour l'autocomplétion JS -->
     <input type="hidden" id="om_active_res_ids"  value="<?= h(implode(',', $res_ids)) ?>">
 

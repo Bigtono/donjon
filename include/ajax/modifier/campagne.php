@@ -109,15 +109,19 @@ $titre = $id > 0 ? 'Modifier ' . h($camp['camp_nom']) : 'Nouvelle campagne';
         </div>
 
         <div class="form-group">
-          <label for="camp_ruleset_var_id">Ruleset <span class="required">*</span></label>
-          <?php if ($id > 0): ?>
-            <?php // Ruleset maître : non modifiable après création ?>
-            <input type="text" value="<?= libVar($db, $ruleset_id) ?>" disabled>
-            <input type="hidden" name="camp_ruleset_var_id" value="<?= $ruleset_id ?>">
-            <p class="form-hint">Le ruleset d'une campagne ne peut pas être modifié.</p>
-          <?php else: ?>
-            <?= optionListVar($db, 'ruleset', 'camp_ruleset_var_id', $ruleset_id) ?>
-          <?php endif ?>
+          <?php // Ruleset maître : affiché pour information, jamais saisi ni posté.
+                // Imposé par le serveur (session à la création, base ensuite) —
+                // cf. rulesetEnregistrement() dans include/helpers.php. ?>
+          <label>Ruleset</label>
+          <input type="text" value="<?= libVar($db, $ruleset_id) ?>" disabled>
+          <p class="form-hint">
+            <?php if ($id > 0): ?>
+              Le ruleset d'une campagne ne peut pas être modifié.
+            <?php else: ?>
+              La campagne est créée dans le ruleset actif. Pour en créer une dans l'autre
+              ruleset, changez-le d'abord dans votre profil.
+            <?php endif ?>
+          </p>
         </div>
 
         <div class="form-group">

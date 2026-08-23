@@ -1,252 +1,6 @@
 /* css/compendium-modules.css — Styles du module Compendium */
 /* Chargé uniquement sur les pages du compendium via $css_module = 'compendium' */
 
-/* ============================================================
-   LISTES — Barre de filtrage
-   ============================================================ */
-
-/* Conteneur principal */
-.comp-filtre-bar {
-  margin-bottom: var(--sp-md);
-  position: relative;
-}
-
-/* Bouton toggle — visible uniquement en mobile */
-.comp-filtre-toggle {
-  display: none;
-  align-items: center;
-  gap: var(--sp-sm);
-  width: 100%;
-  padding: var(--sp-sm) var(--sp-md);
-  background: var(--clr-surface-2);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  color: var(--clr-text);
-  font: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
-  text-align: left;
-}
-
-.comp-filtre-chevron {
-  margin-left: auto;
-  font-size: 0.75rem;
-  transition: transform 0.2s;
-}
-
-.comp-filtre-toggle.is-open .comp-filtre-chevron {
-  transform: rotate(180deg);
-}
-
-/* Badge compteur de filtres actifs */
-.comp-filtre-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  background: var(--clr-accent);
-  color: #fff;
-  border-radius: 9px;
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.comp-filtre-badge--empty {
-  display: none !important;
-}
-
-/* Contenu de la barre (toujours visible en desktop) */
-.comp-filtre-content {
-  display: block;
-}
-
-/* Formulaire — flex wrap desktop */
-.comp-filtre-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-sm);
-  align-items: center;
-}
-
-/* Chaque item de filtre */
-.comp-filtre-item {
-  display: flex;
-  align-items: center;
-}
-
-.comp-filtre-item--text {
-  flex: 0 1 180px;
-}
-
-/* largeur réduite */
-.comp-filtre-item--actions {
-  gap: var(--sp-xs);
-  margin-left: auto;
-}
-
-.comp-filtre-item--sources {
-  position: relative;
-}
-
-/* Input texte */
-.comp-filtre-input {
-  width: 100%;
-  padding: 5px 9px;
-  background: var(--clr-surface-2);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  color: var(--clr-text);
-  font: inherit;
-  font-size: 0.85rem;
-}
-
-.comp-filtre-input:focus {
-  outline: none;
-  border-color: var(--clr-accent-2);
-}
-
-/* Selects critères */
-.comp-filtre-select {
-  padding: 5px 7px;
-  background: var(--clr-surface-2);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  color: var(--clr-text);
-  font-size: 0.85rem;
-  max-width: 160px;
-}
-
-/* Bouton Sources */
-.comp-filtre-sources-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-xs);
-  padding: 5px 10px;
-  background: var(--clr-surface-2);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  color: var(--clr-text);
-  font-size: 0.85rem;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color 0.15s;
-}
-
-.comp-filtre-sources-btn:hover {
-  border-color: var(--clr-accent-2);
-}
-
-.comp-filtre-sources-btn .comp-filtre-chevron {
-  margin-left: 2px;
-}
-
-.comp-filtre-sources-btn.is-open .comp-filtre-chevron {
-  transform: rotate(180deg);
-}
-
-/* Menu déroulant sources */
-.comp-filtre-sources-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 30;
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-md);
-  padding: var(--sp-sm);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  min-width: 200px;
-  max-width: 280px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.comp-filtre-source-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm);
-  padding: 4px 6px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: background 0.1s;
-}
-
-.comp-filtre-source-item:hover {
-  background: var(--clr-surface-2);
-}
-
-.comp-filtre-source-item input[type="checkbox"] {
-  width: auto;
-  cursor: pointer;
-}
-
-/* Libellé texte masqué sur petits desktops */
-.comp-filtre-label-desktop {
-  display: inline;
-}
-
-/* ============================================================
-   RESPONSIVE ≤ 991px — Filtre mobile
-   ============================================================ */
-@media (max-width: 991px) {
-
-  /* Bouton toggle visible */
-  .comp-filtre-toggle {
-    display: flex;
-  }
-
-  /* Contenu masqué par défaut */
-  .comp-filtre-content.is-closed {
-    display: none;
-  }
-
-  /* Formulaire en colonne */
-  .comp-filtre-form {
-    flex-direction: column;
-    align-items: stretch;
-    padding: var(--sp-sm);
-    background: var(--clr-surface-2);
-    border: 1px solid var(--clr-border);
-    border-top: none;
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-  }
-
-  .comp-filtre-item {
-    width: 100%;
-  }
-
-  .comp-filtre-item--text {
-    flex: 1 1 auto;
-  }
-
-  .comp-filtre-item--actions {
-    margin-left: 0;
-    justify-content: flex-start;
-  }
-
-  .comp-filtre-input,
-  .comp-filtre-select,
-  .comp-filtre-sources-btn {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  /* Menu sources : position statique en mobile */
-  .comp-filtre-sources-menu {
-    position: static;
-    box-shadow: none;
-    border: 1px solid var(--clr-border);
-    max-width: 100%;
-  }
-
-  .comp-filtre-label-desktop {
-    display: none;
-  }
-}
 
 /* ============================================================
    LISTES — Tableau
@@ -564,6 +318,27 @@
   flex: 1;
 }
 
+/* Valeur alimentée par un champ riche (TinyMCE) : les <p>/<ul> générés
+   décalent le texte sous le libellé et cassent l'alignement des lignes.
+   On neutralise les marges de bord pour rester sur la même ligne de base. */
+.sort-detail__value--html > :first-child {
+  margin-top: 0;
+}
+
+.sort-detail__value--html > :last-child {
+  margin-bottom: 0;
+}
+
+.sort-detail__value--html p {
+  margin: 0 0 var(--sp-xs);
+}
+
+.sort-detail__value--html ul,
+.sort-detail__value--html ol {
+  margin: 0 0 var(--sp-xs);
+  padding-left: var(--sp-lg);
+}
+
 .sort-detail__description {
   margin: 1rem 0;
   font-size: 0.9rem;
@@ -611,14 +386,79 @@
   letter-spacing: 0.06em;
 }
 
+/* ============================================================
+   DETAIL-PP — CLASSE : capacités spéciales
+   Pas de libellé de section : chaque titre « Niveau X : Nom » ouvre son bloc.
+   ============================================================ */
+
+.classe-detail__capacites {
+  margin-top: var(--sp-lg);
+}
+
+/* L'air entre deux capacités vient du margin-top du suivant, jamais d'un
+   margin-bottom : la dernière ne creuse donc pas de vide avant le pied de fiche. */
+.classe-detail__capacite + .classe-detail__capacite {
+  margin-top: var(--sp-lg);
+}
+
+.classe-detail__capacite-nom {
+  /* +20% sur le corps de texte de la fiche (1rem), accent du nom de la classe */
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--clr-accent-2);
+  margin-bottom: var(--sp-xs);
+}
+
+/* Le type de capacité reste une mention secondaire : il ne suit pas le
+   grossissement du titre qui le porte. */
+.classe-detail__capacite-nom .cap-type {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--clr-text-muted);
+}
+
+/* Sous 992px le panneau passe en feuille plein écran (SP-RS4) : la hauteur
+   utile devient la ressource rare. On garde une respiration entre capacités,
+   mais réduite, et un titre à peine plus grand que le texte pour ne pas
+   pousser les noms longs sur trois lignes. */
+@media (max-width: 991px) {
+
+  .classe-detail__capacites,
+  .classe-detail__capacite + .classe-detail__capacite {
+    margin-top: var(--sp-md);
+  }
+
+  .classe-detail__capacite-nom {
+    font-size: 1.1rem;
+  }
+
+}
+
 @media (max-width: 991px) {
 
   .col-secondary {
     display: none;
   }
 
+  /* SP-RS3 : le menu ⋮ reste accessible sur mobile — c'est le seul accès à
+     Modifier / Dupliquer / Supprimer et aux row_actions déclarées par les
+     pages (export Roll20…). Il était masqué, rendant les listes du compendium
+     en lecture seule sur téléphone. Seule la colonne de sélection multiple
+     disparaît, la barre d'actions groupées étant elle-même masquée. */
   .col-action {
-    display: none;
+    display: table-cell;
+    width: 44px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .comp-menu-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .comp-menu-item {
+    padding: 11px 16px;
   }
 
   .bulk-check {
@@ -664,6 +504,14 @@
     display: table;
     width: 100%;
     min-width: 0;
+  }
+
+  /* SP-RS3 — pagination : 32px de côté, sous le seuil tactile. Passe à 40px,
+     quitte à passer sur deux lignes quand la fenêtre de pages est large
+     (.comp-pagination est déjà en flex-wrap). */
+  .comp-pag-btn {
+    min-width: 40px;
+    height: 40px;
   }
 
 }
@@ -1029,30 +877,6 @@
   color: var(--clr-accent);
 }
 
-/* ============================================================
-   Filtre checkbox — barre de filtres compendium
-   Ex : "Afficher les propriétés spéciales" (objets magiques)
-   ============================================================ */
-
-.comp-filtre-checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-xs);
-  font-size: 0.875rem;
-  color: var(--clr-text);
-  cursor: pointer;
-  white-space: nowrap;
-  padding: 5px 0;
-  user-select: none;
-}
-
-.comp-filtre-checkbox-label input[type="checkbox"] {
-  accent-color: var(--clr-accent-2);
-  width: 15px;
-  height: 15px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
 
 /****************************************************
   Monstres                               

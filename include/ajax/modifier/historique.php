@@ -96,7 +96,6 @@ $titre = $id > 0 ? 'Modifier ' . h($historique['hi_nom']) : 'Nouvel historique';
     <input type="hidden" name="entite"              value="historique">
     <input type="hidden" name="action"              value="sauvegarder">
     <input type="hidden" name="hi_id"               value="<?= (int)$historique['hi_id'] ?>">
-    <input type="hidden" name="hi_ruleset_var_id"   value="<?= $ruleset_id ?>">
 
     <div class="modif-section">
       <div class="modif-grid">

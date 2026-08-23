@@ -687,3 +687,22 @@
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 }
+
+/* ============================================================
+   OUTILS DE DÉVELOPPEMENT (tableau de bord admin)
+   ============================================================ */
+
+.admin-outils {
+  max-width: 480px;
+  margin-top: var(--sp-xl);
+  padding: var(--sp-md) var(--sp-lg);
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+}
+
+.admin-outils h2 {
+  font-size: 1rem;
+  color: var(--clr-text-muted);
+  margin-bottom: var(--sp-sm);
+}

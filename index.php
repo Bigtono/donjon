@@ -74,7 +74,7 @@ if (!empty($_SESSION['j_id'])) {
 ?>
   <div class="flex-between mb-md">
     <h1>Bienvenue, <?= h($_SESSION['j_pseudo']) ?></h1>
-    <span class="text-muted"><?= h($_SESSION['rulesetRep'] ?? '') ?></span>
+    <!---<span class="text-muted"><?= h($_SESSION['rulesetRep'] ?? '') ?></span>--->
   </div>
 
   <div class="dashboard-grid">

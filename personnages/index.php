@@ -14,7 +14,6 @@ $css_module = 'personnages';
 
 $j_id        = (int)$_SESSION['j_id'];
 $ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
-$ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
 
 // ============================================================
 // LECTURE DES FILTRES (GET)
@@ -111,55 +110,85 @@ require_once '../include/header.php';
   var perUrlFiche    = <?= json_encode(BASE_URL . '/personnages/fiche.php') ?>;
 </script>
 
+<?php
+// Le ruleset actif n'est plus rappelé ici : il est déjà affiché dans le header
+// (badge .site-header__ruleset). Bouton d'ajout réduit à son icône (SP-RS6).
+?>
 <div class="flex-between mb-md">
-  <h1>Personnages <span class="text-muted text-sm">(<?= h($ruleset_rep) ?>)</span></h1>
-  <button class="btn btn-primary btn-sm" onclick="ouvrirModifier(perUrlModifier, 0)">
-    <i class="fa fa-plus"></i> Nouveau personnage
+  <h1>Personnages</h1>
+  <button class="btn btn-primary btn-sm" onclick="ouvrirModifier(perUrlModifier, 0)"
+          title="Nouveau personnage" aria-label="Nouveau personnage">
+    <i class="fa fa-plus"></i>
   </button>
 </div>
 
 <!-- ============================================================
      BARRE DE FILTRES
      ============================================================ -->
-<form method="get" class="per-filtres" id="perFiltresForm">
-  <div class="per-filtres__bloc">
-    <label for="f_camp_id" class="per-filtres__label">Campagne</label>
-    <select id="f_camp_id" name="f_camp_id" onchange="document.getElementById('perFiltresForm').submit()">
-      <option value="0">— Toutes —</option>
-      <?php foreach ($campagnes_filtre as $c): ?>
-        <option value="<?= (int)$c['camp_id'] ?>" <?= $f_camp_id === (int)$c['camp_id'] ? 'selected' : '' ?>>
-          <?= h($c['camp_nom']) ?>
-        </option>
-      <?php endforeach ?>
-    </select>
-  </div>
+<?php
+// Composant partagé avec le compendium (SP-RS3b) : classes .comp-filtre-*
+// définies dans css/modules.css, toggle mobile dans js/main.js.
+// Les selects ne s'auto-soumettent plus — sur mobile le panneau se referme à
+// chaque rechargement, il faut pouvoir poser plusieurs critères avant Filtrer.
+?>
+<div class="comp-filtre-bar">
 
-  <div class="per-filtres__bloc">
-    <label for="f_cla_id" class="per-filtres__label">Classe</label>
-    <select id="f_cla_id" name="f_cla_id" onchange="document.getElementById('perFiltresForm').submit()">
-      <option value="0">— Toutes —</option>
-      <?php foreach ($classes_filtre as $c): ?>
-        <option value="<?= (int)$c['cla_id'] ?>" <?= $f_cla_id === (int)$c['cla_id'] ? 'selected' : '' ?>>
-          <?= h($c['cla_nom']) ?>
-        </option>
-      <?php endforeach ?>
-    </select>
-  </div>
-
-  <div class="per-filtres__bloc per-filtres__bloc--recherche">
-    <label for="q" class="per-filtres__label">Recherche</label>
-    <input type="text" id="q" name="q" value="<?= h($q) ?>" placeholder="Nom du personnage…">
-  </div>
-
-  <div class="per-filtres__bloc per-filtres__bloc--actions">
-    <button type="submit" class="btn btn-secondary btn-sm">
-      <i class="fa fa-filter"></i> Filtrer
-    </button>
+  <button type="button" class="comp-filtre-toggle"
+          onclick="toggleFiltresMobile()"
+          aria-expanded="false" id="filtre-toggle-btn">
+    <i class="fa fa-filter"></i>
+    Filtres
     <?php if ($filtres_actifs > 0): ?>
-      <a href="<?= BASE_URL ?>/personnages/" class="btn btn-link btn-sm">Réinitialiser</a>
+      <span class="comp-filtre-badge"><?= $filtres_actifs ?></span>
     <?php endif ?>
+    <i class="fa fa-chevron-down comp-filtre-chevron"></i>
+  </button>
+
+  <div class="comp-filtre-content" id="comp-filtre-content">
+    <form class="comp-filtre-form" method="GET" action="" id="perFiltresForm">
+
+      <div class="comp-filtre-item comp-filtre-item--text">
+        <input type="text" name="q" value="<?= h($q) ?>"
+               placeholder="Nom du personnage…" class="comp-filtre-input"
+               autocomplete="off">
+      </div>
+
+      <div class="comp-filtre-item">
+        <select name="f_camp_id" class="comp-filtre-select" title="Campagne">
+          <option value="0">— Campagne —</option>
+          <?php foreach ($campagnes_filtre as $c): ?>
+            <option value="<?= (int)$c['camp_id'] ?>" <?= $f_camp_id === (int)$c['camp_id'] ? 'selected' : '' ?>>
+              <?= h($c['camp_nom']) ?>
+            </option>
+          <?php endforeach ?>
+        </select>
+      </div>
+
+      <div class="comp-filtre-item">
+        <select name="f_cla_id" class="comp-filtre-select" title="Classe">
+          <option value="0">— Classe —</option>
+          <?php foreach ($classes_filtre as $c): ?>
+            <option value="<?= (int)$c['cla_id'] ?>" <?= $f_cla_id === (int)$c['cla_id'] ? 'selected' : '' ?>>
+              <?= h($c['cla_nom']) ?>
+            </option>
+          <?php endforeach ?>
+        </select>
+      </div>
+
+      <div class="comp-filtre-item comp-filtre-item--actions">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="fa fa-search"></i>
+          <span class="comp-filtre-label-desktop">Filtrer</span>
+        </button>
+        <a href="<?= BASE_URL ?>/personnages/index.php" class="btn btn-secondary btn-sm"
+           title="Réinitialiser">
+          <i class="fa fa-times"></i>
+        </a>
+      </div>
+
+    </form>
   </div>
-</form>
+</div>
 
 <!-- ============================================================
      LISTE DES PERSONNAGES

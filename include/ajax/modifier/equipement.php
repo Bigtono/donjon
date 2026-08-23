@@ -65,7 +65,6 @@ $titre = $id > 0 ? 'Modifier ' . h($equipement['eqt_nom']) : 'Nouvel équipement
     <input type="hidden" name="entite"            value="equipement">
     <input type="hidden" name="action"            value="sauvegarder">
     <input type="hidden" name="eqt_id"            value="<?= (int)$equipement['eqt_id'] ?>">
-    <input type="hidden" name="eqt_ruleset_var_id" value="<?= $ruleset_id ?>">
 
     <div class="modif-section">
       <div class="modif-grid">

@@ -94,7 +94,6 @@ $titre = $id > 0 ? 'Modifier ' . h($comp['comp_nom']) : 'Nouvelle compétence';
     <input type="hidden" name="entite"              value="competence">
     <input type="hidden" name="action"              value="sauvegarder">
     <input type="hidden" name="comp_id"             value="<?= (int)$comp['comp_id'] ?>">
-    <input type="hidden" name="comp_ruleset_var_id" value="<?= $ruleset_id ?>">
 
     <div class="modif-section">
       <div class="modif-grid">

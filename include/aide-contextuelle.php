@@ -101,17 +101,40 @@ return [
       </table>
 
       <p><strong>Fusions — uniquement dans les lignes <code>!</code></strong></p>
-      <ul>
-        <li>Cellule <strong>vide</strong> : fusion avec la cellule de gauche.</li>
-        <li>Cellule <code>^</code> : fusion avec la cellule du dessus.</li>
-      </ul>
-      <p>Dans une ligne de données, une cellule vide reste une cellule vide —
-      c\'est ce qui permet les grilles à colonnes inégales.</p>
 
-      <p><strong>Exemple — en-tête sur deux niveaux</strong></p>
-      <pre class="aide-exemple">! | Rythme | | | Effet
-! Distance par… | Rapide | Normal | Lent | ^
-Minute | 120 m | 90 m | 60 m | —</pre>
+      <p><em>Horizontale</em> — une cellule <strong>vide</strong> est absorbée par
+      la cellule de gauche. Comptez <strong>une cellule vide par colonne à
+      absorber</strong>.</p>
+
+      <p><strong>⚠ Le <code>|</code> de fermeture.</strong> Une cellule vide en
+      fin de ligne est ignorée (pour qu\'on puisse terminer une ligne par
+      <code>|</code> sans créer de colonne fantôme). Si la fusion va jusqu\'à la
+      <strong>dernière</strong> colonne du tableau, ajoutez donc un
+      <code>|</code> supplémentaire.</p>
+
+      <p>Exemples sur un tableau de <strong>6 colonnes</strong> :</p>
+      <pre class="aide-exemple">Fusionner 4 et 5
+! C1 | C2 | C3 | Groupe | | C6
+
+Fusionner 3 à 6 — dernière colonne incluse,
+donc un | de plus en fin de ligne
+! C1 | C2 | Groupe | | | |
+
+Deux groupes : 2-3 et 5-6
+! C1 | G1 | | C4 | G2 | |</pre>
+
+      <p><em>Verticale</em> — une cellule <code>^</code> est absorbée par la
+      cellule du dessus, dans la même colonne.</p>
+
+      <pre class="aide-exemple">! C1 | C2 | C3 | Groupe | | C6
+! ^  | ^  | ^  | C4 | C5 | ^</pre>
+
+      <p>Le second niveau ne déclare que les colonnes réellement subdivisées :
+      les <code>^</code> font descendre les autres en-têtes sur les deux lignes.</p>
+
+      <p>Dans une ligne de <strong>données</strong>, aucune fusion : une cellule
+      vide reste une cellule vide — c\'est ce qui permet les grilles à colonnes
+      inégales.</p>
 
       <p><strong>Liens dans les cellules</strong></p>
       <ul>

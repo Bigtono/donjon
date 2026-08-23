@@ -74,7 +74,9 @@ $mode        = $id > 0 ? 'edition' : 'creation';
 //   - Si tableau vide → pas de filtre source (afficher tout le compendium global)
 // Le compendium global = camp_id IS NULL.
 
-$res_ids      = getActiveResIds($db);
+// Ruleset du personnage (figé à la création), pas celui de la session — voir
+// le commentaire de getActiveResIds() : les deux peuvent diverger.
+$res_ids      = getActiveResIds($db, $ruleset_id);
 $filtre_res   = !empty($res_ids);
 $placeholders = $filtre_res ? resIdsPlaceholders($res_ids) : '';
 
@@ -183,17 +185,20 @@ $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['p
         </div>
 
         <div class="form-group">
-          <label for="pe_ruleset_var_id">Ruleset <span class="required">*</span></label>
-          <?php if ($mode === 'edition'): ?>
-            <input type="text" value="<?= libVar($db, $ruleset_id) ?>" disabled>
-            <input type="hidden" name="pe_ruleset_var_id" value="<?= $ruleset_id ?>">
-            <p class="form-hint">Le ruleset ne peut pas être modifié.</p>
-          <?php else: ?>
-            <?= optionListVar($db, 'ruleset', 'pe_ruleset_var_id', $ruleset_id) ?>
-            <p class="form-hint">
-              Le ruleset est fixé à la création (modifie races, historique et classes disponibles).
-            </p>
-          <?php endif ?>
+          <?php // Ruleset : affiché pour information, jamais saisi ni posté. Imposé par
+                // le serveur (session à la création, base ensuite) — cf.
+                // rulesetEnregistrement() dans include/helpers.php. ?>
+          <label>Ruleset</label>
+          <input type="text" value="<?= libVar($db, $ruleset_id) ?>" disabled>
+          <p class="form-hint">
+            <?php if ($mode === 'edition'): ?>
+              Le ruleset ne peut pas être modifié.
+            <?php else: ?>
+              Le personnage est créé dans le ruleset actif — il détermine les races,
+              historiques et classes disponibles. Pour en créer un dans l'autre ruleset,
+              changez-le d'abord dans votre profil.
+            <?php endif ?>
+          </p>
         </div>
 
         <div class="form-group">

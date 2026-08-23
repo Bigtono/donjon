@@ -75,57 +75,6 @@
 }
 
 /* ============================================================
-   BARRE DE FILTRES
-   Flex horizontal en desktop, empilée en mobile.
-   ============================================================ */
-
-.per-filtres {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-md);
-  align-items: flex-end;
-  margin-bottom: var(--sp-md);
-  padding: var(--sp-md);
-  background: var(--clr-surface-alt, var(--clr-surface));
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-}
-
-.per-filtres__bloc {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 180px;
-}
-
-.per-filtres__bloc--recherche {
-  flex: 1 1 220px;
-}
-
-.per-filtres__bloc--actions {
-  flex-direction: row;
-  align-items: center;
-  gap: var(--sp-sm);
-}
-
-.per-filtres__label {
-  font-size: .85em;
-  color: var(--clr-text-muted);
-}
-
-.per-filtres select,
-.per-filtres input[type="text"] {
-  /* Hauteur cible mobile : ≥ 44px (Apple HIG / WCAG cible tactile) */
-  min-height: 40px;
-  padding: var(--sp-sm) var(--sp-md);
-  background: var(--clr-surface);
-  color: var(--clr-text);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  font-size: .95em;
-}
-
-/* ============================================================
    LISTE — TABLEAU
    ============================================================ */
 
@@ -187,21 +136,6 @@
    ============================================================ */
 
 @media (max-width: 991px) {
-
-  /* Filtres empilés verticalement */
-  .per-filtres {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .per-filtres__bloc {
-    min-width: 0;
-  }
-
-  .per-filtres__bloc--actions {
-    flex-direction: row;
-    justify-content: flex-end;
-  }
 
   /* Liste : colonnes secondaires cachées en mobile */
   .per-liste thead {
@@ -794,7 +728,7 @@
 }
 
 /* ============================================================
-   CORRECTIFS 3.2b
+   CORRECTIFS SP-PE2 (ex-3.2b)
    ============================================================ */
 
 /* Niveau global dans le header du bloc Classes */
@@ -843,4 +777,269 @@
 .per-fiche__bloc-body--html table th {
   background: var(--clr-surface-alt, var(--clr-surface));
   font-weight: 600;
+}
+
+/* ============================================================
+   SP-PE3 — Bloc et éditeur Compétences
+   Le tableau reprend le style DD commun (.table-dd de modules.css) ;
+   seules les particularités du module sont définies ici.
+   ============================================================ */
+
+/* Colonne nom : alignée à gauche. Le sélecteur doit être préfixé par .table-dd
+   pour l'emporter sur `.table-dd th, .table-dd td { text-align: center }`. */
+.table-dd .per-comp-table__nom {
+  text-align: left;
+  width: 100%;
+}
+
+.per-comp-table__total {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Drapeaux DD3.5 : formation requise (F), malus d'armure (A) */
+.per-comp__flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--clr-surface-alt, var(--clr-surface));
+  color: var(--clr-text-muted);
+  font-size: .68em;
+  font-weight: 700;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Rappel du mode de calcul du total, sous le tableau de lecture */
+.per-comp-note {
+  margin-top: var(--sp-sm);
+  line-height: 1.5;
+}
+
+/* ---- Barre de filtre de l'éditeur ---- */
+
+.per-comp-editor__filtre {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-sm);
+}
+
+.per-comp-editor__recherche {
+  flex: 1 1 220px;
+  min-height: 38px;
+  padding: 4px var(--sp-sm);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: .95em;
+}
+
+/* ---- Colonne de saisie ----
+   Classe dédiée plutôt que .col-stat : celle-ci plafonne à 46px, largeur
+   prévue pour un BBA ou un jet de sauvegarde, trop étroite pour un champ
+   éditable (et pour le libellé « Expertise » en DD2024). */
+
+/* La largeur effective est portée par min-width : la colonne « Compétence »
+   est en width:100% et absorbe tout l'espace libre, ce qui ramènerait une
+   simple `width` au minimum calculé par le moteur de tableau. */
+.table-dd .per-comp-table__saisie {
+  width: 200px;
+  min-width: 200px;
+}
+
+/* ---- Champs de saisie du tableau ---- */
+
+.per-comp-editor__input,
+.per-comp-editor__select {
+  width: 100%;
+  min-height: 38px;
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+}
+
+.per-comp-editor__input {
+  text-align: center;
+  padding: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.per-comp-editor__select {
+  padding: 4px var(--sp-sm);
+  font-size: .9em;
+}
+
+/* ---- Responsive : cibles tactiles élargies (cf. archi §7.3) ---- */
+
+@media (max-width: 991px) {
+  .per-comp-editor__input,
+  .per-comp-editor__select,
+  .per-comp-editor__recherche {
+    min-height: 44px;
+  }
+
+  .per-comp-editor__recherche {
+    flex: 1 1 100%;
+  }
+
+  /* Le nom peut passer à la ligne, les colonnes chiffrées restent compactes */
+  .per-comp-table__nom {
+    white-space: normal;
+    min-width: 120px;
+  }
+}
+
+/* ============================================================
+   SP-PE4 — Bloc Dons de la fiche
+   Lecture seule : le sélecteur (deux volets) est un fragment injecté
+   dans #detail-pp, ses styles sont dans modules.css.
+   ============================================================ */
+
+.per-dons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.per-dons__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px dashed var(--clr-border);
+}
+
+.per-dons__item:last-child {
+  border-bottom: none;
+}
+
+.per-dons__cat {
+  font-size: .85em;
+  white-space: nowrap;
+}
+
+@media (max-width: 991px) {
+  /* La catégorie passe sous le nom du don */
+  .per-dons__item {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* ============================================================
+   SP-PE5 — Bloc Campagnes de la fiche
+   Lecture + éditeur inline de rattachement. Le bloc est rendu par
+   fiche.php (pas un fragment injecté en AJAX) : ses styles restent
+   dans ce fichier et non dans modules.css.
+   ============================================================ */
+
+.per-camp {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.per-camp__item {
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px dashed var(--clr-border);
+}
+
+.per-camp__item:last-child {
+  border-bottom: none;
+}
+
+/* La campagne en cours est signalée par un filet, pas par un fond :
+   le bloc doit rester lisible en plein soleil sur écran de tablette. */
+.per-camp__item.is-courante {
+  border-left: 3px solid var(--clr-accent-2);
+  padding-left: var(--sp-sm);
+}
+
+.per-camp__ligne {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+}
+
+/* .per-camp__badge vit dans modules.css : le panneau de campagne, injecté en
+   AJAX depuis le module Campagnes, s'en sert aussi (règle du 2026-06-14). */
+
+.per-camp__univers {
+  font-size: .85em;
+  white-space: nowrap;
+}
+
+.per-camp__resume {
+  margin: 2px 0 0;
+}
+
+/* ---- Éditeur de rattachement ---- */
+
+.per-camp-editor__ligne {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px dashed var(--clr-border);
+}
+
+.per-camp-editor__ligne:last-child {
+  border-bottom: none;
+}
+
+.per-camp-editor__ligne.is-courante {
+  border-left: 3px solid var(--clr-accent-2);
+  padding-left: var(--sp-sm);
+}
+
+.per-camp-editor__info {
+  min-width: 0;   /* autorise le résumé à s'élider au lieu de pousser les boutons */
+  flex: 1 1 auto;
+}
+
+.per-camp-editor__nom {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+}
+
+/* Une campagne non rattachée reste lisible mais visuellement en retrait */
+.per-camp-editor__ligne:not(.is-rattachee) .per-camp-editor__nom {
+  color: var(--clr-text-muted);
+}
+
+.per-camp-editor__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  flex-shrink: 0;
+}
+
+/* ---- Responsive : cibles tactiles élargies (cf. archi §7.3) ---- */
+
+@media (max-width: 991px) {
+  .per-camp-editor__ligne {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-sm);
+  }
+
+  .per-camp-editor__actions {
+    flex-wrap: wrap;
+  }
+
+  .per-camp-editor__actions .btn {
+    min-height: 44px;
+    flex: 1 1 auto;
+  }
 }

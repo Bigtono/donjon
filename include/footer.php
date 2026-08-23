@@ -9,6 +9,9 @@
 
 <script>
   var BASE_URL = <?= json_encode(BASE_URL) ?>;
+  // Beacon SP-RS5 : vrai tant que la session authentifiée courante n'a pas
+  // encore transmis ses caractéristiques d'affichage (cf. releveDevice()).
+  var RELEVE_DEVICE = <?= (!empty($_SESSION['j_id']) && empty($_SESSION['releve_device'])) ? 'true' : 'false' ?>;
 </script>
 <script src="<?= BASE_URL ?>/js/main.js"></script>
 <? if (!empty($js_module)): ?>

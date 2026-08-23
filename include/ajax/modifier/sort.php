@@ -166,7 +166,6 @@ $niveaux_dd2024 = range(0, 20);
     <input type="hidden" name="entite"  value="sort">
     <input type="hidden" name="action"  value="sauvegarder">
     <input type="hidden" name="so_id"   value="<?= (int)$so['so_id'] ?>">
-    <input type="hidden" name="so_ruleset_var_id" value="<?= $ruleset_id ?>">
 
     <!-- ====================================================
          DONNÉES PRINCIPALES

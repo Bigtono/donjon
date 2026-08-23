@@ -180,9 +180,9 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   `include/aide-contextuelle.php` (une clé par jeu de parsers réellement appliqué)
 
 ### À faire (priorités)
-- SP-PE3→PE8 : module Personnages, en pause depuis le 2026-06-14 (`SP-PE0→PE2` livrées :
-  socle, fiche identité, éditeur Classes inline). Reste : compétences, dons, bloc Campagnes,
-  NLS prestige DD3.5, vue Magie, mode jeu + passe responsive. Aucun patch SQL attendu
+- SP-PE5→PE8 : module Personnages (`SP-PE0→PE4` livrées : socle, fiche identité, éditeur
+  Classes inline, bloc Compétences, sélecteur de Dons). Reste : bloc Campagnes, NLS prestige
+  DD3.5, vue Magie, mode jeu + passe responsive. Aucun patch SQL attendu
 - SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)
 - SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
 - SP-C6 : profil "Mes sources" — suppléments publics tiers

@@ -13,33 +13,68 @@ $css_module  = 'compendium';
 $ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
 $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
 
+// clt_id=5 → 'Sous-classe' (DD2024) — même convention que cla_clt_id===2/5
+// ailleurs dans le projet (cf. dd_classe_type, pas de constante partagée).
+$CLT_SOUS_CLASSE = 5;
+
 // ============================================================
 // Filtres
 // ============================================================
 
+// Le critère "Classe parente" n'est proposé que lorsque le type "Sous-classe"
+// est sélectionné. Sur tout autre type, il est retiré du formulaire ET du GET
+// pour ne pas se propager dans les liens de tri et de pagination.
+$type_choisi    = intParam($_GET['f_clt_id'] ?? 0);
+$filtre_parente = ($type_choisi === $CLT_SOUS_CLASSE);
+if (!$filtre_parente):
+  unset($_GET['f_cla_par']);
+endif;
+
 $filtres = [
   [
-    'type'         => 'select',
-    'name'         => 'f_clt_id',
-    'label'        => 'Type de classe',
-    'champ'        => 'cla.cla_clt_id',
-    'query'        => 'SELECT clt_id val, clt_nom lab
-                       FROM   dd_classe_type
-                       WHERE  clt_ruleset_var_id = ?
-                       ORDER  BY clt_nom',
-    'query_params' => [$ruleset_id],
+    'type'            => 'select',
+    'name'            => 'f_clt_id',
+    'label'           => 'Type de classe',
+    'champ'           => 'cla.cla_clt_id',
+    'query'           => 'SELECT clt_id val, clt_nom lab
+                          FROM   dd_classe_type
+                          WHERE  clt_ruleset_var_id = ?
+                          ORDER  BY clt_nom',
+    'query_params'    => [$ruleset_id],
+    // Recharge la liste dès le changement de type : c'est ce qui fait
+    // apparaître (ou disparaître) le critère "Classe parente" ci-dessous.
+    'submit_onchange' => true,
   ],
-  [
+];
+
+if ($filtre_parente):
+  $filtres[] = [
     'type'         => 'select',
-    'name'         => 'f_mag_id',
-    'label'        => 'Type de magie',
-    'champ'        => 'cla.cla_mag_id',
-    'query'        => 'SELECT mag_id val, mag_nom lab
-                       FROM   dd_typemagie
-                       WHERE  mag_ruleset_var_id = ?
-                       ORDER  BY mag_nom',
-    'query_params' => [$ruleset_id],
-  ],
+    'name'         => 'f_cla_par',
+    'label'        => 'Classe parente',
+    'champ'        => 'cla.cla_cla_id',
+    // Seules les classes ayant au moins une sous-classe en base sont proposées.
+    'query'        => 'SELECT par.cla_id val, par.cla_nom lab
+                       FROM   dd_classes par
+                       WHERE  par.cla_ruleset_var_id = ?
+                         AND  par.cla_clt_id <> ?
+                         AND  EXISTS (SELECT 1 FROM dd_classes sc
+                                      WHERE sc.cla_cla_id = par.cla_id)
+                       ORDER  BY par.cla_nom',
+    'query_params' => [$ruleset_id, $CLT_SOUS_CLASSE],
+  ];
+endif;
+
+$filtres[] = [
+  'type'         => 'select',
+  'name'         => 'f_mag_id',
+  'label'        => 'Type de magie',
+  'champ'        => 'cla.cla_mag_id',
+  'query'        => 'SELECT mag_id val, mag_nom lab
+                     FROM   dd_typemagie
+                     WHERE  mag_ruleset_var_id = ?
+                     ORDER  BY mag_nom',
+  'query_params' => [$ruleset_id],
 ];
 
 // ============================================================
@@ -51,7 +86,8 @@ $listConfig = [
   'from'          => 'dd_classes cla
                       LEFT JOIN dd_classe_type clt ON clt.clt_id   = cla.cla_clt_id
                       LEFT JOIN dd_typemagie   mag ON mag.mag_id   = cla.cla_mag_id
-                      LEFT JOIN dd_ressources  res ON res.res_id   = cla.cla_res_id',
+                      LEFT JOIN dd_ressources  res ON res.res_id   = cla.cla_res_id
+                      LEFT JOIN dd_classes  clapar ON clapar.cla_id = cla.cla_cla_id',
   'champ_id'      => 'cla.cla_id',
   'champ_res'     => 'cla.cla_res_id',
   'champ_ruleset' => 'cla.cla_ruleset_var_id',
@@ -68,7 +104,10 @@ $listConfig = [
       'tri'    => true,
     ],
     [
-      'sql'    => 'clt.clt_nom',
+      // Sous-classe (DD2024) : la classe de base est rappelée entre parenthèses.
+      // Les autres types n'ont pas de cla_cla_id → libellé du type seul.
+      'sql'    => "CONCAT(clt.clt_nom,
+                     IF(clapar.cla_nom IS NULL, '', CONCAT(' (', clapar.cla_nom, ')')))",
       'champ'  => 'clt_nom',
       'label'  => 'Type',
       'mobile' => false,

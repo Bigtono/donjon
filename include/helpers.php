@@ -68,23 +68,43 @@ function canAccess(int $entity_j_id): bool {
 // ============================================================
 
 // Retourne le tableau des res_id actifs selon la chaîne de priorité :
-//   1. Sélection campagne (si personnage en session rattaché à une campagne avec sa propre sélection)
+//   1. Sélection de la campagne EN COURS du personnage en session (si ce
+//      rattachement est actif et que la campagne a sa propre sélection)
 //   2. Sélection personnelle de l'utilisateur (par ruleset)
 //   3. Toutes les sources actives du ruleset (défaut absolu)
-function getActiveResIds($db): array {
-  $ruleset_var_id = (int)($_SESSION['ruleset_var_id'] ?? 1);
+//
+// $ruleset_var_id : ruleset à considérer. Par défaut celui de la session, ce qui
+// convient au compendium (l'utilisateur consulte le ruleset qu'il a sélectionné).
+// Les pages travaillant sur une entité dont le ruleset lui est propre — la fiche
+// et l'overlay Personnage, dont le ruleset est figé à la création — doivent
+// passer explicitement le ruleset de l'entité : sinon, consulter un personnage
+// DD3.5 pendant une session DD2024 croise « compétences DD3.5 » avec « sources
+// DD2024 » et ne remonte rien (cf. DECISIONS_LOG [2026-08-13]).
+function getActiveResIds($db, ?int $ruleset_var_id = null): array {
+  $ruleset_var_id = $ruleset_var_id ?? (int)($_SESSION['ruleset_var_id'] ?? 1);
   $j_id           = (int)($_SESSION['j_id'] ?? 0);
 
   // Priorité 1 : sélection de la campagne via last_pe_id
   if (!empty($_SESSION['last_pe_id'])) {
     $pe_id = (int)$_SESSION['last_pe_id'];
 
-    // Cherche si le personnage est dans une campagne ayant sa propre sélection
+    // Cherche si le personnage est dans une campagne ayant sa propre sélection.
+    //
+    // Le périmètre est la **campagne en cours** du personnage (pe_camp_id), et
+    // non l'ensemble de ses campagnes actives : un personnage traverse plusieurs
+    // campagnes au cours de sa vie, et unionner leurs sources ferait apparaître
+    // dans le compendium des ouvrages autorisés par une campagne terminée.
+    // La liaison doit exister ET être active (cp_actif = 1, « participation en
+    // cours ») — la table de liaison reste la source de vérité du rattachement,
+    // pe_camp_id n'en est que le raccourci (cf. METIER_10 et SP-PE5).
     $stmt = $db->prepare('
       SELECT cs.cs_res_id
-      FROM   dd_campagnes_personnages cp
+      FROM   dd_personnages pe
+      JOIN   dd_campagnes_personnages cp ON cp.cp_camp_id = pe.pe_camp_id
+                                        AND cp.cp_pe_id   = pe.pe_id
+                                        AND cp.cp_actif   = 1
       JOIN   dd_campagnes_sources cs ON cs.cs_camp_id = cp.cp_camp_id
-      WHERE  cp.cp_pe_id = ? AND cp.cp_actif = 1
+      WHERE  pe.pe_id = ?
     ');
     $stmt->execute([$pe_id]);
     $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -244,6 +264,32 @@ function getPagination(int $total, int $per_page, int $current_page): array {
 }
 
 // ============================================================
+// RULESET D'UNE ENTITÉ À L'ENREGISTREMENT
+// ============================================================
+// Le ruleset n'est ni saisi ni transmis par les formulaires — ni select, ni
+// champ caché : il est imposé côté serveur. À la création c'est le ruleset actif
+// en session, à la modification c'est celui déjà en base (une entité ne change
+// jamais de ruleset : races, classes, sources, tableaux et glossaire qui lui sont
+// rattachés en dépendent tous). Un POST forgé ne peut donc plus créer d'entrée
+// dans l'autre ruleset, où elle serait invisible de toutes les listes.
+//
+// $table / $champ_id / $champ_ruleset sont des identifiants SQL écrits en dur par
+// l'appelant, jamais issus de l'utilisateur — interpolation assumée, comme dans
+// compendium-liste.php. Voir DECISIONS_LOG [2026-08-13].
+function rulesetEnregistrement(PDO $db, string $table, string $champ_id,
+                               string $champ_ruleset, int $id): int {
+  if ($id > 0):
+    $stmt = $db->prepare("SELECT $champ_ruleset FROM $table WHERE $champ_id = ?");
+    $stmt->execute([$id]);
+    $existant = $stmt->fetchColumn();
+    if ($existant !== false && $existant !== null):
+      return (int)$existant;
+    endif;
+  endif;
+  return (int)($_SESSION['ruleset_var_id'] ?? 1);
+}
+
+// ============================================================
 // CONTEXTE PERSONNAGE (last_pe_id)
 // ============================================================
 
@@ -365,22 +411,23 @@ function getHeaderCampagneContext(): array {
 // consulté (cf. include/header.php et include/ajax/header-context.php, qui
 // partagent cette fonction pour rester synchronisés sans recharger la page).
 function getHeaderContextNiveaux(PDO $db): array {
-  $niveaux = getHeaderCampagneContext();
-  if (!empty($niveaux)):
-    return $niveaux;
-  endif;
+  return getHeaderCampagneContext();
+}
 
+// Dernier personnage consulté, pour le raccourci de la ligne de titre du header
+// (SP-RS6). Autrefois replié dans getHeaderContextNiveaux() comme niveau de
+// contexte de repli — il en est sorti pour être affiché en permanence, y
+// compris pendant la consultation d'une campagne.
+function getHeaderPersonnage(PDO $db): ?array {
   $last_pe_id = getLastPersonnage();
-  if ($last_pe_id > 0):
-    $stmt = $db->prepare('SELECT pe_nom FROM dd_personnages WHERE pe_id = ?');
-    $stmt->execute([$last_pe_id]);
-    $pe_nom = $stmt->fetchColumn();
-    if ($pe_nom !== false):
-      $niveaux[] = ['type' => 'personnage', 'id' => $last_pe_id, 'nom' => $pe_nom];
-    endif;
-  endif;
+  if ($last_pe_id <= 0) return null;
 
-  return $niveaux;
+  $stmt = $db->prepare('SELECT pe_nom FROM dd_personnages WHERE pe_id = ?');
+  $stmt->execute([$last_pe_id]);
+  $pe_nom = $stmt->fetchColumn();
+  if ($pe_nom === false) return null;
+
+  return ['id' => $last_pe_id, 'nom' => $pe_nom];
 }
 
 // Invalide le contexte mémorisé quand l'élément supprimé (soft delete) est
@@ -399,6 +446,21 @@ function invalidateLastCampagneContext(string $niveau, int $id): void {
   foreach (array_slice($chaine, $depart) as $n):
     unset($_SESSION['last_' . $prefixes[$n] . '_id'], $_SESSION['last_' . $prefixes[$n] . '_nom']);
   endforeach;
+}
+
+// Efface tout le contexte de navigation dépendant du ruleset — personnage,
+// campagne, scénario, chapitre, rencontre. Appelée au changement de ruleset
+// (profil/index.php § paramètres) : ces entités appartiennent toutes à un
+// ruleset donné, les garder en session après bascule affiche dans le header des
+// niveaux du ruleset précédent et, surtout, fausse getActiveResIds() — qui
+// remonte les sources de la campagne du dernier personnage consulté et
+// croiserait alors « personnage DD3.5 » avec « sources DD2024 ».
+function resetContexteRuleset(): void {
+  unset($_SESSION['last_pe_id']);
+  unset($_SESSION['last_camp_id'], $_SESSION['last_camp_nom']);
+  unset($_SESSION['last_sce_id'],  $_SESSION['last_sce_nom']);
+  unset($_SESSION['last_scc_id'],  $_SESSION['last_scc_nom']);
+  unset($_SESSION['last_re_id'],   $_SESSION['last_re_nom']);
 }
 
 // ============================================================

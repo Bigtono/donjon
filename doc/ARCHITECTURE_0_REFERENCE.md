@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-08-12 10:30 -->
+<!-- Mis à jour : 2026-08-22 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -29,6 +29,50 @@
 > §7.11). Aucun code livré n'est modifié : `SP-PE0→PE2` sont acquis depuis le 2026-06-14, le module
 > est en pause depuis. `SP-PE3→PE8` restent à faire, dont un `SP-PE5` nouvellement isolé (bloc
 > Campagnes de la fiche). Voir §7.11.
+
+> 2026-08-12 (suite) : **SP-PE3 livrée** — bloc Compétences de la fiche, éditeur inline filtrable
+> sur le tableau complet du ruleset, total affiché (2ᵉ exception assumée au « pas de moteur de
+> règles », voir §7.7b). Aucun patch SQL. Reprise du module : `SP-PE4` (Dons).
+
+> 2026-08-13 : correctifs hors phase autour du **ruleset actif**, en trois temps.
+> (1) Changer le ruleset dans `profil/index.php` purge le contexte de navigation devenu hors-sujet
+> (`resetContexteRuleset()` : personnage, campagne, scénario, chapitre, rencontre) et recharge la
+> section « Mes sources » — voir §11 et §12.
+> (2) `campagnes/index.php` filtre enfin sur `camp_ruleset_var_id`, comme la liste des personnages
+> qui en était calquée — voir §8.
+> (3) Le ruleset d'une entité n'est plus jamais saisi ni posté : 11 champs de formulaire retirés,
+> point de passage unique `rulesetEnregistrement()` — voir §3, règle absolue.
+> Détail dans `DECISIONS_LOG.md` [2026-08-13].
+
+> 2026-08-14 : **SP-PE5 livrée** — bloc Campagnes de la fiche. La phase, spécifiée « lecture
+> seule », a dû s'élargir à l'écriture : `dd_campagnes_personnages` n'était **alimentée par aucun
+> écran** et `pe_camp_id` n'était jamais écrit, un bloc en lecture seule aurait donc été
+> structurellement vide. Livré : lecture (campagne en cours + historique), éditeur inline de
+> rattachement à écriture immédiate, section « Personnages » du panneau de campagne, et
+> **correctif `getActiveResIds()` priorité 1** — jusqu'ici du code mort que cette phase réveillait
+> en unionnant les sources de toutes les campagnes du personnage. Aucun patch SQL. Voir §7.5c et
+> `DECISIONS_LOG.md` [2026-08-14]. Reprise du module : `SP-PE6` (NLS prestige DD3.5).
+
+> 2026-08-22 : nouveau projet **SP-RS — Finalisation de l'UI smartphone**, transverse à tous les
+> modules déclarés responsives en §10. `SP-RS0` (mode debug : badge de dimensions du viewport,
+> activable depuis le tableau de bord admin, session uniquement) et `SP-RS1` (menu principal en
+> déroulant pleine largeur sous 992px) livrées. Aucun patch SQL. Voir §10b et §10c, et
+> `DECISIONS_LOG.md` [2026-08-22].
+>
+> 2026-08-22 (suite) : `SP-RS2` livrée — le bandeau de contexte devient un fil d'Ariane défilable
+> sur une seule ligne sous 992px (150px → 57px en cascade complète), rendu inchangé au-dessus aux
+> icônes de type près. Voir §10d.
+>
+> 2026-08-22 (suite) : `SP-RS3` livrée — listes du compendium. Le point important n'est pas
+> cosmétique : le menu ⋮ était masqué sous 992px, les 9 listes étaient donc **en lecture seule sur
+> téléphone**. Voir §10e.
+>
+> 2026-08-22 (suite) : `SP-RS3b` (barre de filtrage promue en composant partagé, module Personnages
+> aligné dessus — §10f), `SP-RS4` (panneaux en feuille plein écran — §10g) et `SP-RS5a` (collecte
+> des relevés d'affichage — §10h) livrées. **Un patch SQL à appliquer** :
+> `sql/2026-08-22_releves_device_sp-rs5.sql` (10 colonnes `j_last_*` sur `dd_joueurs`, table
+> `dd_connexions`). Reste `SP-RS5`, l'arbitrage des paliers, à instruire une fois les relevés
+> accumulés.
 
 ---
 
@@ -93,15 +137,37 @@
 - [x] SP-PE0 — Socle + SQL : `dd_alignements`, `pe_sexe`/`pe_al_id`/`pe_notes_scope`, liste `index.php`, routeur `enregistrement.php`, helpers, assets *(ex-3.0)*
 - [x] SP-PE1 — Fiche identité : overlay `modifier/personnage.php`, `detail-pp/personnage.php`, blocs Identité / Caracs / Combat / Background, première classe à la création *(ex-3.1)*
 - [x] SP-PE2 — Classes & niveaux : éditeur DOM inline sur la fiche, domaines divins DD3.5, action `enregistrerClasses` *(ex-3.2)*
-- [ ] SP-PE3 — Compétences : tableau complet du ruleset en bloc repliable, rangs DD3.5 / 0-1-2 DD2024, persistance DELETE+INSERT des `pec_maitrise > 0` *(ex-3.3)*
-- [ ] SP-PE4 — Dons : liste déclarative ajout/suppression, chaque don cliquable vers `detail-pp/don.php` *(ex-3.4)*
-- [ ] SP-PE5 — Bloc Campagnes de la fiche : campagne en cours + historique traversé, lecture seule *(nouveau — figurait dans l'ordre des blocs §7.3 sans sous-phase dédiée)*
+- [x] SP-PE3 — Compétences : éditeur inline filtrable sur le tableau complet du ruleset, rangs DD3.5 / 0-1-2 DD2024, total affiché, persistance DELETE+INSERT des `pec_maitrise > 0` *(ex-3.3)*
+- [x] SP-PE4 — Dons : sélecteur deux volets dans `#detail-pp` (liste filtrable + fiche du don), écriture immédiate par clic, compteur serveur *(ex-3.4)*
+- [x] SP-PE5 — Bloc Campagnes de la fiche : campagne en cours + historique traversé, éditeur inline de rattachement à écriture immédiate, section Personnages du panneau de campagne, correctif `getActiveResIds()` priorité 1
 - [ ] SP-PE6 — NLS prestige (DD3.5) : un tableau par classe de prestige, affectation vers les classes de base lanceuses, validation serveur = complétude *(ex-3.5)*
 - [ ] SP-PE7 — Vue Magie `magie.php` : calcul NLS + sorts par jour + listes connus / compris / préparés cliquables *(ex-3.6)*
 - [ ] SP-PE8 — Emplacement Mode jeu (suivi PV et variables par ruleset) + passe responsive < 992px sur les blocs livrés en SP-PE3→PE7 *(ex-3.7)*
 
 > Hors périmètre SP-PE : les **objets magiques du personnage** (`personnages/objets.php` reste un
 > placeholder, aucune table) — analyse métier non fiabilisée, cf. `DECISIONS_LOG.md` [2026-06-12] [D].
+
+### SP-SC — Sous-classes DD2024 (module Classes)
+
+> Chantier livré avant la généralisation des codes projet ; codifié le 2026-08-22 pour rejoindre
+> le tableau de bord. Détail technique en §5 « Module Classes — sous-classes (DD2024) ».
+
+- [x] SP-SC0 — Socle : `cla_cla_id` comme classe parente, type `clt_id=5`, formulaire à bascule, neutralisation serveur, fiche détail avec renvoi vers la classe parente
+- [x] SP-SC1 — Finitions liste et fiche : classe de base rappelée dans la colonne Type, critère « Classe parente » conditionnel dans la barre de filtre (clé moteur `submit_onchange`), fiche alignée sur `.sort-detail__row` (Dé de vie → Formation aux armures), retrait de « Niveaux » en DD2024, liste des sous-classes sur la fiche d'une classe de base
+- [x] SP-SC2 — Capacités spéciales de la fiche : requête unique agrégée (une capacité = une entrée, titrée par son premier niveau), libellé de section supprimé, titres en accent `1.2rem`, espacement porté en CSS avec palier 991px
+
+### SP-RS — Finalisation de l'UI smartphone
+
+- [x] SP-RS0 — Mode debug : badge dimensions viewport + paliers actifs, bascule dans le tableau de bord admin (session)
+- [x] SP-RS1 — Menu principal transformé en menu déroulant pleine largeur sous 992px
+- [x] SP-RS2 — Bandeau de contexte en fil d'Ariane défilable sur une ligne (150px → 57px), icônes de type, cibles 40px
+- [x] SP-RS3 — Listes du compendium : menu ⋮ restauré et recadré, menu Sources empilé, cibles tactiles à 40px
+- [x] SP-RS3b — Barre de filtrage promue en composant partagé (`modules.css` + `main.js`), module Personnages aligné dessus
+- [x] SP-RS4 — Panneaux en feuille plein écran sous 992px, barre d'en-tête commune, `dvh`, Fermer ajouté sur `#modification`
+- [x] SP-RS6a — Page Personnages : raccourci personnage remonté dans la ligne de titre du header, bouton d'ajout en icône seule, ruleset retiré du `<h1>`
+- [ ] SP-RS6b — Liste des personnages reconstruite sur le moteur de liste partagé
+- [x] SP-RS5a — Collecte des relevés d'affichage : beacon, `dd_joueurs.j_last_*`, `dd_connexions`, écran admin
+- [ ] SP-RS5 — Arbitrage des paliers définitifs (991 / 768 / 479) à partir des relevés accumulés dans `dd_connexions`
 
 ---
 
@@ -211,6 +277,32 @@ Jean-Michel.
 
 Sélection via $_SESSION['rulesetRep'] — whitelist stricte.
 Les templates ruleset ne contiennent que du HTML, jamais de logique auth/session/redirection.
+
+### Le ruleset d'une entité n'est jamais saisi — règle absolue
+
+Aucun formulaire ne propose de choisir le ruleset d'une entité, et **aucun ne le poste** : ni select,
+ni champ caché. Il est déterminé côté serveur par un point de passage unique, `rulesetEnregistrement()`
+(`include/helpers.php`) :
+
+```php
+$ruleset_id = rulesetEnregistrement($db, 'dd_sorts', 'so_id', 'so_ruleset_var_id', $so_id);
+// $so_id === 0  → $_SESSION['ruleset_var_id']  (création dans le ruleset actif)
+// $so_id  >  0  → so_ruleset_var_id lu en base (immuable, POST ignoré)
+```
+
+Deux raisons : une entité créée dans l'autre ruleset est **invisible de toutes les listes**, qui
+filtrent sur le ruleset de session — l'utilisateur crée une entrée qui disparaît ; et un POST forgé
+pouvait déplacer une entrée existante d'un ruleset à l'autre, ce qui casse toutes ses liaisons
+(sources, races, classes, tableaux, glossaire). Corollaire structurel : la colonne
+`*_ruleset_var_id` n'apparaît que dans les `INSERT`, **jamais dans les `UPDATE`**.
+
+Le formulaire affiche le ruleset en clair (`<input disabled>`, sans `name`) là où l'information est
+utile à la saisie — Campagne et Personnage. Pour créer dans l'autre ruleset, on en change dans son
+profil (§11).
+
+**Seule exception : `include/ajax/modifier/ressource.php`** (admin) garde son select. Une ressource
+est un livre source *déclaré pour* un ruleset ; l'admin en saisit indépendamment du ruleset de sa
+propre session.
 
 ---
 
@@ -355,6 +447,19 @@ require_once '../include/footer.php';
 
 Les 3 clés doivent être déclarées **ensemble** pour activer le mécanisme. Si absentes : comportement strictement inchangé (rétro-compatible).
 
+**Clé de filtre `submit_onchange` (2026-08-22, types `select` / `exists`) :**
+
+`'submit_onchange' => true` sur un critère de `filtres[]` ajoute un `onchange` qui soumet la barre
+de filtre dès le changement de valeur, sans passer par le bouton *Filtrer*. Utile quand la page
+contrôleur fait **dépendre d'autres critères** de celui-ci : le rechargement est ce qui fait
+apparaître ou disparaître les critères conditionnels.
+
+Un critère conditionnel se construit côté page contrôleur, pas dans le moteur : la page lit la
+valeur GET pilote, n'ajoute l'entrée dans `$filtres` que si la condition est remplie, et **retire
+du `$_GET` la valeur du critère masqué** — sans quoi elle resterait active dans les liens de tri
+et de pagination construits par `http_build_query($_GET)`. Cas de référence :
+`compendium/classes.php` (critère « Classe parente », visible seulement sur le type Sous-classe).
+
 > ⚠️ Écart avec la conception initiale (§ ci-dessus, non modifiée pour traçabilité) : le moteur
 > n'ajoute **pas** lui-même le `JOIN dd_ressources` — il réutilise l'alias déjà présent dans `from`
 > via `champ_res_owner`. Choix fait en implémentant Monstres : `compendium/monstres.php` joint déjà
@@ -399,6 +504,18 @@ Classes CSS définies dans compendium-modules.css :
 | .col-secondary | Colonne normale | Sous-ligne (font 0.8rem, style distinctif) |
 | .col-action | Visible (modifier/supprimer) | Masqué |
 | .bulk-check | Visible (checkbox) | Masqué |
+
+### Tables des formulaires de modification
+
+| Classe | Portée | Règles CSS |
+|---|---|---|
+| `.table-classe-modif` | Classe §2 (progression) et §3, Race §3 | Aucune — classe de rattachement historique |
+| `.table-classe-modif--liste` | Listes de capacités injectées en JS (`#classe-cap-table`, `#race-cap-table`) | `compendium-modules.css` : largeur 100 %, cellules `padding` + `text-align: left`, en-tête `--clr-surface-alt`, colonne `.col-actions` en `width: 1%` + `nowrap` |
+
+Le modificateur `--liste` existe parce que la table de progression (Classe §2) partage la classe de
+base mais porte jusqu'à 26 colonnes d'`<input>` : elle ne doit pas hériter du padding ni de
+l'alignement des listes. Toute nouvelle liste de capacités dans un formulaire compendium reprend
+`table-classe-modif table-classe-modif--liste` plutôt qu'un style inline.
 
 ### Badge homebrew
 
@@ -508,6 +625,14 @@ générique `filtres[]` à checkbox — gérée directement par le moteur, pas p
 > (utilisateur courant — cette fonction est scopée personnage/joueur, contrairement à
 > `getActiveResIdsCampagne()` qui est scopée MJ et utilise `camp_j_id`) au tableau de sources
 > retourné par la priorité 1, s'il n'y figure pas déjà.
+
+> ⚠️ **Périmètre de la priorité 1 corrigé le 2026-08-14 (SP-PE5).** La branche interrogeait
+> `dd_campagnes_personnages` sur **toutes** les campagnes actives du personnage
+> (`WHERE cp_pe_id = ? AND cp_actif = 1`) et unionnait leurs sources. Le défaut était invisible :
+> aucun écran n'alimentait la table de liaison, la branche n'était jamais atteinte. SP-PE5 ouvrant
+> le rattachement, elle est désormais scopée sur la **campagne en cours** du personnage
+> (jointure sur `pe_camp_id`, liaison devant exister **et** être active). Sans quoi les ouvrages
+> autorisés par une campagne terminée resteraient ouverts dans tout le compendium de la session.
 
 #### Helpers dédiés dans `helpers.php`
 
@@ -952,28 +1077,93 @@ purgée (cas d'une classe Base reclassée en Sous-classe).
 `supprimerClasse()` bloque désormais la suppression d'une classe si des sous-classes la
 référencent via `cla_cla_id`, en plus du contrôle existant sur les personnages utilisant la classe.
 
+#### Liste — rappel de la classe de base et filtre conditionnel (SP-SC1, 2026-08-22)
+
+`compendium/classes.php` joint `dd_classes clapar` sur `cla.cla_cla_id` et rend la colonne **Type**
+via `CONCAT(clt.clt_nom, IF(clapar.cla_nom IS NULL, '', CONCAT(' (', clapar.cla_nom, ')')))` : une
+sous-classe s'affiche « Sous-classe (Barbare) », les autres types gardent le libellé seul (leur
+`cla_cla_id` est `NULL`). Le tri de la colonne porte sur la même expression. La jointure est
+`LEFT JOIN` sur une clé N→1, sans risque de duplication de lignes.
+
+Le critère **Classe parente** (`f_cla_par` → `cla.cla_cla_id`) n'est ajouté à `$filtres` que
+lorsque `f_clt_id` vaut `5` ; sinon la page fait `unset($_GET['f_cla_par'])` pour que le critère
+masqué ne survive pas dans les liens de tri et de pagination. Le critère « Type de classe » porte
+`'submit_onchange' => true` (cf. §5, moteur de liste) pour que le basculement soit immédiat. La
+liste d'options n'expose que les classes ayant **au moins une sous-classe en base**
+(`EXISTS (SELECT 1 FROM dd_classes sc WHERE sc.cla_cla_id = par.cla_id)`), pour ne pas proposer
+d'option à résultat vide.
+
 #### Visualisation
 
-`include/ajax/detail-pp/classe.php` masque les lignes "Dé de vie" et "Niveaux" pour une
-sous-classe et affiche à la place une ligne "Classe parente" cliquable, qui ouvre la fiche de la
-classe de base dans le même `#detail-pp` via `naviguerDetailPP()` (réutilisation de la pile de
-navigation interne déjà utilisée pour Campagne→Scénario, bouton ← Retour). Le reste de la fiche
-(compétences, armes, description) est déjà conditionné par la présence de données et n'affiche
-donc rien de superflu pour une sous-classe sans changement supplémentaire.
+`include/ajax/detail-pp/classe.php` masque la ligne "Dé de vie" pour une sous-classe et affiche à
+la place une ligne "Classe parente" cliquable, qui ouvre la fiche de la classe de base dans le même
+`#detail-pp` via `naviguerDetailPP()` (réutilisation de la pile de navigation interne déjà utilisée
+pour Campagne→Scénario, bouton ← Retour). Le reste de la fiche (compétences, armes, description)
+est déjà conditionné par la présence de données et n'affiche donc rien de superflu pour une
+sous-classe sans changement supplémentaire.
 
-La section "Capacités spéciales" utilise une requête et un titre dédiés pour une sous-classe :
-une ligne par affectation niveau/capacité (`dd_classe_capacite`, triée par `cc_niveau`), avec pour
-titre **« Niveau XX : Nom de la capacité »** plutôt que le simple nom utilisé pour une classe
-normale (qui s'appuie elle sur la table de progression pour le contexte de niveau, absente pour
-une sous-classe). Si une même capacité est affectée à plusieurs niveaux, elle apparaît une fois
-par niveau.
+Symétriquement, la fiche d'une **classe de base** liste ses **sous-classes** sur le même modèle :
+une ligne de renvois cliquables. Le périmètre de la requête reprend celui du moteur de liste —
+sources actives (`getActiveResIds()`) **et** règle de visibilité supplément (officielle | mienne
+et visible | publique et visible) — pour ne pas exposer via la fiche une entrée qu'une liste
+n'aurait pas montrée. Si `getActiveResIds()` renvoie un tableau vide, la requête n'est pas
+exécutée (jamais de `IN ()`).
+
+**Mise en page des données de base (SP-SC1).** Les blocs "Compétences", "Maîtrise d'armes" et
+"Formation aux armures" étaient rendus hors de `.sort-detail__body` (`font-size: .9rem`), avec le
+libellé empilé au-dessus du texte : deux tailles de caractères sur la même fiche et deux
+alignements. Ils sont désormais des `.sort-detail__row` du même bloc — libellé puis valeur sur la
+même ligne, comme "Dé de vie" ou "Magie". Les deux champs riches (TinyMCE) portent en plus
+`.sort-detail__value--html`, qui neutralise les marges de bord des `<p>` / `<ul>` générés
+(`css/compendium-modules.css`) : sans cela le contenu retombe sous le libellé.
+
+La ligne **"Niveaux"** (`cla_niveauMax`) n'est plus affichée en DD2024 — la progression y est
+commune à toutes les classes, la donnée n'y porte pas d'information. Elle reste affichée en DD3.5,
+où les classes de prestige ont des niveaux max distincts.
+
+**Capacités spéciales (SP-SC2, 2026-08-22).** Les deux requêtes distinctes classe normale /
+sous-classe sont remplacées par une requête unique agrégée :
+
+```sql
+SELECT cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type,
+       MIN(cc.cc_niveau) AS cap_niveau
+FROM   dd_classe_capacite cc
+JOIN   dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
+WHERE  cc.cc_cla_id = ?
+GROUP  BY cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type
+ORDER  BY cap_niveau, cap.cap_nom
+```
+
+Une capacité affectée à plusieurs niveaux (itérations : *Attaque sournoise*, *Réduction des
+dégâts*…) n'apparaît **qu'une fois**, titrée par son premier niveau d'obtention. Les itérations
+suivantes restent lisibles dans la table de progression pour une classe normale, dans le texte de
+la capacité pour une sous-classe. Le `GROUP BY` porte sur toutes les colonnes non agrégées
+(compatible `ONLY_FULL_GROUP_BY`). L'ordre est **par niveau puis par nom** — l'ancien tri
+alphabétique perdait son sens dès lors que le niveau ouvre le titre.
+
+Le libellé de section « Capacités spéciales » est supprimé : chaque titre **« Niveau X : Nom »**
+ouvre son bloc et sert lui-même de séparation. Quelques affectations DD3.5 portent `cc_niveau = 0`
+(donnée non renseignée) : le préfixe est alors omis, le niveau 0 n'existant pas dans les règles.
+
+Mise en forme dans `css/compendium-modules.css` (plus aucun style inline) : titre à `1.2rem`
+(+20% sur le corps de fiche) en `var(--clr-accent-2)`, le même accent que `.sort-detail__nom`, le
+`.cap-type` restant en mention secondaire non grossie. L'espacement entre capacités passe à
+`var(--sp-lg)` et est porté par un `margin-top` sur `.classe-detail__capacite + .classe-detail__capacite`
+— jamais un `margin-bottom`, qui creuserait un vide après la dernière capacité. Sous 992px, où le
+panneau est une feuille plein écran (SP-RS4), l'espacement retombe à `var(--sp-md)` et le titre à
+`1.1rem` : la hauteur utile y est la ressource rare et un titre trop grand pousse les noms longs
+sur trois lignes.
 
 #### Fichiers du module
 
 ```
 include/ajax/modifier/classe.php   # + select cla_cla_id, classes .classe-champ-normal/-sousclasse,
                                     #   appliquerVisibiliteType() (JS)
-include/ajax/detail-pp/classe.php  # + jointure classe parente, ligne "Classe parente" cliquable
+include/ajax/detail-pp/classe.php  # + jointure classe parente, ligne "Classe parente" cliquable,
+                                    #   liste des sous-classes, données de base en .sort-detail__row
+compendium/classes.php             # colonne Type avec classe de base, critère f_cla_par conditionnel
+include/compendium-liste.php       # clé de filtre submit_onchange
+css/compendium-modules.css         # .sort-detail__value--html
 compendium/enregistrement.php      # enregistrerClasse() : validation + neutralisation des champs,
                                     #   purge dd_classe_niveau ; supprimerClasse() : dépendance sous-classes
 ```
@@ -1133,13 +1323,17 @@ en blocs repliables (`togglePlus`). La **Magie** reste une **vue dédiée** (`pe
 |---|---|---|---|
 | 1 | Mode jeu *(emplacement réservé)* | Suivi PV et autres variables selon ruleset — **contenu différé** | — |
 | 2 | Identité | Nom, Race (+ archétype DD3.5), Historique (DD2024), Sexe, Alignement | Race, Historique |
-| 3 | Caractéristiques | 6 caracs + modificateurs | — |
-| 4 | Combat | CA, PV | — |
-| 5 | Classes | Classes + niveaux | Classe |
-| 6 | NLS prestige *(DD3.5)* | Affectation niveaux de prestige → classes de base lanceuses | — |
-| 7 | Compétences | Compétences **maîtrisées** uniquement (maîtrise > 0) | Compétence |
+| 3 | Classes | Classes + niveaux (+ domaines divins DD3.5) | Classe |
+| 4 | Caractéristiques | 6 caracs + modificateurs | — |
+| 5 | Combat | CA, PV | — |
+| 6 | Compétences | Compétences **maîtrisées** uniquement (maîtrise > 0) + total | Compétence |
+| 7 | NLS prestige *(DD3.5)* | Affectation niveaux de prestige → classes de base lanceuses | — |
 | 8 | Dons | Dons saisis (liste déclarative) | Don |
-| 9 | Campagnes | Campagne en cours + historique (lecture seule) | Campagne |
+| 9 | Campagnes | Campagne en cours + historique traversé ; rattachement par éditeur inline | Campagne |
+| 10 | Background | Contenu HTML TinyMCE, masqué si vide | — |
+
+> Les Classes sont remontées en position 3 depuis SP-PE2 (lecture rapide en partie) ; le tableau
+> ci-dessus reflète l'ordre réellement rendu par `fiche.php`, pas l'ordre projeté à l'arbitration.
 
 ### 7.4 Liste des personnages — `personnages/index.php`
 
@@ -1163,12 +1357,108 @@ L'édition passe par l'**overlay AJAX** `include/ajax/modifier/personnage.php` (
 
 - **Identité** : formulaire classique. Background / notes via TinyMCE (config complète, avec images).
 - **Classes / niveaux** : éditeur DOM déclaratif (nom de classe + niveau + domaines divins DD3.5), sans validation de règles.
-- **Compétences** : le formulaire charge **toutes** les compétences du ruleset dans un bloc repliable (tableau).
-  DD3.5 : input numérique (rangs 0..n). DD2024 : sélecteur 0 (aucune) / 1 (maîtrise) / 2 (expertise).
-  Persistance DELETE + INSERT en bloc des seules lignes `pec_maitrise > 0`.
-- **Dons** : liste déclarative ajoutable / supprimable localement (`dd_personnages_dons`).
+- **Compétences** : éditeur **inline sur la fiche** (pas dans l'overlay — cf. D-PE3a), chargeant
+  **toutes** les compétences du ruleset dans un tableau `.table-dd` filtrable par nom.
+  DD3.5 : input numérique (rangs 0..99, borne technique seule). DD2024 : sélecteur 0 (aucune) /
+  1 (maîtrise) / 2 (expertise). Total recalculé à la volée à chaque saisie.
+  Persistance DELETE + INSERT en bloc des seules lignes `pec_maitrise > 0` — une liste vide est
+  valide et efface toutes les compétences. Validation serveur : propriétaire, appartenance de la
+  compétence au ruleset du personnage, bornage (2 en DD2024, 99 en DD3.5).
+- **Dons** : **exception au commit global** — sélecteur dédié à écriture immédiate, voir §7.5b.
 - **NLS prestige (DD3.5)** : un tableau par classe de prestige influant sur le NLS ; pour chaque niveau, un select
   des classes de base lanceuses compatibles. Saisie déclarative ; validation serveur = complétude de l'affectation.
+
+### 7.5b Sélecteur de dons — deux volets, écriture immédiate (SP-PE4)
+
+`include/ajax/detail-pp/dons-picker.php`, ouvert dans **`#detail-pp`** depuis le bloc Dons de la
+fiche. Le panneau sert à choisir plusieurs dons d'affilée, la description de chacun étant lisible
+sans quitter la liste.
+
+| Zone | Contenu |
+|---|---|
+| En-tête | Nom du personnage + **compteur du total de dons du personnage** (pas de la session de choix) |
+| Filtres | Recherche libre sur le nom + select de catégorie (`dd_data_don`), filtrage **100 % client** |
+| Volet gauche | Liste des dons du ruleset — bouton Ajouter/Supprimer, **nom cliquable**, catégorie. Ascenseur propre |
+| Volet droit | Fiche du don cliqué (`detail-pp/don.php` chargé en AJAX) + bouton Ajouter/Supprimer à droite du nom |
+
+**Comportement** (spécifié par l'utilisateur le 2026-08-13) :
+- Chaque clic **écrit immédiatement** en base (`ajouterDon` / `supprimerDon`) — le panneau n'a pas
+  de bouton « Enregistrer ». Voir la justification en `DECISIONS_LOG.md` D-PE4a.
+- Le panneau **reste ouvert** ; on enchaîne les choix. Fermeture par le seul bouton ✕, qui recharge
+  la fiche si quelque chose a changé. Le backdrop de `#detail-pp` ne ferme pas au clic — contrairement
+  à `#detail-pp-sub` —, ce qui rend ce panneau sûr pour de la saisie.
+- Un don choisi passe en **surbrillance** (`.is-possede`) et son bouton devient « Supprimer ».
+- Le **compteur affiche le total renvoyé par le serveur** après chaque écriture, jamais une valeur
+  extrapolée côté client.
+- **Deux volets conservés à toutes les largeurs** (choix utilisateur, dérogation assumée à la
+  priorité mobile du §7.3) : sous 992 px, le libellé des boutons disparaît au profit de la seule
+  icône et la catégorie passe sous le nom.
+
+**Points d'implémentation :**
+- Le panneau **gère lui-même** son ouverture/fermeture au lieu de passer par `actualiserPage()` :
+  il doit survivre aux choix successifs, et `actualiserPage()` n'exécute pas les `<script>` injectés —
+  l'initialisation ne peut donc pas venir du HTML retourné.
+- Le bouton du volet droit est **posé en JS**, pas dans `detail-pp/don.php` : ce fichier est partagé
+  avec le compendium et n'a pas à connaître la notion de personnage.
+- Les styles `.dons-picker*` sont dans **`modules.css`** (fragment injecté par AJAX — règle
+  permanente du 2026-06-14), pas dans `personnages-modules.css`.
+- Idempotence garantie par la clé unique `uk_ped (ped_pe_id, ped_do_id)` + `INSERT IGNORE`.
+- `ped_niveau` reste `NULL` : le niveau d'acquisition n'est pas saisi (champ indicatif, non demandé).
+
+### 7.5c Bloc Campagnes — rattachement à écriture immédiate (SP-PE5)
+
+Le bloc (position 9 de §7.3) a deux modes, comme Classes et Compétences : lecture par défaut,
+édition au bouton. L'édition, elle, suit le parti des **Dons** — écriture immédiate, aucun bouton
+« Enregistrer » : ce sont des appartenances booléennes, un commit global n'aurait rien à regrouper.
+
+| Mode | Contenu |
+|---|---|
+| Lecture | Campagne en cours en tête (filet `--clr-accent-2` + badge « En cours »), puis historique traversé. Badge « Participation terminée » si `cp_actif = 0`. Nom cliquable → `detail-pp/campagne.php` (contexte `externe`) |
+| Édition | Une ligne par campagne rattachable, rendue en JS depuis `perCampagnesEditeur`. Actions : Rattacher / Détacher, Campagne en cours / Plus en cours, Clore la participation / Reprendre |
+
+**Modèle de données — deux écritures solidaires.** `dd_campagnes_personnages` est la source de
+vérité du rattachement, `pe_camp_id` n'est que le raccourci « campagne en cours » (`METIER_10`).
+Toute action maintient les deux dans la **même transaction**, selon quatre règles :
+
+1. Désigner une campagne en cours crée la liaison si elle manque et la force `cp_actif = 1` — une
+   campagne en cours est par définition une participation en cours.
+2. Clore la participation de la campagne en cours efface `pe_camp_id` (réciproque de la règle 1).
+3. Détacher la campagne en cours efface `pe_camp_id` : le raccourci ne survit pas à la liaison.
+4. `camp_id = 0` sur `definirCampagneCourante` signifie « aucune campagne en cours ».
+
+**Périmètre du rattachement** : uniquement les campagnes **du propriétaire du personnage**
+(`camp_j_id = pe_j_id`), dans **son ruleset** (`pe_ruleset_var_id`, jamais celui de la session).
+L'application n'a aucun mécanisme d'invitation : rattacher à la campagne d'un tiers n'a pas de
+sens tant que celui-ci n'existe pas. Le filtre porte sur `pe_j_id` et non sur l'utilisateur en
+session, pour qu'un admin consultant la fiche d'un autre joueur voie la même liste que lui.
+
+**Actions serveur** (`personnages/enregistrement.php`) : `rattacherCampagne`, `detacherCampagne`,
+`definirCampagneCourante`, `basculerParticipationCampagne`. Chacune renvoie l'état relu en base
+(`total`, `camp_courante`, `rattache`, `actif`) — l'éditeur n'extrapole jamais, une action pouvant
+en déplacer une autre (désigner une campagne en cours en destitue une). `INSERT IGNORE` sur la clé
+unique `uk_cp (cp_camp_id, cp_pe_id)` rend le rattachement idempotent.
+
+**Effet sur les sources actives.** Cette phase réveille la **priorité 1 de `getActiveResIds()`**,
+jusqu'ici du code mort faute de lignes en base. Son périmètre a donc été corrigé : la **campagne
+en cours** du personnage (`pe_camp_id`), avec liaison active, et non plus l'ensemble de ses
+campagnes `cp_actif = 1`. Sans ce correctif, une campagne terminée continuerait d'ouvrir ses
+ouvrages dans tout le compendium de la session (`$_SESSION['last_pe_id']`).
+
+**Points d'implémentation :**
+- La liste de l'éditeur est l'**union** des campagnes rattachables et des campagnes déjà liées :
+  une liaison devenue non conforme (ruleset changé) reste visible et détachable.
+- `getCampagnesPersonnage()` retient une campagne si la liaison existe **ou** si elle est désignée
+  courante — une donnée héritée d'avant SP-PE5 ne disparaît pas silencieusement de la fiche.
+- Le mode lecture est rendu côté serveur : la fiche n'est rechargée qu'à la **fermeture** de
+  l'éditeur, et seulement si une écriture a eu lieu (même parti que le sélecteur de dons).
+- `.per-camp*` est dans `personnages-modules.css` (bloc rendu par `fiche.php`), **sauf**
+  `.per-camp__badge`, placé dans `modules.css` : le panneau de campagne, fragment injecté en AJAX,
+  l'utilise aussi (règle permanente du 2026-06-14).
+- Côté Campagnes, `detail-pp/campagne.php` reçoit une section **Personnages** en lecture seule
+  (nom, race, classes, statut). Les noms ne sont cliquables que pour les personnages accessibles
+  (`canAccess`) — `detail-pp/personnage.php` est réservé à leur propriétaire.
+- `cp_notes_mj` reste **non exposé** : `METIER_10` le déclare prévu mais non actif, dépendant du
+  module Notes (Phase 5).
 
 ### 7.6 Magie — vue dédiée
 
@@ -1192,6 +1482,38 @@ Emplacements = dd_classe_niveau.cn_sort_n0..9 (au NLS effectif)
 ```
 
 DD2024 : nombre de sorts préparés via `cn_sortPrepare` ; bonus de maîtrise via `dd_bonus_maitrise`.
+
+### 7.7b Total de compétence (conservé — SP-PE3)
+
+Deuxième exception assumée au principe « aide de jeu », de même nature que le NLS : le total est
+le chiffre que le joueur cherche au moment de lancer le dé, et le recalculer de tête à chaque jet
+annule le bénéfice de la fiche.
+
+```
+DD3.5   Total = rangs (pec_maitrise) + modificateur de la caractéristique associée
+DD2024  Total = modificateur de la caractéristique associée
+              + bonus de maîtrise (dd_bonus_maitrise au niveau global)
+                × 1 si maîtrise, × 2 si expertise
+```
+
+Le total est **volontairement incomplet** : ni équipement, ni malus d'armure, ni bonus divers — ces
+données ne sont pas saisies dans le module. La fiche l'annonce explicitement sous le tableau ; c'est
+une aide de calcul, pas une valeur de fiche opposable.
+
+Helpers : `bonusCompetence()` et `getBonusMaitrise()` (`include/personnage_helpers.php`), dupliqués
+en JS dans `competencesEditor` pour le recalcul à la volée pendant la saisie.
+
+> **Ruleset des sources — règle du module.** `getActiveResIds($db, $ruleset_var_id)` prend un second
+> paramètre optionnel. La fiche et l'overlay Personnage passent **le ruleset du personnage**
+> (`pe_ruleset_var_id`, figé à la création), jamais celui de la session : les deux divergent dès
+> qu'un personnage est consulté depuis une session réglée sur l'autre ruleset, et le croisement
+> vide silencieusement toutes les listes (compétences, classes, races). Le compendium, lui, garde
+> le repli sur la session. Voir `DECISIONS_LOG.md` [2026-08-13].
+
+**Compétences sans caractéristique** : `comp_car_id = 0` est une valeur légitime (« Langue » en
+DD3.5). Le chargement fait donc un **LEFT JOIN** sur `dd_caracteristiques` — un INNER JOIN
+supprimerait silencieusement ces compétences de la fiche. Modificateur 0, colonne Carac affichée
+« — ».
 
 ### 7.8 Stockage des sorts
 
@@ -1218,13 +1540,19 @@ js/personnage.js                Menu contextuel, suppression inline, éditeurs D
 css/personnages-modules.css     Styles module — chargé si $css_module = 'personnages'
 
 include/personnage_helpers.php  getPersonnageContext, getPersonnageClasses,
-                                getCampagnesPersonnage, getAlignements,
-                                modCarac, formatMod
-                                (calcul NLS et emplacements ajoutés en 3.5/3.6)
+                                getCampagnesPersonnage, getCampagnesRattachables,
+                                getAlignements, getPersonnageCompetences,
+                                getBonusMaitrise, modCarac, formatMod, bonusCompetence
+                                (calcul NLS et emplacements ajoutés en SP-PE6/PE7)
 
 include/ajax/detail-pp/personnage.php   Vue détail (contexte 'externe' depuis Campagnes)
+include/ajax/detail-pp/dons-picker.php  Sélecteur de dons deux volets (SP-PE4, voir §7.5b)
+include/ajax/detail-pp/campagne.php     Section « Personnages » du panneau campagne (SP-PE5)
 include/ajax/modifier/personnage.php    Overlay création / modification
 ```
+
+> **SP-PE5 n'a créé aucun fichier** : le bloc Campagnes vit dans `fiche.php`, ses actions dans
+> `enregistrement.php`, son éditeur (`campagnesEditor`) dans `js/personnage.js`.
 
 ### 7.11 Découpage en phases — code projet `SP-PE`
 
@@ -1238,14 +1566,17 @@ include/ajax/modifier/personnage.php    Overlay création / modification
 | `SP-PE2` | 3.2 | Classes & niveaux (éditeur DOM inline, domaines divins DD3.5) |
 | `SP-PE3` | 3.3 | Compétences (tableau complet du ruleset) |
 | `SP-PE4` | 3.4 | Dons |
-| `SP-PE5` | — | Bloc Campagnes de la fiche (lecture seule) |
+| `SP-PE5` | — | Bloc Campagnes de la fiche (lecture + rattachement, voir §7.5c) |
 | `SP-PE6` | 3.5 | NLS prestige (DD3.5) |
 | `SP-PE7` | 3.6 | Vue Magie (calcul NLS + sorts par jour + listes cliquables) |
 | `SP-PE8` | 3.7 | Emplacement Mode jeu + passe responsive < 992px |
 
-Ordre de reprise recommandé : `SP-PE3` → `SP-PE4` → `SP-PE5` → `SP-PE6` → `SP-PE7` → `SP-PE8`.
-`SP-PE3` et `SP-PE4` réutilisent le pattern d'éditeur DOM éprouvé en `SP-PE2` et apportent le plus
-de liens cliquables vers le compendium — la finalité même du module (§7.1).
+Ordre de reprise recommandé : `SP-PE6` → `SP-PE7` → `SP-PE8`. `SP-PE7` (Magie) reste la plus lourde.
+
+> `SP-PE5` avait été annoncée « lecture seule sur des données déjà disponibles ». Vérification
+> faite à sa reprise : ces données ne pouvaient pas exister — aucun écran n'alimentait
+> `dd_campagnes_personnages` ni n'écrivait `pe_camp_id`. La phase a donc livré le rattachement
+> avec l'affichage (§7.5c). Leçon reportée dans `DECISIONS_LOG.md` [2026-08-14].
 
 **Aucun patch SQL n'est attendu de `SP-PE3` à `SP-PE8`** : `dd_personnages_competences`,
 `dd_personnages_dons`, `dd_personnages_nls`, `dd_personnages_sorts` et
@@ -1265,6 +1596,9 @@ Hiérarchie : **Campagne → Scénario → Chapitre → Rencontre → Opposition
 - **Sources** : `dd_campagnes_sources` — priorité 1 de la chaîne `getActiveResIds()`.
 - **Personnages** : lien **N-N** via `dd_campagnes_personnages` (source de vérité).
   `dd_personnages.pe_camp_id` n'est qu'un raccourci « dernière campagne jouée ».
+  Le rattachement se pilote **depuis la fiche du personnage** (SP-PE5, §7.5c) ; le panneau de
+  campagne n'en donne qu'une vue en lecture seule (section « Personnages »), et le compteur de
+  `campagnes/index.php` s'appuie sur la même table.
 - **Rencontre** : rattachement à un chapitre **obligatoire** (`re_scc_id` NOT NULL).
   Effectifs décrits **littéralement** dans `re_composition` (texte).
 - **Opposition** : copie **éditable** d'un monstre du compendium (`dd_oppositions`), propre à une
@@ -1277,6 +1611,13 @@ Hiérarchie : **Campagne → Scénario → Chapitre → Rencontre → Opposition
 - **Suppression douce** (flag `_supprime`, cascade application, unlink PDF, pas d'UI restauration).
 - **Contexte de navigation (header)** : derniers campagne/scénario/chapitre consultés mémorisés en
   session, raccourcis affichés dans le header sur toutes les pages — voir §12.
+
+**Liste `campagnes/index.php`** — liste dédiée (pas le moteur `compendium-liste.php`), filtrée sur
+`camp_j_id = j_id` **et** `camp_ruleset_var_id = $_SESSION['ruleset_var_id']`, comme la liste des
+personnages (§7.4, qui en est calquée). Le ruleset étant constant sur toute la liste, il est affiché
+dans le titre — `Campagnes (DD2024)` — et non en colonne. Colonnes : ⋮ · Nom · Univers · Scénarios ·
+Personnages. Une campagne est toujours créée dans le ruleset actif (§3, saisie impossible) : elle
+apparaît donc immédiatement dans la liste où on vient de la créer.
 
 Module **NON responsive** — usage desktop MJ exclusif. Menu visible si `j_mode_campagne = 1`.
 
@@ -1781,6 +2122,187 @@ pas devinables de façon fiable, l'auteur les reprend à la main.
 
 Seuil : 992px.
 
+Paliers effectivement déclarés dans les CSS : **991px** (seuil principal), **768px** et **479px**.
+Aucun autre palier ne doit être introduit sans arbitrage.
+
+### 10b. Menu principal déroulant — SP-RS1
+
+Sous 992px, la nav du header devient un menu déroulant :
+
+- `include/header.php` ajoute un bouton `#site-nav-toggle` (`.site-header__burger`) **avant** la
+  nav, et la nav reçoit la classe `.site-header__nav--collapsible` + l'id `#site-nav`.
+- Le bouton et le panneau ne sont rendus que pour un utilisateur **connecté** (`$nav_collapsible`) :
+  hors session la nav ne contient qu'un lien « Connexion » et reste affichée telle quelle.
+- CSS (`css/main.css`, media query 991px) : bouton et panneau en `flex: 0 0 100%` — ils occupent
+  toute la largeur d'affichage, l'un sous l'autre, dans le flux du header (le header sticky
+  grandit à l'ouverture, il ne recouvre pas la page). Liens en colonne, cible tactile 44px,
+  panneau limité à `calc(100vh - 160px)` avec scroll interne.
+- `.site-header__nav-label` : libellé texte des liens icône (Déconnexion), masqué en desktop,
+  affiché dans le panneau.
+- JS (`js/main.js`) : `toggleMenuPrincipal(forceOuvrir)` / `fermerMenuPrincipal()`, état porté par
+  `.is-open` + `aria-expanded`. Fermeture au clic hors `.site-header`, à `Échap`, et au
+  franchissement du seuil `NAV_BREAKPOINT` (991) au resize.
+
+### 10c. Mode debug — badge de dimensions — SP-RS0
+
+Outil de mise au point du responsive, **réservé aux administrateurs**.
+
+- Bascule : `admin/index.php`, section « Outils de développement » (`section=debug`, POST + CSRF).
+- Stockage : `$_SESSION['debug_ui']` uniquement — aucune colonne en base, remis à zéro à la
+  déconnexion.
+- Rendu : `include/header.php` émet `#debug-viewport` si `$_SESSION['debug_ui']` **et**
+  `$_SESSION['j_admin']`. Les paliers surveillés sont passés en `data-breakpoints="991,768,479"`.
+- Affichage : `largeur × hauteur` du viewport, `dpr`, puis chaque palier — souligné et en gras
+  quand il est actif. Recalcul sur `resize` et `orientationchange`.
+- Position : `.debug-viewport` en `position: fixed`, `z-index: 9000` (au-dessus des panneaux, max
+  applicatif 300). Un clic fait tourner le badge entre les quatre coins, mémorisé en
+  `localStorage.debugViewportCoin`.
+
+### 10d. Bandeau de contexte en fil d'Ariane — SP-RS2
+
+Mesures avant refonte, à 375×812 avec la cascade complète : bandeau de **150px** (4 boutons
+empilés, un par ligne, 27px de haut), soit 259px consommés avant le premier contenu (32% de
+l'écran). Après : **57px, quelle que soit la profondeur**.
+
+- `include/header-context.php` produit un **rendu unique** pour toutes les largeurs : icône de
+  type, libellé (`.site-header__context-type`), nom (`.site-header__context-nom`), et un
+  séparateur `.site-header__context-sep` entre deux niveaux. Le niveau le plus profond porte
+  `.site-header__context-btn--courant`.
+- Icônes par type : `fa-dungeon` (campagne), `fa-scroll` (scénario), `fa-bookmark` (chapitre),
+  `fa-dice-d20` (rencontre), `fa-user` (personnage — repli hors campagne).
+- **≥992px** : rendu identique à avant SP-RS2, aux icônes près. Libellés affichés, séparateurs
+  masqués, pas d'accent sur le niveau courant.
+- **≤991px** : `flex-wrap: nowrap` + `overflow-x: auto`, libellés masqués, séparateurs visibles,
+  cibles tactiles 40px, ancêtres tronqués en ellipsis à `max-width: 45vw`, niveau courant jamais
+  tronqué et souligné par `--clr-accent-2`.
+- `flex: 0 0 auto` sur les boutons est **structurant** : avec `flex-shrink: 1` (défaut) les
+  boutons se compriment pour tenir dans la ligne et la barre ne déborde jamais — le fil d'Ariane
+  ne défile pas et tous les noms sont tronqués.
+- Dégradé de bord droit : pseudo-élément sur `#site-header-context-zone` (conteneur non
+  scrollable) et non sur la barre, sinon il défilerait avec le contenu. Sur un fil court il se
+  superpose au fond de la barre, donc invisible — pas de garde JS nécessaire.
+- `contexteHeaderCadrer()` (`js/main.js`) amène le niveau courant à l'écran : appelée au
+  `DOMContentLoaded` et à la fin de `actualiserContexteHeader()`, après injection du fragment AJAX.
+- **Piège de spécificité** : Font Awesome est chargé après `main.css`, son `.fa { display }`
+  l'emporte à spécificité égale. Toute règle `display` visant une icône FA doit être écrite à
+  deux classes (`.site-header__context .site-header__context-sep`).
+
+### 10e. Listes du compendium sur smartphone — SP-RS3
+
+Le moteur `compendium-liste.php` avait déjà son dispositif mobile (toggle de filtres,
+`col-primary` / `col-secondary`, sous-ligne `.comp-subrow`, barre bulk masquée). SP-RS3 corrige
+ce qui ne fonctionnait pas, mesuré à 375×812 :
+
+- **Menu ⋮ restauré.** `.col-action { display: none }` rendait les listes **en lecture seule sur
+  téléphone** : ni Modifier, ni Dupliquer, ni Supprimer, ni les `row_actions` déclarées par les
+  pages. La colonne est désormais affichée à 44px, bouton 40×40. Elle reste à gauche du nom,
+  comme en desktop — l'ordre des colonnes est celui du moteur, identique pour les 9 entités.
+- **Recadrage du menu déroulant dans le viewport** (`compToggleMenu()`, `js/compendium.js`) : le
+  menu est `position: fixed` positionné depuis le bouton. Sur écran étroit il débordait à droite,
+  et s'ouvrait hors écran pour les dernières lignes. Il est maintenant contraint avec 8px de
+  marge et bascule au-dessus du bouton quand il n'y a pas la place dessous. Le menu est rendu
+  visible **avant** la mesure — `offsetWidth`/`offsetHeight` valent 0 sous `.noDisplay`.
+- **Menu Sources empilé.** En mobile le menu passe en `position: static`, mais
+  `.comp-filtre-item` est un conteneur flex en ligne : le menu devenait un frère de ligne et se
+  partageait la largeur avec son bouton (141px + 200px mesurés). Le conteneur passe en
+  `flex-direction: column`.
+- **Cibles tactiles** portées à 40px : selects de filtre (31px), bouton Sources (32px), items de
+  source, labels de checkbox, boutons d'action de la barre de filtre (**20px de haut**, icône
+  seule, libellé masqué en mobile), boutons de pagination (32px). La pagination peut passer sur
+  deux lignes en fenêtre large — `.comp-pagination` est déjà en `flex-wrap`.
+
+> Limite connue, non traitée : sous 992px les en-têtes des colonnes secondaires sont masqués, donc
+> **seul le tri sur la colonne primaire reste accessible**. Les valeurs restent lisibles dans
+> `.comp-subrow`. À reprendre si le besoin se confirme (un select « Trier par » dans le panneau de
+> filtres serait le vecteur naturel).
+
+
+### 10f. Barre de filtrage — composant partagé — SP-RS3b
+
+La barre de filtrage n'est plus propre au compendium : elle vit dans `css/modules.css` (chargé sur
+toutes les pages) et `js/main.js`, et sert au compendium comme au module Personnages.
+
+- **Classes `comp-filtre-*` conservées** malgré le déplacement : les renommer imposerait de
+  reprendre `compendium-liste.php`, `admin-liste.php`, `ajax/modifier/objet.php` et
+  `compendium.js` sans rien apporter. Le préfixe est historique, pas un périmètre.
+- **Markup de référence** (identique dans les deux modules) :
+  `.comp-filtre-bar` > bouton `#filtre-toggle-btn.comp-filtre-toggle` + `#comp-filtre-content` >
+  `form.comp-filtre-form` > `.comp-filtre-item` (variantes `--text`, `--sources`, `--actions`).
+  Une seule barre par page : `toggleFiltresMobile()` travaille sur des identifiants fixes.
+- **Pas de libellé visible** : le type de critère est porté par la première option
+  (`— Campagne —`) et l'attribut `title`, comme dans le compendium.
+- **Pas d'auto-soumission des selects.** Le module Personnages les soumettait au `change` ; avec
+  un panneau repliable, chaque rechargement referme le panneau et interdit de poser deux critères
+  d'affilée. Un seul point de soumission : le bouton Filtrer.
+- L'ancien composant `.per-filtres*` est supprimé de `personnages-modules.css`.
+- `admin-modules.css` conserve sa propre copie partielle (`.comp-filtre-form`, `-input`,
+  `-select`), chargée après `modules.css` : les pages admin gardent leur rendu et héritent en plus
+  des propriétés que leur copie ne déclare pas (contrôles pleine largeur, cibles 40px sous 992px)
+  — cohérent avec §10, qui aligne déjà l'admin sur le compendium. Dé-doublonner cette copie reste
+  à faire.
+
+
+### 10g. Panneaux en feuille plein écran — SP-RS4
+
+Sous 992px, `#detail-pp`, `#modification` et `#detail-pp-sub` deviennent des feuilles plein écran.
+Défauts corrigés, mesurés à 375×812 avant travaux :
+
+| Défaut | Mesure |
+|---|---|
+| `#detail-pp-sub` sortait de l'écran à droite | bord droit à **386px** pour 375 de viewport |
+| Boutons flottants recouvrant le titre du contenu | le `<h2>` chevauchait Retour **et** Fermer |
+| Cibles tactiles | Fermer **30×27**, Retour **81×32** |
+| `max-height: 95vh` | `vh` ignore la barre d'URL rétractable |
+| `#modification` sans bouton Fermer | ~4px de backdrop restants de chaque côté |
+
+- **Barre d'en-tête commune.** `barrePanneau()` (`js/main.js`) enveloppe les boutons dans
+  `.overlay-panel__bar`, injectée aux trois points de chargement (`_chargerDetailPP`,
+  `actualiserPageModif`, `actualiserPageSub`). Aucune fiche `detail-pp/*` ni formulaire
+  `modifier/*` n'est touchée : tout le chrome des panneaux vient de `main.js`.
+- **`display: contents` en desktop** : la boîte de la barre disparaît, les boutons restent
+  `position: absolute` aux coins du panneau — rendu de bureau strictement inchangé (vérifié à
+  1280px : mêmes coordonnées qu'avant). Sous 992px la barre reprend une boîte flex, les boutons
+  passent dans le flux à 44px et ne peuvent plus recouvrir le contenu.
+- **Feuille** : `inset: 0`, `height: 100dvh` avec repli `100vh`, `transform: none`,
+  sans rayon ni bordure latérale. Seul `.overlay-panel__inner` défile ; la barre reste fixe.
+- **Sous-panneau** décalé de 24px vers le bas, coins hauts arrondis. La bande laissée visible
+  appartient à `#detail-pp-sub-backdrop` (z-index 299 sous le panneau à 300) : un tap dessus
+  ferme le sous-panneau — vérifié par `elementFromPoint`.
+- **`#modification` reçoit un bouton Fermer** appelant `fermerModification()`. Seule évolution
+  visible en desktop, assumée : le panneau d'édition ne se fermait que par le bouton Annuler du
+  formulaire ou par le backdrop.
+- Les marges hautes qui réservaient la bande des boutons flottants sont neutralisées sous 992px :
+  `.overlay-panel .camp-detail` et `.glossaire-sub__header`. Le badge
+  `.glossaire-sub__ligne-badge`, positionné en absolu pour s'aligner sur l'ancien Fermer, repasse
+  en statique — il se serait sinon superposé à la barre.
+
+### 10h. Relevés d'affichage — SP-RS5a
+
+Base de mesures destinée à arbitrer les paliers responsive sur des données réelles.
+
+- **Collecte** : `releveDevice()` (`js/main.js`) poste vers `include/ajax/releve-device.php` au
+  premier chargement de page de chaque session authentifiée. Déclenchement piloté par
+  `RELEVE_DEVICE`, posé par `include/footer.php` tant que `$_SESSION['releve_device']` est absent.
+- **Données** : viewport CSS, `screen.width/height`, `devicePixelRatio`, orientation déduite du
+  viewport, `maxTouchPoints`, plateforme (`navigator.userAgentData`), langue, `userAgent`.
+  Aucune adresse IP, aucune géolocalisation.
+- **Stockage** : instantané dans `dd_joueurs.j_last_*` (écrasé à chaque session) et ligne datée
+  dans `dd_connexions`. Patch : `sql/2026-08-22_releves_device_sp-rs5.sql`.
+- **Unicité** : `uk_co_session (co_j_id, co_session)` où `co_session = sha1(session_id())`, avec
+  `INSERT IGNORE`. Le drapeau de session couvre le cas courant, la clé couvre les onglets ouverts
+  simultanément.
+- **Consultation** : `admin/connexions.php` — répartition par palier, largeurs les plus
+  fréquentes, journal des 200 dernières connexions. Les bornes de la synthèse (479 / 767 / 991)
+  reprennent les media queries déclarées : **à mettre à jour si un palier bouge en SP-RS5**.
+- **Prérequis** : tant que le patch SQL n'est pas appliqué, le beacon échoue sans poser le drapeau
+  de session — la collecte redémarre d'elle-même une fois la base à jour.
+
+> Premiers relevés manuels, avant collecte automatique : Galaxy A52 **342 × 632** (dpr 3.16),
+> Galaxy A12 **384 × 725** (dpr 1.88). Deux appareils sous 400px CSS, donc tous deux sous le
+> palier 479 — celui qui n'est aujourd'hui utilisé que par une seule règle du projet. Le A52
+> descend à 342px à cause du zoom d'affichage système : deux utilisateurs d'un même modèle
+> peuvent tomber dans des paliers différents.
+
 ---
 
 ## 11. Profil utilisateur
@@ -1797,6 +2319,19 @@ DEV_MODE = true (défini dans config/db.config.php, actif automatiquement en loc
 | Mode campagne | j_mode_campagne | Active/désactive le menu Campagnes |
 | Affichage ruleset | j_affichage_ruleset | Affiche le ruleset dans le header |
 | Éléments par page | j_items_par_page | Taille des listes (10/20/50/100) |
+
+Ces cinq paramètres sont écrits en base **et** répercutés en session (`ruleset_var_id`,
+`rulesetRep`, `j_mode_campagne`, `j_affichage_ruleset`, `j_theme`) : ils prennent effet
+immédiatement, sans reconnexion.
+
+> ⚠️ **Changement de ruleset** — si `j_default_ruleset_var_id` change réellement de valeur, la
+> sauvegarde appelle en plus `resetContexteRuleset()` (`helpers.php`) : personnage, campagne,
+> scénario, chapitre et rencontre mémorisés appartiennent au ruleset quitté. Les conserver
+> afficherait des boutons de header de l'autre ruleset et, `last_pe_id` étant la priorité 1 de
+> `getActiveResIds()`, ferait remonter les sources de la campagne d'un personnage hors ruleset.
+> La même bascule recharge `$ruleset_nom_actif`, `$ressources_dispo` et `$res_selectionnes`, tous
+> trois calculés avant le traitement du POST, pour que la section "Mes sources" ci-dessous ne reste
+> pas sur les ressources du ruleset précédent. Détail en §12 et `DECISIONS_LOG.md` [2026-08-13].
 
 ### Section "Mes sources" — sélection personnelle des ressources
 
@@ -2044,6 +2579,29 @@ function invalidateLastCampagneContext(string $niveau, int $id): void {
 
 Efface le niveau supprimé et tout ce qui est en dessous, conserve les ancêtres — un lien mémorisé ne
 peut donc jamais pointer vers une fiche supprimée.
+
+**Invalidation au changement de ruleset** — personnages, campagnes, scénarios, chapitres et
+rencontres appartiennent tous à un ruleset donné. Basculer de ruleset dans `profil/index.php`
+(section « Paramètres ») purge donc l'intégralité du contexte mémorisé via
+`resetContexteRuleset()` (`helpers.php`), appelée juste après la réécriture de
+`$_SESSION['ruleset_var_id']` et **seulement si l'id change réellement** :
+
+```php
+function resetContexteRuleset(): void {
+  unset($_SESSION['last_pe_id']);
+  unset($_SESSION['last_camp_id'], $_SESSION['last_camp_nom']);
+  unset($_SESSION['last_sce_id'],  $_SESSION['last_sce_nom']);
+  unset($_SESSION['last_scc_id'],  $_SESSION['last_scc_nom']);
+  unset($_SESSION['last_re_id'],   $_SESSION['last_re_nom']);
+}
+```
+
+Ce n'est pas qu'un confort d'affichage : `last_pe_id` est le premier maillon de la chaîne de
+sélection des sources (`getActiveResIds()`, §7). Conservé après bascule, il fait remonter les
+sources de la campagne d'un personnage de l'autre ruleset — même famille de bug que
+DECISIONS_LOG [2026-08-13]. La même bascule recharge aussi, dans la page profil, le libellé et les
+cases à cocher de la section « Mes sources » sur le nouveau ruleset : sans cela l'écran resterait
+sur les ressources du ruleset quitté jusqu'au prochain rechargement.
 
 **Affichage** — un bouton par niveau actif (pas de regroupement en `<select>` comme en v1), dans un
 bloc dédié sous la barre de header principale. Le rendu HTML (le `foreach` sur les niveaux, les
@@ -2380,9 +2938,9 @@ SP-C2 à SP-C7 s'implémentent entité par entité. État au 2026-07-01 :
 
 ### Mise en page — Thèmes TERMINE
 
-### Phase 3 — Personnages EN PAUSE (`SP-PE`)
-Fiche, classes/niveaux, sorts, compétences, dons, NLS (DD3.5).
-`SP-PE0→PE2` livrées (dernière livraison 2026-06-14) ; `SP-PE3→PE8` à faire — checklist en §0,
+### Phase 3 — Personnages EN COURS (`SP-PE`)
+Fiche, classes/niveaux, sorts, compétences, dons, campagnes, NLS (DD3.5).
+`SP-PE0→PE5` livrées (dernière livraison 2026-08-14) ; `SP-PE6→PE8` à faire — checklist en §0,
 contenu des phases en §7.11.
 
 ### Phase 4 — Campagnes
