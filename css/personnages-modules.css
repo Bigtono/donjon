@@ -9,190 +9,21 @@
 */
 
 /* ============================================================
-   MENU CONTEXTUEL — classes partagées (clone de compendium)
+   MENU CONTEXTUEL ET CONFIRMATION DE SUPPRESSION
+   Le clone local des classes .comp-menu-* / .comp-confirm-* a été supprimé le
+   2026-08-22 (SP-RS6b) : ces styles vivent dans modules.css avec le reste du
+   moteur de liste. Le clone, chargé après, écrasait notamment les cibles
+   tactiles de 44px du menu ⋮ sous 992px.
    ============================================================ */
-
-.comp-menu-ligne {
-  position: relative;
-  display: inline-block;
-}
-
-.comp-menu-btn {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  line-height: 1;
-  cursor: pointer;
-  color: var(--clr-text-muted);
-  padding: 2px 6px;
-}
-
-.comp-menu-dropdown {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 4px 12px rgba(0,0,0,.25);
-  min-width: 160px;
-  z-index: 200;
-}
-
-.comp-menu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm);
-  width: 100%;
-  padding: var(--sp-sm) var(--sp-md);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  color: var(--clr-text);
-  font-size: .92em;
-}
-
-.comp-menu-item:hover {
-  background: var(--clr-surface-hover);
-}
-
-.comp-menu-item--danger {
-  color: var(--clr-danger);
-}
-
-.comp-confirm-suppr {
-  /* Caché à l'origine — réinjecté dans la ligne via JS au moment de la suppression */
-}
-
-.comp-confirm-row {
-  background: var(--clr-surface-alt, var(--clr-surface));
-  padding: var(--sp-md);
-}
-
-.comp-confirm-row > span {
-  margin-right: var(--sp-md);
-}
 
 /* ============================================================
    LISTE — TABLEAU
+   Le composant .per-liste a été supprimé le 2026-08-22 (SP-RS6b) : la liste
+   des personnages est rendue par le moteur partagé include/compendium-liste.php
+   et utilise donc .comp-liste, comme le compendium et les règles.
    ============================================================ */
 
-.per-liste {
-  width: 100%;
-  border-collapse: collapse;
-}
 
-.per-liste thead th {
-  text-align: left;
-  font-weight: 600;
-  color: var(--clr-text-muted);
-  font-size: .85em;
-  text-transform: uppercase;
-  letter-spacing: .03em;
-  padding: var(--sp-sm) var(--sp-md);
-  border-bottom: 2px solid var(--clr-border);
-}
-
-.per-liste tbody tr {
-  border-bottom: 1px solid var(--clr-border);
-  transition: background .15s ease;
-}
-
-.per-liste tbody tr:hover {
-  background: var(--clr-surface-hover);
-}
-
-.per-liste td {
-  padding: var(--sp-md);
-  vertical-align: middle;
-}
-
-.per-liste .col-action {
-  width: 32px;
-  padding: var(--sp-sm);
-}
-
-.per-liste__nom-libelle {
-  font-weight: 600;
-  color: var(--clr-text);
-}
-
-.per-liste__col-align {
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Résumé mobile — caché en desktop, visible en mobile sous le nom */
-.per-liste__resume-mobile {
-  display: none;
-}
-
-/* ============================================================
-   RESPONSIVE — < 992px (tablette / smartphone)
-   - Empilement des filtres
-   - Colonnes secondaires cachées : seul le NOM reste sur la 1re ligne
-   - Résumé sous le nom (race · classes · alignement · campagne)
-   ============================================================ */
-
-@media (max-width: 991px) {
-
-  /* Liste : colonnes secondaires cachées en mobile */
-  .per-liste thead {
-    display: none;
-  }
-
-  .per-liste,
-  .per-liste tbody,
-  .per-liste tr,
-  .per-liste td {
-    display: block;
-    width: 100%;
-  }
-
-  .per-liste tr {
-    position: relative;
-    padding: var(--sp-md) var(--sp-md) var(--sp-md) 48px;
-  }
-
-  /* Bouton ⋮ remonté en haut-gauche de la carte */
-  .per-liste .col-action {
-    position: absolute;
-    top: var(--sp-sm);
-    left: var(--sp-sm);
-    width: auto;
-    padding: 0;
-  }
-
-  /* Toutes les colonnes secondaires : masquées */
-  .per-liste__col-sec {
-    display: none;
-  }
-
-  /* Cellule Nom = seul élément visible sur la 1re ligne */
-  .per-liste__nom {
-    padding: 0;
-  }
-
-  .per-liste__nom-libelle {
-    display: block;
-    font-size: 1.1em;
-  }
-
-  /* Résumé : ligne en dessous du nom */
-  .per-liste__resume-mobile {
-    display: block;
-    color: var(--clr-text-muted);
-    font-size: .88em;
-    margin-top: 2px;
-    line-height: 1.4;
-  }
-
-  /* Cibles tactiles : éviter les écarts trop serrés */
-  .per-liste tbody tr {
-    min-height: 56px;
-  }
-}
 
 /* ============================================================
    SP-PE1 — Fiche personnage (vue unique responsive)
@@ -1041,5 +872,215 @@
   .per-camp-editor__actions .btn {
     min-height: 44px;
     flex: 1 1 auto;
+  }
+}
+
+/* ============================================================
+   LISTE DES PERSONNAGES — ajustements SP-RS6d
+   Le rendu vient du moteur partagé ; seules les spécificités du module
+   sont déclarées ici, portées par l'id de conteneur du moteur.
+   ============================================================ */
+
+/* Nom du personnage en gras, toutes largeurs */
+#comp-liste-personnage .col-primary {
+  font-weight: 700;
+}
+
+@media (max-width: 991px) {
+
+  /* La campagne passe sur sa propre ligne sous la sous-ligne mobile :
+     c'est l'information la plus longue et la moins utile au balayage. */
+  #comp-liste-personnage .comp-subrow__part--campagne_nom {
+    display: block;
+  }
+
+  #comp-liste-personnage .comp-subrow__part--campagne_nom::before {
+    content: none;
+  }
+}
+
+/* ============================================================
+   FICHE PERSONNAGE — ajustements SP-RS6d
+   ============================================================ */
+
+/* --- En-tête : grille nommée ---------------------------------------------
+   Une seule structure à plat, deux dispositions. Au-dessus de 992px les deux
+   boutons restent groupés en haut à droite ; en dessous, le retour se cale au
+   bout de la ligne du nom et Modifier au bout de la ligne meta. */
+.per-fiche__header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas:
+    "nom  retour modifier"
+    "meta retour modifier";
+  align-items: start;
+  gap: var(--sp-xs) var(--sp-sm);
+}
+
+.per-fiche__header .per-fiche__nom {
+  grid-area: nom;
+}
+
+.per-fiche__header .per-fiche__meta {
+  grid-area: meta;
+}
+
+.per-fiche__header .per-fiche__retour {
+  grid-area: retour;
+}
+
+.per-fiche__header .per-fiche__modifier {
+  grid-area: modifier;
+}
+
+/* Bouton d'édition d'un bloc : icône seule, calée à droite */
+.per-fiche__editer {
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: flex-start;
+}
+
+/* Le bloc Classes vit dans le bloc Identité : son bouton reste une icône à
+   toutes les largeurs, contrairement aux autres boutons Modifier. */
+#btn-editer-classes .per-btn-label {
+  display: none;
+}
+
+/* Chevron du bloc repliable */
+.per-fiche__replier i {
+  transition: transform 0.2s;
+}
+
+.per-fiche__replier.is-open i {
+  transform: rotate(180deg);
+}
+
+/* --- Bloc Identité : ligne Classes ---------------------------------------- */
+
+/* La ligne Classes porte une liste : elle occupe toute la largeur de la
+   grille du bloc Identité au lieu d'une seule colonne. */
+.per-identite__row--large {
+  grid-column: 1 / -1;
+  align-items: flex-start;
+}
+
+.per-identite__valeur-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+}
+
+.per-identite__valeur {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.per-identite__row--classes .per-classes__item:first-child {
+  padding-top: 0;
+}
+
+/* --- Bloc Combat : CA et PV toujours côte à côte --------------------------
+   flex-basis 140px + min-width 140px faisaient passer les deux tuiles l'une
+   sous l'autre dès que la largeur utile descendait sous ~296px, ce qui est le
+   cas d'un écran à 342px CSS (Galaxy A52, cf. §10h). */
+.per-combat__stat {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* --- Bloc Dons : nom et type sur la même ligne ---------------------------- */
+.per-dons__item {
+  align-items: flex-start;
+}
+
+.per-dons__nom {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.per-dons__cat {
+  flex: 0 0 auto;
+  margin-left: var(--sp-md);
+  text-align: right;
+}
+
+@media (max-width: 991px) {
+
+  /* Libellés des boutons d'action masqués : l'icône suffit, le title reste */
+  .per-btn-label {
+    display: none;
+  }
+
+  .per-fiche__header {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "nom  retour"
+      "meta modifier";
+    align-items: center;
+  }
+
+  /* La catégorie du don reste sur la ligne du nom (annule la mise en colonne
+     posée en SP-PE4), alignée à droite et calée en haut si le nom déborde. */
+  .per-dons__item {
+    flex-direction: row;
+    gap: var(--sp-sm);
+  }
+}
+
+/* --- Bloc Compétences : même mécanique que le bloc Dons (SP-RS6e) ---------
+   Le <table> a été abandonné au profit d'une liste flex : nom à gauche,
+   valeurs calées à droite, alignées en haut quand le nom passe à la ligne.
+   Seule différence avec les dons : la ligne d'en-tête, en gras. */
+.per-comp {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.per-comp__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px dashed var(--clr-border);
+}
+
+.per-comp__item:last-child {
+  border-bottom: none;
+}
+
+.per-comp__item--entete {
+  font-weight: 700;
+  color: var(--clr-text-muted);
+  font-size: .85em;
+}
+
+.per-comp__nom {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Largeur en rem, pas en em : l'en-tête et les lignes n'ont pas la même
+   taille de police, une largeur en em produirait des colonnes décalées. */
+.per-comp__val {
+  flex: 0 0 auto;
+  width: 5rem;
+  margin-left: var(--sp-sm);
+  text-align: right;
+  font-size: .9em;
+  font-variant-numeric: tabular-nums;
+}
+
+.per-comp__val--total {
+  font-weight: 600;
+  color: var(--clr-text);
+}
+
+@media (max-width: 991px) {
+
+  /* Colonnes resserrées : la place utile revient au nom de la compétence */
+  .per-comp__val {
+    width: 3.9rem;
+    margin-left: var(--sp-xs);
   }
 }

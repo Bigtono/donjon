@@ -42,6 +42,13 @@ $stmt = $db->prepare('
 $stmt->execute([$ruleset_id, '%[[tab:' . $tab['tab_slug'] . ']]%']);
 $regles = $stmt->fetchAll();
 
+// Total tous champs hôtes confondus (règles, monstres, compendium — SP-TB7).
+// Seules les règles sont listées nominativement ; le reste est compté, pour ne
+// plus afficher « référencé par aucune règle » sur un tableau bel et bien
+// inséré ailleurs.
+$usages_total  = compterUsagesTableau($db, (string)$tab['tab_slug'], $ruleset_id);
+$usages_autres = max(0, $usages_total - count($regles));
+
 // Source
 $res_nom = '';
 if (!empty($tab['tab_res_id'])):
@@ -68,40 +75,52 @@ $index = preg_match('/[@%#$&]/', (string)$tab['tab_contenu'])
       <?php if (!$tab['tab_visible']): ?>
         <span class="regles-badge regles-badge--brouillon">Brouillon</span>
       <?php endif ?>
-    </h2>
 
-    <?php if ($peut_editer): ?>
-      <button class="regle-detail__edit-btn"
-              onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/tableau.php', <?= $id ?>)"
-              title="Modifier">
-        <i class="fa fa-edit"></i>
-      </button>
-    <?php endif ?>
+      <?php // Bouton dans le titre, à la suite des badges — et non poussé au
+            // bord droit du panneau, où il passait sous la croix de fermeture
+            // de .overlay-close (SP-TB11). Même disposition que les fiches du
+            // compendium (.sort-detail__edit-btn). ?>
+      <?php if ($peut_editer): ?>
+        <button class="regle-detail__edit-btn"
+                onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/tableau.php', <?= $id ?>)"
+                title="Modifier">
+          <i class="fa fa-edit"></i>
+        </button>
+      <?php endif ?>
+    </h2>
   </div>
 
   <?= rendreTableau($tab, $index, $ruleset_id, $db) ?>
 
   <p class="form-hint">
     Tag à insérer dans une règle :
-    <code class="reg-tab-liste__tag" onclick="reglesCopierTag(this)" title="Cliquer pour copier">[[tab:<?= h($tab['tab_slug']) ?>]]</code>
+    <code class="reg-tab-liste__tag" onclick="copierTagTableau(this)" title="Cliquer pour copier">[[tab:<?= h($tab['tab_slug']) ?>]]</code>
   </p>
 
-  <?php if (!empty($regles)): ?>
+  <?php if (!empty($regles) || $usages_total > 0): ?>
     <div class="regle-detail__enfants">
       <h4>Utilisé par</h4>
-      <ul class="regle-detail__enfants-liste">
-        <?php foreach ($regles as $r): ?>
-          <li>
-            <a href="<?= BASE_URL ?>/regles/regle.php?id=<?= (int)$r['reg_id'] ?>"
-               onclick="fermerDetailPP()">
-              <?= h($r['reg_nom']) ?>
-            </a>
-          </li>
-        <?php endforeach ?>
-      </ul>
+      <?php if (!empty($regles)): ?>
+        <ul class="regle-detail__enfants-liste">
+          <?php foreach ($regles as $r): ?>
+            <li>
+              <a href="<?= BASE_URL ?>/regles/regle.php?id=<?= (int)$r['reg_id'] ?>"
+                 onclick="fermerDetailPP()">
+                <?= h($r['reg_nom']) ?>
+              </a>
+            </li>
+          <?php endforeach ?>
+        </ul>
+      <?php endif ?>
+      <?php if ($usages_autres > 0): ?>
+        <p class="text-muted">
+          <?= $usages_autres ?> insertion<?= $usages_autres > 1 ? 's' : '' ?>
+          hors du module Règles (monstres, compendium).
+        </p>
+      <?php endif ?>
     </div>
   <?php else: ?>
-    <p class="text-muted">Ce tableau n'est référencé par aucune règle.</p>
+    <p class="text-muted">Ce tableau n'est inséré dans aucun texte.</p>
   <?php endif ?>
 
   <?php if ($res_nom !== ''): ?>

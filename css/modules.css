@@ -539,6 +539,204 @@
   border: 1px solid rgba(249, 226, 175, .3);
 }
 
+.regles-badge--ecran {
+  background: var(--clr-warning, #a06010);
+  color: #fff;
+}
+
+/* ============================================================
+   FICHE DÉTAIL — RÈGLE ET TABLEAU (#detail-pp)
+   Déplacé depuis regles-modules.css en SP-TB10, pour la même
+   raison que le bloc glossaire ci-dessus : ces deux fiches
+   s'ouvrent depuis n'importe quelle page (un tag @id@ de règle
+   ou [[tab:slug]] est résolu jusque dans les stats de monstre et
+   les descriptions du compendium), où regles-modules.css n'est
+   pas chargé. Le gestionnaire de tableaux a lui aussi quitté le
+   module Règles (tableaux/index.php).
+   ============================================================ */
+
+.regle-detail {
+  padding: var(--sp-md, 16px);
+}
+
+.regle-detail__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm, 8px);
+  margin-bottom: var(--sp-md, 16px);
+}
+
+.regle-detail__titre {
+  flex: 1;
+  font-size: 1.3rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+
+/* Le bouton vit DANS le titre, à la suite des badges (SP-TB11). Poussé au bord
+   droit du header, il se retrouvait sous .overlay-close (croix de fermeture du
+   panneau), positionnée en absolute au même endroit. */
+.regle-detail__edit-btn {
+  align-self: center;
+  background: none;
+  border: 1px solid var(--clr-border, #d5cfc3);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--clr-text-muted, #7a6e5a);
+  cursor: pointer;
+  padding: .25rem .45rem;
+  font-size: .8rem;
+  line-height: 1;
+  transition: color .15s, border-color .15s;
+}
+
+.regle-detail__edit-btn:hover {
+  color: var(--clr-accent, #8b2020);
+  border-color: var(--clr-accent, #8b2020);
+}
+
+.regle-detail__texte {
+  font-size: .9rem;
+  line-height: 1.7;
+  margin-bottom: var(--sp-md, 16px);
+}
+
+.regle-detail__enfants h4 {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--clr-text-muted, #7a6e5a);
+  margin-bottom: .4rem;
+}
+
+.regle-detail__enfants-liste {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--sp-md, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+
+.regle-detail__enfants-liste a {
+  color: var(--clr-text-muted, #7a6e5a);
+  text-decoration: none;
+  font-size: .875rem;
+}
+
+.regle-detail__enfants-liste a:hover {
+  color: var(--clr-accent, #8b2020);
+}
+
+.regle-detail__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm, 8px);
+  flex-wrap: wrap;
+  padding-top: var(--sp-sm, 8px);
+  border-top: 1px solid var(--clr-border, #d5cfc3);
+}
+
+.regle-detail__source {
+  font-size: .75rem;
+  color: var(--clr-text-muted, #7a6e5a);
+}
+
+/* Sépare nettement le tableau des blocs de métadonnées qui le suivent
+   (tag à insérer, « Utilisé par », source) — sans toucher à
+   .regle-detail__enfants, partagé avec la fiche d'une règle. */
+.tableau-detail .reg-tab {
+  margin-bottom: var(--sp-md, 16px);
+}
+
+.tableau-detail > .regle-detail__enfants,
+.tableau-detail > .text-muted {
+  margin-top: var(--sp-xl, 40px);
+}
+
+/* ============================================================
+   TABLEAUX — TAG, SAISIE, APERÇU, PICKER
+   Déplacé depuis regles-modules.css en SP-TB10 : le tag cliquable
+   apparaît dans la fiche détail et dans le formulaire, le picker
+   s'ouvre depuis les dix éditeurs TinyMCE du site (SP-TB7), et la
+   liste vit désormais dans tableaux/index.php — aucun de ces
+   contextes ne charge regles-modules.css.
+   ============================================================ */
+
+.reg-tab-liste__tag {
+  cursor: pointer;
+  font-size: .8rem;
+  padding: 2px var(--sp-xs, 4px);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--clr-surface-alt, #eae6dd);
+  color: var(--clr-text, #2a2015);
+  white-space: nowrap;
+}
+
+.reg-tab-liste__tag--copie {
+  background: var(--clr-success, #2a7a3b);
+  color: #fff;
+}
+
+.reg-tab-saisie {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: .85rem;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.reg-tab-apercu:not(:empty) {
+  margin-top: var(--sp-md, 16px);
+  padding: var(--sp-md, 16px);
+  border: 1px solid var(--clr-border, #d5cfc3);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--clr-surface, #fff);
+}
+
+.tableaux-picker__recherche {
+  display: flex;
+  gap: var(--sp-sm, 8px);
+  align-items: center;
+  margin-bottom: var(--sp-md, 16px);
+}
+
+.tableaux-picker__liste {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tableaux-picker__btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-sm, 8px);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--clr-border, #d5cfc3);
+  color: var(--clr-text, #2a2015);
+  cursor: pointer;
+}
+
+.tableaux-picker__btn:hover {
+  background: var(--clr-surface-alt, #eae6dd);
+}
+
+.tableaux-picker__nom {
+  font-weight: 600;
+}
+
+.tableaux-picker__meta,
+.tableaux-picker__tag {
+  font-size: .75rem;
+  color: var(--clr-text-muted, #7a6e5a);
+}
+
 /* ============================================================
    GLOSSAIRE — SOUS-PANNEAU (#detail-pp-sub)
    ============================================================ */
@@ -1787,4 +1985,353 @@
   height: 15px;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+/* ============================================================
+   MOTEUR DE LISTE — tableau, tri, menu ⋮, pagination, barre bulk
+   Déplacé de css/compendium-modules.css vers modules.css le 2026-08-22
+   (SP-RS6b) : le moteur include/compendium-liste.php sert aussi le module
+   Personnages, qui charge personnages-modules.css et n'avait donc aucun de
+   ces styles. Même raisonnement que la barre de filtrage en SP-RS3b.
+   ============================================================ */
+/* ============================================================
+   LISTES — Tableau
+   ============================================================ */
+.comp-liste-info {
+  font-size: 0.8rem;
+  margin-bottom: var(--sp-sm);
+}
+
+.comp-liste-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.comp-liste {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.comp-liste th,
+.comp-liste td {
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 1px solid var(--clr-border);
+  vertical-align: middle;
+}
+
+.comp-liste th {
+  background: var(--clr-surface-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+
+.comp-liste tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.comp-ligne {
+  cursor: pointer;
+}
+
+/* ============================================================
+   Supplément utilisateur (SP-C2) — badge homebrew
+   Lignes de liste appartenant à un supplément (officiel ou tiers
+   partagé), distinguées visuellement des entrées du compendium officiel.
+   ============================================================ */
+.comp-ligne--homebrew {
+  box-shadow: inset 3px 0 0 var(--clr-accent-2);
+}
+
+.comp-ligne--homebrew td.col-primary {
+  background: rgba(199, 168, 79, 0.06);
+}
+
+.comp-homebrew-icon {
+  color: var(--clr-accent-2);
+  font-size: 0.78rem;
+  margin-right: var(--sp-xs, 4px);
+}
+
+.bulk-check {
+  width: 36px;
+  text-align: center;
+}
+
+.col-action {
+  width: 48px;
+  text-align: center;
+}
+
+.col-primary {
+  font-weight: 500;
+}
+
+.comp-subrow {
+  display: none;
+  font-size: 0.78rem;
+  color: var(--clr-text-muted);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+/* Séparateur porté par le CSS et non par le texte (SP-RS6d) : une page peut
+   ainsi détacher une valeur sur sa propre ligne en neutralisant son ::before. */
+.comp-subrow__part + .comp-subrow__part::before {
+  content: ' · ';
+}
+
+/* ============================================================
+   LISTES — Tri
+   ============================================================ */
+.comp-sort-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.comp-sort-link:hover {
+  color: var(--clr-accent-2);
+  text-decoration: none;
+}
+
+/* ============================================================
+   LISTES — Menu ligne (⋮)
+   ============================================================ */
+.comp-menu-ligne {
+  position: relative;
+  display: inline-block;
+}
+
+.comp-menu-btn {
+  padding: 2px 8px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.comp-menu-dropdown {
+  /* position: fixed (calculée en JS depuis le bouton, cf. compToggleMenu())
+     plutôt qu'absolute/top:100% — évite que le menu soit découpé par
+     .comp-liste-wrapper (overflow-x:auto force overflow-y:auto) quand la
+     ligne est en bas du tableau. */
+  position: fixed;
+  z-index: 400;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 140px;
+  padding: 4px 0;
+}
+
+.comp-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  color: var(--clr-text);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.comp-menu-item:hover {
+  background: var(--clr-surface-2);
+}
+
+.comp-menu-item--danger {
+  color: var(--clr-danger);
+}
+
+.comp-menu-item--danger:hover {
+  background: rgba(231, 76, 60, 0.1);
+}
+
+/* ============================================================
+   LISTES — Confirmation suppression inline
+   ============================================================ */
+.comp-confirm-row {
+  background: rgba(231, 76, 60, 0.08) !important;
+  border-left: 3px solid var(--clr-danger);
+  padding: var(--sp-sm) var(--sp-md);
+}
+
+.comp-confirm-suppr {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  font-size: 0.875rem;
+}
+
+/* ============================================================
+   LISTES — Pagination
+   ============================================================ */
+.comp-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--sp-md);
+  flex-wrap: wrap;
+}
+
+.comp-pag-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  color: var(--clr-text);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.comp-pag-btn:hover {
+  background: var(--clr-surface-2);
+  text-decoration: none;
+  color: var(--clr-text);
+}
+
+.comp-pag-btn--active {
+  background: var(--clr-accent-2);
+  border-color: var(--clr-accent-2);
+  color: #fff;
+}
+
+.comp-pag-btn--active:hover {
+  background: var(--clr-accent-2);
+  color: #fff;
+}
+
+.comp-pag-btn--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.comp-pag-ellipsis {
+  color: var(--clr-text-muted);
+  padding: 0 4px;
+}
+
+/* ============================================================
+   LISTES — Barre bulk
+   ============================================================ */
+.comp-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+  margin-top: var(--sp-md);
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.comp-bulk-info {
+  color: var(--clr-text-muted);
+}
+
+.comp-bulk-select {
+  padding: 4px 8px;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font-size: 0.875rem;
+}
+@media (max-width: 991px) {
+
+  .col-secondary {
+    display: none;
+  }
+
+  /* SP-RS3 : le menu ⋮ reste accessible sur mobile — c'est le seul accès à
+     Modifier / Dupliquer / Supprimer et aux row_actions déclarées par les
+     pages (export Roll20…). Il était masqué, rendant les listes du compendium
+     en lecture seule sur téléphone. Seule la colonne de sélection multiple
+     disparaît, la barre d'actions groupées étant elle-même masquée. */
+  .col-action {
+    display: table-cell;
+    width: 44px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .comp-menu-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .comp-menu-item {
+    padding: 11px 16px;
+  }
+
+  .bulk-check {
+    display: none;
+  }
+
+  .comp-subrow {
+    display: block;
+  }
+
+  .comp-filtre-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .comp-filtre-group {
+    width: 100%;
+  }
+
+  .comp-filtre-group--add {
+    margin-left: 0;
+  }
+
+  .comp-filtre-select {
+    max-width: 100%;
+  }
+
+  .comp-bulk-bar {
+    display: none !important;
+  }
+
+  /* Listes : pleine largeur — la table ne doit PAS être en display:block sur mobile
+     (main.css impose display:block à .table-std pour le scroll horizontal,
+      mais en compendium mobile les colonnes secondaires sont cachées —
+      le scroll n'est pas nécessaire et display:block shrink-wrap la table
+      à la largeur minimale du contenu visible). */
+  .comp-liste-wrapper {
+    width: 100%;
+  }
+
+  .comp-liste-wrapper .comp-liste,
+  .comp-liste-wrapper .table-std {
+    display: table;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* SP-RS3 — pagination : 32px de côté, sous le seuil tactile. Passe à 40px,
+     quitte à passer sur deux lignes quand la fenêtre de pages est large
+     (.comp-pagination est déjà en flex-wrap). */
+  .comp-pag-btn {
+    min-width: 40px;
+    height: 40px;
+  }
+
 }

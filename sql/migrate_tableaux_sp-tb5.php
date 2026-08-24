@@ -254,6 +254,6 @@ if (!$appliquer):
 else:
   _mig_echo('<p class="ok"><strong>Migration appliquée.</strong></p>');
   if (!$est_cli):
-    echo '<p><a href="' . BASE_URL . '/regles/tableaux.php">Voir les tableaux</a></p>';
+    echo '<p><a href="' . BASE_URL . '/tableaux/index.php">Voir les tableaux</a></p>';
   endif;
 endif;

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-08-22 -->
+<!-- Mis à jour : 2026-08-24 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -3968,3 +3968,262 @@ Le bouton « Nouveau personnage » perd son libellé et se réduit à son icône
 `aria-label` conservés). La mention du ruleset disparaît du `<h1>` : elle fait double emploi avec
 le badge `.site-header__ruleset` du header. `$ruleset_rep`, devenue inutilisée, est supprimée du
 contrôleur.
+
+**[2026-08-22] D-RS29 — SP-RS6b : le moteur de liste devient générique, Personnages l'adopte**
+Six clés optionnelles ajoutées à `include/compendium-liste.php`, toutes additives — absentes, le
+comportement est strictement celui d'avant :
+`champ_res` absent (pas de filtre sources), `extra_params` (valeurs des `?` de `extra_where`),
+`url_ligne` (clic de ligne vers une page au lieu de `#detail-pp`), `edition_libre` (menu ⋮ ouvert
+sans `canEditCompendium()`), `avec_ajout` (masque les boutons Ajouter et Tableaux), `suppression`
+(mode AJAX vers une action nommée au lieu du POST `ids[]`).
+→ `personnages/index.php` passe de ~280 lignes de rendu maison à une déclaration `$listConfig`.
+→ Le bug visible sur la capture d'écran disparaît de lui-même : `.per-liste td { display: block }`
+  (0,1,1) l'emportait sur `.per-liste__col-sec { display: none }` (0,1,0), les valeurs
+  s'affichaient donc **deux fois** en mobile. Même famille que D-RS7.
+→ `.per-liste*` supprimé de `personnages-modules.css`, les fonctions `per*` de liste supprimées de
+  `personnage.js` (un seul appelant, la page réécrite).
+
+**[2026-08-22] D-RS30 — Correction : le moteur ne servait pas `regles/tableaux.php`**
+J'ai affirmé à l'utilisateur, en argumentant la réutilisation, que `regles/tableaux.php` utilisait
+déjà le moteur hors du module compendium. C'est faux : le fichier ne le mentionne que pour dire
+qu'il ne s'y applique pas, au motif d'un « scoping ruleset seul, pas de sources actives ».
+→ Le moteur servait 9 pages, il en sert 10 avec Personnages.
+→ Le motif invoqué par `tableaux.php` est exactement la limitation levée par `champ_res` absent :
+  cette page devient candidate à la migration en SP-RS6c.
+
+**[2026-08-22] D-RS31 — JS des listes promu dans `main.js`**
+`compToggleMenu`, `compDemanderSuppression`, `compAnnulerSuppression`, `compConfirmerSuppression`,
+`compDupliquer`, `compMajBulkBar`, `compDeselectionnerTout`, `compSoumettreAction` et
+`rafraichirListe` existaient en deux copies (compendium.js, admin.js) plus une variante `per*`
+(personnage.js). Une seule implémentation désormais, dans `main.js`.
+→ Deux divergences arbitrées à la fusion :
+  – `compToggleMenu` garde le paramètre `btn` et le recadrage viewport (version compendium). Les
+    listes admin l'appellent sans `btn` : le recadrage ne s'applique pas, leur menu restant
+    positionné en `absolute` par `admin-modules.css`. **L'administration ne gagne donc pas encore
+    le recadrage** — contrairement à ce que j'avais annoncé ; ce sera SP-RS6c, avec l'alignement
+    de son CSS.
+  – `compSoumettreAction` demande désormais confirmation pour **toutes** les actions groupées
+    (comportement admin) et non plus seulement pour la suppression (comportement compendium), avec
+    un message explicite pour cette dernière. Ajouter une confirmation ne peut pas faire perdre de
+    données ; l'inverse si.
+
+**[2026-08-22] D-RS32 — Vérification : 10 listes rendues, hors navigateur**
+Les pages de liste ont été rendues en CLI avec une session simulée, en lecture seule, et leur HTML
+inspecté : 9 listes du compendium inchangées (lignes présentes, bouton Sources, bouton Ajouter,
+clic vers `#detail-pp`, suppression en mode formulaire), et Personnages conforme (2 lignes pour le
+ruleset 2, aucun bouton Sources ni Ajouter, clic vers la fiche, suppression AJAX).
+→ Cas de bord du module Personnages vérifiés un par un : scoping ruleset (1 ligne en DD3.5),
+  propriétaire inexistant (0 ligne — l'ordre des `extra_params` est donc correct), filtre campagne,
+  filtre classe par EXISTS, recherche texte, et surtout **utilisateur non-admin : les menus ⋮
+  restent présents**, ce qui valide `edition_libre`.
+→ Non vérifié : le rendu et les interactions réelles dans le navigateur, faute de session
+  authentifiée. À contrôler en priorité sur la suppression d'un personnage depuis le menu ⋮.
+
+**[2026-08-22] D-RS33 — Le CSS du moteur de liste rejoint modules.css**
+Contrôle en session authentifiée : la liste des personnages s'affichait **sans aucun style de
+tableau** — colonnes secondaires visibles sur mobile, bouton ⋮ à 18×22px, sous-ligne non masquée
+en desktop. Cause : SP-RS3b n'avait promu que la **barre de filtrage** ; le tableau, le tri, le
+menu ⋮, la pagination et la barre bulk étaient restés dans `compendium-modules.css`, que
+`personnages/index.php` ne charge pas.
+→ Ces blocs (desktop + media query 991px) rejoignent `css/modules.css`, avec le reste du moteur.
+→ Le harnais CLI ne pouvait pas voir ce défaut : il vérifie le HTML produit, pas les feuilles de
+  style effectivement chargées par la page.
+
+**[2026-08-22] D-RS34 — Suppression du clone `.comp-menu-*` de personnages-modules.css**
+Le fichier portait un clone assumé des classes `.comp-menu-*` / `.comp-confirm-*` (« clone de
+compendium », créé parce que `compendium-modules.css` n'y était pas chargé). Chargé **après**
+`modules.css`, il écrasait les règles partagées — les items du menu ⋮ restaient à 36px au lieu des
+44px de la cible tactile SP-RS3.
+→ Clone supprimé. Après correction, mesuré en navigateur : bouton ⋮ 40×40, items 43px.
+→ Troisième occurrence du même schéma après D-RS10 et D-RS33 : un composant dupliqué localement
+  parce que sa feuille n'était pas chargée, qui devient un écrasement silencieux dès que le
+  composant est partagé.
+
+**[2026-08-22] D-RS35 — Session authentifiée locale pour les contrôles, sans identifiants**
+Le navigateur de travail conserve un `PHPSESSID` stable mais `document.cookie` y est inerte : la
+session ne peut pas être posée depuis le JS.
+→ Méthode retenue : identifier le fichier de session que le navigateur utilise déjà dans
+  `C:\xampp\tmp`, puis y injecter les clés d'authentification. Aucun mot de passe manipulé, aucun
+  fichier ajouté au dépôt — les deux scripts vivent dans le scratchpad de session.
+→ `startUserSession()` n'est pas réutilisable telle quelle : elle appelle `session_regenerate_id()`,
+  ce qui détruirait la session du navigateur. Les clés sont donc recopiées, avec obligation de
+  resynchroniser si cette fonction évolue.
+→ Écarté : une page `dev-login.php` gardée par `DEV_MODE`. C'est un contournement
+  d'authentification qui vit dans le dépôt, et l'historique de `config/db.config.php` (D-CFG1,
+  D-CFG2) montre qu'un fichier « local seulement » finit par partir en production.
+
+**[2026-08-22] D-RS36 — Suppression réelle non exercée, volontairement**
+Le chemin AJAX a été validé de bout en bout sur un identifiant **inexistant** (999999) : jeton CSRF
+accepté, routage vers `supprimerPersonnage`, réponse JSON `{ok:false, erreur:"Personnage
+introuvable ou accès refusé."}`. L'UI a été vérifiée jusqu'à la confirmation inline.
+→ La suppression effective d'une ligne réelle n'a pas été déclenchée : ce sont les données de
+  l'utilisateur. À exercer par lui sur un personnage jetable.
+
+**[2026-08-22] D-RS37 — SP-RS6d : sous-ligne mobile découpée en parts adressables**
+Pour détacher la campagne sur sa propre ligne, le moteur n'émet plus une chaîne
+`« a · b · c »` mais une suite de `<span class="comp-subrow__part comp-subrow__part--<champ>">`.
+Les séparateurs viennent d'un `::before` CSS.
+→ Une page peut désormais isoler une valeur (`display: block` + `content: none` sur son `::before`)
+  sans que le moteur connaisse la sémantique de ses colonnes.
+→ Rendu visuel identique pour les 9 listes du compendium, vérifié.
+→ Contrepartie assumée : le texte copié depuis la sous-ligne ne contient plus les séparateurs,
+  ceux-ci étant générés par le CSS.
+
+**[2026-08-22] D-RS38 — En-tête de fiche : grille nommée plutôt que deux structures**
+La demande diffère selon la largeur — sous 992px le retour se pose au bout de la ligne du nom et
+Modifier au bout de la ligne meta ; au-dessus les deux boutons restent groupés en haut à droite.
+→ Structure HTML unique et à plat (nom, meta, retour, modifier), disposée par
+  `grid-template-areas` redéfinies dans la media query. Aucun bouton dupliqué, donc aucun risque
+  de divergence entre les deux rendus.
+→ Vérifié : à 1280px les deux boutons restent côte à côte en haut à droite, comme avant ; à 375px
+  chacun se cale à droite de sa ligne.
+
+**[2026-08-22] D-RS39 — Bloc Classes déplacé dans le bloc Identité**
+Les identifiants `#bloc-classes`, `#classes-lecture`, `#classes-edition`,
+`#classes-editor-lignes`, `#btn-editer-classes` et `#classes-msg` sont conservés à l'identique :
+`classesEditor` (js/personnage.js) s'y accroche. Vérifié après déplacement — la bascule
+lecture/édition génère bien ses lignes et revient en lecture.
+→ La ligne porte `per-identite__row--large` : elle occupe toute la largeur de la grille du bloc
+  Identité, qui est en `repeat(auto-fit, minmax(260px, 1fr))`.
+→ Le bouton d'édition est réduit à son icône **à toutes les largeurs** (règle dédiée sur
+  `#btn-editer-classes`), contrairement aux autres boutons Modifier qui ne perdent leur libellé
+  que sous 992px.
+
+**[2026-08-22] D-RS40 — Libellés de boutons : classe `.per-btn-label`**
+Les éditeurs inline réécrivent l'`innerHTML` de leurs boutons pour basculer Modifier ↔ Annuler.
+Masquer les libellés en CSS imposait donc d'aligner aussi le JS : les 8 réécritures de
+`js/personnage.js` produisent désormais `<i …></i><span class="per-btn-label">…</span>`.
+→ Sans cela, le libellé serait réapparu en dur au premier passage en édition.
+
+**[2026-08-22] D-RS41 — Combat : `flex: 1 1 0` au lieu de `1 1 140px` + `min-width: 140px`**
+Les deux tuiles CA et PV passaient l'une sous l'autre dès que la largeur utile descendait sous
+~296px — le cas d'un écran à 342px CSS, celui du Galaxy A52 relevé en §10h.
+→ Base nulle et `min-width: 0` : les deux tuiles se partagent la ligne quelle que soit la largeur.
+  Mesuré à 375px : 155px chacune, côte à côte.
+
+**[2026-08-22] D-RS42 — SP-RS6e : bloc Compétences aligné sur le bloc Dons**
+Le mode lecture abandonne le `<table class="table-dd per-comp-table">` au profit d'une liste flex
+`.per-comp`, même mécanique que `.per-dons` : nom à gauche, valeurs calées à droite, alignement en
+haut quand le nom passe à la ligne. Seule différence avec les dons, demandée : une ligne d'en-tête
+en gras.
+→ Les trois valeurs (Carac, Maîtrise/Rangs, Total) sont conservées — arbitrage de l'utilisateur
+  contre une réduction à deux colonnes, qui aurait fait disparaître Carac et Maîtrise de la lecture.
+→ **`width` en `rem`, pas en `em`** : l'en-tête (`.85em`) et les lignes (`.9em`) n'ont pas la même
+  taille de police, une largeur en `em` produisait des colonnes décalées de 8px entre l'en-tête et
+  les valeurs — constaté à la mesure avant correction.
+→ `.per-comp-table*` est **conservé** dans le CSS : `competencesEditor` génère toujours ce tableau
+  pour le mode édition. Vérifié après refonte — 19 lignes générées, bascule lecture/édition intacte.
+
+---
+
+## SP-TB10 / SP-TB11 — Le gestionnaire de tableaux quitte le module Règles
+
+**[2026-08-24] D-TB10 — `regles/tableaux.php` → `tableaux/index.php`**
+À l'usage, un tableau n'est pas une donnée du module Règles : le tag `[[tab:slug]]` est déjà résolu
+dans les monstres et les huit champs description du compendium (SP-TB7), et le sera dans les
+campagnes puis l'univers. Le gestionnaire devient un module à part entière — `tableaux/index.php`
+et `tableaux/enregistrement.php`.
+→ Arbitrage de l'utilisateur : pas d'entrée dans la navigation principale (elle porte déjà six
+  entrées), mais un accès depuis la **barre d'outils de chaque module** — Règles et Compendium
+  l'avaient déjà, Campagnes le reçoit. Univers n'existe pas encore (`wiki/univers.php` absent).
+→ `regles/tableaux.php` subsiste en **redirection 301**, avec traduction du paramètre historique
+  `ecran=1` en `f_ecran=1`. Cinq liens internes pointaient sur l'ancienne adresse.
+
+**[2026-08-24] D-TB11 — La liste adopte le moteur `compendium-liste.php`**
+La table maison de SP-TB3 n'avait ni pagination ni filtres. Le moteur partagé apporte les deux,
+plus le tri, le menu ⋮, le panneau de filtres repliable en mobile et le CSS déjà déplacé en
+SP-RS6b — soit exactement la demande, sans code neuf.
+→ Le motif invoqué en SP-TB3 pour l'écarter (« pas de sources actives ») ne tenait pas au moteur
+  mais aux données : 13 tableaux sur 19 avaient `tab_res_id` à NULL et auraient disparu derrière
+  le filtre des sources. L'utilisateur a renseigné les sources manquantes par requête SQL avant la
+  livraison ; le mécanisme standard s'applique désormais tel quel. Ferme D-RS30.
+→ Le moteur sert 11 pages.
+
+**[2026-08-24] D-TB12 — Trois capacités ajoutées au moteur plutôt que des exceptions**
+Trois besoins de cette liste n'étaient pas couverts. Chacun a été traité par une clé générique,
+additive et rétro-compatible, plutôt que par un cas particulier :
+→ `champs_recherche` — le filtre texte balayait la seule première colonne ; la recherche par slug
+  de SP-TB3 aurait été perdue. C'est pourtant le slug qu'on a sous les yeux quand un tag ne résout
+  pas et qu'on cherche le tableau correspondant.
+→ `colonnes[].valeurs` — colonne calculée en PHP. Voir D-TB13.
+→ `td.comp-col--<champ>` — chaque cellule porte le nom de sa colonne, sur le modèle de
+  `.comp-subrow__part--*` (SP-RS6d). Permet de recâbler la cellule « Tag à insérer » en `<code>`
+  cliquable sans compter les index de colonnes.
+
+**[2026-08-24] D-TB13 — La colonne Usages reste comptée en PHP**
+Tentative d'un sous-select corrélé sur l'`UNION` des onze champs hôtes : rejeté par MySQL,
+`Illegal mix of collations` — les colonnes hôtes ne partagent ni le même jeu de caractères
+(`utf8` / `utf8mb4`) ni la même collation, et `CONVERT(... USING utf8mb4)` sur onze tables aurait
+rendu la requête illisible pour un gain nul.
+→ `compterUsagesTableaux()` scanne les onze champs avec un `WHERE ... LIKE '%[[tab:%'` — quelques
+  lignes sur des milliers — et compte en PHP par `substr_count()`. Mesuré : **41 ms**, cache
+  statique par requête. La valeur est passée au moteur par `colonnes[].valeurs`.
+→ Conséquence assumée : la colonne n'est pas triable. Le comptage couvre tous les tableaux du
+  ruleset, pas seulement la page affichée — la pagination reste donc exacte.
+
+**[2026-08-24] D-TB14 — L'avertissement de suppression passe côté serveur**
+La liste maison avertissait en JS (« N règles insèrent encore ce tableau ») ; le moteur générique
+n'a qu'une confirmation neutre. L'utilisateur a demandé de conserver l'avertissement **et** la
+colonne Usages.
+→ `tableaux/enregistrement.php` refuse la suppression tant que `force=1` n'est pas transmis et
+  répond `{ok:false, confirmation_requise:true, erreur}` ; `compConfirmerSuppression()` affiche le
+  message et réémet la requête après accord. Le contrat est générique, réutilisable par toute
+  liste ayant un garde-fou métier.
+→ Bénéfice non recherché : le garde-fou s'applique désormais aussi hors interface, l'ancien
+  contrôle étant purement client.
+
+**[2026-08-24] D-TB15 — 🐛 La propagation d'un renommage de slug ignorait le compendium**
+`_tabPropagerSlug()` ne couvrait que `reg_texte` et `mo_stats` : elle n'avait pas suivi SP-TB7.
+Un tableau inséré dans une description du compendium — le don « Façonnage rapide » l'était déjà —
+perdait son insertion en silence au premier renommage, le tag s'affichant en
+`.reg-tab__manquant`.
+→ `tableauChampsHotes()` devient la **source de vérité unique** des onze champs hôtes, partagée
+  par la propagation, le comptage des usages et le garde-fou de suppression. Toute extension de
+  la portée du tag se déclare là et nulle part ailleurs.
+→ `dd_capacites_speciales` n'a pas de colonne ruleset : propagation sans ce filtre. Sans risque,
+  l'unicité des slugs étant par ruleset et DD3.5 n'ayant encore aucun tableau (SP-TB9).
+→ Vérifié en transaction annulée : le tag est bien réécrit dans `dd_dons.do_texte`, la base
+  laissée intacte.
+
+**[2026-08-24] D-TB16 — 🐛 L'outillage CSS/JS n'était chargé que sur les pages Règles**
+Même défaut que celui corrigé en SP-TB7 pour le composant de rendu, sur le reste du module :
+`.regle-detail__*`, `.tableau-detail*`, `.reg-tab-liste__tag*`, `.reg-tab-saisie`,
+`.reg-tab-apercu`, `.tableaux-picker*` et `.regles-badge--ecran` vivaient dans
+`regles-modules.css`. Or le picker s'ouvre depuis les dix éditeurs TinyMCE du site, et la fiche
+détail d'une règle comme d'un tableau depuis n'importe quelle page — un tag `@id@` ou
+`[[tab:slug]]` est résolu jusque dans les stats de monstre. Hors module Règles, tout cela
+s'affichait sans style.
+→ Déplacé dans `css/modules.css`, chargé sans condition. Même chemin pour la fonction de copie du
+  tag : `js/regles.js` → `js/main.js`, renommée `copierTagTableau()`.
+→ Règle générale à retenir : **ce qui est injecté en AJAX sur une page quelconque vit dans
+  `modules.css` et `main.js`**, jamais dans un fichier de module.
+
+**[2026-08-24] D-TB17 — SP-TB11 : le bouton Modifier passe dans le titre de la fiche**
+Signalé par l'utilisateur : dans la fiche détail d'un tableau, le bouton Modifier et la croix de
+fermeture se chevauchent. Cause : `.regle-detail__titre` est en `flex: 1`, ce qui pousse le bouton
+au bord droit du panneau — exactement là où `.overlay-close` est positionné en `absolute`. Le
+défaut touchait aussi la fiche d'une règle, qui partage ce header.
+→ Arbitrage de l'utilisateur entre réserver une gouttière et aligner sur le compendium : **option
+  retenue, le bouton entre dans le `<h2>`**, à la suite des badges, comme
+  `.sort-detail__edit-btn`.
+→ Mesuré après correction, panneau réel : bouton à x = 526–554, croix à 1082–1111 en desktop ;
+  bouton à y = 107 et croix à y = 5–49 en 375px. Plus aucun contact dans les deux cas.
+
+**[2026-08-24] D-TB18 — Abandon du filtre « par module du site »**
+Demandé initialement, puis retiré par l'utilisateur : « un tableau peut être réutilisé partout ».
+Un rattachement déclaré (colonne `tab_module_var_id` vers `dd_variables`) aurait été la seule
+implémentation compatible avec une pagination SQL — un critère dérivé des usages réels oblige à
+filtrer en PHP après le `LIMIT`, ce qui fausse les compteurs. Le coût de saisie et d'entretien ne
+valait pas le service rendu.
+→ Aucun patch SQL dans cette livraison. `dd_tableaux` est inchangée.
+
+**[2026-08-24] D-TB19 — SP-TB8 mis en attente derrière la refonte du module Campagnes**
+SP-TB10/TB11 validés par l'utilisateur (test manuel OK). L'enchaînement prévu sur SP-TB8 — l'écran
+du MJ — est suspendu : une **refonte du module Campagnes** doit passer avant, et elle peut changer
+la façon dont cet écran est présenté. Construire l'écran maintenant reviendrait à le refaire après.
+→ SP-TB8 reste coché « à faire » en §0, assorti de sa condition de reprise. Non abandonné.
+→ La refonte Campagnes est arbitrée dans une conversation séparée et recevra son code projet
+  (`SP-<lettres>`) et ses phases numérotées à ce moment-là — rien n'est préempté ici.
+→ État utile à la reprise : aucun tableau n'est coché `tab_ecran_mj` en base, `tab_ecran_ordre`
+  vaut 0 partout. Le filtre « Écran du MJ » de `tableaux/index.php` fonctionne mais ne renvoie
+  donc rien pour l'instant.

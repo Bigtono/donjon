@@ -60,8 +60,9 @@ require_once '../include/header.php';
         </button>
       </form>
 
-      <a class="btn btn--sm btn--secondary" href="<?= BASE_URL ?>/regles/tableaux.php"
-         title="Tableaux de données des règles">
+      <?php // Gestionnaire partagé, hors module Règles depuis SP-TB10. ?>
+      <a class="btn btn--sm btn--secondary" href="<?= BASE_URL ?>/tableaux/index.php"
+         title="Tableaux de données">
         <i class="fa fa-table"></i> Tableaux
       </a>
 

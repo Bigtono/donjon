@@ -182,7 +182,7 @@ $uid   = 'tab_' . ($id ?: 'new');
 <script>
   (function () {
     var UID        = <?= json_encode($uid) ?>;
-    var URL_ENREG  = <?= json_encode(BASE_URL . '/regles/tableaux-enregistrement.php?ajax=1') ?>;
+    var URL_ENREG  = <?= json_encode(BASE_URL . '/tableaux/enregistrement.php?ajax=1') ?>;
     var URL_APERCU = <?= json_encode(BASE_URL . '/include/ajax/tableau-apercu.php') ?>;
     var CSRF_TOKEN = <?= json_encode(csrfToken()) ?>;
 

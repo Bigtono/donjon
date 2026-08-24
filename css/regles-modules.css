@@ -274,119 +274,11 @@
    css/modules.css : il est affiché hors du module Règles (compendium, monstres).
    Ne subsiste ici que l'outillage propre au gestionnaire de tableaux. */
 
-/* ---- Fiche détail du gestionnaire (detail-pp/tableau.php) ---- */
-
-/* Sépare nettement le tableau des blocs de métadonnées qui le suivent
-   (tag à insérer, « Utilisé par », source) — sans toucher à
-   .regle-detail__enfants, partagé avec la fiche d'une règle. */
-.tableau-detail .reg-tab {
-  margin-bottom: var(--sp-md, 16px);
-}
-
-.tableau-detail > .regle-detail__enfants,
-.tableau-detail > .text-muted {
-  margin-top: var(--sp-xl, 40px);
-}
-
-/* ---- Liste de gestion (regles/tableaux.php) ---- */
-
-.regles-layout--pleine .regles-contenu {
-  flex: 1 1 100%;
-}
-
-.reg-tab-liste__nom {
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.reg-tab-liste__ligne--masque {
-  opacity: .6;
-}
-
-.reg-tab-liste__tag {
-  cursor: pointer;
-  font-size: .8rem;
-  padding: 2px var(--sp-xs, 4px);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--clr-surface-alt, #eae6dd);
-  color: var(--clr-text, #2a2015);
-  white-space: nowrap;
-}
-
-.reg-tab-liste__tag--copie {
-  background: var(--clr-success, #2a7a3b);
-  color: #fff;
-}
-
-/* ---- Formulaire de saisie ---- */
-
-.reg-tab-saisie {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  font-size: .85rem;
-  line-height: 1.5;
-  white-space: pre;
-  overflow-x: auto;
-}
-
-
-
-
-
-.reg-tab-apercu:not(:empty) {
-  margin-top: var(--sp-md, 16px);
-  padding: var(--sp-md, 16px);
-  border: 1px solid var(--clr-border, #d5cfc3);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--clr-surface, #fff);
-}
-
-/* ---- Picker (#detail-pp-sub) ---- */
-
-.tableaux-picker__recherche {
-  display: flex;
-  gap: var(--sp-sm, 8px);
-  align-items: center;
-  margin-bottom: var(--sp-md, 16px);
-}
-
-.tableaux-picker__liste {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.tableaux-picker__btn {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  text-align: left;
-  padding: var(--sp-sm, 8px);
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--clr-border, #d5cfc3);
-  color: var(--clr-text, #2a2015);
-  cursor: pointer;
-}
-
-.tableaux-picker__btn:hover {
-  background: var(--clr-surface-alt, #eae6dd);
-}
-
-.tableaux-picker__nom {
-  font-weight: 600;
-}
-
-.tableaux-picker__meta,
-.tableaux-picker__tag {
-  font-size: .75rem;
-  color: var(--clr-text-muted, #7a6e5a);
-}
-
-.regles-badge--ecran {
-  background: var(--clr-warning, #a06010);
-  color: #fff;
-}
+/* Outillage du gestionnaire de tableaux (fiche détail, tag cliquable, saisie,
+   aperçu, picker) et badge --ecran : déplacés dans css/modules.css en SP-TB10.
+   Le gestionnaire a quitté le module Règles (tableaux/index.php) et le picker
+   s'ouvre depuis les dix éditeurs TinyMCE du site — ce fichier n'y est pas
+   chargé. */
 
 /* ============================================================
    FIL D'ARIANE
@@ -629,93 +521,10 @@ mark.regles-surligné {
    les renvois SP-GL apparaissent aussi hors du module Règles (#detail-pp,
    glossaire en sous-panneau), où ce fichier n'est pas chargé. */
 
-/* ============================================================
-   OVERLAY DETAIL-PP — variante règle
-   ============================================================ */
-
-.regle-detail {
-  padding: var(--sp-md, 16px);
-}
-
-.regle-detail__header {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-sm, 8px);
-  margin-bottom: var(--sp-md, 16px);
-}
-
-.regle-detail__titre {
-  flex: 1;
-  font-size: 1.3rem;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  flex-wrap: wrap;
-}
-
-.regle-detail__edit-btn {
-  background: none;
-  border: 1px solid var(--clr-border, #d5cfc3);
-  border-radius: var(--radius-sm, 4px);
-  color: var(--clr-text-muted, #7a6e5a);
-  cursor: pointer;
-  padding: .25rem .45rem;
-  font-size: .8rem;
-  transition: color .15s, border-color .15s;
-}
-
-.regle-detail__edit-btn:hover {
-  color: var(--clr-accent, #8b2020);
-  border-color: var(--clr-accent, #8b2020);
-}
-
-.regle-detail__texte {
-  font-size: .9rem;
-  line-height: 1.7;
-  margin-bottom: var(--sp-md, 16px);
-}
-
-.regle-detail__enfants h4 {
-  font-size: .8rem;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  color: var(--clr-text-muted, #7a6e5a);
-  margin-bottom: .4rem;
-}
-
-.regle-detail__enfants-liste {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--sp-md, 16px);
-  display: flex;
-  flex-direction: column;
-  gap: .2rem;
-}
-
-.regle-detail__enfants-liste a {
-  color: var(--clr-text-muted, #7a6e5a);
-  text-decoration: none;
-  font-size: .875rem;
-}
-
-.regle-detail__enfants-liste a:hover {
-  color: var(--clr-accent, #8b2020);
-}
-
-.regle-detail__footer {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm, 8px);
-  flex-wrap: wrap;
-  padding-top: var(--sp-sm, 8px);
-  border-top: 1px solid var(--clr-border, #d5cfc3);
-}
-
-.regle-detail__source {
-  font-size: .75rem;
-  color: var(--clr-text-muted, #7a6e5a);
-}
+/* OVERLAY DETAIL-PP — la fiche d'une règle (.regle-detail*) est déplacée dans
+   css/modules.css en SP-TB10 : elle s'ouvre depuis n'importe quelle page, un
+   tag @id@ de règle étant résolu jusque dans les stats de monstre et les
+   descriptions du compendium. La fiche d'un tableau partage ces classes. */
 
 /* ============================================================
    MODIFIER OVERLAY

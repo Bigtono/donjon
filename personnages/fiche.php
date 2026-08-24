@@ -238,41 +238,57 @@ require_once '../include/header.php';
 
 <div class="per-fiche">
 
-  <!-- EN-TÊTE -->
+  <?php
+  // EN-TÊTE (SP-RS6d)
+  // Structure à plat pilotée par une grille nommée : sous 992px le retour se
+  // pose au bout de la ligne du nom et Modifier au bout de la ligne meta ;
+  // au-dessus, les deux boutons restent groupés en haut à droite comme avant.
+  // La mention du ruleset est retirée : le header du site l'affiche déjà.
+  ?>
   <div class="per-fiche__header">
-    <div class="per-fiche__header-titre">
-      <h1 class="per-fiche__nom"><?= h($perso['pe_nom']) ?></h1>
-      <div class="per-fiche__meta">
-        <span class="per-fiche__ruleset"><?= h($perso['ruleset_label']) ?></span>
-        <?php if ($niveau_global > 0): ?>
-          · <span class="per-fiche__niveau">Niveau <?= $niveau_global ?></span>
-        <?php endif ?>
-        <?php if ($perso['campagne_courante_nom']): ?>
-          · <span class="per-fiche__campagne">
-              <i class="fa fa-map"></i> <?= h($perso['campagne_courante_nom']) ?>
-            </span>
-        <?php endif ?>
-      </div>
+    <h1 class="per-fiche__nom"><?= h($perso['pe_nom']) ?></h1>
+
+    <div class="per-fiche__meta">
+      <?php if ($niveau_global > 0): ?>
+        <span class="per-fiche__niveau">Niveau <?= $niveau_global ?></span>
+      <?php endif ?>
+      <?php if ($perso['campagne_courante_nom']): ?>
+        <?php if ($niveau_global > 0): ?> · <?php endif ?>
+        <span class="per-fiche__campagne">
+          <i class="fa fa-map"></i> <?= h($perso['campagne_courante_nom']) ?>
+        </span>
+      <?php endif ?>
     </div>
-    <div class="per-fiche__header-actions">
-      <a href="<?= BASE_URL ?>/personnages/" class="btn btn-link btn-sm">
-        <i class="fa fa-arrow-left"></i> Liste
-      </a>
-      <button class="btn btn-secondary btn-sm"
-              onclick="ouvrirModifier(perUrlModifier, <?= (int)$perso['pe_id'] ?>)">
-        <i class="fa fa-edit"></i> Modifier
-      </button>
-    </div>
+
+    <a href="<?= BASE_URL ?>/personnages/" class="btn btn-link btn-sm per-fiche__retour"
+       title="Retour à la liste">
+      <i class="fa fa-arrow-left"></i>
+      <span class="per-btn-label">Liste</span>
+    </a>
+
+    <button class="btn btn-secondary btn-sm per-fiche__modifier"
+            onclick="ouvrirModifier(perUrlModifier, <?= (int)$perso['pe_id'] ?>)"
+            title="Modifier le personnage">
+      <i class="fa fa-edit"></i>
+      <span class="per-btn-label">Modifier</span>
+    </button>
   </div>
 
-  <!-- BLOC 1 — MODE JEU (placeholder SP-PE8) -->
+  <?php // BLOC 1 — MODE JEU (placeholder SP-PE8), repliable et replié par défaut ?>
   <section class="per-fiche__bloc per-fiche__bloc--mode-jeu">
-    <header class="per-fiche__bloc-header">
+    <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
       <h2 class="per-fiche__bloc-titre">
         <i class="fa fa-dice-d20"></i> Mode jeu
       </h2>
+      <button type="button" class="btn btn-link btn-sm per-fiche__replier"
+              id="btn-replier-mode-jeu"
+              aria-controls="bloc-mode-jeu-body" aria-expanded="false"
+              onclick="perReplierBloc('bloc-mode-jeu-body', this)"
+              title="Afficher ou masquer le bloc">
+        <i class="fa fa-chevron-down"></i>
+      </button>
     </header>
-    <div class="per-fiche__bloc-body">
+    <div class="per-fiche__bloc-body noDisplay" id="bloc-mode-jeu-body">
       <p class="text-muted text-sm">
         Emplacement réservé. Le suivi des PV, conditions et autres variables de
         partie sera ajouté ultérieurement.
@@ -308,6 +324,79 @@ require_once '../include/header.php';
             <?php else: ?>
               <span class="text-muted">—</span>
             <?php endif ?>
+          </dd>
+        </div>
+
+        <?php
+        // CLASSES (éditeur DOM inline — SP-PE2)
+        // Déplacé ici depuis son bloc propre (SP-RS6d) : lecture immédiate après
+        // la race. Les identifiants #bloc-classes, #classes-lecture,
+        // #classes-edition, #btn-editer-classes et #classes-msg sont conservés —
+        // classesEditor (js/personnage.js) s'appuie dessus.
+        ?>
+        <div class="per-identite__row per-identite__row--large" id="bloc-classes">
+          <dt>Classes<?php if ($niveau_global > 0): ?>
+            <span class="per-fiche__niveau-global">niv. <?= $niveau_global ?></span>
+          <?php endif ?></dt>
+          <dd>
+            <div class="per-identite__valeur-actions">
+
+              <div class="per-identite__valeur" id="classes-lecture">
+                <?php if (empty($classes)): ?>
+                  <span class="text-muted">Aucune classe définie.</span>
+                <?php else: ?>
+                  <ul class="per-classes">
+                    <?php foreach ($classes as $c): ?>
+                      <li class="per-classes__item">
+                        <?php if ((int)$c['cla_clt_id'] === 2): ?>
+                          <span class="per-classes__badge-prestige" title="Classe de prestige">P</span>
+                        <?php endif ?>
+                        <a href="javascript:void(0)"
+                           onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/classe.php', {id: <?= (int)$c['pc_cla_id'] ?>}, 'externe')">
+                          <?= h($c['cla_nom']) ?>
+                        </a>
+                        <span class="per-classes__niveau">niv. <?= (int)$c['pc_niveau'] ?></span>
+                        <?php if ($ruleset_rep === 'DD3.5' && ($c['pc_do_id_1'] || $c['pc_do_id_2'])): ?>
+                          <span class="per-classes__domaines text-muted">
+                            — domaines :
+                            <?= h($c['domaine1_nom'] ?? '') ?>
+                            <?php if ($c['pc_do_id_1'] && $c['pc_do_id_2']): ?>,<?php endif ?>
+                            <?= h($c['domaine2_nom'] ?? '') ?>
+                          </span>
+                        <?php endif ?>
+                      </li>
+                    <?php endforeach ?>
+                  </ul>
+                <?php endif ?>
+              </div>
+
+              <button class="btn btn-link btn-sm per-fiche__editer" id="btn-editer-classes"
+                      onclick="classesEditor.basculerEdition()"
+                      title="Modifier les classes">
+                <i class="fa fa-edit"></i><span class="per-btn-label">Modifier</span>
+              </button>
+            </div>
+
+            <?php // Mode édition (caché par défaut, activé par JS) ?>
+            <div class="noDisplay" id="classes-edition">
+              <div id="classes-editor-lignes">
+                <?php // Les lignes sont générées par classesEditor.init() en JS ?>
+              </div>
+              <div class="per-classes-actions">
+                <button class="btn btn-link btn-sm" onclick="classesEditor.ajouterLigne()">
+                  <i class="fa fa-plus"></i> Ajouter une classe
+                </button>
+              </div>
+              <div class="per-classes-commit">
+                <button class="btn btn-primary btn-sm" onclick="classesEditor.enregistrer()">
+                  <i class="fa fa-save"></i> Enregistrer
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="classesEditor.annuler()">
+                  Annuler
+                </button>
+                <span class="per-classes-commit__msg noDisplay" id="classes-msg"></span>
+              </div>
+            </div>
           </dd>
         </div>
 
@@ -347,78 +436,6 @@ require_once '../include/header.php';
 
       </dl>
     </div>
-  </section>
-
-  <!-- ============================================================
-       BLOC 3 — CLASSES (éditeur DOM inline — SP-PE2)
-       Remonté après Identité pour lecture rapide en partie.
-       Deux modes : lecture (défaut) et édition (activé par bouton).
-       ============================================================ -->
-  <section class="per-fiche__bloc" id="bloc-classes">
-    <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-users"></i> Classes
-        <?php if ($niveau_global > 0): ?>
-          <span class="per-fiche__niveau-global">— niveau <?= $niveau_global ?></span>
-        <?php endif ?>
-      </h2>
-      <button class="btn btn-link btn-sm" id="btn-editer-classes"
-              onclick="classesEditor.basculerEdition()">
-        <i class="fa fa-edit"></i> Modifier
-      </button>
-    </header>
-
-    <!-- Mode lecture -->
-    <div class="per-fiche__bloc-body" id="classes-lecture">
-      <?php if (empty($classes)): ?>
-        <p class="text-muted">Aucune classe définie.</p>
-      <?php else: ?>
-        <ul class="per-classes">
-          <?php foreach ($classes as $c): ?>
-            <li class="per-classes__item">
-              <?php if ((int)$c['cla_clt_id'] === 2): ?>
-                <span class="per-classes__badge-prestige" title="Classe de prestige">P</span>
-              <?php endif ?>
-              <a href="javascript:void(0)"
-                 onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/classe.php', {id: <?= (int)$c['pc_cla_id'] ?>}, 'externe')">
-                <?= h($c['cla_nom']) ?>
-              </a>
-              <span class="per-classes__niveau">niv. <?= (int)$c['pc_niveau'] ?></span>
-              <?php if ($ruleset_rep === 'DD3.5' && ($c['pc_do_id_1'] || $c['pc_do_id_2'])): ?>
-                <span class="per-classes__domaines text-muted">
-                  — domaines :
-                  <?= h($c['domaine1_nom'] ?? '') ?>
-                  <?php if ($c['pc_do_id_1'] && $c['pc_do_id_2']): ?>,<?php endif ?>
-                  <?= h($c['domaine2_nom'] ?? '') ?>
-                </span>
-              <?php endif ?>
-            </li>
-          <?php endforeach ?>
-        </ul>
-      <?php endif ?>
-    </div>
-
-    <!-- Mode édition (caché par défaut, activé par JS) -->
-    <div class="per-fiche__bloc-body noDisplay" id="classes-edition">
-      <div id="classes-editor-lignes">
-        <!-- Les lignes sont générées par classesEditor.init() en JS -->
-      </div>
-      <div class="per-classes-actions">
-        <button class="btn btn-link btn-sm" onclick="classesEditor.ajouterLigne()">
-          <i class="fa fa-plus"></i> Ajouter une classe
-        </button>
-      </div>
-      <div class="per-classes-commit">
-        <button class="btn btn-primary btn-sm" onclick="classesEditor.enregistrer()">
-          <i class="fa fa-save"></i> Enregistrer
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick="classesEditor.annuler()">
-          Annuler
-        </button>
-        <span class="per-classes-commit__msg noDisplay" id="classes-msg"></span>
-      </div>
-    </div>
-
   </section>
 
   <!-- BLOC 4 — CARACTÉRISTIQUES -->
@@ -483,9 +500,6 @@ require_once '../include/header.php';
     <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
       <h2 class="per-fiche__bloc-titre">
         <i class="fa fa-list-check"></i> Compétences
-        <?php if (!empty($competences_maitrisees)): ?>
-          <span class="per-fiche__niveau-global">— <?= count($competences_maitrisees) ?> maîtrisée<?= count($competences_maitrisees) > 1 ? 's' : '' ?></span>
-        <?php endif ?>
       </h2>
       <button class="btn btn-link btn-sm" id="btn-editer-competences"
               onclick="competencesEditor.basculerEdition()">
@@ -503,64 +517,57 @@ require_once '../include/header.php';
       <?php elseif (empty($competences_maitrisees)): ?>
         <p class="text-muted">Aucune compétence maîtrisée. Utilisez « Modifier » pour les saisir.</p>
       <?php else: ?>
-        <div class="table-dd-wrap">
-          <table class="table-dd per-comp-table">
-            <thead>
-              <tr>
-                <th class="per-comp-table__nom">Compétence</th>
-                <th class="col-stat">Carac</th>
-                <th class="col-stat"><?= $ruleset_rep === 'DD2024' ? 'Maîtrise' : 'Rangs' ?></th>
-                <th class="col-stat">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($competences_maitrisees as $c): ?>
-                <?php
-                  $maitrise = (int)$c['pec_maitrise'];
-                  $mod      = (int)($mod_par_carac[(int)$c['comp_car_id']] ?? 0);
-                  $total    = bonusCompetence($maitrise, $mod, $ruleset_rep, $bonus_maitrise);
-                ?>
-                <tr>
-                  <td class="per-comp-table__nom">
-                    <a href="javascript:void(0)"
-                       onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/competence.php', {id: <?= (int)$c['comp_id'] ?>}, 'externe')">
-                      <?= h($c['comp_nom']) ?>
-                    </a>
-                    <?php if ((int)$c['comp_formation'] === 1): ?>
-                      <span class="per-comp__flag" title="Formation requise">F</span>
-                    <?php endif ?>
-                    <?php if ((int)$c['comp_malusArmure'] === 1): ?>
-                      <span class="per-comp__flag" title="Soumise au malus d'armure">A</span>
-                    <?php endif ?>
-                  </td>
-                  <td>
-                    <?php if (!empty($c['car_diminutif'])): ?>
-                      <?= h(strtoupper($c['car_diminutif'])) ?>
-                      <span class="text-muted"><?= formatMod($mod) ?></span>
-                    <?php else: ?>
-                      <span class="text-muted" title="Aucune caractéristique associée">—</span>
-                    <?php endif ?>
-                  </td>
-                  <td>
-                    <?php if ($ruleset_rep === 'DD2024'): ?>
-                      <?= $maitrise >= 2 ? 'Expertise' : 'Maîtrise' ?>
-                    <?php else: ?>
-                      <?= $maitrise ?>
-                    <?php endif ?>
-                  </td>
-                  <td class="per-comp-table__total"><?= formatMod($total) ?></td>
-                </tr>
-              <?php endforeach ?>
-            </tbody>
-          </table>
-        </div>
-        <p class="text-muted text-sm per-comp-note">
-          Total = <?= $ruleset_rep === 'DD2024'
-            ? 'modificateur de caractéristique + bonus de maîtrise (' . formatMod($bonus_maitrise) . ', doublé en expertise)'
-            : 'rangs + modificateur de caractéristique' ?>.
-          Les bonus d'équipement, d'armure et les bonus divers ne sont pas comptés
-          (ils ne sont pas saisis dans la fiche).
-        </p>
+        <?php
+        // Rendu aligné sur le bloc Dons (SP-RS6e) : liste flex, nom à gauche,
+        // valeurs calées à droite et alignées en haut si le nom passe à la
+        // ligne. Seule différence avec les dons : une ligne d'en-tête, en gras.
+        ?>
+        <ul class="per-comp">
+          <li class="per-comp__item per-comp__item--entete">
+            <span class="per-comp__nom">Compétence</span>
+            <span class="per-comp__val">Carac</span>
+            <span class="per-comp__val"><?= $ruleset_rep === 'DD2024' ? 'Maîtrise' : 'Rangs' ?></span>
+            <span class="per-comp__val">Total</span>
+          </li>
+
+          <?php foreach ($competences_maitrisees as $c): ?>
+            <?php
+              $maitrise = (int)$c['pec_maitrise'];
+              $mod      = (int)($mod_par_carac[(int)$c['comp_car_id']] ?? 0);
+              $total    = bonusCompetence($maitrise, $mod, $ruleset_rep, $bonus_maitrise);
+            ?>
+            <li class="per-comp__item">
+              <span class="per-comp__nom">
+                <a href="javascript:void(0)"
+                   onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/competence.php', {id: <?= (int)$c['comp_id'] ?>}, 'externe')">
+                  <?= h($c['comp_nom']) ?>
+                </a>
+                <?php if ((int)$c['comp_formation'] === 1): ?>
+                  <span class="per-comp__flag" title="Formation requise">F</span>
+                <?php endif ?>
+                <?php if ((int)$c['comp_malusArmure'] === 1): ?>
+                  <span class="per-comp__flag" title="Soumise au malus d'armure">A</span>
+                <?php endif ?>
+              </span>
+              <span class="per-comp__val">
+                <?php if (!empty($c['car_diminutif'])): ?>
+                  <?= h(strtoupper($c['car_diminutif'])) ?>
+                  <span class="text-muted"><?= formatMod($mod) ?></span>
+                <?php else: ?>
+                  <span class="text-muted" title="Aucune caractéristique associée">—</span>
+                <?php endif ?>
+              </span>
+              <span class="per-comp__val">
+                <?php if ($ruleset_rep === 'DD2024'): ?>
+                  <?= $maitrise >= 2 ? 'Expertise' : 'Maîtrise' ?>
+                <?php else: ?>
+                  <?= $maitrise ?>
+                <?php endif ?>
+              </span>
+              <span class="per-comp__val per-comp__val--total"><?= formatMod($total) ?></span>
+            </li>
+          <?php endforeach ?>
+        </ul>
       <?php endif ?>
     </div>
 
@@ -616,10 +623,12 @@ require_once '../include/header.php';
         <ul class="per-dons">
           <?php foreach ($dons_perso as $d): ?>
             <li class="per-dons__item">
-              <a href="javascript:void(0)"
-                 onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/don.php', {id: <?= (int)$d['ped_do_id'] ?>}, 'externe')">
-                <?= h($d['do_nom']) ?>
-              </a>
+              <span class="per-dons__nom">
+                <a href="javascript:void(0)"
+                   onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/don.php', {id: <?= (int)$d['ped_do_id'] ?>}, 'externe')">
+                  <?= h($d['do_nom']) ?>
+                </a>
+              </span>
               <span class="per-dons__cat text-muted"><?= h($d['dado_nom'] ?? '—') ?></span>
             </li>
           <?php endforeach ?>

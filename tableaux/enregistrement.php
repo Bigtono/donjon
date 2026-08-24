@@ -1,13 +1,17 @@
 <?php
-// regles/tableaux-enregistrement.php — Écriture des tableaux de règles (SP-TB3)
+// tableaux/enregistrement.php — Écriture des tableaux de données (SP-TB3)
+// Déplacé depuis regles/tableaux-enregistrement.php en SP-TB10, les tableaux
+// n'étant plus une spécificité du module Règles.
 //
 // Accès : canEditCompendium() uniquement (admin + gestionnaire compendium)
 // CSRF  : vérifié systématiquement
 //
 // POST requis :
 //   action — 'sauvegarder' | 'supprimer'
+//   force  — 'supprimer' seulement : 1 pour passer outre l'avertissement
+//            « ce tableau est encore inséré quelque part »
 //
-// GET ajax=1 → JSON {ok, id, erreur}
+// GET ajax=1 → JSON {ok, id, erreur, confirmation_requise}
 // Sinon      → redirect avec flash message
 //
 // Référence : doc/ARCHITECTURE_0_REFERENCE.md §9c
@@ -26,7 +30,7 @@ endif;
 
 $is_ajax  = isset($_GET['ajax']);
 $action   = strParam($_POST['action'] ?? '');
-$redirect = BASE_URL . '/regles/tableaux.php';
+$redirect = BASE_URL . '/tableaux/index.php';
 
 switch ($action):
   case 'sauvegarder':
@@ -68,7 +72,7 @@ function _tabRepondreErreur(bool $is_ajax, string $message, string $redirect = '
     exit;
   endif;
   $_SESSION['flash_message'] = ['type' => 'error', 'text' => $message];
-  header('Location: ' . ($redirect ?: BASE_URL . '/regles/tableaux.php'));
+  header('Location: ' . ($redirect ?: BASE_URL . '/tableaux/index.php'));
   exit;
 }
 
@@ -179,27 +183,43 @@ function _tabSauvegarder(PDO $db, bool $is_ajax, string $redirect): void
   _tabRepondreOk($is_ajax, $id, $slug, $redirect);
 }
 
-// Répercute un renommage de slug sur tous les textes hôtes du ruleset.
-// Portée actuelle : reg_texte (SP-TB2) et mo_stats (SP-TB6). À étendre en
-// même temps que la portée du tag (SP-TB7).
+// Répercute un renommage de slug sur TOUS les textes hôtes du ruleset.
+//
+// 🐛 Correctif SP-TB10 : la portée se limitait à reg_texte (SP-TB2) et
+// mo_stats (SP-TB6) alors que SP-TB7 avait étendu le tag aux huit champs
+// description du compendium. Un tableau inséré côté compendium — il y en a
+// déjà — perdait son insertion en silence au premier renommage de slug, le tag
+// s'affichant dès lors en .reg-tab__manquant.
+//
+// La liste des champs hôtes vient de tableauChampsHotes() : une seule
+// déclaration partagée avec le comptage des usages, plus de dérive possible.
 function _tabPropagerSlug(PDO $db, string $avant, string $apres, int $ruleset_id): void
 {
   $tag_avant = '[[tab:' . $avant . ']]';
   $tag_apres = '[[tab:' . $apres . ']]';
 
-  $stmt = $db->prepare('
-    UPDATE dd_regles
-    SET    reg_texte = REPLACE(reg_texte, ?, ?), reg_date_modif = NOW()
-    WHERE  reg_ruleset_var_id = ? AND reg_texte LIKE ?
-  ');
-  $stmt->execute([$tag_avant, $tag_apres, $ruleset_id, '%' . $tag_avant . '%']);
+  foreach (tableauChampsHotes() as $h):
+    $set = "{$h['champ']} = REPLACE({$h['champ']}, ?, ?)";
+    if ($h['date_modif'] !== null):
+      $set .= ", {$h['date_modif']} = NOW()";
+    endif;
 
-  $stmt = $db->prepare('
-    UPDATE dd_monstres
-    SET    mo_stats = REPLACE(mo_stats, ?, ?)
-    WHERE  mo_ruleset_var_id = ? AND mo_stats LIKE ?
-  ');
-  $stmt->execute([$tag_avant, $tag_apres, $ruleset_id, '%' . $tag_avant . '%']);
+    $sql    = "UPDATE {$h['table']} SET $set WHERE {$h['champ']} LIKE ?";
+    $params = [$tag_avant, $tag_apres, '%' . $tag_avant . '%'];
+    if ($h['ruleset'] !== null):
+      $sql     .= " AND {$h['ruleset']} = ?";
+      $params[] = $ruleset_id;
+    endif;
+
+    try {
+      $stmt = $db->prepare($sql);
+      $stmt->execute($params);
+    } catch (PDOException $e) {
+      // Une table hôte absente ne doit pas faire échouer l'enregistrement :
+      // les autres propagations restent valables.
+      error_log('Propagation slug tableau — ' . $h['table'] . ' : ' . $e->getMessage());
+    }
+  endforeach;
 }
 
 // ============================================================
@@ -220,6 +240,30 @@ function _tabSupprimer(PDO $db, bool $is_ajax, string $redirect): void
   $slug = $stmt->fetchColumn();
   if ($slug === false):
     _tabRepondreErreur($is_ajax, 'Tableau introuvable.');
+  endif;
+
+  // Garde-fou : supprimer un tableau encore inséré rend son tag irrésoluble
+  // dans les textes hôtes. L'avertissement vivait dans le JS de la liste
+  // (SP-TB3) ; il remonte ici en SP-TB10, la liste étant désormais servie par
+  // le moteur générique. Le client réémet la requête avec force=1 après
+  // confirmation.
+  $usages = compterUsagesTableau($db, (string)$slug, $ruleset_id);
+  if ($usages > 0 && !intParam($_POST['force'] ?? 0)):
+    $message = $usages > 1
+      ? $usages . ' textes insèrent encore ce tableau ; leurs tags deviendront irrésolubles.'
+      : 'Un texte insère encore ce tableau ; son tag deviendra irrésoluble.';
+    $message .= "\n\nSupprimer définitivement ce tableau ? Cette action est irréversible.";
+
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode([
+        'ok'                   => false,
+        'confirmation_requise' => true,
+        'erreur'               => $message,
+      ]);
+      exit;
+    endif;
+    _tabRepondreErreur($is_ajax, $message, $redirect);
   endif;
 
   try {

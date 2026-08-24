@@ -434,6 +434,99 @@ function chargerTableauParId(PDO $db, int $id, int $ruleset_id): ?array
   return $row ?: null;
 }
 
+// ============================================================
+// 6. CHAMPS HÔTES DU TAG — source de vérité unique (SP-TB10)
+// ============================================================
+// Le tag [[tab:slug]] est résolu au rendu dans tous les champs listés ici
+// (portée SP-TB2 → SP-TB7). Trois usages en dépendent et DOIVENT partager la
+// même liste, sans quoi ils divergent silencieusement :
+//   1. le comptage des usages (liste et fiche du gestionnaire) ;
+//   2. la propagation d'un renommage de slug (tableaux/enregistrement.php) ;
+//   3. le garde-fou de suppression.
+//
+// 🐛 Avant SP-TB10, la propagation ne couvrait que reg_texte et mo_stats : un
+// tableau inséré dans une description du compendium voyait son tag devenir
+// irrésoluble en silence au premier renommage de slug.
+//
+// 'ruleset' = null : la table ne porte pas de colonne ruleset
+// (dd_capacites_speciales est rattachée à une classe ou une race, pas à un
+// ruleset). Le filtre est alors omis — sans risque, la contrainte d'unicité
+// des slugs étant par ruleset et DD3.5 n'ayant encore aucun tableau (SP-TB9).
+function tableauChampsHotes(): array
+{
+  return [
+    ['table' => 'dd_regles',              'champ' => 'reg_texte',       'ruleset' => 'reg_ruleset_var_id',  'date_modif' => 'reg_date_modif'],
+    ['table' => 'dd_monstres',            'champ' => 'mo_stats',        'ruleset' => 'mo_ruleset_var_id',   'date_modif' => null],
+    ['table' => 'dd_sorts',               'champ' => 'so_description',  'ruleset' => 'so_ruleset_var_id',   'date_modif' => null],
+    ['table' => 'dd_classes',             'champ' => 'cla_description', 'ruleset' => 'cla_ruleset_var_id',  'date_modif' => null],
+    ['table' => 'dd_races',               'champ' => 'ra_description',  'ruleset' => 'ra_ruleset_var_id',   'date_modif' => null],
+    ['table' => 'dd_dons',                'champ' => 'do_texte',        'ruleset' => 'do_ruleset_var_id',   'date_modif' => null],
+    ['table' => 'dd_competences',         'champ' => 'comp_description','ruleset' => 'comp_ruleset_var_id', 'date_modif' => null],
+    ['table' => 'dd_objets_magiques',     'champ' => 'om_description',  'ruleset' => 'om_ruleset_var_id',   'date_modif' => null],
+    ['table' => 'dd_historiques',         'champ' => 'hi_description',  'ruleset' => 'hi_ruleset_var_id',   'date_modif' => null],
+    ['table' => 'dd_equipements',         'champ' => 'eqt_description', 'ruleset' => 'eqt_ruleset_var_id',  'date_modif' => null],
+    ['table' => 'dd_capacites_speciales', 'champ' => 'cap_description', 'ruleset' => null,                  'date_modif' => null],
+  ];
+}
+
+// Concatène tous les textes hôtes qui portent au moins un tag, pour le ruleset
+// donné. Le WHERE LIKE '%[[tab:%' est ce qui rend l'opération négligeable :
+// une poignée de lignes sur des milliers en base.
+//
+// Le comptage se fait en PHP (substr_count) et non en SQL : les colonnes hôtes
+// n'ont pas toutes le même jeu de caractères (utf8 / utf8mb4), ce qui fait
+// échouer un UNION SQL sur « Illegal mix of collations ».
+function _tabCorpusHotes(PDO $db, int $ruleset_id): string
+{
+  static $cache = [];
+  if (isset($cache[$ruleset_id])) return $cache[$ruleset_id];
+
+  $morceaux = [];
+  foreach (tableauChampsHotes() as $h):
+    $sql    = "SELECT {$h['champ']} FROM {$h['table']} WHERE {$h['champ']} LIKE ?";
+    $params = ['%[[tab:%'];
+    if ($h['ruleset'] !== null):
+      $sql     .= " AND {$h['ruleset']} = ?";
+      $params[] = $ruleset_id;
+    endif;
+
+    try {
+      $stmt = $db->prepare($sql);
+      $stmt->execute($params);
+      $morceaux[] = implode("\n", $stmt->fetchAll(PDO::FETCH_COLUMN));
+    } catch (PDOException $e) {
+      // Une table hôte absente ne doit pas casser le gestionnaire : le
+      // comptage devient partiel, la page reste utilisable.
+      error_log('Corpus tableaux — ' . $h['table'] . '.' . $h['champ'] . ' : ' . $e->getMessage());
+    }
+  endforeach;
+
+  $cache[$ruleset_id] = implode("\n", $morceaux);
+  return $cache[$ruleset_id];
+}
+
+// Nombre d'insertions de chaque tableau du ruleset, tous champs hôtes confondus.
+// Retour : [tab_id => nombre d'occurrences]
+function compterUsagesTableaux(PDO $db, int $ruleset_id): array
+{
+  $corpus = _tabCorpusHotes($db, $ruleset_id);
+
+  $stmt = $db->prepare('SELECT tab_id, tab_slug FROM dd_tableaux WHERE tab_ruleset_var_id = ?');
+  $stmt->execute([$ruleset_id]);
+
+  $usages = [];
+  foreach ($stmt->fetchAll() as $t):
+    $usages[(int)$t['tab_id']] = substr_count($corpus, '[[tab:' . $t['tab_slug'] . ']]');
+  endforeach;
+  return $usages;
+}
+
+// Nombre d'insertions d'un tableau précis — garde-fou de suppression.
+function compterUsagesTableau(PDO $db, string $slug, int $ruleset_id): int
+{
+  return substr_count(_tabCorpusHotes($db, $ruleset_id), '[[tab:' . $slug . ']]');
+}
+
 // Génère un slug URL-safe unique pour le ruleset donné.
 function tableauGenererSlug(PDO $db, string $nom, int $ruleset_id, int $excludeId = 0): string
 {

@@ -141,65 +141,12 @@ function reglesSupprimer(id) {
   .catch(function (e) { alert('Erreur réseau : ' + e); });
 }
 
-// ============================================================
-// TABLEAUX DE RÈGLES (SP-TB3)
-// ============================================================
-
-// Copie le tag [[tab:slug]] dans le presse-papiers.
-function reglesCopierTag(el) {
-  var texte = (el.textContent || '').trim();
-  if (!texte) return;
-
-  var confirmer_visuel = function () {
-    var avant = el.getAttribute('title');
-    el.classList.add('reg-tab-liste__tag--copie');
-    el.setAttribute('title', 'Copié !');
-    setTimeout(function () {
-      el.classList.remove('reg-tab-liste__tag--copie');
-      el.setAttribute('title', avant || '');
-    }, 1200);
-  };
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(texte).then(confirmer_visuel, function () {});
-    return;
-  }
-  // Repli : sélection du contenu, l'utilisateur fait Ctrl+C
-  var plage = document.createRange();
-  plage.selectNodeContents(el);
-  var sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(plage);
-}
-
-// Suppression d'un tableau — avertit si des règles l'insèrent encore.
-function tableauConfirmerSuppression(id, nbUsages) {
-  var msg = 'Supprimer définitivement ce tableau ? Cette action est irréversible.';
-  if (nbUsages > 0) {
-    msg = nbUsages + ' règle' + (nbUsages > 1 ? 's insèrent' : ' insère')
-        + ' encore ce tableau ; leur tag deviendra irrésoluble.\n\n' + msg;
-  }
-  confirmer(msg, function () {
-    var csrf  = document.querySelector('meta[name="csrf-token"]');
-    var token = csrf ? csrf.getAttribute('content') : '';
-
-    fetch(TABLEAUX_URL_ENREG + '?ajax=1', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        action:     'supprimer',
-        csrf_token: token,
-        tab_id:     id,
-      }).toString(),
-    })
-    .then(function (r) { return r.json(); })
-    .then(function (res) {
-      if (res.ok) window.location.reload();
-      else alert(res.erreur || 'Erreur lors de la suppression.');
-    })
-    .catch(function (e) { alert('Erreur réseau : ' + e); });
-  });
-}
+// TABLEAUX (SP-TB) — déplacés dans js/main.js en SP-TB10 :
+//   reglesCopierTag()          → copierTagTableau(), appelée depuis les fiches
+//                                détail, injectables sur n'importe quelle page,
+//                                où js/regles.js n'est pas chargé.
+//   tableauConfirmerSuppression() → supprimée, la liste des tableaux passe par
+//                                le moteur générique et son garde-fou serveur.
 
 // ============================================================
 // DRAG & DROP réordonnancement des enfants

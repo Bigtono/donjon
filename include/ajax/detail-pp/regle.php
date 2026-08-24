@@ -70,15 +70,19 @@ $enfants = $stmt_enfants->fetchAll();
       <?php if (!$noeud['reg_visible']): ?>
         <span class="regles-badge regles-badge--brouillon">Brouillon</span>
       <?php endif ?>
-    </h2>
 
-    <?php if ($peut_editer): ?>
-      <button class="regle-detail__edit-btn"
-              onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/regle.php', <?= $id ?>)"
-              title="Modifier">
-        <i class="fa fa-edit"></i>
-      </button>
-    <?php endif ?>
+      <?php // Bouton dans le titre, à la suite des badges — et non poussé au
+            // bord droit du panneau, où il passait sous la croix de fermeture
+            // de .overlay-close (SP-TB11). Même disposition que les fiches du
+            // compendium (.sort-detail__edit-btn). ?>
+      <?php if ($peut_editer): ?>
+        <button class="regle-detail__edit-btn"
+                onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/regle.php', <?= $id ?>)"
+                title="Modifier">
+          <i class="fa fa-edit"></i>
+        </button>
+      <?php endif ?>
+    </h2>
   </div>
 
   <?php if ($noeud['reg_texte']): ?>

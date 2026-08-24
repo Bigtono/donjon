@@ -49,9 +49,20 @@ require_once '../include/header.php';
 
 <div class="flex-between mb-md">
   <h1>Campagnes <span class="text-muted text-sm">(<?= h($ruleset_rep) ?>)</span></h1>
-  <button class="btn btn-primary btn-sm" onclick="ouvrirModifier(campUrlModifier, 0)">
-    <i class="fa fa-plus"></i> Nouvelle campagne
-  </button>
+  <div class="flex flex-gap">
+    <?php // Gestionnaire de tableaux — accessible depuis chaque module
+    // (SP-TB10) : un tableau se réutilise partout, il n'appartient plus aux
+    // règles. Nouvel onglet, pour ne pas perdre la liste en cours. ?>
+    <?php if (canEditCompendium()): ?>
+      <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/tableaux/index.php"
+         target="_blank" rel="noopener" title="Tableaux de données">
+        <i class="fa fa-table"></i> Tableaux
+      </a>
+    <?php endif ?>
+    <button class="btn btn-primary btn-sm" onclick="ouvrirModifier(campUrlModifier, 0)">
+      <i class="fa fa-plus"></i> Nouvelle campagne
+    </button>
+  </div>
 </div>
 
 <?php if (empty($campagnes)): ?>

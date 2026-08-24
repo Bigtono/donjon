@@ -339,8 +339,46 @@ document.addEventListener('DOMContentLoaded', () => {
 // CONFIRMATION AVANT ACTION DESTRUCTIVE
 // ============================================================
 
-function confirmer(message, callback) {
+// siRefus est optionnel : il permet à l'appelant de rétablir l'état de l'UI
+// quand l'utilisateur renonce (ligne de liste dépliée en demande de
+// confirmation, par exemple).
+function confirmer(message, callback, siRefus) {
   if (window.confirm(message)) callback();
+  else if (typeof siRefus === 'function') siRefus();
+}
+
+// ============================================================
+// TAG DE TABLEAU — copie dans le presse-papiers (SP-TB)
+// Promue depuis js/regles.js en SP-TB10 : le tag s'affiche dans la fiche
+// détail d'un tableau et dans son formulaire, tous deux injectés en AJAX sur
+// n'importe quelle page — y compris hors module Règles, où js/regles.js n'est
+// pas chargé et où l'appel échouait silencieusement.
+// ============================================================
+
+function copierTagTableau(el) {
+  var texte = (el.textContent || '').trim();
+  if (!texte) return;
+
+  var confirmerVisuel = function () {
+    var avant = el.getAttribute('title');
+    el.classList.add('reg-tab-liste__tag--copie');
+    el.setAttribute('title', 'Copié !');
+    setTimeout(function () {
+      el.classList.remove('reg-tab-liste__tag--copie');
+      el.setAttribute('title', avant || '');
+    }, 1200);
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texte).then(confirmerVisuel, function () {});
+    return;
+  }
+  // Repli : sélection du contenu, l'utilisateur fait Ctrl+C
+  var plage = document.createRange();
+  plage.selectNodeContents(el);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(plage);
 }
 
 // ============================================================
@@ -751,3 +789,219 @@ function releveDevice() {
 }
 
 document.addEventListener('DOMContentLoaded', releveDevice);
+
+// ============================================================
+// MOTEUR DE LISTE — comportements communs (SP-RS6b)
+// Promus depuis js/compendium.js et js/admin.js, qui en portaient deux copies
+// quasi identiques, et js/personnage.js une troisième sous le préfixe per*.
+// Servent désormais les listes du compendium, des règles, de l'administration
+// et des personnages.
+//
+// Variables injectées par le moteur PHP dans la page :
+//   compUrlEnreg, compEntite, compUrlModifier, compUrlDetail
+//   compSupprimerAction (optionnel — admin-liste.php)
+//   compSuppression     (optionnel — {mode:'ajax', action:'...', param:'...'})
+// ============================================================
+
+// Menu ⋮ d'une ligne. `btn` est optionnel : quand il est fourni, le menu est
+// positionné en fixed depuis le bouton et recadré dans le viewport (SP-RS3) ;
+// sans lui, il reste positionné par le CSS de la page appelante.
+function compToggleMenu(id, btn) {
+  const menu = document.getElementById('comp-menu-' + id);
+  if (!menu) return;
+
+  document.querySelectorAll('.comp-menu-dropdown').forEach(m => {
+    if (m !== menu) m.classList.add('noDisplay');
+  });
+
+  if (!menu.classList.contains('noDisplay')) {
+    menu.classList.add('noDisplay');
+    return;
+  }
+
+  // Affiché avant mesure : offsetWidth/offsetHeight valent 0 sous .noDisplay
+  menu.classList.remove('noDisplay');
+
+  if (btn) {
+    const rect  = btn.getBoundingClientRect();
+    const marge = 8;
+    let left = rect.left;
+    let top  = rect.bottom;
+
+    if (left + menu.offsetWidth > window.innerWidth - marge) {
+      left = window.innerWidth - menu.offsetWidth - marge;
+    }
+    if (left < marge) left = marge;
+    if (top + menu.offsetHeight > window.innerHeight - marge) {
+      top = Math.max(marge, rect.top - menu.offsetHeight);
+    }
+
+    menu.style.top  = top + 'px';
+    menu.style.left = left + 'px';
+  }
+
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      if (!menu.contains(e.target)) {
+        menu.classList.add('noDisplay');
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 0);
+}
+
+// Suppression inline — remplace la ligne par sa demande de confirmation
+function compDemanderSuppression(id) {
+  const row     = document.getElementById('row-' + id);
+  const confirm = document.getElementById('comp-confirm-' + id);
+  if (!row || !confirm) return;
+
+  row.dataset.backup = row.innerHTML;
+  const nbCols = row.querySelectorAll('td').length;
+  row.innerHTML = `<td colspan="${nbCols}" class="comp-confirm-row">
+    ${confirm.innerHTML}
+  </td>`;
+}
+
+function compAnnulerSuppression(id) {
+  // Rechargement plutôt que restauration du backup : les filtres GET sont
+  // préservés et l'état de la ligne redevient exact.
+  window.location.reload();
+}
+
+function compConfirmerSuppression(id) {
+  // Mode AJAX : la page cible expose une action nommée qui répond en JSON
+  // (module Personnages). Mode formulaire : contrat historique du compendium
+  // et de l'administration, POST de ids[] vers enregistrement.php.
+  if (typeof compSuppression !== 'undefined' && compSuppression && compSuppression.mode === 'ajax') {
+    const charge = { action: compSuppression.action };
+    charge[compSuppression.param || 'id'] = id;
+
+    // confirmation_requise : le serveur refuse la suppression tant que
+    // l'utilisateur n'a pas vu l'avertissement (SP-TB10 — un tableau encore
+    // inséré quelque part). On réémet la requête avec force=1 après accord.
+    const envoyer = (force) => {
+      postAjax(compUrlEnreg, force ? { ...charge, force: 1 } : charge)
+        .then(data => {
+          if (data.ok) { rafraichirListe(); return; }
+          if (data.confirmation_requise && !force) {
+            confirmer(data.erreur, () => envoyer(true), () => compAnnulerSuppression(id));
+            return;
+          }
+          alert(data.erreur || 'Erreur lors de la suppression.');
+          compAnnulerSuppression(id);
+        })
+        .catch(err => {
+          alert('Erreur : ' + err);
+          compAnnulerSuppression(id);
+        });
+    };
+
+    envoyer(false);
+    return;
+  }
+
+  const form = document.getElementById('comp-bulk-form');
+  if (!form) return;
+
+  // compSupprimerAction est injecté par admin-liste.php
+  const action = (typeof compSupprimerAction !== 'undefined')
+    ? compSupprimerAction
+    : 'supprimer';
+
+  document.getElementById('comp-bulk-action-hidden').value = action;
+  document.getElementById('comp-bulk-ids').innerHTML =
+    `<input type="hidden" name="ids[]" value="${id}">`;
+  form.submit();
+}
+
+// Duplique une seule ligne (menu ⋮ — cf. $listConfig['action_dupliquer']).
+// Réutilise le formulaire de la suppression ; pas de confirmation, l'action
+// n'est pas destructive.
+function compDupliquer(id) {
+  const form = document.getElementById('comp-bulk-form');
+  if (!form) return;
+
+  document.getElementById('comp-bulk-action-hidden').value = 'dupliquer';
+  document.getElementById('comp-bulk-ids').innerHTML =
+    `<input type="hidden" name="ids[]" value="${id}">`;
+  form.submit();
+}
+
+// --- Sélection multiple et barre d'actions groupées -------------------------
+
+function compMajBulkBar() {
+  const checked = document.querySelectorAll('.comp-check:checked');
+  const bulkBar = document.getElementById('comp-bulk-bar');
+  const counter = document.getElementById('comp-bulk-count');
+
+  if (!bulkBar) return;
+  bulkBar.style.display = checked.length > 0 ? 'flex' : 'none';
+  if (counter) counter.textContent = checked.length;
+
+  const total  = document.querySelectorAll('.comp-check').length;
+  const selAll = document.getElementById('comp-select-all');
+  if (selAll) selAll.checked = checked.length === total && total > 0;
+}
+
+function compDeselectionnerTout() {
+  document.querySelectorAll('.comp-check, #comp-select-all').forEach(cb => {
+    cb.checked = false;
+  });
+  compMajBulkBar();
+}
+
+function compSoumettreAction() {
+  const action = document.getElementById('comp-bulk-action')?.value;
+  if (!action) {
+    alert('Choisissez une action.');
+    return;
+  }
+
+  const checked = document.querySelectorAll('.comp-check:checked');
+  if (checked.length === 0) {
+    alert('Sélectionnez au moins un élément.');
+    return;
+  }
+
+  // Confirmation systématique (comportement de l'administration), avec un
+  // message explicite pour la suppression (comportement du compendium).
+  const message = action === 'supprimer'
+    ? `Supprimer ${checked.length} élément(s) ? Cette action est irréversible.`
+    : `Appliquer "${action}" sur ${checked.length} élément(s) ?`;
+  if (!confirm(message)) return;
+
+  const container = document.getElementById('comp-bulk-ids');
+  container.innerHTML = '';
+  checked.forEach(cb => {
+    const input = document.createElement('input');
+    input.type  = 'hidden';
+    input.name  = 'ids[]';
+    input.value = cb.dataset.id;
+    container.appendChild(input);
+  });
+
+  document.getElementById('comp-bulk-action-hidden').value = action;
+  document.getElementById('comp-bulk-form').submit();
+}
+
+function rafraichirListe() {
+  window.location.reload();
+}
+
+// Sélection multiple : câblage des cases à cocher
+document.addEventListener('DOMContentLoaded', function () {
+  const selectAll = document.getElementById('comp-select-all');
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      document.querySelectorAll('.comp-check').forEach(cb => {
+        cb.checked = selectAll.checked;
+      });
+      compMajBulkBar();
+    });
+  }
+
+  document.addEventListener('change', e => {
+    if (e.target.classList && e.target.classList.contains('comp-check')) compMajBulkBar();
+  });
+});

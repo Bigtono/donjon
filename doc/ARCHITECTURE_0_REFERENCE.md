@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-08-22 -->
+<!-- Mis à jour : 2026-08-24 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -23,6 +23,13 @@
 > insérés dans une règle par le tag `[[tab:slug]]`. SP-TB0→TB6 livrés ; SP-TB7 (extension aux
 > champs texte du compendium), SP-TB8 (écran du MJ) et SP-TB9 (tableaux DD3.5) restent à faire.
 > Voir §9c.
+
+> 2026-08-24 : **SP-TB10 / SP-TB11**. Les tableaux ne sont pas une donnée du module Règles : le
+> gestionnaire quitte `regles/tableaux.php` pour `tableaux/index.php`, servi par le moteur de
+> liste partagé (filtres source / écran du MJ / texte, pagination, tri) et atteignable depuis les
+> barres d'outils de Règles, du Compendium et des Campagnes. Deux défauts de portée corrigés au
+> passage : la propagation d'un renommage de slug ignorait les champs du compendium, et
+> l'outillage CSS/JS du gestionnaire n'était chargé que sur les pages Règles. Voir §9c.
 
 > 2026-08-12 : le module **Personnages** reçoit son code projet **`SP-PE`** et rejoint le tableau de
 > bord §0 — c'était le seul chantier suivi hors checklist (sous-phases « 3.0 à 3.7 » narratives en
@@ -112,13 +119,18 @@
 - [x] SP-TB0 — SQL : `CREATE TABLE dd_tableaux`
 - [x] SP-TB1 — Moteur `include/tableau-parser.php` : convention texte → HTML (en-têtes multi-niveaux, sections, alignements, notes)
 - [x] SP-TB2 — Résolution du tag `[[tab:slug]]` dans `reg_texte` (vue règle + detail-pp)
-- [x] SP-TB3 — UI : liste `regles/tableaux.php`, formulaire, fiche détail, aperçu, enregistrement
+- [x] SP-TB3 — UI : liste, formulaire, fiche détail, aperçu, enregistrement
 - [x] SP-TB4 — Insertion depuis l'éditeur de règle : bouton TinyMCE + picker `#detail-pp-sub`
 - [x] SP-TB5 — Migration des tableaux HTML existants (`sql/migrate_tableaux_sp-tb5.php`)
 - [x] SP-TB6 — Portée du tag étendue à `mo_stats` (monstres)
 - [x] SP-TB7 — Portée du tag étendue aux champs texte du compendium, composant CSS rendu global, bouton d'insertion TinyMCE généralisé aux 10 éditeurs
 - [ ] SP-TB8 — Écran du MJ : page dédiée alimentée par `tab_ecran_mj` / `tab_ecran_ordre`, mise en page multi-colonnes et impression
+      — ⏸ **en attente** depuis le 2026-08-24 : la refonte du module Campagnes doit passer d'abord,
+      elle peut changer la façon dont l'écran du MJ est présenté. Ne pas démarrer avant qu'elle soit
+      arbitrée. Aucun tableau n'est encore coché `tab_ecran_mj` en base
 - [ ] SP-TB9 — Saisie des tableaux du ruleset **DD3.5** (id 1) — SP-TB0→TB6 n'ont alimenté que DD2024 (id 2)
+- [x] SP-TB10 — Gestionnaire sorti du module Règles (`tableaux/index.php`), servi par le moteur de liste partagé : filtres (source, écran du MJ, texte sur nom **et** slug), pagination, tri. Propagation du renommage de slug étendue aux 11 champs hôtes
+- [x] SP-TB11 — Correctif d'affichage : le bouton Modifier des fiches détail (règle et tableau) passe dans le titre, il butait sur la croix de fermeture du panneau
 
 ### SP-GL — Liaison automatique des termes de glossaire
 
@@ -165,7 +177,10 @@
 - [x] SP-RS3b — Barre de filtrage promue en composant partagé (`modules.css` + `main.js`), module Personnages aligné dessus
 - [x] SP-RS4 — Panneaux en feuille plein écran sous 992px, barre d'en-tête commune, `dvh`, Fermer ajouté sur `#modification`
 - [x] SP-RS6a — Page Personnages : raccourci personnage remonté dans la ligne de titre du header, bouton d'ajout en icône seule, ruleset retiré du `<h1>`
-- [ ] SP-RS6b — Liste des personnages reconstruite sur le moteur de liste partagé
+- [x] SP-RS6b — Moteur de liste rendu générique (6 clés optionnelles), Personnages migré, JS des listes promu dans `main.js`
+- [x] SP-RS6d — Ajustements de la liste et de la fiche personnage (gras, campagne détachée, en-tête en grille, Mode jeu repliable, Classes dans Identité, Combat côte à côte, Dons en deux colonnes)
+- [x] SP-RS6e — Bloc Compétences de la fiche rendu comme le bloc Dons (liste flex + ligne d'en-tête en gras)
+- [ ] SP-RS6c — Unification complète : replier les 7 capacités d'`admin-liste.php` dans le moteur, migrer `admin/utilisateurs.php`, `admin/ressources.php` et `campagnes/index.php`, supprimer `admin-liste.php`, aligner le CSS du menu ⋮ de l'admin
 - [x] SP-RS5a — Collecte des relevés d'affichage : beacon, `dd_joueurs.j_last_*`, `dd_connexions`, écran admin
 - [ ] SP-RS5 — Arbitrage des paliers définitifs (991 / 768 / 479) à partir des relevés accumulés dans `dd_connexions`
 
@@ -1819,8 +1834,45 @@ notamment par le futur écran du MJ (SP-TB8), qui regroupera les tableaux marqu�
 | tab_date_creation / tab_date_modif | datetime | nn | |
 
 **Scoping ruleset uniquement**, droits d'édition `canEditCompendium()` — strictement calqué sur
-`dd_regles`. Le moteur `compendium-liste.php` **ne s'applique pas** (pas de sources actives,
-pas de mécanisme de supplément) : `regles/tableaux.php` est une liste dédiée.
+`dd_regles`.
+
+### Le gestionnaire — `tableaux/index.php` (SP-TB10)
+
+À l'usage, un tableau ne s'est pas révélé être une donnée du module Règles : il est réutilisé
+par le compendium et le sera par les campagnes puis l'univers. Le gestionnaire a donc quitté
+`regles/` pour un module propre.
+
+| Avant (SP-TB3) | Après (SP-TB10) |
+|---|---|
+| `regles/tableaux.php` | `tableaux/index.php` — l'ancienne adresse redirige en 301 (`ecran=1` → `f_ecran=1`) |
+| `regles/tableaux-enregistrement.php` | `tableaux/enregistrement.php` |
+| Table maison, sans filtre ni pagination | Moteur partagé `include/compendium-liste.php` |
+| Atteignable depuis Règles et le compendium | + Campagnes (les trois barres d'outils) |
+
+**Le moteur `compendium-liste.php` s'applique donc bien** — la note contraire de SP-TB3 vient de
+ce que `tab_res_id` était alors laissé à NULL sur la plupart des tableaux, ce qui les aurait fait
+disparaître derrière le filtre des sources actives. Les sources ont été renseignées, le mécanisme
+standard du compendium s'applique tel quel (`champ_res` = `t.tab_res_id`).
+
+Filtres offerts : **texte libre** (nom *et* slug — c'est le slug qu'on a sous les yeux quand un
+tag ne résout pas), **sources** (menu à cases du moteur), **écran du MJ** (case à cocher, alimente
+`extra_where`). Colonnes triables : nom, tag, écran, source, statut.
+
+Trois capacités génériques ont été ajoutées au moteur pour ce faire — utilisables par toute autre
+liste :
+
+| Clé | Rôle |
+|---|---|
+| `champs_recherche` | colonnes SQL balayées par le filtre texte, en OU (défaut : la première colonne) |
+| `colonnes[].valeurs` | colonne **calculée en PHP** (`[id => valeur]`) au lieu de `sql` : ni SELECT ni tri. Le tableau doit couvrir toute l'entité, pas seulement la page |
+| `td.comp-col--<champ>` | chaque cellule porte le nom de sa colonne, comme `.comp-subrow__part--*` : une page peut cibler une colonne sans compter les index |
+
+La colonne **Usages** passe par `colonnes[].valeurs` : le comptage ne s'exprime pas en SQL, les
+onze champs hôtes n'ayant pas tous le même jeu de caractères (`utf8` / `utf8mb4`), ce qui fait
+échouer un `UNION` sur « Illegal mix of collations ». Il est fait en PHP par
+`compterUsagesTableaux()` (~40 ms, cf. ci-dessous). La cellule « Tag à insérer » retrouve son
+`<code>` cliquable (copie) par un handler posé en capture sur `.comp-col--tab_tag`, qui
+court-circuite le clic de ligne du moteur.
 
 ### Convention de saisie (`tab_contenu`)
 
@@ -1909,6 +1961,19 @@ Le conteneur `<figure class="reg-tab">` porte `data-detail-base` — sans cet at
 | `eqt_description` | `detail-pp/equipement.php` | SP-TB7 |
 | `cap_description` | `detail-pp/capacite.php`, `classe.php`, `race.php` | SP-TB7 |
 
+> **`tableauChampsHotes()` est la source de vérité de cette liste** (SP-TB10, dans
+> `include/tableau-parser.php`). Trois mécanismes en dépendent et doivent partager la même
+> liste : le **comptage des usages**, la **propagation d'un renommage de slug** et le
+> **garde-fou de suppression**. Toute extension de la portée du tag se déclare là, et nulle
+> part ailleurs.
+>
+> 🐛 **Défaut corrigé en SP-TB10.** `_tabPropagerSlug()` ne couvrait que `reg_texte` et
+> `mo_stats` : la fonction n'avait pas suivi SP-TB7. Un tableau inséré dans une description du
+> compendium — il y en avait déjà un — perdait son insertion en silence au premier renommage de
+> slug, le tag s'affichant dès lors en `.reg-tab__manquant`. Les deux tables sans colonne
+> ruleset (`dd_capacites_speciales`) sont propagées sans ce filtre : sans risque, l'unicité des
+> slugs étant par ruleset et DD3.5 n'ayant encore aucun tableau (SP-TB9).
+
 **Hors périmètre, volontairement** :
 - `cla_conditions`, `cla_armes`, `cla_armures`, `cla_sorts` — champs courts et structurés,
   un tableau n'y a pas de sens.
@@ -1932,12 +1997,16 @@ apparaîtrait littéralement dans les résultats de recherche. Cas marginal, non
 ### Fichiers du module
 
 ```
+tableaux/
+  index.php                    liste + gestion (moteur compendium-liste.php)
+  enregistrement.php           écriture (sauvegarder / supprimer)
+
 regles/
-  tableaux.php                 liste + gestion
-  tableaux-enregistrement.php  écriture (sauvegarder / supprimer)
+  tableaux.php                 redirection 301 vers tableaux/index.php
 
 include/
-  tableau-parser.php           moteur : parsing, rendu, résolution du tag, slug
+  tableau-parser.php           moteur : parsing, rendu, résolution du tag, slug,
+                               champs hôtes et comptage des usages
   ajax/
     tableau-apercu.php               aperçu POST sans écriture
     detail-pp/tableau.php            fiche détail
@@ -1949,12 +2018,21 @@ sql/
   migrate_tableaux_sp-tb5.php      migration des tableaux HTML existants
 ```
 
-**CSS — répartition volontaire (SP-TB7)** :
+**CSS — répartition volontaire (SP-TB7, complétée en SP-TB10)** :
 
 | Fichier | Contenu | Portée |
 |---|---|---|
-| `css/modules.css` | Composant de rendu : `.reg-tab`, `.reg-tab__*` | **Toutes les pages** (`header.php`, sans condition) |
-| `css/regles-modules.css` | Outillage du gestionnaire : `.reg-tab-liste*`, `.reg-tab-saisie`, `.reg-tab-aide*`, `.reg-tab-apercu`, `.tableaux-picker*`, `.tableau-detail *` | `$css_module = 'regles'` |
+| `css/modules.css` | Composant de rendu `.reg-tab`, `.reg-tab__*` — **et depuis SP-TB10** l'outillage du gestionnaire (`.reg-tab-liste__tag*`, `.reg-tab-saisie`, `.reg-tab-apercu`, `.tableaux-picker*`, `.tableau-detail*`), les fiches détail `.regle-detail__*` et le badge `.regles-badge--ecran` | **Toutes les pages** (`header.php`, sans condition) |
+| `css/regles-modules.css` | Ne conserve que ce qui est propre aux pages Règles (arbre, sommaire, recherche, surlignage) | `$css_module = 'regles'` |
+
+> 🐛 **Second défaut du même type, corrigé en SP-TB10.** SP-TB7 avait déplacé le *composant de
+> rendu* mais laissé dans `regles-modules.css` tout l'outillage : le picker s'ouvre pourtant
+> depuis les dix éditeurs TinyMCE du site, et la fiche détail d'une règle comme d'un tableau
+> depuis n'importe quelle page (un tag `@id@` ou `[[tab:slug]]` est résolu jusque dans les stats
+> de monstre). Hors module Règles, tous s'affichaient sans style. Même cause, même remède : ce
+> qui est injecté en AJAX sur une page quelconque vit dans `modules.css`. La fonction JS de copie
+> du tag a suivi le même chemin (`js/regles.js` → `js/main.js`, sous le nom
+> `copierTagTableau()`), pour la même raison.
 
 > Le composant a quitté `regles-modules.css` le 2026-08-10. Un tableau n'est plus un élément du
 > module Règles : il s'affiche sur les fiches du compendium (`$css_module = 'compendium'`) et
@@ -2051,7 +2129,7 @@ setup: function (editor) { tableauxInitBouton(editor); }
 - **Le picker ne crée pas de tableau.** Il s'affiche dans `#detail-pp-sub` (z-index 300)
   au-dessus de `#modification` (250) qui porte la règle en cours d'édition. Ouvrir un
   formulaire de création occuperait `#modification` et **écraserait la règle en saisie** —
-  le picker propose donc un lien « Gérer » vers `regles/tableaux.php` en nouvel onglet.
+  le picker propose donc un lien « Gérer » vers `tableaux/index.php` en nouvel onglet.
 - **Le débordement horizontal est porté par `.reg-tab__scroll`, jamais par `<table>`.**
   Un `table { display:block }` (comme dans l'ancien style `.regles-noeud__texte table`)
   casse `colspan`/`rowspan`.
@@ -2094,7 +2172,8 @@ pas devinables de façon fiable, l'auteur les reprend à la main.
 > ⚠ **Un titre à reprendre** : le premier tableau de la règle `combat` (catégories de taille et
 > espace occupé) n'était précédé d'aucun `<p class="table-titre">`. Le repli a donc pris le nom
 > de la règle : il s'appelle « Combat » / `[[tab:combat]]`. À renommer depuis
-> `regles/tableaux.php` — le renommage du slug se répercute automatiquement dans `reg_texte`.
+> `tableaux/index.php` — le renommage du slug se répercute automatiquement dans les onze champs
+> hôtes (SP-TB10).
 
 > ⚠ `sql/import_regles_dd2024.sql` contient encore les tableaux en HTML. Le rejouer **après**
 > la migration réintroduirait les blocs `<table>` dans `reg_texte`. Le relancer impose de
@@ -2302,6 +2381,52 @@ Base de mesures destinée à arbitrer les paliers responsive sur des données r�
 > palier 479 — celui qui n'est aujourd'hui utilisé que par une seule règle du projet. Le A52
 > descend à 342px à cause du zoom d'affichage système : deux utilisateurs d'un même modèle
 > peuvent tomber dans des paliers différents.
+
+### 10i. Moteur de liste générique — SP-RS6b
+
+`include/compendium-liste.php` n'est plus réservé au compendium : il sert **11 pages** — les 9
+listes du compendium, `personnages/index.php` et `tableaux/index.php` (SP-TB10). Clés
+optionnelles, toutes additives (absentes, comportement strictement inchangé) :
+
+| Clé | Effet | Phase |
+|---|---|---|
+| `champ_res` absent | aucun filtre sources ni bouton Sources — entités sans `dd_ressources` | SP-RS6b |
+| `extra_params` | valeurs des `?` de `extra_where`, ajoutées en fin de `$params` | SP-RS6b |
+| `url_ligne` | clic de ligne vers une page (`{id}` remplacé) au lieu d'ouvrir `#detail-pp` | SP-RS6b |
+| `edition_libre` | menu ⋮ ouvert sans passer par `canEditCompendium()` | SP-RS6b |
+| `avec_ajout` | `false` masque les boutons Ajouter et Tableaux de la barre de filtre | SP-RS6b |
+| `suppression` | `{mode:'ajax', action, param}` : appel JSON au lieu du POST `ids[]` | SP-RS6b |
+| `champs_recherche` | colonnes SQL balayées par le filtre texte libre, en OU (défaut : la première colonne) | SP-TB10 |
+| `colonnes[].valeurs` | colonne **calculée en PHP** (`[id => valeur]`) au lieu de `sql` : hors SELECT, jamais triable. Doit couvrir toute l'entité, pas seulement la page affichée | SP-TB10 |
+
+Chaque `<td>` porte en outre `comp-col--<champ>` (SP-TB10), sur le modèle de
+`.comp-subrow__part--*` : une page peut cibler une colonne en CSS ou en JS sans compter les
+index de colonnes.
+
+En mode `suppression: ajax`, le serveur peut répondre `{ok:false, confirmation_requise:true,
+erreur}` : `compConfirmerSuppression()` affiche alors l'avertissement et réémet la requête avec
+`force=1` si l'utilisateur confirme. C'est ainsi qu'un garde-fou métier (« ce tableau est encore
+inséré dans N textes ») reste côté serveur tout en s'exprimant dans l'UI générique.
+
+**CSS du moteur** — tableau, tri, menu ⋮, confirmation inline, pagination, barre bulk, et leur
+media query 991px — déplacé dans `css/modules.css` avec la barre de filtrage. Une page qui inclut
+le moteur n'a donc plus à charger `compendium-modules.css`. Le clone local des classes
+`.comp-menu-*` de `personnages-modules.css` a été supprimé : chargé après `modules.css`, il
+écrasait les cibles tactiles de 44px.
+
+**JS des listes** (`compToggleMenu`, suppression inline, barre bulk, `rafraichirListe`) promu dans
+`js/main.js` : il existait en deux copies (`compendium.js`, `admin.js`) plus une variante `per*`
+dans `personnage.js`. `compToggleMenu(id, btn)` garde `btn` optionnel — sans lui, le menu reste
+positionné par le CSS de la page appelante, ce qui préserve le comportement des listes admin.
+
+> État de l'unification : **2 moteurs + 1 liste maison** (contre 3 implémentations avant).
+> `admin-liste.php` sert encore `admin/utilisateurs.php` et `admin/ressources.php` — il porte 7
+> capacités absentes du moteur commun (`confirm_callback`, `menu_extra_callback`,
+> `row_class_callback`, `avec_modifier`/`avec_supprimer`, `action_supprimer`/`label_supprimer`,
+> filtres `select_static`). `campagnes/index.php` garde sa table maison. Le gestionnaire de
+> tableaux, lui, a rejoint le moteur en SP-TB10 : le motif invoqué en SP-TB3 (« scoping ruleset
+> seul, pas de sources actives ») tenait à des `tab_res_id` laissés à NULL, pas au moteur.
+> Voir SP-RS6c en §0.
 
 ---
 

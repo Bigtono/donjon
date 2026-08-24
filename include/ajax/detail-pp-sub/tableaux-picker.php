@@ -6,7 +6,7 @@
 //
 // La création d'un tableau n'est PAS proposée ici : le formulaire de création
 // occuperait #modification et écraserait la règle en cours de saisie. Le lien
-// « Gérer les tableaux » ouvre donc regles/tableaux.php dans un nouvel onglet.
+// « Gérer les tableaux » ouvre donc tableaux/index.php dans un nouvel onglet.
 //
 // Paramètres GET :
 //   q (string) — filtre optionnel
@@ -55,7 +55,7 @@ $tableaux = $stmt->fetchAll();
     <input type="text" class="form-control" id="tab-picker-q"
            placeholder="Filtrer…" value="<?= h($q) ?>" autocomplete="off">
     <a class="btn btn--sm btn--secondary"
-       href="<?= BASE_URL ?>/regles/tableaux.php" target="_blank" rel="noopener"
+       href="<?= BASE_URL ?>/tableaux/index.php" target="_blank" rel="noopener"
        title="Ouvrir la gestion des tableaux dans un nouvel onglet">
       <i class="fa fa-cog"></i> Gérer
     </a>

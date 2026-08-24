@@ -14,6 +14,13 @@
 //   champ_res     string   — champ ressource avec alias table ('so.so_res_id')
 //   champ_ruleset string   — champ ruleset avec alias table (optionnel)
 //   colonnes      array    — [{sql, champ, label, mobile, tri}]
+//                            Variante colonne calculée en PHP (SP-TB10) : au lieu de
+//                            'sql', déclarer 'valeurs' => [id => valeur]. La colonne
+//                            n'entre alors ni dans le SELECT ni dans le tri — utile
+//                            quand la valeur ne s'exprime pas raisonnablement en SQL
+//                            (ex. comptage d'usages d'un tag dans des champs texte de
+//                            jeux de caractères hétérogènes). Le tableau doit couvrir
+//                            toutes les lignes de l'entité, pas seulement la page.
 //   filtres       array    — critères métier intermédiaires [{type, name, champ, label, ...}]
 //                            clé optionnelle submit_onchange (bool, types select/exists) :
 //                            soumet le formulaire dès le changement de valeur. Utile quand
@@ -41,6 +48,24 @@
 //                             nécessite que 'from' joigne déjà dd_ressources sous cet alias.
 //   Si absentes : comportement strictement inchangé (rétro-compatible).
 //
+//   --- Moteur générique (SP-RS6b) — clés optionnelles permettant d'utiliser ce
+//       moteur hors compendium. Absentes : comportement strictement inchangé.
+//   champ_res absent  → aucun filtre sources, aucun bouton Sources. Pour les
+//                       entités sans dd_ressources (ex. dd_personnages).
+//   extra_params array → valeurs des ? de extra_where, ajoutées en fin de $params
+//   url_ligne     string → clic sur une cellule = navigation vers cette URL
+//                       ('{id}' remplacé) au lieu d'ouvrir #detail-pp
+//   edition_libre bool  → le menu ⋮ est ouvert à toutes les lignes listées, sans
+//                       passer par canEditCompendium() : la liste est déjà
+//                       restreinte au propriétaire par extra_where
+//   avec_ajout    bool  → false masque les boutons Ajouter et Tableaux de la
+//                       barre de filtre (défaut true)
+//   champs_recherche array → colonnes SQL balayées par le filtre texte libre,
+//                       en OU (défaut : la première colonne déclarée)
+//   suppression   array → {mode:'ajax', action:'...', param:'id'} : la
+//                       suppression appelle url_enreg en JSON au lieu de poster
+//                       ids[] dans #comp-bulk-form (défaut : formulaire)
+//
 //   --- Filtre Campagne (optionnel) :
 //   camp_filtre  bool  — true active un select "Campagne" dans la barre de filtre (GET f_camp),
 //                         qui bascule le filtre homebrew de "compendium global" (comportement
@@ -60,7 +85,8 @@ $page_courante = max(1, intParam($_GET['page'] ?? 1));
 // Tri — validation par whitelist
 $cols_triables = [];
 foreach ($listConfig['colonnes'] as $col):
-  if (!empty($col['tri'])) $cols_triables[$col['champ']] = $col['sql'];
+  // Une colonne calculée en PHP ('valeurs') n'existe pas en SQL : jamais triable.
+  if (!empty($col['tri']) && isset($col['sql'])) $cols_triables[$col['champ']] = $col['sql'];
 endforeach;
 
 $sort_col = strParam($_GET['sort_col'] ?? '');
@@ -75,10 +101,14 @@ $sort_sql = $cols_triables[$sort_col] . ' ' . $sort_dir;
 // Filtre texte libre
 $q = strParam($_GET['q'] ?? '');
 
+// Sources : mécanisme propre au compendium, désactivé quand champ_res est
+// absent (SP-RS6b — entités sans ressource, ex. dd_personnages).
+$gere_sources = !empty($listConfig['champ_res']);
+
 // Filtres sources : intersection sélection active ∩ sélection GET
-$res_actifs = getActiveResIds($db);
+$res_actifs = $gere_sources ? getActiveResIds($db) : [];
 $res_get    = [];
-if (!empty($_GET['f_res']) && is_array($_GET['f_res'])):
+if ($gere_sources && !empty($_GET['f_res']) && is_array($_GET['f_res'])):
   foreach ($_GET['f_res'] as $r):
     $r = (int)$r;
     if (in_array($r, $res_actifs)) $res_get[] = $r;
@@ -171,14 +201,16 @@ if ($champ_camp !== null):
   endif;
 endif;
 
-// Filtre sources
-if (!empty($res_ids)):
-  $placeholders  = resIdsPlaceholders($res_ids);
-  $where_parts[] = $listConfig['champ_res'] . ' IN (' . $placeholders . ')';
-  foreach ($res_ids as $rid) $params[] = (int)$rid;
-else:
-  // Aucune source active → aucun résultat
-  $where_parts[] = '1=0';
+// Filtre sources — uniquement pour les entités qui déclarent champ_res
+if ($gere_sources):
+  if (!empty($res_ids)):
+    $placeholders  = resIdsPlaceholders($res_ids);
+    $where_parts[] = $listConfig['champ_res'] . ' IN (' . $placeholders . ')';
+    foreach ($res_ids as $rid) $params[] = (int)$rid;
+  else:
+    // Aucune source active → aucun résultat
+    $where_parts[] = '1=0';
+  endif;
 endif;
 
 // Filtre visibilité supplément (SP-C2) — vient EN PLUS du filtre sources
@@ -201,10 +233,19 @@ if ($gere_supplement):
   $params[] = $uid_courant;
 endif;
 
-// Filtre texte libre sur la première colonne
+// Filtre texte libre — première colonne par défaut, ou les colonnes déclarées
+// dans champs_recherche (en OU). Le gestionnaire de tableaux y balaie le nom
+// ET le slug : c'est le slug qu'on a sous les yeux quand un tag ne résout pas.
 if ($q !== ''):
-  $where_parts[] = $listConfig['colonnes'][0]['sql'] . ' LIKE ?';
-  $params[]      = '%' . $q . '%';
+  $cols_q = !empty($listConfig['champs_recherche'])
+    ? $listConfig['champs_recherche']
+    : [$listConfig['colonnes'][0]['sql']];
+  $ors = [];
+  foreach ($cols_q as $col_q):
+    $ors[]    = $col_q . ' LIKE ?';
+    $params[] = '%' . $q . '%';
+  endforeach;
+  $where_parts[] = '(' . implode(' OR ', $ors) . ')';
 endif;
 
 // Filtres métier intermédiaires
@@ -232,11 +273,18 @@ if (!empty($listConfig['extra_where'])):
   $where_sql = $where_sql
     ? $where_sql . ' AND ' . $listConfig['extra_where']
     : 'WHERE ' . $listConfig['extra_where'];
+  // extra_params : valeurs des éventuels ? de extra_where. Ajoutées en
+  // dernier, la clause étant concaténée en fin de WHERE (SP-RS6b).
+  foreach (($listConfig['extra_params'] ?? []) as $ep):
+    $params[] = $ep;
+  endforeach;
 endif;
 
 // SELECT des colonnes
 $select_parts = [$listConfig['champ_id'] . ' AS _id'];
 foreach ($listConfig['colonnes'] as $col):
+  // Colonne calculée en PHP : rien à sélectionner, la valeur vient de 'valeurs'.
+  if (!isset($col['sql'])) continue;
   $select_parts[] = $col['sql'] . ' AS ' . $col['champ'];
 endforeach;
 // Supplément (SP-C2) : propriétaire de la ressource, pour le badge homebrew
@@ -318,6 +366,9 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
     var compUrlModifier = <?= json_encode($listConfig['url_modifier'] ?? '') ?>;
     var compUrlEnreg = <?= json_encode($listConfig['url_enreg']) ?>;
     var compEntite = <?= json_encode($entite) ?>;
+    // Mode de suppression : null = formulaire POST ids[] (compendium, admin) ;
+    // {mode:'ajax', action, param} = appel JSON nommé (SP-RS6b).
+    var compSuppression = <?= json_encode($listConfig['suppression'] ?? null) ?>;
   </script>
 
   <?php // ---- ZONE FILTRE ---- 
@@ -502,22 +553,25 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
           <a href="?" class="btn btn-secondary btn-sm" title="Réinitialiser">
             <i class="fa fa-times"></i>
           </a>
-          <?php if (canEditCompendium()): ?>
+          <?php // avec_ajout=false : la page porte son propre bouton d'ajout
+          // et n'expose pas le gestionnaire de tableaux (SP-RS6b). ?>
+          <?php if (canEditCompendium() && ($listConfig['avec_ajout'] ?? true)): ?>
             <button type="button" class="btn btn-primary btn-sm"
               onclick="ouvrirModifier(compUrlModifier, 0)"
               title="Ajouter">
               <i class="fa fa-plus"></i>
             </button>
 
-            <?php // Accès au gestionnaire de tableaux (SP-TB7).
+            <?php // Accès au gestionnaire de tableaux (SP-TB7, déplacé hors du
+            // module Règles en SP-TB10).
             // Ici plutôt que dans chaque page du compendium : le moteur sert les
             // 9 entités, une seule déclaration les couvre toutes.
             // Nouvel onglet — la liste courante (filtres, tri, page) est conservée,
             // le tableau se crée à côté puis s'insère par son tag dans la fiche.
             ?>
-            <a href="<?= BASE_URL ?>/regles/tableaux.php" target="_blank" rel="noopener"
+            <a href="<?= BASE_URL ?>/tableaux/index.php" target="_blank" rel="noopener"
               class="btn btn-secondary btn-sm"
-              title="Tableaux de règles — créer ou modifier un tableau">
+              title="Tableaux — créer ou modifier un tableau">
               <i class="fa fa-table"></i>
               <span class="comp-filtre-label-desktop">Tableaux</span>
             </a>
@@ -605,9 +659,14 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
               $res_j_id_ligne = (int)$ligne['_res_j_id'];
               $est_homebrew   = true;
             endif;
-            $peut_modifier_ligne = $gere_supplement
-              ? canEditCompendiumEntry($db, $res_j_id_ligne)
-              : canEditCompendium();
+            // edition_libre : la liste est déjà restreinte aux lignes que
+            // l'utilisateur possède (extra_where), le droit compendium ne
+            // s'applique pas — cas du module Personnages (SP-RS6b).
+            $peut_modifier_ligne = !empty($listConfig['edition_libre'])
+              ? true
+              : ($gere_supplement
+                  ? canEditCompendiumEntry($db, $res_j_id_ligne)
+                  : canEditCompendium());
             ?>
             <tr id="row-<?= $id ?>" class="comp-ligne<?= $est_homebrew ? ' comp-ligne--homebrew' : '' ?>">
 
@@ -690,11 +749,24 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
               ?>
               <?php foreach ($listConfig['colonnes'] as $col): ?>
                 <?php
-                $cls_col = $col['mobile'] ? 'col-primary' : 'col-secondary';
-                $val     = $ligne[$col['champ']] ?? '';
+                // La cellule porte le nom de sa colonne (SP-TB10, même principe
+                // que .comp-subrow__part--*) : une page peut ainsi cibler une
+                // colonne précise en CSS ou en JS sans compter les index.
+                $cls_col = ($col['mobile'] ? 'col-primary' : 'col-secondary')
+                         . ' comp-col--' . h($col['champ']);
+                $val     = isset($col['valeurs'])
+                  ? ($col['valeurs'][$id] ?? '')
+                  : ($ligne[$col['champ']] ?? '');
+                ?>
+                <?php
+                // url_ligne : la ligne navigue vers une page au lieu d'ouvrir
+                // #detail-pp — le module Personnages ouvre sa fiche (SP-RS6b).
+                $clic_ligne = !empty($listConfig['url_ligne'])
+                  ? "window.location='" . h(str_replace('{id}', (string)$id, $listConfig['url_ligne'])) . "'"
+                  : "actualiserPage(compUrlDetail, {id: $id}, 'liste')";
                 ?>
                 <td class="<?= $cls_col ?>"
-                  onclick="actualiserPage(compUrlDetail, {id: <?= $id ?>}, 'liste')">
+                  onclick="<?= $clic_ligne ?>">
                   <?php if ($col['mobile'] && $est_homebrew): ?>
                     <i class="fa fa-flask comp-homebrew-icon" title="Entrée de supplément"></i>
                   <?php endif ?>
@@ -702,17 +774,19 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
 
                   <?php // Sous-ligne mobile : injectée dans col-primary uniquement 
                   ?>
+                  <?php // Chaque valeur est encapsulée et porte le nom de sa colonne
+                  // (SP-RS6d) : les séparateurs viennent du CSS, ce qui permet à
+                  // une page de détacher une valeur sur sa propre ligne. ?>
                   <?php if ($col['mobile'] && !empty($cols_secondary)): ?>
-                    <div class="comp-subrow">                      <?php
-                      $parts = [];
+                    <div class="comp-subrow"><?php
                       foreach ($cols_secondary as $sc):
-                        $sv = $ligne[$sc['champ']] ?? '';
-                        if ($sv !== '' && $sv !== null)
-                          $parts[] = h((string)$sv);
+                        $sv = isset($sc['valeurs'])
+                          ? ($sc['valeurs'][$id] ?? '')
+                          : ($ligne[$sc['champ']] ?? '');
+                        if ($sv === '' || $sv === null) continue;
+                        ?><span class="comp-subrow__part comp-subrow__part--<?= h($sc['champ']) ?>"><?= h((string)$sv) ?></span><?php
                       endforeach;
-                      echo implode(' · ', $parts);
-                      ?>
-                    </div>
+                    ?></div>
                   <?php endif ?>
                 </td>
               <?php endforeach ?>
