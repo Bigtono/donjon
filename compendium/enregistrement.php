@@ -528,6 +528,8 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
 
   // Champs DD3.5
   $branche   = strParam($_POST['so_branche']          ?? '');
+  // Registre DD3.5 (SP-MA3) — saisi sans crochets, la fiche les ajoute.
+  $registre  = strParam($_POST['so_registre']         ?? '');
   $cible     = strParam($_POST['so_cible']            ?? '');
   $zone      = strParam($_POST['so_zone_effet']       ?? '');
   $jet_save  = strParam($_POST['so_jet_sauvegarde']   ?? '');
@@ -579,19 +581,20 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
       // ---- CRÉATION ----
       $stmt = $db->prepare('
         INSERT INTO dd_sorts
-          (so_nom, so_co_id, so_branche, so_vocal, so_gestuel, so_materiel,
+          (so_nom, so_co_id, so_branche, so_registre, so_vocal, so_gestuel, so_materiel,
            so_focalisateur, so_focalisateur_divin, so_composante, so_portee,
            so_cible, so_zone_effet, so_duree_incantation, so_duree_sort,
            so_jet_sauvegarde, so_resistance, so_niveau, so_resume,
            so_description, so_res_id, so_camp_id, so_public, so_visible,
            so_ruleset_var_id)
         VALUES
-          (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
         $co_id,
         $branche,
+        $registre,
         $vocal,
         $gestuel,
         $materiel,
@@ -623,6 +626,7 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
           so_nom                = ?,
           so_co_id              = ?,
           so_branche            = ?,
+          so_registre           = ?,
           so_vocal              = ?,
           so_gestuel            = ?,
           so_materiel           = ?,
@@ -649,6 +653,7 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
         $nom,
         $co_id,
         $branche,
+        $registre,
         $vocal,
         $gestuel,
         $materiel,
@@ -1284,10 +1289,15 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
   $ptsComp     = intParam($_POST['cla_pointsCompetences'] ?? 0);
   $poNiv1      = intParam($_POST['cla_po_niveau1']      ?? 0);
 
+  // Profil d'incantation (SP-MA0) — remplace les trois drapeaux
+  // cla_sort_connu / _compris / _prepare, dépréciés : ils ne sont plus ni lus
+  // ni écrits, et leurs colonnes sont laissées figées au 2026-08-27.
+  // Un profil n'a de sens que pour une classe lanceuse.
+  $profilInc = $mag_id > 0 ? intParam($_POST['cla_profil_incantation'] ?? 0) : 0;
+  // Cadence de renouvellement (SP-MA4b) — même règle : sans objet hors lanceur.
+  $cadence   = $mag_id > 0 ? intParam($_POST['cla_renouvellement'] ?? 0) : 0;
+
   // Flags booléens (checkboxes — absent = 0)
-  $sortConnu    = isset($_POST['cla_sort_connu'])    ? 1 : 0;
-  $sortCompris  = isset($_POST['cla_sort_compris'])  ? 1 : 0;
-  $sortPrepare  = isset($_POST['cla_sort_prepare'])  ? 1 : 0;
   $domaineDivin = isset($_POST['cla_domaine_divin']) ? 1 : 0;
 
   // Champs texte TinyMCE (HTML — pas de h())
@@ -1386,9 +1396,8 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
       ':cla_niveauMax'        => $niveauMax,
       ':cla_mag_id'           => $mag_id,
       ':cla_car_id'           => $car_id,
-      ':cla_sort_connu'       => $sortConnu,
-      ':cla_sort_compris'     => $sortCompris,
-      ':cla_sort_prepare'     => $sortPrepare,
+      ':cla_profil_incantation' => $profilInc,
+      ':cla_renouvellement'   => $cadence,
       ':cla_domaine_divin'    => $domaineDivin,
       ':cla_pointsCompetences' => $ptsComp,
       ':cla_po_niveau1'       => $poNiv1,
@@ -1422,7 +1431,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
       $stmt = $db->prepare('
         INSERT INTO dd_classes (
           cla_nom, cla_abreviation, cla_clt_id, cla_dV, cla_niveauMax,
-          cla_mag_id, cla_car_id, cla_sort_connu, cla_sort_compris, cla_sort_prepare,
+          cla_mag_id, cla_car_id, cla_profil_incantation, cla_renouvellement,
           cla_domaine_divin, cla_pointsCompetences, cla_po_niveau1, cla_alignement,
           cla_conditions, cla_description, cla_armes, cla_armures, cla_outils,
           cla_sauvegardes, cla_equipement, cla_competences, cla_sorts,
@@ -1431,7 +1440,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           cla_res_id, cla_camp_id, cla_cla_id, cla_public, cla_visible, cla_ruleset_var_id
         ) VALUES (
           :cla_nom, :cla_abreviation, :cla_clt_id, :cla_dV, :cla_niveauMax,
-          :cla_mag_id, :cla_car_id, :cla_sort_connu, :cla_sort_compris, :cla_sort_prepare,
+          :cla_mag_id, :cla_car_id, :cla_profil_incantation, :cla_renouvellement,
           :cla_domaine_divin, :cla_pointsCompetences, :cla_po_niveau1, :cla_alignement,
           :cla_conditions, :cla_description, :cla_armes, :cla_armures, :cla_outils,
           :cla_sauvegardes, :cla_equipement, :cla_competences, :cla_sorts,
@@ -1453,9 +1462,8 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           cla_niveauMax        = :cla_niveauMax,
           cla_mag_id           = :cla_mag_id,
           cla_car_id           = :cla_car_id,
-          cla_sort_connu       = :cla_sort_connu,
-          cla_sort_compris     = :cla_sort_compris,
-          cla_sort_prepare     = :cla_sort_prepare,
+          cla_profil_incantation = :cla_profil_incantation,
+          cla_renouvellement   = :cla_renouvellement,
           cla_domaine_divin    = :cla_domaine_divin,
           cla_pointsCompetences= :cla_pointsCompetences,
           cla_po_niveau1       = :cla_po_niveau1,

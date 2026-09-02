@@ -238,7 +238,7 @@ CREATE TABLE dd_capacites_speciales (
   cap_nom              VARCHAR(150) NOT NULL,
   cap_description      TEXT                  DEFAULT NULL,
   cap_type             VARCHAR(50)           DEFAULT NULL,
-  cap_categorie_var_id INT UNSIGNED          DEFAULT NULL COMMENT '-> dd_variables cat=tcap',
+  cap_classe_initiale  INT                   DEFAULT NULL COMMENT '-> dd_classes, classe d''origine de la capacité',
   PRIMARY KEY (cap_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

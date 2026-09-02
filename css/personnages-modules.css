@@ -1084,3 +1084,41 @@
     margin-left: var(--sp-xs);
   }
 }
+
+/* ============================================================
+   SP-PE6 — Bloc NLS prestige (DD3.5)
+   Un tableau .table-dd par classe de prestige, en lecture comme en
+   édition (le select d'affectation réutilise .per-comp-editor__select).
+   ============================================================ */
+
+.per-nls__classe {
+  margin-top: var(--sp-md);
+}
+
+.per-nls__classe:first-of-type {
+  margin-top: 0;
+}
+
+.per-nls__titre {
+  margin: 0 0 var(--sp-xs);
+  font-size: 1em;
+  font-weight: 600;
+}
+
+/* Colonne de la classe affectée : alignée à gauche et extensible. Sélecteur
+   préfixé .table-dd pour l'emporter sur `.table-dd th, td { text-align:center }`. */
+.table-dd .per-nls-table__classe {
+  text-align: left;
+  width: 100%;
+  min-width: 200px;
+}
+
+.table-dd .per-nls-table__prog {
+  white-space: nowrap;
+}
+
+/* Niveau non affecté : même rouge que les erreurs du site */
+.per-nls__a-affecter {
+  color: var(--clr-danger);
+  font-weight: 600;
+}

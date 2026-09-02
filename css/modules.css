@@ -2335,3 +2335,104 @@
   }
 
 }
+
+/* ============================================================
+   TOAST — notification d'enregistrement automatique (SP-CP1)
+   Injecté par notifier() (js/main.js) en enfant de <body>.
+   Même famille visuelle que .debug-viewport (main.css) : pastille
+   d'angle, compacte, non bloquante. Bas-droite, empilable.
+   z-index au-dessus de tous les panneaux (max applicatif : 300) mais
+   sous le badge de debug (9000), qui doit rester lisible.
+   ============================================================ */
+.toast-zone {
+  position: fixed;
+  right: var(--sp-md);
+  bottom: var(--sp-md);
+  z-index: 8000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-xs);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-left: 3px solid var(--clr-success);
+  color: var(--clr-text);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity .35s ease, transform .35s ease;
+}
+
+.toast--sortie {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.toast--ok i {
+  color: var(--clr-success);
+}
+
+.toast--erreur {
+  border-left-color: var(--clr-danger);
+}
+
+.toast--erreur i {
+  color: var(--clr-danger);
+}
+
+.toast--info {
+  border-left-color: var(--clr-accent);
+}
+
+.toast--info i {
+  color: var(--clr-accent);
+}
+
+/* ============================================================
+   TRI PAR GLISSER-DÉPOSER (SP-CP1)
+   Moteur : js/tri-liste.js. Le conteneur porte data-tri-url,
+   chaque enfant direct triable porte data-tri-id, et la prise se
+   fait sur .tri-poignee — jamais sur la ligne entière, dont les
+   cellules restent cliquables pour naviguer.
+   ============================================================ */
+.tri-poignee {
+  width: 26px;
+  text-align: center;
+  color: var(--clr-text-muted);
+  cursor: grab;
+  /* Indispensable en tactile : sans ça le navigateur interprète le
+     glissement comme un défilement et n'émet plus de pointermove. */
+  touch-action: none;
+  user-select: none;
+  opacity: .45;
+}
+
+.tri-poignee:hover {
+  opacity: 1;
+  color: var(--clr-accent);
+}
+
+.tri-liste--actif .tri-poignee {
+  cursor: grabbing;
+}
+
+.tri-ligne--saisie {
+  opacity: .55;
+  outline: 1px dashed var(--clr-accent);
+}
+
+.tri-ligne--saisie td {
+  background: var(--clr-surface-2) !important;
+}

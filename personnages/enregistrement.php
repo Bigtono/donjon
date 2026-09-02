@@ -10,6 +10,7 @@
 //   - ajouterDon / supprimerDon (SP-PE4 — écriture immédiate, une ligne)
 //   - rattacherCampagne / detacherCampagne / definirCampagneCourante /
 //     basculerParticipationCampagne (SP-PE5 — écriture immédiate)
+//   - enregistrerNls          (SP-PE6 — affectation NLS prestige DD3.5)
 //
 // Toutes les actions :
 //   - Vérifient le CSRF (verifyCsrf())
@@ -140,6 +141,10 @@ switch ($action):
   case 'ajouterDon':
   case 'supprimerDon':
     basculerDon($db, $is_ajax, $j_id, $action === 'ajouterDon');
+    break;
+
+  case 'enregistrerNls':
+    enregistrerNls($db, $is_ajax);
     break;
 
   // --------------------------------------------------------
@@ -566,6 +571,148 @@ function basculerDon(PDO $db, bool $is_ajax, int $j_id, bool $ajouter): void {
   }
 
   repondre($is_ajax, ['ok' => true, 'possede' => $ajouter, 'total' => $total]);
+}
+
+// ============================================================
+// ENREGISTREMENT DE L'AFFECTATION NLS PRESTIGE (SP-PE6 — DD3.5)
+// ============================================================
+// Reçoit en POST :
+//   pe_id                  int
+//   nls[][pc_prestige]     int  — pc_id de la classe de prestige (source)
+//   nls[][niveau]          int  — niveau dans la classe de prestige
+//   nls[][pc_base]         int  — pc_id de la classe de base réceptrice
+//
+// Pattern DELETE + INSERT en transaction (comme Classes et Compétences).
+// Seuls les niveaux réellement affectés sont postés : une liste vide est
+// valide et efface toute l'affectation (les niveaux repassent « À affecter »).
+//
+// Validations : intégrité uniquement (archi §7.1) — propriétaire, ruleset
+// DD3.5, complétude de chaque affectation postée : les deux pc_id
+// appartiennent au personnage, la source est une classe de prestige, le
+// niveau est dans les bornes détenues, ce niveau fait progresser le NLS
+// (drapeaux cn_niveauSort* de dd_classe_niveau) et la réceptrice est une
+// classe de base lanceuse compatible avec le type de magie du niveau
+// (effectif → toutes ; arcane → cla_mag_id 1 ; divin → cla_mag_id 2).
+// Aucune règle de jeu au-delà — pas de contrôle de prérequis de classe.
+
+function enregistrerNls(PDO $db, bool $is_ajax): void {
+  $pe_id = intParam($_POST['pe_id'] ?? 0);
+  if ($pe_id <= 0):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Identifiant manquant.']);
+  endif;
+
+  // Contrôle propriétaire + ruleset (l'affectation NLS est du DD3.5 pur)
+  $stmt = $db->prepare('SELECT pe_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt->execute([$pe_id]);
+  $row = $stmt->fetch();
+  if (!$row || !canAccess((int)$row['pe_j_id'])):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
+  endif;
+  if ((int)$row['pe_ruleset_var_id'] !== 1):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'L\'affectation NLS n\'existe qu\'en DD3.5.']);
+  endif;
+
+  $nls_post = $_POST['nls'] ?? [];
+  if (!is_array($nls_post)):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Format de données invalide.']);
+  endif;
+
+  // Classes du personnage, indexées par pc_id, pour tous les contrôles
+  $stmt = $db->prepare('
+    SELECT pc.pc_id, pc.pc_cla_id, pc.pc_niveau,
+           cla.cla_clt_id, cla.cla_mag_id
+      FROM dd_personnages_classes pc
+      JOIN dd_classes cla ON cla.cla_id = pc.pc_cla_id
+     WHERE pc.pc_pe_id = ?
+  ');
+  $stmt->execute([$pe_id]);
+  $classes = [];
+  foreach ($stmt->fetchAll() as $c):
+    $classes[(int)$c['pc_id']] = $c;
+  endforeach;
+
+  // Lecture, contrôle d'intégrité et dédoublonnage sur (prestige, niveau)
+  $lignes = [];
+  foreach ($nls_post as $row_post):
+    $pc_prestige = intParam($row_post['pc_prestige'] ?? 0);
+    $niveau      = intParam($row_post['niveau']      ?? 0);
+    $pc_base     = intParam($row_post['pc_base']     ?? 0);
+
+    if ($pc_prestige <= 0 && $niveau <= 0 && $pc_base <= 0) continue; // ligne vide ignorée
+
+    // Complétude de l'affectation : les trois champs, ou rien
+    if ($pc_prestige <= 0 || $niveau <= 0 || $pc_base <= 0):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Affectation incomplète.']);
+    endif;
+
+    $prestige = $classes[$pc_prestige] ?? null;
+    $base     = $classes[$pc_base]     ?? null;
+    if (!$prestige || (int)$prestige['cla_clt_id'] !== 2):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Classe de prestige invalide.']);
+    endif;
+    if (!$base || (int)$base['cla_clt_id'] !== 1 || (int)$base['cla_mag_id'] <= 0):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'La classe réceptrice doit être une classe de base lanceuse de sorts.']);
+    endif;
+    if ($niveau > (int)$prestige['pc_niveau']):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Niveau supérieur au niveau détenu dans la classe de prestige.']);
+    endif;
+
+    // Drapeaux du niveau : il doit faire progresser le NLS, et la réceptrice
+    // doit être compatible avec le type de magie concerné.
+    $stmt_cn = $db->prepare('
+      SELECT cn_niveauSortArcane, cn_niveauSortDivin, cn_niveauSortEffectif
+        FROM dd_classe_niveau
+       WHERE cn_cla_id = ? AND cn_niveau = ?
+    ');
+    $stmt_cn->execute([(int)$prestige['pc_cla_id'], $niveau]);
+    $cn = $stmt_cn->fetch();
+    $compatible = $cn && (
+      (int)$cn['cn_niveauSortEffectif'] === 1
+      || ((int)$cn['cn_niveauSortArcane'] === 1 && (int)$base['cla_mag_id'] === 1)
+      || ((int)$cn['cn_niveauSortDivin']  === 1 && (int)$base['cla_mag_id'] === 2)
+    );
+    if (!$compatible):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Ce niveau ne peut pas être affecté à cette classe de base.']);
+    endif;
+
+    $lignes[$pc_prestige . '-' . $niveau] = [
+      'pc_prestige' => $pc_prestige,
+      'niveau'      => $niveau,
+      'pc_base'     => $pc_base,
+    ];
+  endforeach;
+
+  // Transaction : DELETE + INSERT
+  try {
+    $db->beginTransaction();
+
+    $db->prepare('
+      DELETE penl FROM dd_personnages_nls penl
+        JOIN dd_personnages_classes pc ON pc.pc_id = penl.penl_pc_id_base
+       WHERE pc.pc_pe_id = ?
+    ')->execute([$pe_id]);
+
+    if (!empty($lignes)):
+      $stmt_ins = $db->prepare('
+        INSERT INTO dd_personnages_nls (penl_pc_id_base, penl_pc_id_prestige, penl_niveau)
+        VALUES (?, ?, ?)
+      ');
+      foreach ($lignes as $l):
+        $stmt_ins->execute([$l['pc_base'], $l['pc_prestige'], $l['niveau']]);
+      endforeach;
+    endif;
+
+    // Mettre à jour la date de modification du personnage
+    $db->prepare('UPDATE dd_personnages SET pe_date_modif = NOW() WHERE pe_id = ?')
+       ->execute([$pe_id]);
+
+    $db->commit();
+  } catch (PDOException $e) {
+    $db->rollBack();
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  repondre($is_ajax, ['ok' => true]);
 }
 
 // ============================================================

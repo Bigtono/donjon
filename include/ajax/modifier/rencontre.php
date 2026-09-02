@@ -132,10 +132,6 @@ $titre = $id > 0 ? 'Modifier ' . h($re['re_nom']) : 'Nouvelle rencontre';
 (function() {
   'use strict';
 
-  const RE_ID          = <?= (int)$re['re_id'] ?>;
-  const SCC_ID         = <?= $scc_id ?>;
-  const URL_RE_DETAIL  = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/rencontre.php') ?>;
-  const URL_SCC_DETAIL = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/chapitre.php') ?>;
 
   (function initTMCE() {
     if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
@@ -215,14 +211,9 @@ $titre = $id > 0 ? 'Modifier ' . h($re['re_nom']) : 'Nouvelle rencontre';
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
+          // SP-CP : navigation pleine page — cf. modifier/scenario.php.
           fermerModification();
-          if (RE_ID > 0) {
-            // Modification : rafraîchit la vue rencontre courante.
-            naviguerDetailPP(URL_RE_DETAIL, { id: RE_ID });
-          } else {
-            // Création : remonte à la vue chapitre parent.
-            naviguerDetailPP(URL_SCC_DETAIL, { id: SCC_ID });
-          }
+          window.location.reload();
         } else {
           alert(data.erreur || "Erreur lors de l'enregistrement.");
         }

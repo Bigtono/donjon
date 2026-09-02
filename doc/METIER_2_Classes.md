@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-05-30 -->
+<!-- Mis à jour : 2026-08-28 15:40 -->
 
 # Règles métiers générales sur les classes
 
@@ -116,12 +116,15 @@ Le div detail-PP présente un premier bloc contenant :
 - le nom de la capacité (cap_nom)
 - sa description complète (cap_description)
 - son type (cap_type)
-- sa catégorie (cap_categorie_var_id, issu de la table dd_variables, fonction libVar pour afficher la valeur).
 Un bouton Modifier permet de basculer en modification et ouvre un popup dans le DIV modification. Le contenu est alors présenté comme un formulaire affichant :
 - un input avec le nom de la capacité (cap_nom)
 - un textarea contenant sa description complète (cap_description)
 - un input avec son type (cap_type)
-- un select avec les différents choix de catégorie (cap_categorie_var_id, issu de la table dd_variables, fonction optionListVar() pour afficher le select avec $ cat="tcap").
+
+> La catégorie de capacité (`cap_categorie_var_id`, catégorie `tcap` de `dd_variables`) figurait
+> ici jusqu'au **2026-08-28**. Colonne supprimée : c'était un reliquat de la v1 qui indiquait si la
+> capacité venait d'une race ou d'une classe, information portée par les tables de liaison. Ni la
+> ligne d'affichage ni le select ne sont donc à réaliser.
 Deux boutons permettent de Valider les données ou d'Annuler les modifications. Si la modification est validé, le Div formulaire disparait et fait place à nouveau à l'affichage précédent (y compris le bouton Modifier)
 
 Dans un deuxième bloc en dessous sont affichés toutes les affectations de la capacités par niveau avec à chaque fois le niveau (cc_niveau) et la précision (cc_precision). Un bouton permet de supprimer cette affectation, un autre permet d'en créer une nouvelle.

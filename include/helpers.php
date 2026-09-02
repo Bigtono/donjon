@@ -211,6 +211,134 @@ function getActiveResIdsCampagne(PDO $db, int $camp_id, int $ruleset_var_id): ar
 }
 
 // ============================================================
+// PROFILS D'INCANTATION (SP-MA0)
+// ============================================================
+//
+// Le rapport d'une classe à ses sorts tient dans quatre profils, et quatre
+// seulement — ce sont les combinaisons réellement présentes dans les règles
+// (voir doc/METIER_7_SORTS.md §6). Ils remplacent les trois drapeaux
+// cla_sort_connu / _compris / _prepare, dépréciés au 2026-08-27 : trois
+// booléens indépendants offraient huit combinaisons dont quatre absurdes, et
+// leur contenu en base s'était révélé faux (Magicien et Ensorceleur inversés).
+//
+// Les ids vivent dans dd_variables (var_cat = 'profinc'), posés par
+// sql/2026-08-27_profil_incantation_sp-ma0.sql. Ils sont figés ici en
+// constantes pour ne pas répéter l'écueil des littéraux clt_id dispersés
+// dans le code (cf. ARCHITECTURE_0_REFERENCE.md, module Classes).
+
+define('PROFINC_LISTE',      3);  // Réservoir = liste de classe entière, le personnage prépare
+define('PROFINC_GRIMOIRE',   4);  // Réservoir = grimoire (pes_compris = 1), le personnage prépare
+define('PROFINC_REPERTOIRE', 5);  // Répertoire figé (cn_sortConnu_n*), lancement spontané — DD3.5 uniquement
+define('PROFINC_PACTE',      6);  // Emplacements uniformes, repos court — DD2024 uniquement
+
+define('CADENCE_REPOS_LIBRE', 7);  // La liste peut être entièrement refaite à chaque repos long
+define('CADENCE_REPOS_UN',    8);  // Un seul sort échangé par repos long — DD2024 uniquement
+define('CADENCE_NIVEAU',      9);  // La liste ne change qu'en gagnant un niveau
+
+// Cadences de renouvellement du réservoir (axe C, SP-MA4b). Pas de filtrage par
+// ruleset : aucune valeur n'est impossible dans l'absolu — « un seul sort par
+// repos long » n'est simplement utilisée par aucune classe DD3.5 du SRD, mais
+// rien n'interdit à une classe maison de s'en servir.
+function cadencesRenouvellement($db): array {
+  return $db->query("SELECT var_id, var_valeur, var_commentaire FROM dd_variables
+                     WHERE var_cat = 'cadence' ORDER BY var_ordre")->fetchAll();
+}
+
+// Profils proposables pour un ruleset donné, dans l'ordre d'affichage.
+// Le filtrage est ici et nulle part ailleurs : « Répertoire spontané » n'existe
+// qu'en DD3.5, « Magie de pacte » qu'en DD2024 (METIER_7_SORTS.md §4).
+function profilsIncantation($db, int $ruleset_var_id): array {
+  $exclu = $ruleset_var_id === 1 ? PROFINC_PACTE : PROFINC_REPERTOIRE;
+
+  $stmt = $db->prepare('
+    SELECT var_id, var_valeur, var_commentaire
+    FROM   dd_variables
+    WHERE  var_cat = \'profinc\' AND var_id <> ?
+    ORDER  BY var_ordre, var_valeur
+  ');
+  $stmt->execute([$exclu]);
+  return $stmt->fetchAll();
+}
+
+// ============================================================
+// CARACTÉRISTIQUES — modificateur, sorts bonus, prérequis
+// ============================================================
+//
+// Déplacé ici depuis personnage_helpers.php en SP-MA1 : ces fonctions servent
+// au module Personnages, mais aussi au compendium et, plus tard, à l'écran du MJ.
+//
+// ATTENTION — deux de ces quatre fonctions ne valent QU'EN DD3.5 :
+//   modCarac()         les deux rulesets
+//   formatMod()        les deux rulesets (formatage pur)
+//   bonusSortsCarac()  *[DD3.5]* — DD2024 n'accorde aucun sort bonus
+//   peutLancerNiveau() *[DD3.5]* — DD2024 n'impose aucune valeur minimale
+// Vérifié sur le SRD 5.2.1 : les deux règles ont disparu en 2024. Les seules
+// occurrences 2024 de « 10 + le niveau du sort » y sont des DD de jet (dissiper,
+// identifier), pas un prérequis. L'appelant doit donc brancher sur le ruleset.
+
+/**
+ * Modificateur d'une caractéristique (formule DD standard : floor((val - 10) / 2)).
+ * Vaut dans les deux rulesets.
+ *
+ * Exemples : 10 → 0, 11 → 0, 12 → +1, 8 → -1, 18 → +4.
+ */
+function modCarac(int $valeur): int {
+  // PHP : intdiv tronque vers zéro, donc on utilise floor pour les valeurs < 10.
+  return (int) floor(($valeur - 10) / 2);
+}
+
+/**
+ * Formate un modificateur signé pour affichage : 0 → "+0", 3 → "+3", -1 → "-1".
+ * Formatage pur — vaut dans les deux rulesets.
+ */
+function formatMod(int $modificateur): string {
+  return ($modificateur >= 0 ? '+' : '') . $modificateur;
+}
+
+/**
+ * *[DD3.5]* Sorts en bonus accordés par une caractéristique élevée, pour un
+ * niveau de sort donné. DD2024 n'a pas de sorts bonus : ne pas appeler.
+ *
+ * Formule, contrôlée ligne à ligne contre la « Table : modificateurs de
+ * caractéristique et sorts en bonus » du SRD (DRS 01) :
+ *
+ *     bonus = mod >= N  ?  floor((mod - N) / 4) + 1  :  0
+ *
+ * Le niveau 0 ne reçoit jamais de sort bonus. Exemple de contrôle, mod +11 :
+ * la formule redonne 3 3 3 2 2 2 2 1 1 pour les niveaux 1 à 9, comme le SRD.
+ *
+ * Le choix de la formule plutôt que de la table dd_modificateurs est arbitré :
+ * une table plafonnée renvoie 0 en silence au-delà de sa dernière ligne, ce qui
+ * est le pire mode de défaillance pour une aide de jeu (un magicien de niveau 20
+ * équipé dépasse 30 sans peine). Voir DECISIONS_LOG.md [2026-08-27] D-MAG9.
+ *
+ * @param  int $valeur       Valeur brute de la caractéristique d'incantation
+ * @param  int $niveau_sort  Niveau du sort (0 à 9)
+ * @return int               Nombre de sorts bonus de ce niveau
+ */
+function bonusSortsCarac(int $valeur, int $niveau_sort): int {
+  if ($niveau_sort < 1 || $niveau_sort > 9) return 0;
+  $mod = modCarac($valeur);
+  if ($mod < $niveau_sort) return 0;
+  return (int) floor(($mod - $niveau_sort) / 4) + 1;
+}
+
+/**
+ * *[DD3.5]* Prérequis de caractéristique : pour préparer ou lancer un sort de
+ * niveau N, il faut au moins 10 + N dans la caractéristique de la classe.
+ *
+ * **DD2024 n'a pas cette règle** : aucune valeur minimale n'y conditionne
+ * l'accès à un niveau de sort. Ne pas appeler pour un personnage DD2024 —
+ * la fonction rendrait « non » à tort sur une caractéristique modeste.
+ *
+ * Aide à l'affichage, pas un filtre : la fiche signale, elle n'interdit pas
+ * (principe « aide de jeu, pas moteur de règles » — ARCHITECTURE_0_REFERENCE §7.7).
+ */
+function peutLancerNiveau(int $valeur, int $niveau_sort): bool {
+  return $valeur >= 10 + $niveau_sort;
+}
+
+// ============================================================
 // VARIABLES DD (libellés et selects)
 // ============================================================
 

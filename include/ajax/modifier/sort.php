@@ -30,6 +30,7 @@ $so = [
   'so_nom'               => '',
   'so_co_id'             => '',
   'so_branche'           => '',
+  'so_registre'          => '',
   'so_vocal'             => 0,
   'so_gestuel'           => 0,
   'so_materiel'          => 0,
@@ -198,6 +199,14 @@ $niveaux_dd2024 = range(0, 20);
             <label for="so_branche">Branche</label>
             <input type="text" id="so_branche" name="so_branche"
                    value="<?= h($so['so_branche'] ?? '') ?>" maxlength="40">
+          </div>
+
+          <div class="form-group">
+            <?php // Registre : saisi sans crochets, la fiche les ajoute (SP-MA3). ?>
+            <label for="so_registre">Registre</label>
+            <input type="text" id="so_registre" name="so_registre"
+                   value="<?= h($so['so_registre'] ?? '') ?>" maxlength="120"
+                   placeholder="mental, terreur">
           </div>
         <?php endif ?>
 

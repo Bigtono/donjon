@@ -223,6 +223,16 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
       <?php endif ?>
     <?php else: ?>
 
+    <?php // ---- Caractéristique principale — première ligne de l'encadré
+          // « Traits de base » du SRD DD2024. À ne pas confondre avec
+          // « Caractéristique LS » (cla_car_id), qui est celle d'incantation. ?>
+    <?php if ($ruleset === 'DD2024' && $cla['cla_caracteristiques']): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label">Caractéristique principale</span>
+        <span class="sort-detail__value"><?= h($cla['cla_caracteristiques']) ?></span>
+      </div>
+    <?php endif ?>
+
     <div class="sort-detail__row">
       <span class="sort-detail__label">Dé de vie</span>
       <span class="sort-detail__value">d<?= (int)$cla['cla_dV'] ?></span>
@@ -239,10 +249,27 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
     <?php endif ?>
 
 
-    <?php if ($cla['mag_nom']): ?>
+    <?php // Le libellé dd_typemagie ne vaut qu'en DD3.5 : en DD2024 cla_mag_id
+          // n'est plus qu'un drapeau 0/1 et pointerait sur « Magie profane »
+          // pour un Clerc (D-MAG2). ?>
+    <?php if ($ruleset === 'DD3.5' && $cla['mag_nom']): ?>
       <div class="sort-detail__row">
         <span class="sort-detail__label">Magie</span>
         <span class="sort-detail__value"><?= h($cla['mag_nom']) ?></span>
+      </div>
+    <?php endif ?>
+
+    <?php if ($cla['cla_profil_incantation']): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label">Incantation</span>
+        <span class="sort-detail__value"><?= libVar($db, (int)$cla['cla_profil_incantation']) ?></span>
+      </div>
+    <?php endif ?>
+
+    <?php if ($cla['cla_renouvellement']): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label">Renouvellement</span>
+        <span class="sort-detail__value"><?= libVar($db, (int)$cla['cla_renouvellement']) ?></span>
       </div>
     <?php endif ?>
 
@@ -280,18 +307,30 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
 
       <?php if ($cla['cla_sauvegardes']): ?>
         <div class="sort-detail__row">
-          <span class="sort-detail__label">Jets de sauvegarde</span>
+          <span class="sort-detail__label">Maîtrise des jets de sauvegarde</span>
           <span class="sort-detail__value"><?= h($cla['cla_sauvegardes']) ?></span>
         </div>
       <?php endif ?>
 
     <?php endif ?>
 
-    <?php // ---- Compétences de classe ?>
+    <?php // ---- Compétences — dd_classe_competence n'a pas le même sens
+          // d'un ruleset à l'autre :
+          //   *[DD3.5]*  compétences DE CLASSE — un point investi y vaut 1 rang
+          //              (1/2 ailleurs), le nombre de points par niveau étant
+          //              cla_pointsCompetences.
+          //   *[DD2024]* compétences ÉLIGIBLES — le personnage en choisit
+          //              cla_pointsCompetences (SP-IM7).
+          // Sans liste fermée (le Barde choisit parmi les 18), aucune ligne
+          // n'est stockée et on retombe sur le texte libre cla_competences. ?>
+    <?php $nbChoixComp = (int)$cla['cla_pointsCompetences']; ?>
     <?php if (!empty($competences)): ?>
       <div class="sort-detail__row">
-        <span class="sort-detail__label"><?= $ruleset === 'DD2024' ? 'Compétences maîtrisées' : 'Compétences de classe' ?></span>
+        <span class="sort-detail__label"><?= $ruleset === 'DD2024' ? 'Maîtrises de compétence' : 'Compétences de classe' ?></span>
         <div class="sort-detail__value">
+          <?php if ($ruleset === 'DD2024' && $nbChoixComp > 0): ?>
+            <em><?= $nbChoixComp ?> au choix parmi :</em>
+          <?php endif ?>
           <?php foreach ($competences as $i => $comp): ?>
             <?php if ($i > 0) echo ', ' ?>
             <span class="lien-sub"
@@ -305,13 +344,32 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
           <?php endforeach ?>
         </div>
       </div>
+    <?php elseif ($ruleset === 'DD2024' && $cla['cla_competences']): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label">Maîtrises de compétence</span>
+        <div class="sort-detail__value"><?= h($cla['cla_competences']) ?></div>
+      </div>
     <?php endif ?>
 
-    <?php // ---- Armes (et armures en DD3.5) ?>
+    <?php // ---- Armes (et armures en DD3.5)
+          // En DD3.5 cla_armes sort d'un éditeur TinyMCE : rendu brut.
+          // En DD2024 les quatre champs de l'encadré « Traits de base » sortent
+          // de textarea simples : ils passent par h() (règle projet), avec
+          // nl2br() pour conserver les retours à la ligne saisis. ?>
     <?php if ($cla['cla_armes']): ?>
       <div class="sort-detail__row">
-        <span class="sort-detail__label"><?= $ruleset === 'DD3.5' ? 'Armes &amp; armures' : 'Maîtrise d\'armes' ?></span>
-        <div class="sort-detail__value sort-detail__value--html"><?= $cla['cla_armes'] ?></div>
+        <span class="sort-detail__label"><?= $ruleset === 'DD3.5' ? 'Armes &amp; armures' : 'Maîtrises d\'arme' ?></span>
+        <div class="sort-detail__value sort-detail__value--html">
+          <?= $ruleset === 'DD3.5' ? $cla['cla_armes'] : nl2br(h($cla['cla_armes'])) ?>
+        </div>
+      </div>
+    <?php endif ?>
+
+    <?php // ---- Outils DD2024 ?>
+    <?php if ($ruleset === 'DD2024' && $cla['cla_outils']): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label">Maîtrises d'outils</span>
+        <div class="sort-detail__value sort-detail__value--html"><?= nl2br(h($cla['cla_outils'])) ?></div>
       </div>
     <?php endif ?>
 
@@ -319,7 +377,16 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
     <?php if ($ruleset === 'DD2024' && $cla['cla_armures']): ?>
       <div class="sort-detail__row">
         <span class="sort-detail__label">Formation aux armures</span>
-        <div class="sort-detail__value sort-detail__value--html"><?= $cla['cla_armures'] ?></div>
+        <div class="sort-detail__value sort-detail__value--html"><?= nl2br(h($cla['cla_armures'])) ?></div>
+      </div>
+    <?php endif ?>
+
+    <?php // ---- Équipement de départ DD2024 — ligne pleine largeur, c'est le
+          // champ le plus long de l'encadré (jusqu'à trois options A/B/C). ?>
+    <?php if ($ruleset === 'DD2024' && $cla['cla_equipement']): ?>
+      <div class="sort-detail__row sort-detail__row--full">
+        <span class="sort-detail__label">Équipement de départ</span>
+        <div class="sort-detail__value sort-detail__value--html"><?= nl2br(h($cla['cla_equipement'])) ?></div>
       </div>
     <?php endif ?>
 
@@ -472,7 +539,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
     <?php
     // Vérifier qu'au moins une ligne contient une valeur avant d'afficher la table
     $hasSortsConnus = false;
-    if ($ruleset === 'DD3.5' && $cla['cla_sort_connu'] && !empty($niveaux)):
+    if ($ruleset === 'DD3.5' && (int)$cla['cla_profil_incantation'] === PROFINC_REPERTOIRE && !empty($niveaux)):
       foreach ($niveaux as $niv):
         for ($s = 0; $s <= 9; $s++):
           if (isset($niv['cn_sortConnu_n' . $s]) && $niv['cn_sortConnu_n' . $s] !== '' && $niv['cn_sortConnu_n' . $s] !== null):
@@ -564,8 +631,13 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
 
   <?php // ---- Pied de fiche ?>
   <div class="sort-detail__footer" style="margin-top:1rem;">
+    <?php // Le LEFT JOIN sur dd_ressources rend res_nom NULL quand cla_res_id ne
+          // désigne aucune ressource — c'est le cas de l'Ensorceleur DD3.5
+          // (cla_res_id = 0), dont la fiche plantait ici en PHP 8 (D-CL0).
+          // Le défaut de DONNÉE reste à corriger ; le rendu, lui, ne doit pas
+          // tomber pour autant. ?>
     <span class="sort-detail__source">
-      <i class="fa fa-book"></i> <?= h($cla['res_nom']) ?>
+      <i class="fa fa-book"></i> <?= h($cla['res_nom'] ?? 'Source inconnue') ?>
     </span>
     <?php if ($cla['cla_camp_id'] && $cla['camp_nom']): ?>
       <span class="sort-detail__homebrew">

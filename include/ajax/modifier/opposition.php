@@ -158,12 +158,8 @@ $url_detail_mo     = BASE_URL . '/include/ajax/detail-monstre-json.php';
 (function() {
   'use strict';
 
-  const OPP_ID         = <?= (int)$opp['opp_id'] ?>;
-  const RE_ID          = <?= $re_id ?>;
-  const CAMP_ID         = <?= $camp_id ?>;
-  const URL_OPP_DETAIL  = <?= json_encode(BASE_URL . '/include/ajax/detail-pp-sub/opposition.php') ?>;
-  const URL_RE_DETAIL   = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/rencontre.php') ?>;
-  const URL_DETAIL_MO   = <?= json_encode($url_detail_mo) ?>;
+  const CAMP_ID       = <?= $camp_id ?>;
+  const URL_DETAIL_MO = <?= json_encode($url_detail_mo) ?>;
 
   // Appelée par detail-pp-sub/recherche-monstre.php après sélection d'un résultat.
   function chargerDepuisMonstre(moId) {
@@ -193,13 +189,10 @@ $url_detail_mo     = BASE_URL . '/include/ajax/detail-monstre-json.php';
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
+          // SP-CP : la page rencontre affiche les blocs de stats dépliés — un
+          // rechargement suffit à voir l'opposition créée ou modifiée en place.
           fermerModification();
-          if (OPP_ID > 0) {
-            rafraichirDetailPPCourant();
-            actualiserPageSub(URL_OPP_DETAIL, { id: OPP_ID });
-          } else {
-            naviguerDetailPP(URL_RE_DETAIL, { id: RE_ID });
-          }
+          window.location.reload();
         } else {
           alert(data.erreur || "Erreur lors de l'enregistrement.");
         }

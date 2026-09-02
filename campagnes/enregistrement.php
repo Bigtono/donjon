@@ -1,7 +1,7 @@
 <?php
 // campagnes/enregistrement.php — Point d'entrée unique des écritures du module Campagnes.
 //
-// GET ajax=1 → retourne JSON {ok, id, url_detail, erreur}
+// GET ajax=1 → retourne JSON {ok, id, erreur}
 // Sinon      → redirige avec flash message SESSION
 //
 // POST requis :
@@ -24,11 +24,16 @@ $redirect = $_SERVER['HTTP_REFERER'] ?? BASE_URL . '/campagnes/index.php';
 // Helpers de réponse
 // ============================================================
 
-function campOk(bool $is_ajax, int $id, string $redirect, string $url_detail = ''): void
+// SP-CP : plus d'url_detail dans les réponses. Elles désignaient les handlers
+// include/ajax/detail-pp/{campagne,scenario,chapitre,rencontre}.php, supprimés
+// avec le passage en pleine page. C'est désormais la page appelante qui décide
+// où aller après une écriture — elle le sait mieux que le serveur, qui ignore
+// depuis quel niveau le formulaire a été ouvert.
+function campOk(bool $is_ajax, int $id, string $redirect): void
 {
   if ($is_ajax):
     header('Content-Type: application/json');
-    echo json_encode(['ok' => true, 'id' => $id, 'url_detail' => $url_detail]);
+    echo json_encode(['ok' => true, 'id' => $id]);
     exit;
   endif;
   $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Modification enregistrée.'];
@@ -100,6 +105,22 @@ switch ($action):
 
   case 'dupliquerOpposition':
     dupliquerOpposition($db, $is_ajax, $redirect);
+    break;
+
+  case 'reordonnerScenarios':
+    reordonnerScenarios($db, $is_ajax, $redirect);
+    break;
+
+  case 'reordonnerChapitres':
+    reordonnerChapitres($db, $is_ajax, $redirect);
+    break;
+
+  case 'reordonnerRencontres':
+    reordonnerRencontres($db, $is_ajax, $redirect);
+    break;
+
+  case 'reordonnerOppositions':
+    reordonnerOppositions($db, $is_ajax, $redirect);
     break;
 
   default:
@@ -205,7 +226,7 @@ function enregistrerCampagne($db, bool $is_ajax, string $redirect): void
     endif;
 
     $db->commit();
-    campOk($is_ajax, $camp_id, $redirect, BASE_URL . '/include/ajax/detail-pp/campagne.php');
+    campOk($is_ajax, $camp_id, $redirect);
 
   } catch (Exception $e) {
     if ($db->inTransaction()) $db->rollBack();
@@ -267,7 +288,7 @@ function supprimerCampagne($db, bool $is_ajax, string $redirect): void
 
     if ($is_ajax):
       header('Content-Type: application/json');
-      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      echo json_encode(['ok' => true, 'id' => 0]);
       exit;
     endif;
     $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Campagne supprimée.'];
@@ -290,8 +311,11 @@ function enregistrerScenario($db, bool $is_ajax, string $redirect): void
   $sce_id     = intParam($_POST['sce_id']   ?? 0);
   $camp_id    = intParam($_POST['camp_id']  ?? 0);
   $nom        = strParam($_POST['sce_nom']  ?? '');
-  $ordre      = intParam($_POST['sce_ordre'] ?? 0);
   $description = $_POST['sce_description'] ?? '';
+
+  // sce_ordre n'est plus saisi (SP-CP) : rang automatique à la création,
+  // piloté ensuite par le seul glisser-déposer (action reordonnerScenarios).
+  // Il n'apparaît donc PAS dans l'UPDATE — l'y laisser l'écraserait à 0.
 
   if (!$nom):
     campErreur($is_ajax, 'Le nom du scénario est obligatoire.', $redirect);
@@ -307,12 +331,10 @@ function enregistrerScenario($db, bool $is_ajax, string $redirect): void
         campErreur($is_ajax, 'Accès refusé.', $redirect);
       endif;
 
-      // Ordre automatique si non spécifié.
-      if ($ordre === 0):
-        $stmt = $db->prepare('SELECT COALESCE(MAX(sce_ordre),0)+1 FROM dd_scenarios WHERE sce_camp_id = ?');
-        $stmt->execute([$camp_id]);
-        $ordre = (int)$stmt->fetchColumn();
-      endif;
+      // Rang automatique : le nouveau scénario se pose en fin de liste.
+      $stmt = $db->prepare('SELECT COALESCE(MAX(sce_ordre),0)+1 FROM dd_scenarios WHERE sce_camp_id = ?');
+      $stmt->execute([$camp_id]);
+      $ordre = (int)$stmt->fetchColumn();
 
       $stmt = $db->prepare('
         INSERT INTO dd_scenarios (sce_nom, sce_ordre, sce_description, sce_camp_id, sce_supprime)
@@ -336,10 +358,10 @@ function enregistrerScenario($db, bool $is_ajax, string $redirect): void
       endif;
 
       $stmt = $db->prepare('
-        UPDATE dd_scenarios SET sce_nom = ?, sce_ordre = ?, sce_description = ?
+        UPDATE dd_scenarios SET sce_nom = ?, sce_description = ?
         WHERE sce_id = ?
       ');
-      $stmt->execute([$nom, $ordre, $description, $sce_id]);
+      $stmt->execute([$nom, $description, $sce_id]);
 
     endif;
 
@@ -351,7 +373,6 @@ function enregistrerScenario($db, bool $is_ajax, string $redirect): void
         'ok'       => true,
         'id'       => $sce_id,
         'camp_id'  => $camp_id,
-        'url_detail' => BASE_URL . '/include/ajax/detail-pp/campagne.php',
       ]);
       exit;
     endif;
@@ -409,8 +430,7 @@ function supprimerScenario($db, bool $is_ajax, string $redirect): void
 
     if ($is_ajax):
       header('Content-Type: application/json');
-      echo json_encode(['ok' => true, 'id' => $camp_id, 'camp_id' => $camp_id,
-                        'url_detail' => BASE_URL . '/include/ajax/detail-pp/campagne.php']);
+      echo json_encode(['ok' => true, 'id' => $camp_id, 'camp_id' => $camp_id]);
       exit;
     endif;
     $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Scénario supprimé.'];
@@ -434,8 +454,9 @@ function enregistrerChapitre($db, bool $is_ajax, string $redirect): void
   $sce_id      = intParam($_POST['sce_id']           ?? 0);
   $nom         = strParam($_POST['scc_nom']          ?? '');
   $abreviation = strParam($_POST['scc_abreviation']  ?? '');
-  $ordre       = intParam($_POST['scc_ordre']        ?? 0);
   $description = strParam($_POST['scc_description']  ?? '');
+
+  // scc_ordre n'est plus saisi (SP-CP) — cf. enregistrerScenario().
 
   if (!$nom):
     campErreur($is_ajax, 'Le nom du chapitre est obligatoire.', $redirect);
@@ -454,11 +475,10 @@ function enregistrerChapitre($db, bool $is_ajax, string $redirect): void
         campErreur($is_ajax, 'Accès refusé.', $redirect);
       endif;
 
-      if ($ordre === 0):
-        $stmt = $db->prepare('SELECT COALESCE(MAX(scc_ordre),0)+1 FROM dd_scenarios_chapitres WHERE scc_sce_id = ?');
-        $stmt->execute([$sce_id]);
-        $ordre = (int)$stmt->fetchColumn();
-      endif;
+      // Rang automatique : le nouveau chapitre se pose en fin de liste.
+      $stmt = $db->prepare('SELECT COALESCE(MAX(scc_ordre),0)+1 FROM dd_scenarios_chapitres WHERE scc_sce_id = ?');
+      $stmt->execute([$sce_id]);
+      $ordre = (int)$stmt->fetchColumn();
 
       $stmt = $db->prepare('
         INSERT INTO dd_scenarios_chapitres
@@ -482,10 +502,10 @@ function enregistrerChapitre($db, bool $is_ajax, string $redirect): void
 
       $stmt = $db->prepare('
         UPDATE dd_scenarios_chapitres
-        SET scc_nom = ?, scc_abreviation = ?, scc_ordre = ?, scc_description = ?
+        SET scc_nom = ?, scc_abreviation = ?, scc_description = ?
         WHERE scc_id = ?
       ');
-      $stmt->execute([$nom, $abreviation ?: null, $ordre, $description ?: null, $scc_id]);
+      $stmt->execute([$nom, $abreviation ?: null, $description ?: null, $scc_id]);
 
     endif;
 
@@ -493,18 +513,12 @@ function enregistrerChapitre($db, bool $is_ajax, string $redirect): void
 
     if ($is_ajax):
       header('Content-Type: application/json');
-      // Modification : url_detail pointe sur la fiche chapitre.
-      // Création    : url_detail pointe sur la fiche scénario (retour au parent).
-      $url_detail = $scc_id_was_zero
-        ? BASE_URL . '/include/ajax/detail-pp/scenario.php'
-        : BASE_URL . '/include/ajax/detail-pp/chapitre.php';
       $id_retour  = $scc_id_was_zero ? $sce_id : $scc_id;
       echo json_encode([
         'ok'      => true,
         'id'      => $id_retour,
         'scc_id'  => $scc_id,
         'sce_id'  => $sce_id,
-        'url_detail' => $url_detail,
       ]);
       exit;
     endif;
@@ -556,7 +570,6 @@ function supprimerChapitre($db, bool $is_ajax, string $redirect): void
         'ok'         => true,
         'id'         => $sce_id,
         'sce_id'     => $sce_id,
-        'url_detail' => BASE_URL . '/include/ajax/detail-pp/scenario.php',
       ]);
       exit;
     endif;
@@ -668,12 +681,19 @@ function enregistrerRencontre(PDO $db, bool $is_ajax, string $redirect): void
   $db->beginTransaction();
   try {
     if ($re_id === 0):
+      // Rang automatique (SP-CP) : la nouvelle rencontre se pose en fin de
+      // chapitre. re_ordre n'est jamais saisi, seul le glisser-déposer le change.
+      $stmt = $db->prepare('SELECT COALESCE(MAX(re_ordre),0)+1 FROM dd_rencontres WHERE re_scc_id = ?');
+      $stmt->execute([$scc_id]);
+      $re_ordre = (int)$stmt->fetchColumn();
+
       $stmt = $db->prepare('
         INSERT INTO dd_rencontres
-          (re_nom, re_code, re_scc_id, re_description, re_composition, re_supprime)
-        VALUES (?, ?, ?, ?, ?, 0)
+          (re_nom, re_code, re_ordre, re_scc_id, re_description, re_composition, re_supprime)
+        VALUES (?, ?, ?, ?, ?, ?, 0)
       ');
-      $stmt->execute([$re_nom, $re_code ?: null, $scc_id, $re_description ?: null, $re_composition ?: null]);
+      $stmt->execute([$re_nom, $re_code ?: null, $re_ordre, $scc_id,
+                      $re_description ?: null, $re_composition ?: null]);
       $re_id = (int)$db->lastInsertId();
     else:
       // Vérification propriété sur la rencontre existante
@@ -697,9 +717,6 @@ function enregistrerRencontre(PDO $db, bool $is_ajax, string $redirect): void
     campErreur($is_ajax, 'Erreur base de données.', $redirect);
   }
 
-  $url_detail = $re_id_was_zero
-    ? BASE_URL . '/include/ajax/detail-pp/chapitre.php'
-    : BASE_URL . '/include/ajax/detail-pp/rencontre.php';
   $id_retour  = $re_id_was_zero ? $scc_id : $re_id;
 
   if ($is_ajax):
@@ -709,7 +726,6 @@ function enregistrerRencontre(PDO $db, bool $is_ajax, string $redirect): void
       'id'         => $id_retour,
       're_id'      => $re_id,
       'scc_id'     => $scc_id,
-      'url_detail' => $url_detail,
     ]);
     exit;
   endif;
@@ -752,7 +768,6 @@ function supprimerRencontre(PDO $db, bool $is_ajax, string $redirect): void
       'ok'         => true,
       'id'         => $scc_id,
       'scc_id'     => $scc_id,
-      'url_detail' => BASE_URL . '/include/ajax/detail-pp/chapitre.php',
     ]);
     exit;
   endif;
@@ -783,12 +798,18 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
   $db->beginTransaction();
   try {
     if ($opp_id === 0):
+      // Rang automatique (SP-CP) — cf. enregistrerRencontre().
+      $stmt = $db->prepare('SELECT COALESCE(MAX(opp_ordre),0)+1 FROM dd_oppositions WHERE opp_re_id = ?');
+      $stmt->execute([$re_id]);
+      $opp_ordre = (int)$stmt->fetchColumn();
+
       $stmt = $db->prepare('
         INSERT INTO dd_oppositions
-          (opp_nom, opp_mocat_nom, opp_stats, opp_re_id, opp_mo_id, opp_supprime)
-        VALUES (?, ?, ?, ?, ?, 0)
+          (opp_nom, opp_mocat_nom, opp_stats, opp_ordre, opp_re_id, opp_mo_id, opp_supprime)
+        VALUES (?, ?, ?, ?, ?, ?, 0)
       ');
-      $stmt->execute([$opp_nom, $opp_mocat_nom ?: null, $opp_stats ?: null, $re_id, $opp_mo_id]);
+      $stmt->execute([$opp_nom, $opp_mocat_nom ?: null, $opp_stats ?: null,
+                      $opp_ordre, $re_id, $opp_mo_id]);
       $opp_id = (int)$db->lastInsertId();
     else:
       // Vérification propriété sur l'opposition existante
@@ -815,9 +836,6 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
     campErreur($is_ajax, 'Erreur base de données.', $redirect);
   }
 
-  $url_detail = $opp_id_was_zero
-    ? BASE_URL . '/include/ajax/detail-pp/rencontre.php'
-    : BASE_URL . '/include/ajax/detail-pp-sub/opposition.php';
   $id_retour  = $opp_id_was_zero ? $re_id : $opp_id;
 
   if ($is_ajax):
@@ -827,7 +845,6 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
       'id'         => $id_retour,
       'opp_id'     => $opp_id,
       're_id'      => $re_id,
-      'url_detail' => $url_detail,
     ]);
     exit;
   endif;
@@ -868,7 +885,6 @@ function supprimerOpposition(PDO $db, bool $is_ajax, string $redirect): void
       'ok'         => true,
       'id'         => $re_id,
       're_id'      => $re_id,
-      'url_detail' => BASE_URL . '/include/ajax/detail-pp/rencontre.php',
     ]);
     exit;
   endif;
@@ -905,8 +921,18 @@ function transfererOpposition(PDO $db, bool $is_ajax, string $redirect): void
 
   $db->beginTransaction();
   try {
-    $stmt = $db->prepare('UPDATE dd_oppositions SET opp_re_id = ? WHERE opp_id = ? AND opp_supprime = 0');
-    $stmt->execute([$dest_re_id, $opp_id]);
+    // L'opposition transférée se pose en fin de la rencontre d'arrivée (SP-CP) :
+    // conserver son ancien rang la placerait arbitrairement dans un classement
+    // qui n'est pas le sien.
+    $stmt = $db->prepare('SELECT COALESCE(MAX(opp_ordre),0)+1 FROM dd_oppositions WHERE opp_re_id = ?');
+    $stmt->execute([$dest_re_id]);
+    $opp_ordre = (int)$stmt->fetchColumn();
+
+    $stmt = $db->prepare('
+      UPDATE dd_oppositions SET opp_re_id = ?, opp_ordre = ?
+      WHERE  opp_id = ? AND opp_supprime = 0
+    ');
+    $stmt->execute([$dest_re_id, $opp_ordre, $opp_id]);
     $db->commit();
   } catch (Exception $e) {
     $db->rollBack();
@@ -951,15 +977,21 @@ function dupliquerOpposition(PDO $db, bool $is_ajax, string $redirect): void
 
   $db->beginTransaction();
   try {
+    // La copie se pose en fin de la rencontre de destination (SP-CP).
+    $stmt = $db->prepare('SELECT COALESCE(MAX(opp_ordre),0)+1 FROM dd_oppositions WHERE opp_re_id = ?');
+    $stmt->execute([$dest_re_id]);
+    $opp_ordre = (int)$stmt->fetchColumn();
+
     $stmt = $db->prepare('
       INSERT INTO dd_oppositions
-        (opp_nom, opp_mocat_nom, opp_stats, opp_re_id, opp_mo_id, opp_supprime)
-      VALUES (?, ?, ?, ?, ?, 0)
+        (opp_nom, opp_mocat_nom, opp_stats, opp_ordre, opp_re_id, opp_mo_id, opp_supprime)
+      VALUES (?, ?, ?, ?, ?, ?, 0)
     ');
     $stmt->execute([
       $nom,
       $opp['opp_mocat_nom'],
       $opp['opp_stats'],
+      $opp_ordre,
       $dest_re_id,
       $opp['opp_mo_id'],
     ]);
@@ -1003,6 +1035,99 @@ function campIdDeRencontre(PDO $db, int $re_id): ?int
   $stmt->execute([$re_id]);
   $row = $stmt->fetch();
   return $row ? (int)$row['camp_id'] : null;
+}
+
+// ============================================================
+// RÉORDONNANCEMENT — glisser-déposer (SP-CP2)
+// ============================================================
+// Quatre actions, une par niveau, toutes bâties sur reordonnerNiveau().
+// Le client (js/tri-liste.js) poste :
+//   parent_id — le conteneur dont on réordonne les enfants
+//   ids       — les ids enfants dans le nouvel ordre, séparés par des virgules
+//
+// Contrôle de propriété : vérifié sur le PARENT (une seule remontée de
+// hiérarchie), puis chaque id posté doit appartenir à ce parent — un id
+// étranger glissé dans la liste ne peut donc pas être déplacé, même s'il
+// appartient au même MJ. Le lot doit être complet et exact, sinon rien n'est
+// écrit : un ordre partiel produirait des rangs en double.
+
+// Écrit le rang de chaque enfant. $table / $col_* sont des littéraux internes
+// (jamais issus du POST) — leur interpolation dans le SQL est sûre.
+function reordonnerNiveau(PDO $db, bool $is_ajax, string $redirect,
+                          string $table, string $col_id, string $col_ordre,
+                          string $col_parent, string $col_supprime,
+                          int $parent_id): void
+{
+  $ids = array_values(array_unique(array_filter(
+    array_map('intval', explode(',', (string)($_POST['ids'] ?? ''))),
+    fn($v) => $v > 0
+  )));
+
+  if (empty($ids)):
+    campErreur($is_ajax, 'Aucun élément à réordonner.', $redirect);
+  endif;
+
+  // Le lot posté doit correspondre EXACTEMENT aux enfants actifs du parent.
+  $ph   = implode(',', array_fill(0, count($ids), '?'));
+  $stmt = $db->prepare("
+    SELECT COUNT(*) FROM $table
+    WHERE  $col_id IN ($ph) AND $col_parent = ? AND $col_supprime = 0
+  ");
+  $stmt->execute(array_merge($ids, [$parent_id]));
+  if ((int)$stmt->fetchColumn() !== count($ids)):
+    campErreur($is_ajax, 'Liste incohérente — ordre non enregistré.', $redirect);
+  endif;
+
+  try {
+    $db->beginTransaction();
+    $upd = $db->prepare("UPDATE $table SET $col_ordre = ? WHERE $col_id = ? AND $col_parent = ?");
+    foreach ($ids as $rang => $id):
+      $upd->execute([$rang + 1, $id, $parent_id]);
+    endforeach;
+    $db->commit();
+  } catch (Exception $e) {
+    if ($db->inTransaction()) $db->rollBack();
+    error_log("reordonnerNiveau($table) : " . $e->getMessage());
+    campErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+
+  campOk($is_ajax, $parent_id, $redirect);
+}
+
+function reordonnerScenarios(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $camp_id = intParam($_POST['parent_id'] ?? 0);
+  if (!$camp_id || !isMJ($db, $camp_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  reordonnerNiveau($db, $is_ajax, $redirect, 'dd_scenarios',
+                   'sce_id', 'sce_ordre', 'sce_camp_id', 'sce_supprime', $camp_id);
+}
+
+function reordonnerChapitres(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $sce_id = intParam($_POST['parent_id'] ?? 0);
+  if (!$sce_id || !checkSceOwner($db, $sce_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  reordonnerNiveau($db, $is_ajax, $redirect, 'dd_scenarios_chapitres',
+                   'scc_id', 'scc_ordre', 'scc_sce_id', 'scc_supprime', $sce_id);
+}
+
+function reordonnerRencontres(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $scc_id = intParam($_POST['parent_id'] ?? 0);
+  if (!$scc_id || !checkSccOwner($db, $scc_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  reordonnerNiveau($db, $is_ajax, $redirect, 'dd_rencontres',
+                   're_id', 're_ordre', 're_scc_id', 're_supprime', $scc_id);
+}
+
+function reordonnerOppositions(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $re_id = intParam($_POST['parent_id'] ?? 0);
+  if (!$re_id || !checkReOwner($db, $re_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  reordonnerNiveau($db, $is_ajax, $redirect, 'dd_oppositions',
+                   'opp_id', 'opp_ordre', 'opp_re_id', 'opp_supprime', $re_id);
 }
 
 // Vérifie que l'utilisateur courant est MJ de la campagne porteuse de la rencontre.

@@ -137,17 +137,39 @@ button {
 /* ============================================================
    HEADER
    ============================================================ */
+/* Grille trois colonnes en desktop : marque à gauche, raccourci personnage
+   réellement centré, nav à droite. Les deux colonnes latérales étant toutes
+   deux en 1fr, la colonne centrale reste centrée dans le header quelle que
+   soit la largeur respective de la marque et du menu.
+   Sous 992px, le bloc responsive repasse en flex (cf. §10b). */
 .site-header {
   position: sticky;
   top: 0;
   z-index: 100;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   height: var(--header-h);
   padding: 0 var(--sp-lg);
   background: var(--clr-surface);
   border-bottom: 1px solid var(--clr-border);
+}
+
+/* Colonnes explicites : sans elles, l'absence du raccourci personnage
+   (aucun personnage encore consulté) ferait glisser la nav en colonne 2. */
+.site-header__brand {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.site-header__perso {
+  grid-column: 2;
+  justify-self: center;
+}
+
+.site-header__nav {
+  grid-column: 3;
+  justify-self: end;
 }
 
 .site-header__brand {
@@ -188,9 +210,6 @@ button {
   display: flex;
   align-items: center;
   gap: var(--sp-lg);
-  /* Garde la nav et le raccourci personnage groupés à droite, la marque à
-     gauche — le header est en space-between et compte désormais 3 éléments */
-  margin-left: auto;
 }
 
 /* Raccourci vers le dernier personnage consulté (SP-RS6) — dernier élément du
@@ -203,7 +222,7 @@ button {
   min-width: 0;
   /* min-width: 0 — sans quoi le nom ne peut pas être tronqué et le raccourci
      pousse la marque, jusqu'à passer à la ligne sur un nom long */
-  margin-left: var(--sp-md);
+  margin: 0 var(--sp-md);
   padding: 3px 10px;
   background: var(--clr-surface-2);
   border: 1px solid var(--clr-border);
@@ -725,7 +744,10 @@ textarea {
    Module NON responsive par choix : campagnes (usage desktop MJ)
    ============================================================ */
 @media (max-width: 991px) {
+  /* Retour au flex : la grille trois colonnes du desktop ne convient pas ici,
+     où le bouton Menu et la nav occupent leurs propres lignes. */
   .site-header {
+    display: flex;
     flex-wrap: wrap;
     height: auto;
     padding: var(--sp-sm) var(--sp-md);

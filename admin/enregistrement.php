@@ -143,6 +143,20 @@ function sauvegarderUtilisateur($db, bool $is_ajax, string $redirect): void
     $j_items_par_page = 20;
   endif;
 
+  // Changement de mot de passe (modification uniquement) — champs vides = inchangé
+  $hash_nouveau  = null;
+  $pass_nouveau  = $_POST['j_pass_nouveau']  ?? '';
+  $pass_confirme = $_POST['j_pass_confirme'] ?? '';
+  if ($j_id > 0 && ($pass_nouveau !== '' || $pass_confirme !== '')):
+    if (strlen($pass_nouveau) < 8):
+      adminErreur($is_ajax, 'Le mot de passe doit contenir au moins 8 caractères.', $redirect);
+    endif;
+    if ($pass_nouveau !== $pass_confirme):
+      adminErreur($is_ajax, 'Les deux mots de passe ne correspondent pas.', $redirect);
+    endif;
+    $hash_nouveau = password_hash($pass_nouveau, PASSWORD_DEFAULT);
+  endif;
+
   try {
     $db->beginTransaction();
 
@@ -172,7 +186,7 @@ function sauvegarderUtilisateur($db, bool $is_ajax, string $redirect): void
 
     else:
       // ---- MODIFICATION ----
-      $stmt = $db->prepare('
+      $sql = '
         UPDATE dd_joueurs SET
           j_prenom              = ?,
           j_nom                 = ?,
@@ -182,14 +196,23 @@ function sauvegarderUtilisateur($db, bool $is_ajax, string $redirect): void
           j_compendium_manager  = ?,
           j_mode_campagne       = ?,
           j_items_par_page      = ?,
-          j_notes               = ?
-        WHERE j_id = ?
-      ');
-      $stmt->execute([
+          j_notes               = ?';
+      $params = [
         $prenom, $nom, $pseudo, $email,
         $j_admin, $j_compendium_manager, $j_mode_campagne, $j_items_par_page, $j_notes,
-        $j_id,
-      ]);
+      ];
+
+      if ($hash_nouveau !== null):
+        // Un lien de réinitialisation en attente devient caduc
+        $sql      .= ', j_password_hash = ?, j_reset_token = NULL, j_reset_token_expires = NULL';
+        $params[]  = $hash_nouveau;
+      endif;
+
+      $sql     .= ' WHERE j_id = ?';
+      $params[] = $j_id;
+
+      $stmt = $db->prepare($sql);
+      $stmt->execute($params);
     endif;
 
     $db->commit();

@@ -3,22 +3,29 @@
 // Fragment HTML du bloc de contexte de navigation (boutons retour rapide).
 // Attend $header_context_niveaux (array) déjà calculé par l'appelant — soit
 // include/header.php au chargement de page, soit include/ajax/header-context.php
-// pour un rafraîchissement à chaud depuis #detail-pp (cf. js/main.js).
+// pour un rafraîchissement à chaud (cf. js/main.js).
 //
 // Rendu unique pour toutes les largeurs (SP-RS2) : icône de type + libellé +
 // nom, séparateurs chevron entre les niveaux. Sous 992px le CSS masque les
 // libellés et les séparateurs redeviennent visibles — fil d'Ariane défilable
 // sur une seule ligne (cf. doc/ARCHITECTURE_0_REFERENCE.md §10d).
+//
+// SP-CP : les quatre niveaux de campagne sont désormais de vraies pages. Le
+// fil d'Ariane est donc fait de liens (<a href>) et non plus de boutons
+// rouvrant #detail-pp — c'est ce qui permet au raccourci de ramener à un
+// niveau de campagne depuis n'importe quelle page du site, y compris hors
+// module. La chaîne d'ancêtres n'a plus à être transportée en JS : chaque
+// page reconstruit la sienne à partir de la session.
 ?>
 <? if (!empty($header_context_niveaux)): ?>
   <div class="site-header__context">
     <?
-    $ctx_base_detail = BASE_URL . '/include/ajax/detail-pp';
+    $ctx_base_camp = BASE_URL . '/campagnes';
     $ctx_urls = [
-      'campagne'  => $ctx_base_detail . '/campagne.php',
-      'scenario'  => $ctx_base_detail . '/scenario.php',
-      'chapitre'  => $ctx_base_detail . '/chapitre.php',
-      'rencontre' => $ctx_base_detail . '/rencontre.php',
+      'campagne'  => $ctx_base_camp . '/campagne.php',
+      'scenario'  => $ctx_base_camp . '/scenario.php',
+      'chapitre'  => $ctx_base_camp . '/chapitre.php',
+      'rencontre' => $ctx_base_camp . '/rencontre.php',
     ];
     $ctx_labels = [
       'campagne'  => 'Campagne',
@@ -33,7 +40,6 @@
       'rencontre'  => 'fa-dice-d20',
       'personnage' => 'fa-user',
     ];
-    $ctx_chain   = [];
     $ctx_dernier = count($header_context_niveaux) - 1;
     foreach ($header_context_niveaux as $ctx_i => $ctx_niveau):
       // Le niveau le plus profond est le contexte courant : jamais tronqué,
@@ -55,14 +61,13 @@
     <?
         continue;
       endif;
-      $ctx_chain[] = ['url' => $ctx_urls[$ctx_niveau['type']], 'params' => ['id' => $ctx_niveau['id']]];
     ?>
-      <button type="button" class="<?= $ctx_classe ?>"
-              onclick="ouvrirContextePP(<?= h(json_encode($ctx_chain)) ?>)">
+      <a class="<?= $ctx_classe ?>"
+         href="<?= $ctx_urls[$ctx_niveau['type']] ?>?id=<?= (int)$ctx_niveau['id'] ?>">
         <i class="fa <?= $ctx_icones[$ctx_niveau['type']] ?>" aria-hidden="true"></i>
         <span class="site-header__context-type"><?= h($ctx_labels[$ctx_niveau['type']]) ?> :</span>
         <span class="site-header__context-nom"><?= h($ctx_niveau['nom']) ?></span>
-      </button>
+      </a>
     <? endforeach ?>
   </div>
 <? endif ?>

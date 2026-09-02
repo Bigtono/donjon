@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-08-24 -->
+<!-- Mis à jour : 2026-09-01 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -3557,6 +3557,79 @@ un fragment injecté en AJAX depuis un module qui ne charge pas `personnages-mod
   exigent une session authentifiée. À contrôler à la première ouverture de fiche.
 - Aucun patch SQL, conformément à l'annonce §7.11.
 
+---
+
+## SP-PE6 — NLS prestige du personnage (DD3.5)
+
+**[2026-08-27] D-PE6a — Commit global du bloc, et non écriture immédiate**
+Quatre éditeurs coexistent désormais sur la fiche. Le critère posé en D-PE4a puis D-PE5b tranche
+sans hésitation : le bloc NLS porte des **valeurs choisies dans des selects** (quelle classe de
+base reçoit tel niveau), pas des appartenances booléennes.
+→ Éditeur inline à commit global, comme Classes et Compétences : boutons Enregistrer / Annuler,
+  persistance DELETE + INSERT en transaction (action `enregistrerNls`).
+→ Corollaire utile : l'affectation d'une classe de prestige entière se saisit d'un trait, puis se
+  valide en une écriture — un commit par select aurait produit jusqu'à 10 requêtes pour un geste
+  que l'utilisateur perçoit comme unique.
+
+**[2026-08-27] D-PE6b — Un niveau sans progression de NLS n'a pas de select**
+Toutes les classes de prestige n'avancent pas le NLS à chaque niveau : le Champion occultiste ne
+progresse qu'à partir du niveau 2 (`cn_niveauSortArcane = 0` au niveau 1), le Thaumaturge un
+niveau sur deux.
+→ Ces niveaux restent **visibles** dans le tableau (numérotation continue, l'utilisateur voit que
+  le niveau existe) mais affichent « Sans progression de NLS » en `text-muted`, sans select en
+  édition et sans « À affecter » en rouge en lecture.
+→ Les deux autres options ont été écartées : donner un select produirait une affectation sans
+  effet sur le calcul de SP-PE7 ; masquer la ligne produirait une numérotation à trous, illisible.
+→ Cas limite traité pareil : un niveau **absent de `dd_classe_niveau`** (saisie compendium
+  incomplète — le Hiérophante n'a que 5 lignes pour 10 niveaux) est traité comme sans progression.
+  Le bloc n'invente pas une affectation à faire à partir d'une donnée manquante.
+
+**[2026-08-27] D-PE6c — « Complétude » = celle de chaque ligne postée, pas celle du tableau**
+La spec d'origine (`ARCHITECTURE_1_PERSONNAGE.md`) demandait que « le joueur doit affecter chaque
+niveau » et l'annonce de phase parlait de « validation serveur = complétude ». Pris au pied de la
+lettre, le serveur aurait refusé tout enregistrement partiel.
+→ Lecture retenue, cohérente avec le principe « aide de jeu, saisie déclarative » de l'archi §7.1 :
+  l'affectation partielle est **autorisée**. Les niveaux non affectés s'affichent « À affecter » en
+  rouge — ce que la spec prévoit explicitement, donc un état attendu, pas une anomalie.
+→ La complétude validée par le serveur est celle de **chaque ligne postée** : les trois champs ou
+  rien, les deux `pc_id` appartiennent au personnage, la source est une classe de prestige, le
+  niveau est dans les bornes détenues, il fait progresser le NLS, et la réceptrice est compatible
+  avec son type de magie (`effectif` → toutes ; `arcane` → `cla_mag_id = 1` ; `divin` → 2).
+→ Aucune règle de jeu au-delà : pas de contrôle de prérequis de classe de prestige.
+
+**[2026-08-27] D-PE6d — Enregistrer les classes remet l'affectation NLS à zéro**
+Comportement hérité de SP-PE2, constaté et **conservé** : `enregistrerClasses` supprime toutes les
+lignes `dd_personnages_nls` du personnage avant son DELETE + INSERT des classes.
+→ Ce n'est pas un défaut : `dd_personnages_nls` référence des `pc_id`, que le DELETE + INSERT
+  renouvelle systématiquement. Les affectations ne peuvent pas leur survivre.
+→ Conséquence à connaître : monter d'un niveau une classe depuis le bloc Classes efface
+  l'affectation NLS, qui est à ressaisir. Documenté en archi §7.5d plutôt que contourné — préserver
+  les lignes exigerait de réécrire l'enregistrement des classes en UPDATE ciblés, hors périmètre.
+
+**[2026-08-27] D-PE6e — Le bloc est omis, pas vide, quand il n'a pas lieu d'être**
+Condition d'affichage (reprise de la spec) : au moins une classe de base lanceuse **et** une
+classe de prestige dont un niveau détenu fait progresser le NLS.
+→ `getPersonnageNls()` renvoie `null` dans le cas contraire et `fiche.php` n'émet pas la section —
+  plutôt qu'un bloc affichant « rien à affecter », qui n'apprendrait rien à personne.
+→ La ligne « NLS prestige » de la liste « À venir » de la fiche est retirée par la même occasion.
+
+**[2026-08-27] SP-PE6 livrée — vérifications effectuées**
+- `php -l` sur les 3 fichiers PHP modifiés : aucune erreur de syntaxe.
+- Contrôle des drapeaux réels en base : 23 classes de prestige DD3.5, dont 9 avec au moins un
+  `cn_niveauSort*` levé — les trois combinaisons du filtrage (arcane seul, effectif, arcane+divin)
+  existent bien, ainsi que le cas « niveau 1 sans progression » (Champion occultiste).
+- **Vérifié dans le navigateur** (session authentifiée par la procédure D-RS35) sur un personnage
+  de test à 4 classes (Magicien 7 / Prêtre 3 / Champion occultiste 4 / Théurge mystique 3) :
+  lecture conforme (niveau 1 « Sans progression », niveaux 2-4 « À affecter » en rouge), selects
+  filtrés correctement (Magicien seul sur les niveaux arcane, Magicien + Prêtre sur les niveaux
+  arcane + divin), enregistrement partiel accepté et relu en base (4 lignes, 2 niveaux laissés
+  non affectés). Personnage de test supprimé après contrôle.
+- Chemin nominal reconfirmé par l'utilisateur sur un personnage réel (Elminster + classe de
+  prestige) avant clôture de la phase.
+- Aucun patch SQL, conformément à l'annonce §7.11.
+
+---
+
 **[2026-08-15] D-DON1 — Import des dons DD2024 du Manuel des Joueurs (p. 207-211)**
 Livraison sous forme de fichier SQL relu et exécuté manuellement
 (`sql/2026-08-15_dons_dd2024_mdj.sql`), pas d'écriture directe en base par l'assistant.
@@ -4227,3 +4300,955 @@ la façon dont cet écran est présenté. Construire l'écran maintenant reviend
 → État utile à la reprise : aucun tableau n'est coché `tab_ecran_mj` en base, `tab_ecran_ordre`
   vaut 0 partout. Le filtre « Écran du MJ » de `tableaux/index.php` fonctionne mais ne renvoie
   donc rien pour l'instant.
+→ **Levée le jour même** : la refonte a reçu le code `SP-CP` et a été livrée. Voir D-CP9.
+
+---
+
+**[2026-08-24] D-CP1 — SP-CP : le module Campagnes quitte `#detail-pp` pour des pages**
+Les quatre niveaux (campagne, scénario, chapitre, rencontre) deviennent des pages avec URL propre :
+`campagnes/campagne.php?id=`, `scenario.php?id=`, `chapitre.php?id=`, `rencontre.php?id=`.
+Les handlers `include/ajax/detail-pp/{campagne,scenario,chapitre,rencontre}.php` sont supprimés.
+→ Le panneau convenait à la consultation ponctuelle, pas à la conduite d'une partie : pas d'URL
+  partageable, pas de retour navigateur, aucune place pour des outils de jeu, et une pile
+  `_detailPpStack` à retenir dans chaque formulaire après écriture.
+→ `detail-pp/monstre.php` reste : un monstre du compendium se consulte en panneau depuis partout,
+  y compris depuis les liens `.mo-lien` d'un bloc de stats d'opposition (arbitrage, question 3).
+→ `detail-pp-sub/opposition.php` supprimé au passage : devenu orphelin (aucun appelant) une fois
+  les stats rendues en place sur la page rencontre.
+
+**[2026-08-24] D-CP2 — Gabarit deux colonnes, cadre élargi à 1500px**
+Grille `minmax(260px, 25%)` + `minmax(0, 1fr)` : 363px / 1065px sur la cible 1536 × 799 annoncée
+par l'utilisateur. Colonne d'outils à gauche en `position: sticky`, données à droite.
+→ Le ratio demandé était « 1/4 – 3/4 » : un `25%` le tient à toutes les largeurs, là où une valeur
+  fixe ne serait juste qu'à 1536. Le plancher `260px` évite que la colonne d'outils devienne
+  inutilisable sur un portable plus étroit.
+→ `--main-max` (1200px) laissait ~330px de vide de chaque côté à 1536. Élargissement à 1500px
+  **limité aux pages du module** par `body.camp-plein` (`$body_class`), pour ne pas toucher au
+  cadre du reste du site.
+→ Sous 992px : une colonne, outils au-dessus dans un bloc replié par défaut (arbitrage, question 8).
+  Le module reste documenté « non responsive, usage desktop MJ » — il s'agit d'éviter une mise en
+  page cassée, pas d'ouvrir le module au téléphone.
+
+**[2026-08-24] D-CP3 — Après écriture : recharger la page courante**
+Les cinq formulaires restent des overlays `#modification` (arbitrage, question 5) et se concluent
+tous par `window.location.reload()`. Deux exceptions : créer une campagne depuis la liste mène à sa
+page, supprimer une campagne remonte à `index.php`.
+→ Règle unique et vraie partout : on reste là d'où l'action est partie. Une règle « aller sur la
+  fiche de l'objet enregistré » se tromperait dès qu'on modifie un scénario depuis la page de la
+  campagne.
+→ Corollaire : `enregistrement.php` ne renvoie plus d'`url_detail`. Le serveur ignore depuis quel
+  niveau le formulaire a été ouvert ; la page, elle, le sait.
+
+**[2026-08-24] D-CP4 — Ordre manuel : deux colonnes créées, saisie supprimée**
+`dd_rencontres.re_ordre` et `dd_oppositions.opp_ordre` n'existaient pas — ces deux niveaux étaient
+triés sur le nom. Créées et backfillées dans l'ordre alphabétique en vigueur
+(`sql/2026-08-24_ordre_sp-cp.sql`, **committé**, appliqué en dev, à appliquer en prod).
+→ Les champs « Ordre d'affichage » disparaissent des formulaires scénario et chapitre : l'ordre est
+  piloté par le seul glisser-déposer (arbitrage, question 12). Deux sources de vérité pour un même
+  rang, c'est une de trop — et le formulaire aurait écrasé à 0 un rang posé à la souris.
+→ Attention au piège correspondant côté serveur : `sce_ordre`/`scc_ordre` ont dû être **retirés des
+  UPDATE**, pas seulement des formulaires. Les y laisser avec un POST devenu vide remettait le rang
+  à 0 à chaque modification de nom.
+→ Un élément créé se pose en fin de liste (`MAX(ordre)+1`) ; une opposition transférée ou dupliquée
+  également, plutôt que d'importer un rang qui n'a pas de sens dans sa nouvelle rencontre.
+
+**[2026-08-24] D-CP5 — Deux composants transverses plutôt que deux bouts de code campagne**
+Demandés explicitement génériques par l'utilisateur. `js/tri-liste.js` (glisser-déposer) et
+`notifier()` (pastille d'enregistrement) sont chargés sur **toutes** les pages, sans dépendance au
+module. Détail du contrat en `ARCHITECTURE_0_REFERENCE.md` §12b.
+→ Pointer Events plutôt que l'API drag&drop HTML5 : un seul jeu d'événements pour souris et
+  tactile, et `setPointerCapture()` évite de perdre le glissement dès que le curseur sort de la
+  ligne. `touch-action: none` sur la poignée est **obligatoire**, sans quoi le navigateur traite le
+  geste comme un défilement et n'émet plus de `pointermove`.
+→ Prise sur une poignée dédiée, jamais sur la ligne : les cellules restent cliquables pour naviguer.
+→ Handlers délégués sur `document` : aucune initialisation à appeler, le contenu injecté en AJAX
+  fonctionne d'office.
+→ Côté serveur, `reordonnerNiveau()` exige un **lot exact** (autant d'ids postés que d'enfants
+  actifs du parent) : un lot partiel produirait des rangs en double, et un id étranger ne peut pas
+  être déplacé même s'il appartient au même MJ.
+→ `notifier()` branchée au passage sur les deux écritures immédiates qui n'affichaient rien ou
+  affichaient un message local : sélecteur de dons (SP-PE4) et rattachement de campagne (SP-PE5),
+  arbitrage question 14. Pas sur les commits de formulaire, qui ont déjà leur retour.
+
+**[2026-08-24] D-CP6 — Oppositions : blocs de stats dépliés, plus de sous-panneau**
+Sur `rencontre.php`, chaque opposition est une carte dont `rendreStatsMonstre()` est rendu ouvert.
+→ « On verra à l'usage » (arbitrage, question 6), mais le principe est posé : en partie, lire une
+  créature ne doit coûter aucun clic. Un burger permet de replier au cas par cas.
+→ L'index de liaison reste scopé aux sources de la **campagne** (`getActiveResIdsCampagne()`), pas
+  aux sources personnelles du visiteur — inchangé depuis le sous-panneau. Résolu une seule fois
+  par page, pas une fois par opposition.
+
+**[2026-08-24] D-CP7 — Le fil d'Ariane du header devient une suite de liens**
+`include/header-context.php` rend des `<a href>` vers les pages du module ; `ouvrirContextePP()` est
+retirée de `main.js` avec la chaîne d'ancêtres qu'elle transportait.
+→ C'est ce qui donne enfin au bandeau la fonction annoncée : revenir à un niveau précis d'une
+  campagne depuis **n'importe quelle page du site**, y compris hors module.
+→ Conséquence sur §12 : `setLast*()` est désormais appelée par la page du niveau, plus par un
+  handler `detail-pp/*`. Même contrat, autre point d'appel.
+→ `personnages/fiche.php` (bloc Campagnes) suivait le même chemin : son lien ouvrait le panneau,
+  il pointe maintenant sur la page.
+
+**[2026-08-24] D-CP8 — Code / abréviation en préfixe du nom**
+La colonne dédiée disparaît des listes de chapitres et de rencontres ; quand il existe, le code
+préfixe le nom, séparé par ` : ` (`C5 : Événement 5`). Non grisé (arbitrage, question 15).
+→ Une colonne entière pour un champ souvent vide coûtait plus de largeur qu'elle n'en informait.
+  Le code fait partie du titre, pas des métadonnées — d'où l'absence de grisé.
+→ Vaut aussi pour les bandeaux de titre des pages chapitre et rencontre.
+
+**[2026-08-24] D-CP9 — SP-TB8 débloquée**
+La condition de reprise posée en D-TB19 est levée : la refonte est arbitrée et livrée.
+→ Point d'entrée acté : le premier bouton de `include/campagne-outils.php`, aujourd'hui inerte.
+→ Présentation retenue : ouverture dans `#detail-pp` (arbitrage, question 1) — l'écran du MJ est
+  une consultation ponctuelle par-dessus la page de jeu, pas un niveau de navigation.
+→ La colonne d'outils ne contient que ce bouton (arbitrage, question 9). Le reste des aides de jeu
+  est à arbitrer : phase `SP-CP8`.
+
+**[2026-08-25] D-AD1 — L'admin change le mot de passe d'un utilisateur depuis le formulaire d'édition**
+Section « Mot de passe » ajoutée à `include/ajax/modifier/utilisateur.php` en mode édition
+uniquement : `j_pass_nouveau` + `j_pass_confirme`, tous deux **facultatifs**. Traitement dans
+`sauvegarderUtilisateur()` (`admin/enregistrement.php`), branche MODIFICATION.
+→ Pas de champ « mot de passe actuel », contrairement à `profil/index.php` : l'admin n'a pas à
+  connaître le mot de passe qu'il remplace, et il ne peut pas le lire (bcrypt). Le garde-fou est
+  `requireAdmin()` + CSRF, pas une reconnaissance de l'ancien secret.
+→ Champs vides = mot de passe inchangé. C'est ce qui permet de garder **un seul** formulaire et un
+  seul enregistrement pour toute la fiche : l'`UPDATE` ajoute `j_password_hash = ?` seulement si un
+  nouveau mot de passe a été saisi. Aucune action ni aucun endpoint dédié.
+→ Contrôles serveur repris de `profil/index.php` (8 caractères minimum, deux saisies identiques),
+  exécutés **avant** `beginTransaction()` comme les autres validations de la fonction.
+→ `j_reset_token` / `j_reset_token_expires` sont remis à NULL au passage : un lien de
+  réinitialisation encore valide redonnerait la main sur un compte que l'admin vient de reprendre.
+→ Les sessions ouvertes de l'utilisateur ne sont pas invalidées — hors périmètre, aucun registre
+  de sessions n'existe côté serveur.
+
+**[2026-08-25] D-DRS1 — Import des règles DD3.5 : chantier SP-DRS, lot 1 livré**
+Import itératif des fichiers de règles du DRS 3.5 (~20 fichiers de règles sur les 40 du
+document ; les fichiers de données compendium sont hors périmètre). Lot 1 : DRS 01, 10, 12, 18,
+19 — 4 racines thématiques + 1 racine glossaire, 4 chapitres, 23 règles, 63 termes, 15 tableaux.
+→ Arbitrages (5 questions posées, toutes tranchées par l'utilisateur) :
+  **arborescence thématique** plutôt qu'un chapitre par fichier DRS ; **pages longues par
+  section** plutôt qu'un nœud par manœuvre/état ; **mini-glossaire** de termes techniques
+  majeurs compilé au fil du traitement (le DRS n'a pas de glossaire, contrairement au SRD 2024) ;
+  **ressource dédiée « DRS 3.5 »** (OGL 1.0a) plutôt qu'un rattachement au MdJ3.5 — les DRS 12,
+  18 et 19 relèvent du Guide du Maître et du Manuel des Monstres, une ressource unique évite le
+  panachage ; **SP-TB9 et SP-GL4 absorbées au fil des lots**.
+→ Contrairement au seed DD2024 : aucun `reg_id` codé en dur (les ids sont occupés — parents via
+  `LAST_INSERT_ID()`), tableaux saisis directement en convention texte `dd_tableaux` (aucun HTML
+  à migrer a posteriori), et pas de colonne `res_pages` dans l'INSERT ressource (elle n'existe
+  pas dans le schéma réel).
+→ Idempotence par sous-arbre : chaque fichier DRS ne réinitialise que son chapitre et ses
+  tableaux ; le glossaire supprime par liste explicite de slugs pour préserver les termes des
+  lots suivants ; le socle n'est jamais destructif.
+→ `reg_ordre` par pas de 10 à tous les niveaux : les lots suivants s'intercalent sans
+  renumérotation (l'ordre d'affichage suit l'ordre de présentation des lots par l'utilisateur).
+→ Vérifié en local (base `maikasteiymaika`) : application des 7 fichiers sans erreur, rejeu
+  idempotent, 0 tag `[[tab:]]` non résolu au rendu, 15/15 tableaux rendus, liaison automatique
+  du glossaire opérationnelle (harnais CLI).
+
+**[2026-08-25] D-DRS2 — Le socle active la source DRS 3.5 dans les sélections personnelles**
+Symptôme trompeur constaté à la livraison : les règles affichaient bien les tableaux (rendu du
+tag `[[tab:slug]]`), mais `tableaux/index.php` n'en listait **aucun** en DD3.5 — donnant
+l'impression que les tableaux avaient été insérés en HTML dans les règles, sans passer par le
+module. En réalité les 15 tableaux étaient en base et aucun `<table>` dans `reg_texte`.
+→ Cause : le module Règles n'est pas filtré par sources, le gestionnaire de tableaux l'est
+  (moteur `compendium-liste.php`). Tout utilisateur ayant une sélection personnelle DD3.5
+  (`dd_joueurs_sources`, priorité 2 de `getActiveResIds()`) ne voyait pas la nouvelle ressource
+  « DRS 3.5 » — même piège que celui documenté en §9c pour SP-TB3 (`tab_res_id` NULL).
+→ Correctif dans le socle : INSERT idempotent qui ajoute « DRS 3.5 » à la sélection personnelle
+  DD3.5 de chaque joueur qui en possède déjà une. Les joueurs sans sélection relèvent de la
+  priorité 3 (`res_selection = 1`, déjà posé par la ressource).
+→ À retenir pour tout futur seed créant une ressource : créer la ressource ne suffit pas, il faut
+  aussi la faire entrer dans les sélections personnelles existantes, sinon son contenu est
+  invisible dans toutes les listes filtrées par source.
+
+**[2026-08-25] D-DRS3 — Bouton « Tableaux » généralisé aux trois pages du module Règles**
+Le bouton vers `tableaux/index.php` n'existait que sur le sommaire (`regles/index.php`) ; il est
+ajouté à la barre d'outils de la vue lecture (`regles/regle.php`) et de la recherche
+(`regles/recherche.php`), même emplacement (après le champ de recherche) et même marquage.
+→ C'est depuis la vue lecture qu'on constate qu'un tableau est à corriger : l'accès au
+  gestionnaire doit être là, comme il l'est sur toutes les listes du compendium (SP-TB7).
+→ Non conditionné à `canEditCompendium()`, comme sur le sommaire : la consultation du
+  gestionnaire est ouverte à tous, seule l'édition y est gardée.
+
+**[2026-08-27] D-MAG1 — Analyse fonctionnelle de la magie avant `SP-PE7` (aucun code livré)**
+Analyse croisée des SRD DD3.5 (`DRS 20`, `DRS 03a/03b`, `DRS 21`) et DD2024 v5.2.1
+(`règles-sorts`, Classes, Création de personnage) et relevé de l'état réel de la base.
+Livrée dans `doc/METIER_7_SORTS.md` (le fichier, stub de 12 lignes depuis 2026-05-30, est
+remplacé par l'analyse complète). Huit questions d'arbitrage ouvertes en §11 — aucune décision
+prise, aucun patch SQL écrit.
+→ Conclusion de modélisation : le comportement magique d'une classe tient dans **trois axes
+  orthogonaux** valides pour les deux rulesets — réservoir (`liste` / `grimoire` / `repertoire`),
+  engagement quotidien (`prepare` / `spontane` / `pacte`), cadence de renouvellement
+  (`repos_long` / `montee_niveau`). Les deux premiers axes tiennent dans les drapeaux existants
+  `cla_sort_compris` / `cla_sort_connu` / `cla_sort_prepare` **redéfinis et recodés** ; le
+  troisième n'a aucun support (Q3).
+→ DD2024 n'a plus qu'un seul mode d'incantation (toutes les classes préparent) : la complexité y
+  est ailleurs — sorts toujours préparés, Magie de pacte, multiclassage à niveau d'incantateur
+  calculé. DD3.5 en a cinq, dont deux (grimoire, répertoire spontané) sans équivalent 2024.
+→ Relevé de base — trois bloquants non documentés jusqu'ici : `dd_modificateurs` est **vide**
+  (le calcul des sorts bonus décrit en `ARCHITECTURE_0_REFERENCE.md` §7.7 est inopérant) ;
+  `dd_classe_niveau` DD2024 est très incomplet (Barde 3/20, Ensorceleur 0, Paladin 0, Occultiste
+  et Rôdeur **absents de la table**) ; `dd_personnages_sorts` et `dd_personnages_sorts_prepares`
+  sont vides et aucun écran ne les alimente.
+→ Ce dernier point est **exactement le piège de SP-PE5** (leçon du 2026-08-14) : `SP-PE7` est
+  annoncée comme une vue, elle ne peut pas être livrée en lecture seule — les écrans d'écriture
+  du grimoire, des sorts connus et des sorts préparés en font partie.
+→ Incohérences de référentiel relevées au passage : `cla_mag_id` DD2024 pointe sur des valeurs du
+  ruleset 3.5 (Magicien = 1) ou inexistantes (Rôdeur = 5) ; `cla_car_id = 0` sur 4 classes
+  DD2024 ; les drapeaux `cla_sort_*` valent 0 partout en DD2024 et sont **inversés** en DD3.5
+  (Magicien `connu=1/compris=0`, Ensorceleur `compris=1/connu=0`, Prêtre `domaine_divin=0`).
+→ Écart de modélisation confirmé : `so_branche` mélange branche et registre sur les 1 935 sorts
+  DD3.5, sans champ `so_registre` (Q4) ; et `cn_sort_n0` porte deux sémantiques selon le ruleset
+  (emplacements de niveau 0 en DD3.5, **nombre de sorts mineurs connus** en DD2024) — à
+  documenter quoi qu'il arrive.
+
+**[2026-08-27] D-MAG2 — `cla_mag_id` : plage de valeurs propre à chaque ruleset (arbitrage Q1)**
+Le champ est conservé tel quel, mais sa plage dépend du ruleset : DD3.5 garde `0/1/2`
+(0 = non lanceur, 1 = profane, 2 = divin) ; DD2024 n'admet que `0/1`, où **1 signifie
+« lanceur de sorts » sans distinction** — le ruleset 2024 ayant supprimé l'opposition
+profane/divin.
+→ Raison : le test `cla_mag_id > 0` identifie les classes lanceuses dans tout le code existant.
+  Le préserver évite un drapeau supplémentaire et une reprise transverse.
+→ Conséquence assumée : `cla_mag_id` **n'est plus une clé étrangère utilisable telle quelle**.
+  En DD2024 la valeur 1 ne désigne plus la ligne `dd_typemagie` d'id 1 (« Prof », ruleset DD3.5),
+  c'est un drapeau. Tout affichage du libellé de type de magie doit être conditionné à
+  `cla_ruleset_var_id = 1`, sinon un Clerc DD2024 s'affiche « Magie profane ».
+→ Les lignes `dd_typemagie` 3 (« Profane », DD2024) et 4 (« Divine », DD2024) deviennent mortes.
+→ UPDATE à produire : les 8 classes lanceuses DD2024 passent à `cla_mag_id = 1` — aujourd'hui `4`
+  pour Barde/Clerc/Druide/Ensorceleur/Paladin, `1` pour Magicien (juste par accident), `5` pour
+  Rôdeur (valeur inexistante en table).
+
+**[2026-08-27] D-MAG3 — Séparation branche / registre en DD3.5 (arbitrage Q4)**
+Ajout d'un champ `so_registre` et migration par script depuis `so_branche`, qui mélange
+aujourd'hui les deux notions sur les 1 935 sorts DD3.5.
+→ Raison : le registre est la seule donnée qui permette de filtrer les sorts d'alignement
+  (restriction prêtre/druide, §3.4) et de restituer l'affichage entre crochets décrit dans
+  `ARCHITECTURE_7_SORTS.md` autrement que par une convention de saisie.
+→ Trois formes à traiter : branche + crochets (`Fantasme [mental, terreur]`), registre seul sans
+  crochets (`Mal`, `son`, `mal, mental`), branche seule (`Coercition`). La deuxième se reconnaît à
+  l'appartenance à la **liste fermée des 19 registres du SRD**, comparaison insensible à la casse
+  et aux accents — la casse est irrégulière en base et la migration la normalise.
+→ Script **idempotent** et précédé d'un relevé de contrôle par forme détectée : les 1 935 lignes
+  ne sont pas rejouables à l'identique une fois `so_branche` réécrit.
+→ Périmètre induit hors module Personnages : fiche de sort, formulaire et liste du compendium
+  Sorts.
+
+**[2026-08-27] D-MAG4 — Ouverture du code projet `SP-MA` (arbitrage Q5)**
+La « vue Magie » couvrait un chantier bien plus large que la phase `SP-PE7` du tableau de bord :
+sur les neuf blocs de travail identifiés par l'analyse, **six touchent le compendium Classes, le
+compendium Sorts ou le référentiel global**, pas le module Personnages.
+→ Décision : ouverture d'un code projet transverse **`SP-MA` — Référentiel de la magie**
+  (`SP-MA0` référentiel des classes lanceuses, `MA1` seed `dd_modificateurs`, `MA2`
+  `dd_classe_niveau` DD2024, `MA3` registre DD3.5, `MA4` extensions de schéma, `MA5` complétion
+  `dd_sortdomaine`). `SP-PE7` est recadrée sur la page Magie elle-même et **bloquée par
+  `SP-MA0→MA2`**.
+→ Raison décisive : `SP-MA4` et `SP-MA5` n'auraient aucune place légitime dans `SP-PE` et
+  seraient sorties de la checklist — exactement la situation que le passage de « sous-phases 3.0
+  à 3.7 » au code `SP-PE` avait corrigée le 2026-08-12.
+→ Précédent retenu : `SP-TB`, parti du module Règles pour devenir autonome, jusqu'à la sortie du
+  gestionnaire vers `tableaux/` en SP-TB10.
+→ L'**écriture** (grimoire, sorts connus, sorts préparés) reste dans `SP-PE7` et n'est pas
+  reportée : `dd_personnages_sorts` et `dd_personnages_sorts_prepares` sont vides et aucun écran
+  ne les alimente. Une phase annoncée « vue » livrée en lecture seule serait structurellement
+  vide — leçon SP-PE5 [2026-08-14], deuxième occurrence.
+
+**[2026-08-27] D-MAG5 — Objectif produit du chantier magie**
+Critère d'acceptation fixé avant tout développement, reporté en `METIER_7_SORTS.md` §10.1 :
+un outil de gestion des sorts du personnage lanceur, dans les deux rulesets, qui (1) va au but —
+le nombre de gestes pour préparer sa journée ou consulter un sort prime sur l'exhaustivité ;
+(2) tient compte de la particularité de chaque classe — les trois axes réservoir / engagement /
+cadence déterminent quels onglets et compteurs existent, l'interface ne montre pas ce qui n'a pas
+de sens pour la classe ; (3) **assume le multiclassage lanceur**, structurant et critique en
+DD3.5 ; (4) marche au doigt sur smartphone et tablette dès la conception, pas en rattrapage.
+→ Conséquence de structure : le regroupement de premier rang de la page est **la classe
+  lanceuse**, pas le niveau de sort. Un personnage monoclasse ne doit pas payer le prix visuel du
+  multiclassage.
+→ Conséquence sur le multiclassage DD3.5 : deux réservoirs, deux modes d'engagement, deux
+  caractéristiques d'incantation et deux NLS distincts coexistent sans rien mutualiser — un
+  ensorceleur/prêtre est le cas de test de référence. En DD2024 le partage est inverse :
+  emplacements **communs** sur le niveau d'incantateur agrégé, mais sorts préparés et
+  caractéristique **par classe**.
+→ Conséquence sur le calendrier : la passe responsive reste rattachée à `SP-PE8` pour la
+  cohérence avec les autres blocs de la fiche, mais l'objectif (4) impose de concevoir tactile
+  dès `SP-PE7`.
+
+**[2026-08-27] D-MAG6 — Cadrage règles validé : trois corrections, deux nuances, lecture A**
+Confrontation du SRD, d'une analyse comparée externe fournie par l'utilisateur
+(`Analyse_comparative_magie_DD35_DD5e_2024.docx`) et de la compréhension de l'utilisateur.
+Convergence complète sur la thèse centrale — en DD3.5 préparer un sort revient à **réserver un
+emplacement pour ce sort** ; en DD2024 préparer revient à **le rendre disponible**, les
+emplacements étant une réserve générique. Cinq points corrigés ou précisés, tous validés.
+→ **Correction 1 — DD2024 n'a aucun lanceur spontané.** Barde, Ensorceleur et Occultiste ont
+  l'aptitude « Sorts préparés du 1er niveau et plus », comme le Clerc et le Magicien ; la notion
+  de « sorts connus » a disparu de l'édition. Les synthèses qui les décrivent encore comme
+  spontanés décrivent la **5e de 2014**. Suivre cette erreur aurait produit un profil
+  `repertoire_spontane` pour le Barde 2024, un onglet « Sorts connus » et un plafond
+  `cn_sortConnu_n*` — tout faux. `repertoire_spontane` **n'existe qu'en DD3.5**. Encadré
+  d'avertissement ajouté en tête du §4.
+→ **Correction 2 — l'upcasting n'existe pas en DD3.5.** Le SRD 3.5 autorise à dépenser un
+  emplacement supérieur mais **sans le moindre bénéfice** (la puissance dépend du NLS, pas de
+  l'emplacement) ; DD2024 fait l'inverse. Seul le don *Sort accru* élève le niveau d'un sort 3.5.
+  **Conséquence d'interface, la plus structurante du chantier** : le geste de lancement diffère
+  par nature — DD2024 impose de choisir le niveau d'emplacement à l'incantation, DD3.5 l'ignore.
+  Ce ne sont pas deux variantes d'une page, ce sont deux gestes (portée `SP-PE8`). Voir §3.3b.
+→ **Correction 3 — métamagie.** En DD3.5 c'est un mécanisme de coût en emplacement (deltas +1 à
+  +4, cumulables, plafond niveau 9, choix à la préparation pour un préparateur). En DD2024 les
+  *dons* ont disparu ; le mécanisme survit comme aptitude du seul Ensorceleur, payé en points de
+  Sorcellerie, et **sans effet sur le niveau du sort ni sur l'emplacement**. `pesp_metamagie` et
+  `pesp_niveau` restent donc strictement DD3.5. Voir §3.7.
+→ **Nuance A — « liste préparée = liste lançable » est faux pour le prêtre et le druide.**
+  L'incantation spontanée leur permet de sacrifier un sort préparé pour lancer un sort de
+  soins/blessure/convocation qu'ils n'ont **pas** préparé. Pour ces classes la liste préparée est
+  la réserve : la conversion doit être visible dans la page, sinon un joueur de prêtre ne voit pas
+  ses soins.
+→ **Nuance B — un emplacement préparé DD3.5 a trois états**, pas deux : `vierge` (le magicien peut
+  en laisser et les remplir plus tard, 15 min minimum) · `réservé à un sort` · `dépensé`. DD2024
+  n'en a que deux. À porter dans le modèle de suivi de `SP-PE8`. Voir §3.3c.
+→ **Lecture A retenue pour le vocabulaire connu / compris** (cohérente avec le SRD et avec ce que
+  `SCHEMA_SQL.md` documente déjà) : **connu** = le sort est à ma disposition (parchemin, grimoire
+  emprunté ou trouvé) mais pas encore recopié → `pes_compris = 0` ; **compris** = déchiffré,
+  étudié, **recopié dans mon grimoire** → `pes_compris = 1`. Règle décisive dans les deux lectures
+  envisagées : **préparable ⟺ compris**. La page Magie affiche donc **deux** listes pour un profil
+  grimoire, reliées par le geste « Recopier dans le grimoire ». Voir §3.1b.
+
+**[2026-08-27] D-MAG7 — SP-MA0 livrée : `cla_profil_incantation` remplace les trois drapeaux**
+Patch : `sql/2026-08-27_profil_incantation_sp-ma0.sql` (appliqué et vérifié en local, à passer en
+prod). Code : `helpers.php`, `compendium/classes.php`, `compendium/enregistrement.php`,
+`ajax/modifier/classe.php`, `ajax/detail-pp/classe.php`.
+→ **Quatre profils, pas huit combinaisons.** Les axes réservoir / engagement du §6 n'ont que
+  4 combinaisons réelles : Liste préparée (3), Grimoire (4), Répertoire spontané (5, DD3.5 seul),
+  Magie de pacte (6, DD2024 seul). Stockage dans `dd_variables` (`var_cat = 'profinc'`), ids figés
+  en constantes `PROFINC_*` — **pas de littéraux dispersés**, contrairement aux `clt_id` dont
+  l'écueil est documenté au module Classes.
+→ **Filtrage par ruleset centralisé** dans `profilsIncantation($db, $ruleset_var_id)` : c'est le
+  seul endroit qui sait que « Répertoire spontané » est DD3.5 et « Magie de pacte » DD2024.
+  Vérifié au rendu : aucune fuite dans un sens ni dans l'autre.
+→ **Migration dérivée de la donnée, pas des drapeaux.** Les trois booléens étant établis comme
+  faux, la migration s'appuie sur la présence d'au moins un `cn_sortConnu_n*` renseigné dans
+  `dd_classe_niveau` → Répertoire spontané ; toute autre classe lanceuse → Liste préparée ; puis
+  cas particuliers du SRD (Magicien → Grimoire, Occultiste → Magie de pacte). Effet secondaire
+  voulu : les classes hors SRD (Élu divin, Assassin, Tueur de Domiel) conservent l'affichage
+  qu'elles avaient.
+→ **Deux défauts vivants corrigés.** (1) `cla_sort_connu = 0` sur l'**Ensorceleur DD3.5** masquait
+  sa table « Sorts connus » alors que `cn_sortConnu_n*` était correctement peuplé sur 20 niveaux.
+  (2) `cla_domaine_divin = 0` sur le **Prêtre DD3.5** empêchait l'affichage des deux selects de
+  domaine dans l'éditeur de classes : le cas d'usage principal de `SP-PE2` était mort depuis sa
+  livraison, `pc_do_id_1/2` restaient NULL en permanence.
+→ **Conséquence de D-MAG2 portée dans le code** : le libellé `dd_typemagie` n'est plus lu qu'en
+  DD3.5 (fiche de classe), le critère « Type de magie » de la liste disparaît en DD2024 au profit
+  du profil d'incantation, et le formulaire y propose « Lanceur de sorts » Oui/Non. Sans cela un
+  Clerc DD2024 se serait affiché « Magie profane ».
+→ Dépréciation assumée plutôt que DROP : les 3 colonnes restent en base, non lues, non écrites,
+  le temps de vérifier le comportement en production. Leur suppression fera l'objet d'un nettoyage.
+
+**[2026-08-27] D-CL0 — Défauts de données relevés et NON corrigés (hors périmètre SP-MA0)**
+Relevés pendant l'analyse du référentiel des classes ; laissés en l'état, l'utilisateur ayant posé
+la règle « on ne modifie pas les données existantes » pour le chantier d'import.
+→ `dd_classes.cla_res_id = 0` sur l'**Ensorceleur DD3.5** (id 4) : aucune ressource valide, donc
+  `h($cla['res_nom'])` reçoit NULL et **sa fiche de classe plante en PHP 8**
+  (`h(): Argument #1 must be of type string, null given`). Défaut préexistant, sans rapport avec
+  SP-MA0, mais qui rend une fiche du compendium inaccessible.
+→ `cla_dV = 12` sur le **Roublard DD2024** ; le SRD 5.2.1 dit d8.
+→ `cla_niveauMax = 10` sur **Hiérophante** et **Thaumaturge** (DD3.5), qui font 5 niveaux — la
+  table `dd_classe_niveau` n'en porte d'ailleurs que 5.
+→ **Disciple draconien** (DD3.5) : `cn_niveauSortArcane/Divin/Effectif` tous NULL alors que le SRD
+  lui donne une progression d'incantation — le bloc NLS de `SP-PE6` ne peut pas la proposer.
+
+---
+
+## Cycle d'import des données (SP-IM)
+
+**[2026-08-28] D-IM1 — Ouverture du cycle d'import avant reprise du développement**
+Les deux rulesets sont incomplets en base ; on remplit avant de reprendre le code, une base
+complète rendant les tests de la fiche personnage réalistes. Premier lot : les **classes DD2024**,
+depuis `FR_SRD_CC_v5.2.1-classes.pdf`. Livré en quatre patchs : `SP-IM1` traits de base,
+`SP-IM2` tables de progression, `SP-IM3` capacités, `SP-IM4` sous-classes.
+→ Le SRD ne couvre **qu'une sous-classe par classe** ; les sous-classes du Manuel des Joueurs 2024
+  absentes du SRD restent à saisir à la main (l'utilisateur en a déjà saisi deux : Voie de
+  l'Arbre-monde, Collège de la Lune, plus trois sous-classes de Roublard).
+
+**[2026-08-28] D-IM2 — Réalignement intégral sur le SRD, et non simple complétion**
+Sur les six classes déjà partiellement saisies, le patch corrige aussi l'existant divergent au lieu
+de se contenter d'ajouter ce qui manque.
+→ Lève la réserve posée en **D-CL0** (« on ne modifie pas les données existantes ») pour ce cycle :
+  une base à moitié alignée sur le SRD et à moitié sur une saisie manuelle est intestable.
+→ Corrections effectivement portées : `cla_dV` du Roublard 12 → 8 ; Forme sauvage du Druide fausse
+  à partir du niveau 9 ; sorts mineurs du Druide faux à partir du niveau 10 ; emplacements de 5e
+  niveau du Druide à 3 au lieu de 2 (niv. 11-17) ; sorts mineurs du Magicien au niveau 10 ;
+  Attaque sournoise du Roublard 3d6 au niveau 4 au lieu de 2d6 ; « Voie du Berseker » →
+  « Voie du Berserker » ; capacités du Clerc absentes des niveaux 9 à 20.
+→ **Reste ouvert dans D-CL0** : `cla_res_id = 0` sur l'Ensorceleur DD3.5 (sa fiche plante toujours
+  en PHP 8), `cla_niveauMax` de Hiérophante et Thaumaturge, progression du Disciple draconien.
+  Hors périmètre — ruleset DD3.5.
+
+**[2026-08-28] D-IM3 — Source des sous-classes créées : SRD 5.2.1 (res_id 93)**
+Les 10 sous-classes créées portent `cla_res_id = 93`, et non 91 (Manuel des Joueurs 2024) comme les
+entrées existantes.
+→ Trace exactement la provenance du texte, ce que le contenu identique entre SRD et MdJ ne permet
+  pas de deviner autrement.
+→ Vérifié avant livraison que la visibilité tient : `dd_ressources.res_selection = 1` sur 93 (donc
+  servie par le défaut de `getActiveResIds()`) **et** 93 présente dans `dd_joueurs_sources` pour
+  `j_id = 1`. Sans cette double vérification les 10 sous-classes auraient été invisibles.
+→ Les 2 sous-classes déjà en base (Voie du Berserker, Voleur) **gardent** leur source 91 : leur
+  contenu est réaligné, pas leur provenance déclarée.
+
+**[2026-08-28] D-IM4 — `dd_classe_competence` alimentée pour DD2024**
+La table était **vide pour tout le ruleset DD2024**, alors que `detail-pp/classe.php` en tire le
+bloc « Compétences maîtrisées » : le bloc n'apparaissait sur aucune des 12 classes. 87 lignes
+insérées, une par compétence de la liste au choix.
+→ `ccomp_precision` laissé NULL : le nombre à choisir (« 2 au choix parmi… ») reste dans le champ
+  texte `cla_competences`, le répéter sur chaque ligne rendrait la liste illisible.
+→ **Barde exclu** : « 3 compétences au choix » sans liste fermée, les 18 compétences sont
+  éligibles — aucune ligne n'aurait de sens.
+→ Écart d'IHM relevé au passage (`SP-IM7`) : `cla_competences`, `cla_outils`, `cla_equipement` et
+  `cla_caracteristiques` sont saisissables dans le formulaire mais **affichés nulle part** en
+  DD2024. Les données sont importées, l'affichage reste à arbitrer.
+
+**[2026-08-28] D-IM5 — Conventions de reprise pour les capacités importées**
+→ **Une ligne `dd_capacites_speciales` par classe**, même pour les aptitudes homonymes entre
+  classes (« Amélioration de caractéristique », « Faveur épique », « Attaque supplémentaire »…),
+  avec `cap_classe_initiale` = `cla_id` d'origine. C'est la convention déjà en place en base ;
+  mutualiser aurait cassé l'édition per-classe.
+→ **Ids figés** : 601+ pour les capacités de classe de base, 801+ pour les sous-classes, 70-79 pour
+  les sous-classes créées. Les quatre patchs sont rejouables sans doublon, ce que ni
+  `dd_classe_niveau` ni `dd_classe_capacite` ne garantissent par leur schéma.
+→ ~~`cap_categorie_var_id = 92` repris par mimétisme (valeur majoritaire, 309 lignes). ⚠ **Cette
+  référence est orpheline** : `dd_variables` ne contient plus que les catégories `profinc` et
+  `ruleset`, les valeurs 91 et 92 ne désignent plus rien. À assainir hors de ce cycle.~~
+  — **SUPERSÉDÉ le jour même par D-IM9** : la colonne a été supprimée, les patchs ne la
+  renseignent plus.
+→ **Écart interne au SRD** : la table de progression du Barbare annonce « Bond agressif » au niveau
+  7, la section descriptive s'intitule « Bond instinctif ». Le titre de la section fait foi — c'est
+  lui qui porte le texte, et c'est déjà le nom en base.
+→ « Aptitude de sous-classe » n'a **aucune section descriptive** dans le SRD : son texte est rédigé,
+  il ne provient pas du document.
+
+**[2026-08-28] D-IM6 — Listes d'options du SRD sorties du lot (SP-IM5)**
+Métamagie (10 options), Manifestations occultes (~20), Styles de combat (6) et Bottes d'arme (9)
+ne sont pas importées.
+→ Ce sont des **options au choix**, pas des acquis attachés à un niveau : `dd_capacites_speciales`
+  et `dd_classe_capacite` leur conviennent mal, `cc_niveau` n'aurait pas de sens. La modélisation
+  mérite son propre arbitrage.
+
+**[2026-08-28] D-IM7 — `cla_pointsCompetences` : un champ, deux sens selon le ruleset**
+`dd_classe_competence` ne veut pas dire la même chose dans les deux rulesets, et `SP-IM1` l'avait
+remplie pour DD2024 sur le modèle DD3.5 — la liste était juste, l'information de cardinalité
+manquait.
+→ *[DD3.5]* la table liste les **compétences de classe** : un point investi dans l'une d'elles vaut
+  1 rang, 1/2 rang ailleurs ; `cla_pointsCompetences` = points par niveau.
+→ *[DD2024]* la table liste les compétences que le personnage **peut** maîtriser ; il en choisit un
+  nombre fixe donné par la classe. C'est ce nombre que porte désormais `cla_pointsCompetences`
+  (2 pour la plupart, 3 pour le Barde et le Rôdeur, 4 pour le Roublard).
+→ **Le même champ pour les deux usages** plutôt qu'une colonne DD2024 dédiée : la sémantique reste
+  « ce que la classe accorde en compétences », seule l'unité change. Commentaire de colonne mis à
+  jour en base par l'utilisateur, doc alignée dans `SCHEMA_SQL.md`.
+→ **Défaut corrigé au passage** : le champ n'était rendu que dans la section DD3.5 du formulaire.
+  `compendium/enregistrement.php` lisant `intParam($_POST['cla_pointsCompetences'] ?? 0)`, tout
+  enregistrement d'une classe DD2024 l'aurait **remis à 0** en silence. Le champ est maintenant
+  présent dans les deux sections.
+→ **Barde**, cas limite assumé : « 3 compétences au choix » parmi les 18, donc aucune ligne dans
+  `dd_classe_competence`. La fiche retombe sur le texte libre `cla_competences` — d'où le maintien
+  de ce champ, redondant partout ailleurs avec la liste structurée.
+
+**[2026-08-28] D-IM8 — Fiche de classe DD2024 alignée sur l'encadré « Traits de base » du SRD**
+Trois champs saisissables n'étaient affichés nulle part (`cla_caracteristiques`, `cla_outils`,
+`cla_equipement`) ; les libellés et l'ordre des autres divergeaient du document.
+→ Ordre et intitulés repris tels quels du SRD : Caractéristique principale, Dé de vie, Maîtrise des
+  jets de sauvegarde, Maîtrises de compétence, Maîtrises d'arme, Maîtrises d'outils, Formation aux
+  armures, Équipement de départ. `Incantation` et `Caractéristique LS`, propres à l'application,
+  restent à leur place après le dé de vie.
+→ **Échappement corrigé** : les quatre champs DD2024 sortent de `textarea` simples et étaient rendus
+  **bruts** (`<?= $cla['cla_armes'] ?>`), contrairement à la règle projet. Ils passent désormais par
+  `nl2br(h(...))`. Le rendu brut n'est conservé que pour `cla_armes` en DD3.5, qui vient de TinyMCE.
+→ **Plantage D-CL0 neutralisé côté rendu** : `h($cla['res_nom'])` recevait NULL sur l'Ensorceleur
+  DD3.5 (`cla_res_id = 0`) et rendait sa fiche inaccessible en PHP 8. Le pied de fiche affiche
+  « Source inconnue » à défaut. **Le défaut de donnée reste entier** — corriger `cla_res_id`
+  demande de savoir quelle ressource attribuer, ce n'est pas au rendu d'en décider.
+
+**[2026-08-28] D-IM9 — Suppression de `dd_capacites_speciales.cap_categorie_var_id`**
+Reliquat de l'application v1 : la colonne disait si la capacité venait d'une race (91) ou d'une
+classe (92). Supprimée sur décision de l'utilisateur —
+`sql/2026-08-28_capacites_drop_categorie.sql`.
+→ **L'information est portée par les tables de liaison** `dd_race_capacite` et
+  `dd_classe_capacite`, et une même capacité peut légitimement relever des deux : la colonne ne
+  pouvait pas exprimer ce cas, que la fiche de capacité affiche pourtant déjà (blocs Classes et
+  Races côte à côte).
+→ **Elle était déjà morte** : 508 lignes à 92, 47 à 91, 41 à NULL, mais les valeurs 91 et 92 ne
+  désignaient plus rien depuis la refonte de `dd_variables` (qui ne garde que `profinc` et
+  `ruleset`). Le `LEFT JOIN` de `detail-pp/capacite.php` ne ramenait donc jamais de libellé et le
+  bloc d'affichage ne s'affichait jamais. La catégorie `tcap` n'existe plus.
+→ **Aucune écriture n'existait** : les `INSERT` et `UPDATE` de `compendium/enregistrement.php` ne
+  l'ont jamais renseignée. Seuls les patchs `SP-IM3` et `SP-IM4` du jour la remplissaient — ils ont
+  été mis à jour, l'ordre d'application entre eux et le `DROP` est donc indifférent.
+→ Ceci **remplace la réserve posée en D-IM5** (« reprise par mimétisme, à assainir un jour »).
+→ Sauvegarde des 596 valeurs prise avant le `DROP` (irréversible), hors dépôt.
+→ Corrigés dans la foulée, même fichier : `cc_precision` était concaténée **sans `h()`** dans la
+  liste des niveaux de `detail-pp/capacite.php` ; et `sql/schema.sql` ignorait `cap_classe_initiale`,
+  pourtant en base depuis longtemps.
+
+**[2026-08-28] D-IM10 — Espèces DD2024 : les 3 tables du SRD vont dans `dd_tableaux`**
+Ancêtres draconiques, Lignages elfiques et Héritages fiélons sont saisies selon la convention texte
+de `dd_tableaux` (ids figés 40-42) et appelées par `[[tab:slug]]` depuis `cap_description`.
+→ C'est la convention du projet depuis `SP-TB`, et `cap_description` figure dans
+  `tableauChampsHotes()` : le tag y est résolu au rendu, vérifié sur les 3 espèces concernées.
+→ **Conséquence assumée** : la table des lignages elfiques, saisie à la main en `<table>` HTML brut
+  dans l'ancienne capacité 436, est extraite. C'est exactement la dette que `SP-TB5` avait soldée
+  ailleurs ; la laisser aurait signifié la rouvrir, et les 3 tables auraient échappé au
+  gestionnaire `tableaux/index.php`.
+→ Les cellules restent en texte brut : le parser sait résoudre `$sort$`, mais lier les 18 sorts
+  cités demanderait leurs identifiants — hors périmètre de ce lot.
+
+**[2026-08-28] D-IM11 — Réalignement des 5 espèces DD2024 déjà saisies**
+Même règle que D-IM2 pour les classes : on corrige l'existant divergent plutôt que de seulement
+compléter.
+→ **Gnome** : ses 3 traits étaient empilés dans `ra_description` (2 691 caractères) au lieu d'être
+  des lignes `dd_race_capacite` — seule espèce hors modèle. Ses traits n'apparaissaient donc ni
+  dans le bloc Traits de la fiche, ni dans le panneau d'une capacité, ni dans aucune recherche.
+→ **Elfe** : trait « Vision dans le noir » absent (4 traits sur 5).
+→ **Humain** : bloc d'en-tête sans « Type de créature ». **Nain** : sans la phrase d'introduction.
+→ Modèle retenu, celui que suivaient déjà Halfelin, Humain et Nain : `ra_description` porte le seul
+  bloc d'en-tête (type de créature, catégorie de taille, vitesse, phrase d'amorce), chaque trait
+  est une ligne `dd_capacites_speciales` + `dd_race_capacite` ordonnée par `cr_ordre` dès 0.
+→ `cap_classe_initiale` reste NULL sur les traits d'espèce : la colonne désigne une classe.
+→ « Vision dans le noir » a **sa propre ligne par espèce** (6 fois) : les portées diffèrent
+  (18 m ou 36 m) et c'est déjà la convention en base pour le Nain, cohérente avec D-IM5.
+
+**[2026-08-28] D-IM12 — Le nom du trait est retiré de sa description**
+Dans le SRD, le nom du trait ouvre son propre paragraphe (« Brave. Vous avez l'Avantage… »).
+En base il vit dans `cap_nom`, et `detail-pp/race.php` l'affiche en titre au-dessus du texte.
+→ Le laisser en tête de `cap_description` produisait un doublon visible à l'écran. Il est retiré,
+  ce que faisaient déjà les 15 entrées saisies à la main.
+→ Les intertitres **internes** aux traits restent en gras : les 6 ascendances du Goliath, les 2
+  lignages du Gnome. Le seuil de détection des intertitres est passé de 45 à 60 caractères —
+  « Renversement des coteaux (géants des collines). » en fait 46 et était le seul non détecté.
+  Contrôle effectué sur les 36 fragments produits : aucun faux positif.
+
+**[2026-08-28] D-IM13 — Les options de classe deviennent des dons, et le périmètre de SP-IM5 se réduit**
+Les listes d'options du SRD ne rejoignent ni `dd_capacites_speciales`, ni une table dédiée : elles
+sont importées comme **dons**, dans deux nouvelles catégories `dd_data_don` — 22 « Métamagie » et
+23 « Manifestation occulte ».
+→ **Le précédent existait déjà** : la catégorie 21 « Style de combat » porte 10 dons depuis un
+  import antérieur. Même nature d'objet — une option nommée, choisie dans un pool, à un niveau
+  donné — donc même rangement.
+→ `do_conditions` est le **seul champ du schéma** capable de porter les prérequis des manifestations
+  (« Niveau d'Occultiste 9+, manifestation Pacte de la lame »). `dd_capacites_speciales` n'a pas
+  d'équivalent, et `cc_niveau` n'aurait aucun sens pour une option facultative.
+→ On hérite sans écrire une ligne de PHP de la liste du compendium, de la fiche, du formulaire
+  d'édition et du sélecteur de dons. Aucune table créée (règle CLAUDE.md).
+→ **Limite connue et acceptée** : `detail-pp/dons-picker.php` ne filtre pas par classe. Un Magicien
+  pourra se voir attribuer « Sort jumeau ». Ce n'est pas une régression — les 10 styles de combat
+  posent exactement le même problème depuis leur import — mais la dette devient plus visible.
+  Un filtrage par classe serait une phase `SP-PE` distincte.
+→ **`do_resume` est rédigé, pas importé** : le SRD ne contient pas ces résumés d'une ligne. Ils
+  suivent le modèle de ceux des 10 styles de combat. À relire.
+
+**[2026-08-28] D-IM14 — Deux des quatre listes annoncées sortent du périmètre**
+Le libellé initial de `SP-IM5` promettait quatre listes. L'analyse en a écarté deux.
+→ **Styles de combat** : les 10 sont **déjà en base** (catégorie 21, source 93, avec résumés). Le
+  SRD n'en décrit que 6, la base a les 10 du Manuel des Joueurs. Rien à importer.
+→ **Bottes d'arme** : ce sont des **propriétés d'arme**, pas des aptitudes de personnage. Elles ne
+  figurent d'ailleurs pas dans le PDF des classes — seulement dans `FR_SRD_CC_v5.2.1.pdf`, section
+  équipement, où le PDF Classes ne garde que l'intitulé de colonne. Elles rejoignent le chantier
+  Équipement en **`SP-E6`**, avec le reste de `dd_equipements` — table **vide** à ce jour, et dont
+  le schéma (`eqt_nom`, `eqt_description`) ne porte ni dégâts, ni propriétés, ni prix : la
+  modélisation devra être arbitrée avant l'import.
+
+**[2026-08-28] D-IM15 — Objets magiques DD2024 : diagnostic de l'import antérieur**
+Un script IA antérieur avait importé les objets magiques du SRD en remplaçant chaque description
+par un **résumé**, et sans renseigner les paramètres de jeu. Relevé sur les 359 objets DD2024 :
+→ `om_rarete = 0` sur **349** d'entre eux — valeur qui n'existe pas dans
+  `dd_objets_magiques_rarete`, dont les ids commencent à 1. Le champ n'avait jamais été alimenté.
+→ `om_harmonisation = 1` sur **6** seulement, là où le SRD en marque environ **129**.
+→ **186 descriptions** à moins de 80 % de la longueur du texte d'origine.
+→ **8 catégories fausses** : élixirs et huiles rangés en « Objets merveilleux » au lieu de
+  « Potions », fers de cheval en « Armes », Bâton de l'acrobate en « Bâtons » alors que le SRD en
+  fait une arme.
+→ **Ce qui sauve le lot** : le SRD est parfaitement régulier. Chaque objet porte une ligne de type
+  « <Catégorie>, <rareté> (Harmonisation requise …) » d'où les trois paramètres se déduisent
+  mécaniquement. C'est elle qui fait foi.
+
+**[2026-08-28] D-IM16 — Les déclinaisons d'objets génériques sont conservées**
+Le script antérieur avait **éclaté 21 entrées génériques du SRD en 121 déclinaisons** : une entrée
+« Anneau de résistance » (avec sa table de types de dégâts) est devenue 10 lignes « Anneau de
+résistance (acide) », « (feu) »… De même pour la Pierre de Ioun (14), la Figurine merveilleuse (11),
+le Parchemin de sort (10), le Ceinturon de force de géant (6)…
+→ **On garde les déclinaisons.** C'est le bon modèle pour le jeu : un inventaire de personnage a
+  besoin de désigner « Anneau de résistance (feu) », pas un générique. Revenir aux 21 entrées du
+  SRD aurait été plus fidèle au document mais destructif et moins utile.
+→ Conséquence : elles ne se rapprochent d'aucune entrée du PDF par leur nom. Elles reçoivent en
+  `SP-IM9b` le texte de leur générique et leur rareté propre, déduite des tables du SRD.
+
+**[2026-08-28] D-IM17 — Découpage du redressement en trois sous-lots**
+→ **IM9a** (livré) : les 235 objets qui se rapprochent du SRD par leur nom. Purement mécanique.
+→ **IM9b** : les 121 déclinaisons — demande un arbitrage famille par famille sur la rareté.
+→ **IM9c** : les 16 objets dont le texte du SRD porte une table. Leur **description est laissée
+  intacte** par IM9a : les importer en texte brut aurait produit une bouillie (les tables sortent
+  du PDF en colonnes désassemblées). Leur rareté, leur harmonisation et leur catégorie sont
+  corrigées dès IM9a — seule la description attend.
+→ Les sources **91 (MdJ)** et **95 (supplément de l'utilisateur)** sont exclues du redressement :
+  « Sceptre du châtiment » et « anneau de clignotement » sont du contenu maison.
+→ Corrigés au passage dans le harnais d'extraction, deux défauts qui affectaient aussi les lots
+  précédents : le pied de page collé à son numéro (« 240 Document de Référence… ») n'était pas
+  filtré, et une phrase isolée pouvait être prise pour un intertitre et mise en gras. Un intertitre
+  ne venant jamais seul dans le SRD, la mise en gras exige désormais **au moins deux
+  correspondances** dans le même bloc.
+
+**[2026-08-28] D-IM18 — Déclinaisons d'objets magiques : ce que chacune reçoit**
+Application de D-IM16 : les 121 déclinaisons sont conservées et redressées depuis leur générique.
+→ **Texte du générique, TABLE EXCLUE.** Pour une déclinaison, le contenu de la table du SRD est
+  précisément ce que porte `om_rarete` — « Cor du Valhalla (fer) → Légendaire ». Le reproduire dans
+  la description n'aurait rien apporté, et les tables sortent du PDF en colonnes désassemblées.
+  Les paragraphes de prose à reprendre sont **listés explicitement** pour chacun des 20 génériques,
+  plutôt que devinés par une heuristique.
+→ **Rareté propre à chaque déclinaison**, lue dans cette table : « Arme +2 » est rare quand
+  « Arme +1 » est peu courante ; « Ceinturon de force de géant (tempêtes) » est légendaire quand
+  celui des collines est rare ; « Pierre de Ioun — Protection » est rare quand celle de Maîtrise
+  est légendaire. Sans cela les 121 lignes auraient toutes hérité d'une rareté unique, fausse pour
+  la plupart.
+→ **Trois familles décrivent chaque variante dans son propre paragraphe** — Pierre de Ioun, Plume
+  magique, Figurine merveilleuse. Leur description reprend le chapeau du générique **puis le seul
+  paragraphe de la variante** : « Pierre de Ioun — Agilité » décrit l'agilité, pas les quatorze
+  pierres. Les ruptures de colonne coupant certains de ces paragraphes en deux ou trois, les
+  continuations sont rattachées explicitement.
+→ **« Armure de cuir clouté enchantée »** était restée sans rareté : sa ligne de type dans le PDF
+  est « Armure (armure de cuir clouté) rare », **sans virgule** avant la rareté, contrairement aux
+  256 autres. Le parseur ne la reconnaissait pas. Traitée comme cas isolé.
+→ **Résultat** : les 356 objets de la source SRD ont désormais une rareté valide. Le seul objet
+  DD2024 sans rareté est « Baguette de projectiles magiques » (source 91, MdJ), hors périmètre.
+
+**[2026-08-28] D-IM19 — Objets magiques à table : 10 tables saisies, reconstructions contrôlées**
+Fin du redressement ouvert par D-IM15. Les 16 entrées du SRD portant une table se réduisent à
+**10 objets réellement présents en base** : les 6 autres sont des génériques (Cor du Valhalla,
+Ceinturon et Potion de force de géant, Potion et Armure de résistance, Sac à malices) dont seules
+les déclinaisons existent, traitées en `SP-IM9b`.
+→ Tables dans `dd_tableaux` (ids 43-52) et tag `[[tab:slug]]` dans `om_description`, comme pour les
+  espèces en `SP-IM8`. Les 10 tags se résolvent au rendu, vérifié.
+→ **Deux reconstructions étaient risquées, elles sont contrôlées plutôt que devinées.**
+  *Tarot mystérieux* : le PDF donne 44 plages pour 22 cartes, en alternance entre la colonne
+  « jeu de 13 cartes » et celle « jeu de 22 cartes ». Le générateur **refuse de produire le
+  fichier** si les deux colonnes ne comptent pas respectivement 13 et 22 plages strictement
+  croissantes — deux contrôles indépendants qui se recoupent.
+  *Sac de haricots magiques* : le PDF sépare entièrement les plages des effets, en deux blocs
+  d'en-têtes suivis de leurs effets. Les 12 plages sont écrites explicitement et un contrôle
+  vérifie qu'il y en a autant que d'effets.
+→ *Chapelet mystique* saisi **à la main** : ses trois colonnes s'entremêlent dans l'extraction,
+  une reconstitution automatique aurait été hasardeuse pour six lignes.
+→ Trois pièges du PDF corrigés dans l'assembleur, chacun repéré à la relecture des tables produites
+  avant application : un effet peut s'étaler sur plusieurs lignes et être coupé au milieu d'un mot
+  (« du cha- / peau ») ; une table sur deux colonnes doubles sort entrelacée (cierge d'invocation,
+  remis en ordre par plage) ; un effet peut commencer par un chiffre (« 10 gemmes d'une valeur… »)
+  sans pour autant ouvrir une nouvelle ligne — c'est ce dernier cas qui avait cassé la Robe du
+  camelot au premier essai.
+→ **Bilan du cycle objets magiques** (IM9a + IM9b + IM9c) : sur les 356 objets de la source SRD,
+  la rareté est renseignée partout (elle valait 0 sur 349), l'harmonisation passe de 6 à 173, la
+  longueur moyenne des descriptions de ~250 à **724 caractères**, et les 8 catégories fausses sont
+  corrigées.
+
+---
+
+**[2026-08-28] D-RS43 — Les capacités raciales reprennent le titre des capacités de classe**
+La fiche race titrait ses capacités avec un simple `<strong>` sans règle CSS, espacées par des
+styles inline (`margin-top: 1rem`, `margin-bottom: 0.75rem`), quand la fiche classe disposait
+depuis SP-SC2 d’un titre à `1.2rem` / `700` / `var(--clr-accent-2)`. Les deux fiches affichent
+pourtant **les mêmes entrées** (`dd_capacites_speciales`) : rien ne justifiait deux lectures.
+→ Les sélecteurs `.race-detail__capacites`, `.race-detail__capacite`, `.race-detail__capacite-nom`
+  et `.race-detail__capacite-nom .cap-type` sont **groupés** avec leurs homologues
+  `.classe-detail__*` dans `css/compendium-modules.css` — pas de duplication du bloc, y compris
+  dans le palier 991px. Un futur ajustement du titre porte sur les deux fiches d'un coup.
+→ Le `<strong>` du markup est retiré : la graisse est désormais une propriété du titre, pas une
+  balise sémantique posée pour l'obtenir.
+→ Le type de capacité passe de `.race-detail__cap-type` à la classe commune `.cap-type`. L'ancienne
+  classe n'existait dans aucune feuille de style : la mention s'affichait au corps du texte au lieu
+  d'être dé-grossie comme sur la fiche classe.
+→ Les styles inline d'espacement disparaissent au profit du `margin-top` sur le bloc suivant, même
+  raison que pour les classes : un `margin-bottom` creuse un vide avant le pied de fiche.
+→ **Reste un défaut de donnée, pas de rendu** : quelques descriptions de capacités raciales DD3.5
+  ouvrent sur `<b>Nom de la capacité</b>.` (ex. *Armes familières* du Gnome), ce qui répète le
+  titre maintenant qu'il est mis en avant. À nettoyer à la saisie, pas à l'affichage.
+
+---
+
+**[2026-08-28] D-RS44 — SP-PE9 : l'administrateur voit tous les personnages**
+Le module Personnages était strictement personnel : `personnages/index.php` posait
+`extra_where => 'pe.pe_j_id = ?'` sans exception. Or les accès **unitaires** — `fiche.php`,
+`include/ajax/detail-pp/personnage.php`, `include/ajax/modifier/personnage.php` et les 8 actions de
+`personnages/enregistrement.php` — passent tous par `getPersonnageContext()` / `canAccess()`, qui
+autorisent l'admin depuis l'origine. Un admin pouvait donc ouvrir n'importe quelle fiche **à
+condition d'en connaître l'`id`**, mais aucun écran ne les lui listait.
+→ **Aucun droit nouveau n'est créé.** La modification est une **levée de scope d'affichage**, pas
+  une extension de permissions : `extra_where` (et ses `extra_params`) n'est posé que si
+  `isAdmin()` est faux. Le filtre ruleset (`champ_ruleset`) reste appliqué à tout le monde — un
+  admin voit tous les joueurs, pas tous les rulesets d'un coup.
+→ **Colonne « Joueur »** (`jo.j_pseudo`, triable) insérée juste après le nom, admin seulement. Le
+  `LEFT JOIN dd_joueurs jo` est en revanche **posé dans tous les cas** : une jointure conditionnelle
+  dans la chaîne `from` compliquerait la lecture pour économiser une jointure sur une clé primaire.
+→ **Filtre « Joueur »** (`f_j_id`), admin seulement, restreint aux joueurs ayant au moins un
+  personnage dans le ruleset actif — un select listant des joueurs qui ne ramèneraient aucune ligne
+  n'aide personne.
+→ **Filtre « Campagne » étendu** en admin à toutes les campagnes non supprimées du ruleset, libellées
+  `Nom (pseudo du MJ)`. Deux MJ peuvent nommer leur campagne pareil ; sans le pseudo, le select
+  serait ambigu.
+→ **La propriété ne bouge pas** : la branche UPDATE de `enregistrerPersonnage` ne touche pas
+  `pe_j_id`, seule la création l'écrit (avec le `j_id` de session). Un personnage corrigé par l'admin
+  reste au joueur — et un personnage créé par l'admin lui appartient, ce qui est le comportement
+  attendu tant qu'aucun écran ne propose de choisir le propriétaire.
+→ Contrôlé au harnais CLI sur la base locale : admin en DD2024 → 4 personnages de 2 joueurs, colonne
+  et filtre Joueur présents, tri `sort_col=joueur_pseudo` opérant, `f_j_id=2` ramenant la seule ligne
+  de *bolls* ; joueur non admin → 1 personnage, ni colonne ni filtre Joueur. Fiche d'un personnage
+  tiers : servie à l'admin, redirigée pour un joueur non propriétaire (comportement inchangé).
+
+**[2026-08-27] D-MAG8 — SP-MA3 livrée : le champ `so_branche` mélangeait quatre notions, pas deux**
+Patch : `sql/2026-08-27_registre_sp-ma3.sql` + `sql/migrate_registre_sp-ma3.php` (appliqués et
+vérifiés en local, à passer en prod). Code : `detail-pp/sort.php`, `modifier/sort.php`,
+`compendium/sorts.php`, `compendium/enregistrement.php`.
+→ **Le constat de Q4 était sous-estimé.** L'arbitrage parlait de « trois formes » sur la foi d'un
+  échantillon. Le relevé complet donne **84 valeurs distinctes sur 690 sorts** et quatre notions
+  mélangées : des branches, des registres, des mélanges (avec ou sans crochets, avec ou sans
+  virgules, casse et accents irréguliers), et des **données de domaine égarées** — « Cavernes 7 »,
+  « Initié de Mystra 3 », « Portails 6 », « Mort aqueuse 5 » : un nom de domaine suivi de son
+  niveau, qui relèvent de `dd_sortdomaine`.
+→ **Découverte : des valeurs tronquées à 20 caractères** par l'import v1→v2, alors que la colonne
+  fait `varchar(40)`. « bien, feu, résurrect », « creation, électricit », « coercition mental, b ».
+  Le texte perdu **l'est définitivement** — aucune source ne permet de le reconstituer.
+→ **Classifieur à deux listes fermées** plutôt que règles de découpage : 18 branches (12 du SRD +
+  les 6 disciplines psioniques du GMP, de même rôle syntaxique) et 22 registres (19 du SRD +
+  malédiction, poison, céleste, attestés dans les données). Crochets, virgules et espaces sont
+  tous traités comme séparateurs, chaque jeton est classé indépendamment. Deux garde-fous :
+  rattrapage par préfixe unique d'au moins 5 lettres (récupère « électricit »), et **garde
+  anti-domaine** — toute valeur contenant un chiffre est disqualifiée en bloc, sans quoi
+  « Mort aqueuse 5 » aurait produit un faux registre « mort ».
+→ **Résultat : 673 nets, 7 partiels, 10 rejetés.** Les rejetés gardent leur `so_branche` d'origine
+  et n'ont pas de registre — ce sont les données de domaine, à reprendre en `SP-MA5`.
+→ **Migration rejouable et réversible.** Elle lit toujours la table de sauvegarde
+  `dd_sorts_branche_backup_spma3`, jamais la colonne vive : la rejouer reproduit le même résultat
+  au lieu d'écraser le registre déjà extrait, et le retour arrière tient en un UPDATE joint. C'est
+  la contrepartie exigée par la réécriture de 680 lignes.
+→ Convention de saisie : `so_registre` se saisit **sans crochets**, la fiche les ajoute au rendu.
+→ Filtre « Registre » ajouté à la liste des sorts, DD3.5 seul. Il cherche le mot dans la liste
+  (`FIND_IN_SET` sur la valeur dé-espacée) et non l'égalité stricte : « Mal » ramène bien les
+  56 sorts, y compris « Mal, mental » et « obscurité, Mal ».
+→ **Écueil de portabilité évité** : la première version listait les valeurs du filtre avec
+  `JSON_TABLE`, absent avant MariaDB 10.6 — le serveur de dev est en **10.4**. L'éclatement se
+  fait désormais en PHP, et le critère passe par le type de filtre `exists_range` du moteur de
+  liste, qui accepte une liste de valeurs statique.
+
+**[2026-08-27] D-MAG9 — SP-MA1 : les sorts bonus par formule, pas par table**
+`dd_modificateurs` devait être seedée (30 lignes valeur → modificateur → sorts bonus). Analyse
+faite avant de coder, la table s'est révélée être **un cache de deux fonctions pures**, dont l'une
+était déjà écrite en PHP : `modCarac()` calcule le modificateur depuis 2026-06, la table n'a jamais
+été lue par personne.
+→ **Décision : la formule, pas la table.** `bonusSortsCarac($valeur, $niveau_sort)` et
+  `peutLancerNiveau($valeur, $niveau_sort)` ajoutées à `include/helpers.php`. Aucun patch SQL,
+  aucune donnée touchée.
+→ **Raison décisive — le mode de défaillance.** Une table plafonnée renvoie **0 en silence**
+  au-delà de sa dernière ligne. La doc annonçait 1 à 30 ; or un magicien de niveau 20 avec un
+  bandeau +6 et des bonus inhérents dépasse 30 sans effort, et l'épique va plus loin — le SRD
+  lui-même s'arrête à 45 et écrit « etc. ». Un zéro silencieux est le pire résultat possible pour
+  une aide de jeu : le joueur ne voit pas qu'il manque des emplacements. La formule n'a pas de
+  plage. Contrôle : à Int 60 elle rend `7 6 6 6 6 5 5 5 5`, là où une table à 30 lignes aurait
+  rendu que des zéros.
+→ Second argument : cohérence. Le projet avait déjà tranché pour la formule avec `modCarac()` ;
+  garder la table pour le bonus aurait laissé **deux voies** pour deux règles issues de la même
+  ligne du SRD.
+→ Argument écarté (l'homebrew : un MJ pourrait vouloir modifier la progression en base) — jugé
+  théorique, aucun besoin exprimé, et récupérable à tout moment puisque la fonction est un point
+  de passage unique.
+→ **Formule, contrôlée ligne à ligne contre la « Table : modificateurs de caractéristique et sorts
+  en bonus » du SRD (DRS 01)** : `bonus = mod >= N ? floor((mod - N) / 4) + 1 : 0`, pour N de 1 à 9,
+  et 0 au niveau 0 qui ne reçoit jamais de bonus. Les 12 lignes du SRD (modificateurs +0 à +11)
+  sont reproduites au chiffre près, y compris la plus chargée : +11 → `3 3 3 2 2 2 2 1 1`.
+→ **`modCarac()` et `formatMod()` déplacées** de `personnage_helpers.php` vers `helpers.php` :
+  `bonusSortsCarac()` a besoin de la même formule de modificateur, et la dupliquer dans deux
+  fichiers était le meilleur moyen de la voir diverger. Vérifié avant le déplacement :
+  `helpers.php` est chargé avant `personnage_helpers.php` par les **7** points d'entrée du module,
+  sans exception — les appels existants n'ont pas bougé.
+→ `peutLancerNiveau()` livrée en même temps, à la demande : le prérequis `10 + niveau du sort` est
+  une aide à l'affichage, jamais un filtre (principe « aide de jeu, pas moteur de règles »).
+  Elle sera consommée par `SP-PE7`.
+→ **`dd_modificateurs` devient morte** : documentée comme telle dans `SCHEMA_SQL.md`, section des
+  tables à supprimer, aux côtés de `dd_sorts_import` et de la sauvegarde de `SP-MA3`.
+
+**[2026-08-28] D-MAG10 — Portée par ruleset des helpers de SP-MA1 (correctif de documentation)**
+Question posée à la relecture : ces fonctions valent-elles pour les deux rulesets ? Vérification
+faite, **deux sur quatre seulement**, et l'une des deux restrictions n'était pas marquée.
+→ `modCarac()` et `formatMod()` : **les deux rulesets**. La formule du modificateur et son
+  formatage sont identiques en DD3.5 et DD2024.
+→ `bonusSortsCarac()` : **DD3.5 uniquement**. DD2024 n'accorde aucun sort bonus de caractéristique,
+  les emplacements viennent exclusivement de la table de classe. Correctement marqué dès la
+  livraison.
+→ `peutLancerNiveau()` : **DD3.5 uniquement** — et ce n'était **pas marqué**. La règle « valeur ≥
+  10 + niveau du sort » a disparu en 2024 : aucune valeur minimale n'y conditionne l'accès à un
+  niveau de sort. Appelée sur un personnage DD2024, la fonction aurait répondu « non » à tort sur
+  une caractéristique modeste — un faux négatif silencieux dans une aide de jeu.
+→ Contrôle : recherche dans le SRD 5.2.1 des deux règles. Aucune trace de sorts bonus ni de
+  prérequis ; les seules occurrences 2024 de « 10 + le niveau du sort » sont des **DD de jet**
+  (dissiper la magie, identifier un sort actif), pas un seuil de caractéristique.
+→ Corrigé : marqueur `*[DD3.5]*` posé sur `peutLancerNiveau()`, et **tableau de portée ajouté en
+  tête de section** dans `helpers.php` — les quatre fonctions y sont listées avec leur ruleset,
+  pour que la question ne se repose pas. `SP-PE7` devra brancher sur le ruleset avant d'appeler
+  les deux fonctions DD3.5.
+
+**[2026-08-28] D-MAG11 — Migrations : /sql est interdit en HTTP, et une des consignes du projet était fausse**
+Symptôme : « Forbidden » en tentant d'exécuter `sql/migrate_registre_sp-ma3.php` au navigateur.
+→ Ce n'est pas un défaut : `sql/.htaccess` porte « Deny from all », et le `.htaccess` racine
+  bloque en outre tout fichier `.sql`. Un script de migration joignable en HTTP serait une porte
+  ouverte sur la base — la protection doit rester.
+→ **Constat au passage** : `sql/.htaccess` existe **depuis la Phase 1** (commit `00a7281`), donc
+  bien avant `SP-TB5`. Or l'en-tête de `sql/migrate_tableaux_sp-tb5.php` annonce
+  « USAGE — navigateur, connecté en admin » avec deux URL. **Cette consigne n'a jamais pu
+  fonctionner** : elle était fausse le jour où elle a été écrite. Le script a forcément été lancé
+  en CLI, ou jamais. À corriger dans ce fichier — non fait ici, hors périmètre SP-MA.
+→ Correctif appliqué à `migrate_registre_sp-ma3.php` : en-tête refait, mention explicite
+  « pas utilisable au navigateur » avec la raison, et rappel que le binaire XAMPP n'est pas dans
+  le PATH (`"C:/xampp/php/php.exe" …`).
+→ **Nouvelle voie pour les hébergements sans CLI** : `sql/2026-08-28_registre_sp-ma3_donnees.sql`,
+  sortie **figée** du classifieur en SQL pur — 680 UPDATE applicables depuis phpMyAdmin, sans
+  exposer le moindre endpoint PHP ni toucher au `.htaccess`.
+→ Chaque UPDATE est **gardé par la valeur d'origine** (`WHERE so_id = 123 AND so_branche = '…'`) :
+  une ligne qui aurait divergé en prod n'est pas touchée, et le fichier reste rejouable (les
+  lignes déjà migrées ne matchent plus la garde). Un contrôle post-application en fin de fichier
+  donne les quatre compteurs attendus.
+→ **Équivalence prouvée, pas supposée** : rollback complet de la base locale, application du
+  fichier SQL, empreinte MD5 de `(so_id, so_branche, so_registre)` sur les 1 935 sorts DD3.5
+  identique à celle obtenue par le script PHP (`159e0a4e…`). Le rollback lui-même est vérifié au
+  passage — l'empreinte intermédiaire diffère bien.
+
+
+**[2026-08-28] D-MAG12 — Incident : `dd_classe_niveau` réécrite à tort, et une clé unique fantôme**
+Deux faits distincts, l'un qui est une erreur de ma part, l'autre un défaut réel du schéma.
+
+**1. Travail redondant, puis destruction de données (erreur).**
+`SP-MA2` a été entreprise sans relire §0. Or `SP-IM2`, livrée le 2026-08-28, faisait déjà ce
+travail en plus large — les 12 classes et 240 lignes, contre 5 classes et 100 lignes — et la
+ligne `SP-MA2` du tableau de bord portait déjà la mention « Livré par `SP-IM2` ».
+→ Le diagnostic initial (« `sp-im2.sql` n'est pas appliqué ») était **faux** : il reposait sur un
+  relevé antérieur de plusieurs tours, pris avant que le patch ne soit appliqué. Démenti par
+  l'utilisateur, puis par deux marqueurs sans ambiguïté : le Moine avait ses 20 niveaux alors
+  qu'aucun de mes patchs ne le touche, et les intitulés `cla_pouvoir` de l'Occultiste étaient
+  posés.
+→ **Dégât** : un `DELETE FROM dd_classe_niveau WHERE cn_cla_id IN (53,56,58,59,60)`, destiné à
+  nettoyer mes propres doublons, a supprimé **aussi les lignes de `SP-IM2`** pour ces 5 classes,
+  ensuite réinsérées avec des valeurs plus étroites — les colonnes `cn_pouvoir` de l'Occultiste
+  s'étaient retrouvées à NULL. Les 7 autres classes n'ont pas été touchées.
+→ **Réparation** : réapplication de `sql/2026-08-28_classes_dd2024_sp-im2.sql`, qui commence par
+  un DELETE sur les 12 classes. Vérifié : 240 lignes, encodage de l'Occultiste rétabli
+  (5 manifestations, 2 emplacements de niveau 3), aucun doublon. Mon patch concurrent a été
+  supprimé du dépôt.
+→ **À retenir** : relire §0 **au début de chaque phase**, pas seulement à son ouverture. Le
+  tableau de bord bouge entre les sessions ; c'est précisément sa fonction.
+
+**2. `dd_classe_niveau` n'avait aucune clé unique sur `(cn_cla_id, cn_niveau)` (défaut réel).**
+`SCHEMA_SQL.md` la documentait pourtant ; la table ne portait que sa PRIMARY sur `cn_id`.
+→ Conséquence : tout `INSERT ... ON DUPLICATE KEY UPDATE` sur cette table se comporte en INSERT
+  pur et crée des **doublons silencieux** — c'est ainsi que 5 classes se sont retrouvées à
+  40 lignes pour 20 niveaux. Rien dans l'application ne le détecte.
+→ Clé `uk_cn_classe_niveau` créée, isolée dans son propre patch :
+  `sql/2026-08-28_cle_unique_classe_niveau.sql`, avec le contrôle anti-doublon préalable.
+  **À passer en prod** — sans elle, le même piège reste armé.
+→ Troisième écart entre `SCHEMA_SQL.md` et la base réelle, après `mo_j_id` et
+  `patch_004_supplements.sql`. La documentation de schéma décrit par endroits l'intention et non
+  l'état : les clés et index y méritent une vérification avant d'être tenus pour acquis.
+
+**3. Question ouverte laissée par `SP-IM2` — où vivent les emplacements de Magie de pacte.**
+`SP-IM2` les porte dans les colonnes `cn_pouvoir1..3` (Manifestations occultes / Emplacements de
+sort / Niveau des emplacements), fidèlement à la table du SRD, en laissant `cn_sort_n1..9` à 0.
+→ Conséquence pour `SP-PE7` : la lecture générique « emplacements = `cn_sort_n1..9` » ne vaut pas
+  pour l'Occultiste, qui devient un **cas particulier explicite**. À trancher avant d'écrire les
+  helpers de calcul : soit la vue Magie lit les colonnes de pouvoir pour cette classe, soit on
+  duplique l'information dans `cn_sort_n*`. Noté ici pour ne pas être découvert en cours de route.
+
+**[2026-09-01] D-MAG13 — Q6 sans objet, Q7 et Q8 tranchées : les trois verrous de SP-PE7 sautent**
+→ **Q8 — écriture immédiate**, sur le modèle du sélecteur de dons `SP-PE4`, **portée par classe**,
+  pour les trois listes (grimoire, connus, préparés). Un seul motif d'interaction. Raisons :
+  nettement meilleure au doigt (objectif 4 du §10.1 — pas de formulaire long à faire défiler, pas
+  de bouton de validation à trouver en bas d'écran, `notifier()` donne le retour), et un commit
+  global couvrant plusieurs classes lanceuses serait dangereux en multiclassage. Contrepartie
+  assumée : refaire une liste complète coûte quelques gestes de plus, compensés par une action
+  « Réinitialiser la liste préparée ».
+→ **Occultiste — cas particulier explicite.** `SP-IM2` porte ses emplacements dans `cn_pouvoir1..3`
+  et laisse `cn_sort_n1..9` à 0. Plutôt que de dupliquer l'information dans les colonnes
+  d'emplacements, `SP-PE7` traitera la classe à part : une donnée présente en deux endroits finit
+  par diverger. Rend **Q6 sans objet**.
+→ **Q7 — table de liaison `dd_classe_sort`.** Le SRD formule tous les cas de la même façon, mot
+  pour mot, avec la même table `Niveau de <classe> | Sorts`. Cinq cas relevés, trois seulement
+  relèvent du référentiel : sort unique d'une aptitude de classe (A), table de sous-classe (B),
+  usages gratuits (C). Les Manifestations occultes (D) sont **déjà traitées** — importées comme
+  dons par `SP-IM5`. L'Arcanum mystique (E) est un **choix du joueur**, pas du référentiel.
+→ Le champ `cs_cla_id` accepte indifféremment une classe et une sous-classe — une sous-classe
+  étant une classe (`clt_id = 5`). C'est ce qui permet à A et B de partager une seule table : le
+  SRD les formule pareil, seul le porteur change. Le modèle est celui de `dd_sortdomaine`, qui
+  fait déjà ce travail pour les domaines DD3.5 : les deux rulesets partagent alors la même
+  mécanique.
+→ **Pourquoi c'était bloquant** : sans cette table, le compteur de sorts préparés de `SP-PE7` est
+  faux dès qu'un personnage a une sous-classe. Un Paladin 3 du Serment de Dévotion a 4 sorts au
+  plafond, plus *châtiment divin*, *bouclier de la foi* et *protection contre le mal* qui ne
+  comptent pas — la page afficherait soit 4 sur 7 lançables, soit 7 sur 4.
+→ **Arcanum différé** : marqueur `pesp_origine` (0 préparé, 1 toujours préparé, 2 arcanum) reporté
+  en `SP-MA4b`. Ne concerne que l'Occultiste de niveau 11+, et le suivi des usages relève du Mode
+  jeu. `SP-PE7` affichera un **avertissement** pour ces personnages plutôt que de faire semblant.
+→ `SP-MA4` scindée : **`MA4a`** (la table, prérequis de `SP-PE7`) et **`MA4b`** (le reste, non
+  bloquant — Q3 toujours ouverte, école de prédilection, `pesp_origine`).
+
+**[2026-09-01] D-MAG14 — SP-MA4a livrée : `dd_classe_sort`, 67 lignes, dernier verrou de SP-PE7**
+Patch : `sql/2026-09-01_sorts_toujours_prepares_sp-ma4a.sql` (appliqué et vérifié en local, à
+passer en prod). Table `dd_classe_sort` + colonne `pesp_origine`.
+→ **67 noms de sorts résolus en `so_id` : 0 introuvable, 0 ambigu.** C'était le risque principal
+  de la phase (correspondance de noms français entre le PDF et la base) ; il est levé. Contrôles
+  d'intégrité après application : 0 `cs_so_id` orphelin, 0 `cs_cla_id` orphelin, 0 sort hors DD2024.
+→ Répartition : 9 porteurs — 3 sorts d'aptitude de classe (Paladin 1 *châtiment divin*, Rôdeur 1
+  *marque du chasseur*, Occultiste 9 *contact avec les plans*) et 6 sous-classes (Domaine de la
+  Vie, Serment de Dévotion, Protecteur Fiélon, Sorcellerie draconique à 10 lignes chacune, et
+  Cercle de la Terre à 24 lignes).
+→ **Trois sous-classes n'accordent aucun sort**, vérifié sur le SRD : Rôdeur/Chasseur (« Savoir du
+  Chasseur » ne donne pas de sorts), Magicien/Évocateur, Barde/Collège du Savoir.
+→ **Découverte 1 — le Cercle de la Terre ne rentrait pas dans le modèle initial.** « Chaque fois
+  que vous terminez un Repos long, choisissez un type d'environnement entre : aride, polaire,
+  tempéré et tropical. » Quatre tables alternatives, choix refait chaque jour. Résolu par la
+  colonne `cs_variante` (validée le 2026-09-01). Le **choix du jour n'est pas stocké** : `SP-PE7`
+  affichera les quatre groupes étiquetés et le joueur lira le sien — honnête pour une aide de jeu,
+  et évite une donnée de séance dans le référentiel.
+→ `cs_variante` est une chaîne **vide** et non NULL pour les autres porteurs : MySQL traite les
+  NULL comme distincts dans une clé unique, ce qui aurait cassé l'idempotence de la clé
+  `(cs_cla_id, cs_so_id, cs_variante)`.
+→ **Découverte 2 — l'Arcanum mystique n'était pas un cas isolé.** Il existe une famille de sorts
+  toujours préparés **mais choisis par le joueur** : Secrets magiques du Barde (niveau 10), Sorts
+  de prédilection du Magicien (niveau 20), Arcanum de l'Occultiste (11/13/15/17). J'avais présenté
+  l'Arcanum comme marginal et différable ; ils sont trois, et **le Barde à 10 est bien plus
+  atteignable**. Différer aurait laissé un compteur faux pour tout barde de niveau 10+.
+  `pesp_origine` a donc été intégrée à `MA4a` plutôt que reportée en `MA4b` (arbitré le 2026-09-01).
+→ **Règle de lecture à porter dans `SP-PE7`** : les sorts sont **cumulatifs** — « pour votre niveau
+  et les niveaux inférieurs ». Filtrer sur `cs_niveau <= niveau du personnage`, ne pas chercher
+  l'égalité.
+→ **Défaut du harnais local corrigé au passage** : le script d'application de patch découpait sur
+  « ; » en suivant les chaînes, mais ne retirait que les commentaires en début de ligne. Une
+  apostrophe dans un commentaire de fin de ligne (« -- Fléau d'insectes ») désynchronisait le
+  suivi et **fusionnait deux instructions** — l'INSERT et l'ALTER ont été exécutés comme un seul
+  bloc. MySQL lisait correctement, seul le harnais se trompait. Il retire désormais aussi les
+  commentaires de fin de ligne, hors chaîne.
+
+**[2026-09-01] D-MAG15 — SP-MA4b livrée : cadence de renouvellement (Q3, option a)**
+Patch : `sql/2026-09-01_cadence_renouvellement_sp-ma4b.sql`. Colonne `cla_renouvellement`
+-> `dd_variables` cat. `cadence`, 3 valeurs, constantes `CADENCE_*`, 19 classes lanceuses
+renseignées. Code : `helpers.php` (`cadencesRenouvellement()`), formulaire, fiche, enregistrement.
+→ **Changement d'avis assumé.** Le 2026-08-27 je recommandais de NE PAS modéliser cet axe :
+  rien ne l'aurait lu, et je ne voulais pas d'une colonne qui rouille. Un consommateur est apparu
+  entre-temps — l'action **« Réinitialiser la liste préparée »** retenue en Q8 n'a pas le même
+  sens pour tous. Pour un Clerc c'est un geste quotidien ; pour un Barde DD2024 c'est un geste de
+  **montée de niveau**. Sans la colonne, `SP-PE7` aurait proposé le même bouton aux deux et laissé
+  un barde refaire sa liste chaque matin, ce que la règle interdit.
+→ Second facteur : `SP-MA0` a posé le motif (catégorie `dd_variables` + constantes PHP + accesseur
+  centralisé). Ajouter un second axe sur le même modèle ne coûte plus rien et reste cohérent.
+→ Option (d) écartée après vérification : `cla_sorts`, le champ texte que je proposais de réutiliser
+  en affichage seul, est **toujours vide sur les 8 classes DD2024 et 6 des 8 lanceuses DD3.5** —
+  `SP-IM` ne l'a pas rempli. Il aurait fallu rédiger 14 textes pour un résultat non exploitable.
+→ **DD3.5 : dérivé, pas énuméré.** Un répertoire figé (`cla_profil_incantation = 5`) ne change
+  qu'à la montée de niveau, tous les autres lanceurs préparent. La dérivation couvre donc aussi
+  les classes de prestige et les classes hors SRD — c'est tout l'intérêt de ne pas énumérer.
+  DD2024 reste explicite, par la table « Préparation des sorts par classe » du SRD.
+→ **Limite assumée** : la valeur « Montée de niveau » ne porte pas la périodicité fine du DD3.5
+  (barde : niveau 5 puis tous les 3 ; ensorceleur : niveau 4 puis tous les 2). Plus fin que ce
+  dont une aide de jeu a besoin ; le détail reste dans le descriptif de la classe.
+→ `cadencesRenouvellement()` ne filtre **pas** par ruleset, contrairement à `profilsIncantation()` :
+  aucune des trois valeurs n'est impossible dans l'absolu — « un seul sort par repos long » n'est
+  simplement utilisée par aucune classe DD3.5 du SRD, mais rien ne l'interdit à une classe maison.
+→ `SP-MA4` est close à un reliquat près, désormais suivi en **`SP-MA4c`** : l'école de prédilection
+  du magicien DD3.5, non bloquante pour `SP-PE7`.

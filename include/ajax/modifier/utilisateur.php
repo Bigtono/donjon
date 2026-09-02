@@ -95,6 +95,37 @@ $titre = $id > 0 ? 'Modifier ' . h($j['j_pseudo']) : 'Nouvel utilisateur';
       </div>
     </div>
 
+    <?php // ---- Mot de passe — uniquement en modification ---- ?>
+    <?php if ($id > 0): ?>
+      <div class="modif-section">
+        <div class="modif-section__header">
+          <span class="modif-section__label">Mot de passe</span>
+        </div>
+        <p class="form-hint" style="margin-bottom: var(--sp-sm);">
+          <i class="fa fa-info-circle"></i>
+          Laisser vide pour conserver le mot de passe actuel.
+        </p>
+        <div class="modif-grid">
+
+          <div class="form-group">
+            <label for="j_pass_nouveau">
+              Nouveau mot de passe
+              <span class="form-hint">(min. 8 caractères)</span>
+            </label>
+            <input type="password" id="j_pass_nouveau" name="j_pass_nouveau"
+                   minlength="8" autocomplete="new-password">
+          </div>
+
+          <div class="form-group">
+            <label for="j_pass_confirme">Confirmation</label>
+            <input type="password" id="j_pass_confirme" name="j_pass_confirme"
+                   minlength="8" autocomplete="new-password">
+          </div>
+
+        </div>
+      </div>
+    <?php endif ?>
+
     <?php // ---- Droits ---- ?>
     <div class="modif-section">
       <div class="modif-section__header">

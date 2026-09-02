@@ -150,6 +150,10 @@ endif;
         <?php if ($ruleset === 'DD3.5' && $so['so_branche']): ?>
           (<?= h($so['so_branche']) ?>)
         <?php endif ?>
+        <?php // Registre : convention SRD, entre crochets (SP-MA3) ?>
+        <?php if ($ruleset === 'DD3.5' && $so['so_registre']): ?>
+          [<?= h($so['so_registre']) ?>]
+        <?php endif ?>
       </p>
     <?php endif ?>
   </div>

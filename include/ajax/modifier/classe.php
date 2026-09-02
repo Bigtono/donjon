@@ -44,9 +44,9 @@ $cla = [
   'cla_niveauMax'        => 20,
   'cla_mag_id'           => 0,
   'cla_car_id'           => 0,
-  'cla_sort_connu'       => 0,
-  'cla_sort_compris'     => 0,
-  'cla_sort_prepare'     => 0,
+  // SP-MA0 : remplace cla_sort_connu / _compris / _prepare (dépréciés)
+  'cla_profil_incantation' => 0,
+  'cla_renouvellement'   => 0,
   'cla_domaine_divin'    => 0,
   'cla_pointsCompetences'=> '',
   'cla_po_niveau1'       => '',
@@ -171,9 +171,21 @@ $stmt_clt = $db->prepare('SELECT clt_id, clt_nom FROM dd_classe_type WHERE clt_r
 $stmt_clt->execute([$ruleset_id]);
 $types_classe = $stmt_clt->fetchAll();
 
-$stmt_mag = $db->prepare('SELECT mag_id, mag_nom FROM dd_typemagie WHERE mag_ruleset_var_id = ? ORDER BY mag_nom');
-$stmt_mag->execute([$ruleset_id]);
-$types_magie = $stmt_mag->fetchAll();
+// Type de magie : DD3.5 seulement. DD2024 ne distingue plus profane et divin,
+// cla_mag_id n'y est plus qu'un drapeau 0/1 (D-MAG2) — la liste reste donc vide
+// pour ce ruleset et le formulaire affiche une case à cocher à la place.
+$types_magie = [];
+if ($ruleset_id === 1):
+  $stmt_mag = $db->prepare('SELECT mag_id, mag_nom FROM dd_typemagie WHERE mag_ruleset_var_id = ? ORDER BY mag_nom');
+  $stmt_mag->execute([$ruleset_id]);
+  $types_magie = $stmt_mag->fetchAll();
+endif;
+
+// Profils d'incantation proposables pour ce ruleset (SP-MA0)
+$profils_incantation = profilsIncantation($db, $ruleset_id);
+
+// Cadences de renouvellement du réservoir (SP-MA4b)
+$cadences = cadencesRenouvellement($db);
 
 $caracteristiques = $db->query('SELECT car_id, car_nom FROM dd_caracteristiques ORDER BY car_id')->fetchAll();
 
@@ -324,13 +336,50 @@ $classesParentes = $stmt_par->fetchAll();
         </div>
 
         <div class="form-group classe-champ-normal">
-          <label for="cla_mag_id">Type de magie</label>
-          <select id="cla_mag_id" name="cla_mag_id">
-            <option value="0">— Aucune —</option>
-            <?php foreach ($types_magie as $mag): ?>
-              <option value="<?= (int)$mag['mag_id'] ?>"
-                <?= (int)$cla['cla_mag_id'] === (int)$mag['mag_id'] ? 'selected' : '' ?>>
-                <?= h($mag['mag_nom']) ?>
+          <?php if ($ruleset === 'DD3.5'): ?>
+            <label for="cla_mag_id">Type de magie</label>
+            <select id="cla_mag_id" name="cla_mag_id">
+              <option value="0">— Aucune —</option>
+              <?php foreach ($types_magie as $mag): ?>
+                <option value="<?= (int)$mag['mag_id'] ?>"
+                  <?= (int)$cla['cla_mag_id'] === (int)$mag['mag_id'] ? 'selected' : '' ?>>
+                  <?= h($mag['mag_nom']) ?>
+                </option>
+              <?php endforeach ?>
+            </select>
+          <?php else: ?>
+            <?php // DD2024 : plus de distinction profane / divin (D-MAG2). ?>
+            <label for="cla_mag_id">Lanceur de sorts</label>
+            <select id="cla_mag_id" name="cla_mag_id">
+              <option value="0" <?= (int)$cla['cla_mag_id'] === 0 ? 'selected' : '' ?>>Non</option>
+              <option value="1" <?= (int)$cla['cla_mag_id'] > 0 ? 'selected' : '' ?>>Oui</option>
+            </select>
+          <?php endif ?>
+        </div>
+
+        <div class="form-group classe-champ-normal">
+          <label for="cla_profil_incantation">Profil d'incantation</label>
+          <select id="cla_profil_incantation" name="cla_profil_incantation">
+            <option value="0">— Aucun —</option>
+            <?php foreach ($profils_incantation as $prof): ?>
+              <option value="<?= (int)$prof['var_id'] ?>"
+                title="<?= h((string)$prof['var_commentaire']) ?>"
+                <?= (int)$cla['cla_profil_incantation'] === (int)$prof['var_id'] ? 'selected' : '' ?>>
+                <?= h($prof['var_valeur']) ?>
+              </option>
+            <?php endforeach ?>
+          </select>
+        </div>
+
+        <div class="form-group classe-champ-normal">
+          <label for="cla_renouvellement">Renouvellement</label>
+          <select id="cla_renouvellement" name="cla_renouvellement">
+            <option value="0">— Aucun —</option>
+            <?php foreach ($cadences as $cad): ?>
+              <option value="<?= (int)$cad['var_id'] ?>"
+                title="<?= h((string)$cad['var_commentaire']) ?>"
+                <?= (int)$cla['cla_renouvellement'] === (int)$cad['var_id'] ? 'selected' : '' ?>>
+                <?= h($cad['var_valeur']) ?>
               </option>
             <?php endforeach ?>
           </select>
@@ -465,29 +514,8 @@ $classesParentes = $stmt_par->fetchAll();
           </label>
         </div>
 
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="cla_sort_connu" name="cla_sort_connu" value="1"
-                   <?= $cla['cla_sort_connu'] ? 'checked' : '' ?>>
-            Sorts connus
-          </label>
-        </div>
-
-        <div class="form-group">
-          <label>
-            <input type="checkbox" name="cla_sort_compris" value="1"
-                   <?= $cla['cla_sort_compris'] ? 'checked' : '' ?>>
-            Sorts compris (grimoire)
-          </label>
-        </div>
-
-        <div class="form-group">
-          <label>
-            <input type="checkbox" name="cla_sort_prepare" value="1"
-                   <?= $cla['cla_sort_prepare'] ? 'checked' : '' ?>>
-            Préparation des sorts
-          </label>
-        </div>
+        <?php // SP-MA0 : les trois cases « Sorts connus / compris / Préparation »
+              // sont remplacées par le select « Profil d'incantation » ci-dessus. ?>
 
       </div>
 
@@ -535,6 +563,19 @@ $classesParentes = $stmt_par->fetchAll();
         <label for="cla_sauvegardes">Jets de sauvegarde maîtrisés</label>
         <textarea id="cla_sauvegardes" name="cla_sauvegardes"
                   rows="2"><?= h($cla['cla_sauvegardes'] ?? '') ?></textarea>
+      </div>
+
+      <?php // Même colonne cla_pointsCompetences qu'en DD3.5, autre sens :
+            // ici le NOMBRE de compétences que le personnage choisit dans la
+            // liste dd_classe_competence de sa classe (SP-IM7).
+            // Le champ doit être présent dans les deux rulesets : absent du
+            // formulaire, il repartait à 0 à chaque enregistrement, car
+            // enregistrement.php lit intParam($_POST[...] ?? 0). ?>
+      <div class="form-group">
+        <label for="cla_pointsCompetences">Nombre de compétences maîtrisées au choix</label>
+        <input type="number" id="cla_pointsCompetences" name="cla_pointsCompetences"
+               value="<?= (int)$cla['cla_pointsCompetences'] ?>" min="0" max="18"
+               style="width:80px;">
       </div>
 
       <div class="form-group">
@@ -604,7 +645,8 @@ $classesParentes = $stmt_par->fetchAll();
                     <?php for ($s = 0; $s <= 9; $s++): ?>
                       <th class="col-sort">S<?= $s ?></th>
                     <?php endfor ?>
-                    <?php if ($cla['cla_sort_connu']): ?>
+                    <?php // Colonnes « sorts connus » : seul un répertoire figé en a (SP-MA0) ?>
+                    <?php if ((int)$cla['cla_profil_incantation'] === PROFINC_REPERTOIRE): ?>
                       <?php for ($s = 0; $s <= 9; $s++): ?>
                         <th class="col-sort">C<?= $s ?></th>
                       <?php endfor ?>
@@ -676,7 +718,7 @@ $classesParentes = $stmt_par->fetchAll();
                                  value="<?= h((string)($row['cn_sort_n' . $s] ?? '')) ?>">
                         </td>
                       <?php endfor ?>
-                      <?php if ($cla['cla_sort_connu']): ?>
+                      <?php if ((int)$cla['cla_profil_incantation'] === PROFINC_REPERTOIRE): ?>
                         <?php for ($s = 0; $s <= 9; $s++): ?>
                           <td>
                             <input type="text" class="col-sort"

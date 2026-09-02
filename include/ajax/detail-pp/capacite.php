@@ -28,10 +28,8 @@ endif;
 // ============================================================
 
 $stmt = $db->prepare('
-  SELECT cap.*,
-         var.var_valeur AS cat_label
+  SELECT cap.*
   FROM   dd_capacites_speciales cap
-  LEFT JOIN dd_variables var ON var.var_id = cap.cap_categorie_var_id
   WHERE  cap.cap_id = ?
 ');
 $stmt->execute([$id]);
@@ -83,9 +81,6 @@ $races = $stmt_races->fetchAll();
         </span>
       <?php endif ?>
     </h3>
-    <?php if ($cap['cat_label']): ?>
-      <p class="sort-detail__college"><?= h($cap['cat_label']) ?></p>
-    <?php endif ?>
   </div>
 
   <?php if ($cap['cap_description']): ?>
@@ -107,7 +102,7 @@ $races = $stmt_races->fetchAll();
           $parClasse[$cla_id] = ['nom' => $row['cla_nom'], 'niveaux' => []];
         endif;
         $niv = 'niv. ' . (int)$row['cc_niveau'];
-        if ($row['cc_precision']) $niv .= ' (' . $row['cc_precision'] . ')';
+        if ($row['cc_precision']) $niv .= ' (' . h($row['cc_precision']) . ')';
         $parClasse[$cla_id]['niveaux'][] = $niv;
       endforeach;
       ?>

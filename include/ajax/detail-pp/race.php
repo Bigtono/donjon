@@ -107,13 +107,17 @@ $capacites = $stmt_cap->fetchAll();
 
   <?php // ---- Capacités raciales ?>
   <?php if (!empty($capacites)): ?>
-    <div class="race-detail__capacites" style="margin-top: 1rem;">
+    <?php // Mise en forme partagée avec les capacités de classe
+          // (.classe-detail__capacite* dans compendium-modules.css) : même
+          // entité, même lecture d'une fiche à l'autre. L'espacement vient du
+          // CSS, pas de styles inline. ?>
+    <div class="race-detail__capacites">
       <?php foreach ($capacites as $cap): ?>
-        <div class="race-detail__capacite" style="margin-bottom: 0.75rem;">
+        <div class="race-detail__capacite">
           <div class="race-detail__capacite-nom">
-            <strong><?= h($cap['cap_nom']) ?></strong>
+            <?= h($cap['cap_nom']) ?>
             <?php if ($ruleset === 'DD3.5' && $cap['cap_type']): ?>
-              <span class="race-detail__cap-type">(<?= h($cap['cap_type']) ?>)</span>
+              <span class="cap-type">(<?= h($cap['cap_type']) ?>)</span>
             <?php endif ?>
           </div>
           <?php if ($cap['cap_description']): ?>

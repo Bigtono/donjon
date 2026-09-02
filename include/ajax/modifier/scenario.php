@@ -76,11 +76,9 @@ $titre = $id > 0 ? 'Modifier ' . h($sce['sce_nom']) : 'Nouveau scénario';
                  value="<?= h($sce['sce_nom']) ?>" required maxlength="150">
         </div>
 
-        <div class="form-group">
-          <label for="sce_ordre">Ordre d'affichage</label>
-          <input type="number" id="sce_ordre" name="sce_ordre"
-                 value="<?= (int)$sce['sce_ordre'] ?>" min="0" step="1" style="width:80px;">
-        </div>
+        <?php // SP-CP : plus de saisie de l'ordre d'affichage. Il est piloté
+              // par le seul glisser-déposer de la liste des scénarios — deux
+              // sources de vérité pour un même rang, c'est une source de trop. ?>
 
       </div>
 
@@ -108,9 +106,6 @@ $titre = $id > 0 ? 'Modifier ' . h($sce['sce_nom']) : 'Nouveau scénario';
 <script>
 (function() {
   'use strict';
-
-  const CAMP_ID = <?= $camp_id ?>;
-  const SCE_ID  = <?= (int)$sce['sce_id'] ?>;
 
   (function initTMCE() {
     if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
@@ -161,17 +156,10 @@ $titre = $id > 0 ? 'Modifier ' . h($sce['sce_nom']) : 'Nouveau scénario';
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
+          // SP-CP : navigation pleine page — on reste sur la page d'où le
+          // formulaire a été ouvert, rechargée pour refléter l'écriture.
           fermerModification();
-          if (SCE_ID > 0) {
-            // Modification : rafraîchit la vue scénario courante dans #detail-pp.
-            // retourDetailPP() rechargerait la campagne — on veut rester sur le scénario.
-            const urlSce = campUrlDetail.replace('/campagne.php', '/scenario.php');
-            naviguerDetailPP(urlSce, { id: SCE_ID });
-          } else {
-            // Création : remonte à la vue campagne (racine de la pile).
-            actualiserPage(campUrlDetail, { id: CAMP_ID }, _detailPpContext);
-            _pendingListRefresh = true;
-          }
+          window.location.reload();
         } else {
           alert(data.erreur || "Erreur lors de l'enregistrement.");
         }

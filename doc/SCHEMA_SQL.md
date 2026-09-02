@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-20 22:30 -->
+<!-- Mis à jour : 2026-09-01 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -17,6 +17,14 @@
 | 1.2 | 2026-06-02 | JM | dd_sorts : ajout `so_concentration` / `so_rituel` (0/1, DD2024). Import en masse des sorts SRD 5.2.1 (res_id 93) par lots à IDs explicites |
 | 1.3 | 2026-06-20 | JM | `dd_equipements` : CRÉÉE (équipement mondain, distincte de `dd_objets_magiques`). SQL committé : `sql/2026-06-20_equipements_sp-e0.sql`. Module compendium correspondant non développé — cf. plan SP-E (ARCHITECTURE_0_REFERENCE.md) |
 | 1.4 | 2026-06-20 | JM | `dd_oppositions.opp_mo_id` rendu NULLABLE — monstre d'origine optionnel, saisie d'opposition 100% manuelle possible. SQL committé : `sql/2026-06-20_oppositions_monstre_optionnel.sql` |
+| 1.6 | 2026-08-24 | JM | **SP-CP0** — ordre manuel des deux derniers niveaux du module Campagnes : `dd_rencontres.re_ordre` et `dd_oppositions.opp_ordre` CRÉÉES (`smallint unsigned nn défaut 0`), avec backfill reprenant l'ordre alphabétique en vigueur jusque-là, rang à rang dans chaque parent. Les quatre niveaux sont désormais ordonnés par glisser-déposer. SQL **committé** : `sql/2026-08-24_ordre_sp-cp.sql` (appliqué en dev le 2026-08-24 ; **reste à appliquer en prod OVH**) |
+| 1.7 | 2026-08-28 | JM | **SP-IM1→IM4 et IM7** — import des classes DD2024, aucune évolution de structure : uniquement des données (12 classes, 240 lignes `dd_classe_niveau`, 244 capacités, 10 sous-classes ids 70-79, 87 lignes `dd_classe_competence`). **Sémantique précisée** : `dd_classe_competence` et `cla_pointsCompetences` n'ont pas le même sens selon le ruleset — voir les deux entrées concernées ci-dessous et `DECISIONS_LOG.md` D-IM7. SQL committé : `sql/2026-08-28_classes_dd2024_sp-im{1,2,3,4,7}.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
+| 1.8 | 2026-08-28 | JM | `dd_capacites_speciales.cap_categorie_var_id` **SUPPRIMÉE** — reliquat v1 (race 91 / classe 92), information portée par les tables de liaison ; ses valeurs ne désignaient plus rien depuis la refonte de `dd_variables`, et la catégorie `tcap` n'existe plus. Colonne `cap_classe_initiale` ajoutée à la doc et à `sql/schema.sql`, où elle manquait. SQL committé : `sql/2026-08-28_capacites_drop_categorie.sql` (**NON IDEMPOTENT**, appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
+| 1.9 | 2026-08-28 | JM | **SP-IM8** — espèces DD2024, aucune évolution de structure : 9 espèces (4 créées, ids 18-21), 33 traits (`dd_capacites_speciales` 901+ / `dd_race_capacite`) et 3 tables du SRD dans `dd_tableaux` (ids 40-42). Les 15 traits d'espèce antérieurs (ids 424-438) sont retirés. SQL committé : `sql/2026-08-28_races_dd2024_sp-im8.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
+| 1.10 | 2026-08-28 | JM | **SP-IM5** — options de classe DD2024 : 2 catégories de dons créées dans `dd_data_don` (22 « Métamagie », 23 « Manifestation occulte ») et 38 dons (ids 501-538). Aucune évolution de structure. SQL committé : `sql/2026-08-28_options_dd2024_sp-im5.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
+| 1.11 | 2026-08-28 | JM | **SP-IM9a** — redressement de 235 objets magiques DD2024 (description, `om_rarete`, `om_harmonisation`, `om_com_id`) d'après la ligne de type du SRD. Aucune évolution de structure. Reste `om_rarete` à 0 sur 119 lignes — les déclinaisons, traitées en SP-IM9b. SQL committé : `sql/2026-08-28_objets_dd2024_sp-im9a.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
+| 1.12 | 2026-08-28 | JM | **SP-IM9b** — 121 déclinaisons d'objets magiques DD2024 redressées (description, rareté propre, catégorie, harmonisation). Aucune évolution de structure. Les 356 objets de la source SRD ont désormais une rareté valide. SQL committé : `sql/2026-08-28_objets_dd2024_sp-im9b.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
+| 1.13 | 2026-08-28 | JM | **SP-IM9c** — 10 tables d'objets magiques saisies dans `dd_tableaux` (ids 43-52) et 10 descriptions réécrites avec le tag `[[tab:slug]]`. Aucune évolution de structure. SQL committé : `sql/2026-08-28_objets_dd2024_sp-im9c.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
 | 1.5 | 2026-07-01 | JM | Audit `SHOW CREATE TABLE` sur les 7 tables restantes du Supplément (SP-C5/C6, débloquant) : `_public`/`_visible` **existent déjà en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques` (+ `om_public` sur `dd_objets_magiques`, `om_visible` déjà documenté). Colonnes ajoutées à la doc ci-dessous. `sql/patch_004_supplements.sql` reste introuvable dans le dépôt (appliqué directement en base, jamais committé — même écart que l'incident `mo_j_id`). Écart noté au passage : `dd_dons.do_page_source` (int NOT NULL) présent en base, non documenté, sans rapport avec SP-C — non traité ici |
 
 ---
@@ -37,6 +45,8 @@
 | Table | Raison |
 |---|---|
 | `dd_sorts_import` | Table de migration v1→v2, à supprimer après vérification des données |
+| `dd_modificateurs` | **Morte depuis SP-MA1** (2026-08-27) — était vide et n'a jamais été lue. Le modificateur vient de `modCarac()`, les sorts bonus de `bonusSortsCarac()`, toutes deux dans `include/helpers.php`. À supprimer |
+| `dd_sorts_branche_backup_spma3` | **SP-MA3** — copie des 690 valeurs `so_branche` d'origine (DD3.5), prise avant la séparation branche/registre. Deux rôles : retour arrière, et **source de la migration** — `sql/migrate_registre_sp-ma3.php` lit toujours cette table et jamais la colonne vive, ce qui le rend rejouable. Seule trace des résidus de troncature perdus. À supprimer une fois la migration validée avec du recul |
 
 ---
 
@@ -62,10 +72,22 @@ Référentiel de valeurs paramétrables (rulesets, catégories de capacités, et
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | var_id | int unsigned | PK | |
-| var_cat | varchar(50) | nn | Catégorie. Ex : `ruleset`, `tcap` |
+| var_cat | varchar(50) | nn | Catégorie. Deux seulement en base : `ruleset` et `profinc` (`tcap` a disparu avec `cap_categorie_var_id`, cf. `dd_capacites_speciales`) |
 | var_valeur | varchar(100) | nn | Libellé de la valeur |
 | var_ordre | tinyint unsigned | nn, défaut 0 | Ordre d'affichage dans les selects |
 | var_commentaire | varchar(255) | null | commentaire sur l'usage de la variable |
+
+> Catégorie `cadence` — **cadences de renouvellement** (SP-MA4b,
+> `sql/2026-09-01_cadence_renouvellement_sp-ma4b.sql`). IDs figés, constantes `CADENCE_*` :
+> `7` Repos long, changement libre · `8` Repos long, un seul sort *(DD2024 seul)* ·
+> `9` Montée de niveau. Accesseur : `cadencesRenouvellement($db)` — **sans filtrage par ruleset**,
+> aucune valeur n'étant impossible dans l'absolu pour une classe maison.
+
+> Catégorie `profinc` — **profils d'incantation** (SP-MA0, `sql/2026-08-27_profil_incantation_sp-ma0.sql`).
+> IDs figés, repris en constantes `PROFINC_*` dans `include/helpers.php` :
+> `3` Liste préparée · `4` Grimoire · `5` Répertoire spontané *(DD3.5 uniquement)* ·
+> `6` Magie de pacte *(DD2024 uniquement)*. Le filtrage par ruleset est centralisé dans
+> `profilsIncantation($db, $ruleset_var_id)`. Voir `METIER_7_SORTS.md` §6.
 
 ---
 
@@ -213,7 +235,8 @@ Sorts du compendium.
 | so_nom | varchar(150) | nn | |
 | so_niveau | int | null | *[DD2024]* Niveau du sort (0-9) |
 | so_co_id | int unsigned | null | Collège de magie -> dd_colleges |
-| so_branche | varchar(40) | null | *[DD3.5]* Branche du collège. Ex : Appel |
+| so_branche | varchar(40) | null | *[DD3.5]* Branche du collège, **une seule**. Ex : Appel, Coercition, Création. Contient aussi les 6 disciplines psioniques du GMP, de même rôle syntaxique. Nettoyé et normalisé par SP-MA3 |
+| so_registre | varchar(120) | null | *[DD3.5]* Registre(s) du sort, séparés par `, `. Ex : `mental, terreur`. **Saisi sans crochets** — la fiche les ajoute au rendu (convention SRD). Créé par SP-MA3 (`sql/2026-08-27_registre_sp-ma3.sql`) |
 | so_vocal | tinyint(4) | nn, défaut 0 | Composante vocale requise (0/1) |
 | so_gestuel | tinyint(4) | nn, défaut 0 | Composante gestuelle requise (0/1) |
 | so_materiel | tinyint(4) | nn, défaut 0 | Composante matérielle requise (0/1) |
@@ -277,6 +300,26 @@ Niveaux d'un sort pour chaque classe capable de le lancer.
 
 ---
 
+### dd_classe_sort
+*[DD2024]* Sorts **toujours préparés** accordés par une classe ou une sous-classe (SP-MA4a).
+Même rôle que `dd_sortdomaine` pour les domaines DD3.5 : un sort rattaché à un porteur, avec un niveau.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| cs_id | int unsigned | PK | |
+| cs_cla_id | int unsigned | nn, UK(cs_cla_id, cs_so_id, cs_variante) | **Classe OU sous-classe** -> dd_classes — une sous-classe est une classe (`cla_clt_id = 5`) |
+| cs_so_id | int unsigned | nn | -> dd_sorts |
+| cs_niveau | tinyint unsigned | nn | Niveau de classe d'acquisition. **Cumulatif** : un Paladin 9 a les sorts des niveaux 3, 5 et 9 — filtrer `cs_niveau <= niveau` |
+| cs_variante | varchar(30) | nn, défaut `''` | Cercle de la Terre du Druide : `aride` / `polaire` / `tempéré` / `tropical`. Chaîne **vide** et non NULL, les NULL étant distincts dans une clé unique MySQL |
+| cs_usages | tinyint unsigned | null | Incantations sans emplacement ; NULL = aucune |
+| cs_recharge | varchar(10) | null | `court` / `long` |
+
+> Ces sorts **ne comptent pas** dans `cn_sortPrepare`. Ne contient ni les Manifestations occultes
+> (importées comme dons par `SP-IM5`), ni les sorts toujours préparés **choisis** par le joueur
+> (voir `dd_personnages_sorts_prepares.pesp_origine`).
+
+---
+
 ### dd_sortdomaine
 *[DD3.5]* Sorts accessibles via un domaine, avec leur niveau dans ce domaine.
 
@@ -305,13 +348,15 @@ Classes de personnage (base et prestige).
 | cla_dV | tinyint unsigned | nn, défaut 6 | Dé de vie (4, 6, 8, 10, 12) |
 | cla_alignement | varchar(100) | null | Restrictions d'alignement |
 | cla_car_id | int unsigned | nn, défaut 0 | Caractéristique principale -> dd_caracteristiques (0=aucune) |
-| cla_mag_id | int unsigned | nn, défaut 0 | Type de magie -> dd_typemagie (0=non lanceur de sorts) |
-| cla_sort_connu | tinyint(1) | nn, défaut 0 | 1 = la classe a des sorts connus |
-| cla_sort_compris | tinyint(1) | nn, défaut 0 | 1 = la classe a des sorts compris (grimoire) |
-| cla_sort_prepare | tinyint(1) | nn, défaut 0 | 1 = la classe prépare ses sorts |
+| cla_mag_id | int unsigned | nn, défaut 0 | Lanceur de sorts. **Plage propre à chaque ruleset** *(D-MAG2)* : *[DD3.5]* 0=non lanceur, 1=profane, 2=divin -> dd_typemagie ; *[DD2024]* 0=non lanceur, **1=lanceur, sans distinction** — la valeur n'y désigne alors **aucune** ligne `dd_typemagie`. `cla_mag_id > 0` reste le test « classe lanceuse » dans les deux rulesets ; le libellé `dd_typemagie` ne se lit **que** si `cla_ruleset_var_id = 1` |
+| cla_profil_incantation | int unsigned | nn, défaut 0 | Profil d'incantation -> dd_variables (`var_cat = 'profinc'`). 0 = aucun. 3=Liste préparée, 4=Grimoire, 5=Répertoire spontané *[DD3.5]*, 6=Magie de pacte *[DD2024]*. Constantes `PROFINC_*` dans `include/helpers.php` |
+| cla_renouvellement | int unsigned | nn, défaut 0 | Cadence de renouvellement du réservoir (axe C, SP-MA4b) -> dd_variables (`var_cat = 'cadence'`). 0 = aucune. 7=Repos long changement libre, 8=Repos long un seul sort *[DD2024]*, 9=Montée de niveau. Constantes `CADENCE_*`. **Ne porte pas la périodicité fine DD3.5** (barde : niveau 5 puis tous les 3 ; ensorceleur : niveau 4 puis tous les 2) — trop fin pour une aide de jeu, le détail reste dans le descriptif de la classe |
+| ~~cla_sort_connu~~ | tinyint(1) | nn, défaut 0 | ⚠️ **DÉPRÉCIÉ (SP-MA0, 2026-08-27)** — remplacé par `cla_profil_incantation`. Colonne conservée mais **ni lue ni écrite** ; contenu figé et faux (Magicien et Ensorceleur inversés). Ne pas réutiliser |
+| ~~cla_sort_compris~~ | tinyint(1) | nn, défaut 0 | ⚠️ **DÉPRÉCIÉ (SP-MA0)** — idem |
+| ~~cla_sort_prepare~~ | tinyint(1) | nn, défaut 0 | ⚠️ **DÉPRÉCIÉ (SP-MA0)** — idem |
 | cla_domaine_divin | tinyint(1) | nn, défaut 0 | *[DD3.5]* 1 = la classe choisit des domaines divins |
 | cla_niveauMax | tinyint unsigned | nn, défaut 20 | Niveaux max : 3, 5, 10 ou 20 |
-| cla_pointsCompetences | tinyint unsigned | null | *[DD3.5]* Points de compétences par niveau |
+| cla_pointsCompetences | tinyint unsigned | null | Sens propre à chaque ruleset *(SP-IM7)* : *[DD3.5]* points de compétences par niveau (à multiplier, + mod. Int) ; *[DD2024]* **nombre de compétences que le personnage choisit** dans la liste `dd_classe_competence` de sa classe |
 | cla_po_niveau1 | smallint unsigned | null | *[DD3.5]* Pièces d'or de départ |
 | cla_conditions | text | null | *[DD3.5]* Conditions d'accès (classes de prestige) |
 | cla_armes | text | null | Formations aux armes. Pour *[DD3.5]* contient armes et armures |
@@ -343,7 +388,7 @@ Table de bonus de classe par niveau.
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | cn_id | int unsigned | PK | |
-| cn_cla_id | int unsigned | nn, UK(cn_cla_id, cn_niveau) | -> dd_classes |
+| cn_cla_id | int unsigned | nn, UK(cn_cla_id, cn_niveau) | -> dd_classes. ⚠ **Cette clé unique n'existait pas en base** — documentée depuis toujours, absente en réalité (seule la PRIMARY sur `cn_id` était posée). Créée le 2026-08-28 par `sql/2026-08-28_cle_unique_classe_niveau.sql` sous le nom `uk_cn_classe_niveau`, après l'incident de duplication qu'elle aurait dû empêcher |
 | cn_niveau | tinyint unsigned | nn | Niveau de classe (1 à niveauMax) |
 | cn_bba | varchar(20) | nn, défaut '0' | *[DD3.5]* Bonus de base à l'attaque. Peut être multi-valeurs ex : +6/+1 |
 | cn_reflexes | tinyint | nn, défaut 0 | *[DD3.5]* Bonus de base aux réflexes |
@@ -374,7 +419,13 @@ Affectation d'une capacité spéciale à un niveau de classe.
 ---
 
 ### dd_classe_competence
-Affectation d'une compétence à une classe. Pour DD3.5 : il s'agit des compétences de classe. Pour DD2024 : il s'agit des compétences maitrisées
+Affectation d'une compétence à une classe. **La sémantique diffère d'un ruleset à l'autre**, et
+avec elle le rôle de `dd_classes.cla_pointsCompetences` :
+- *[DD3.5]* — les **compétences de classe**. Un point de compétence investi dans l'une d'elles vaut
+  1 rang, contre 1/2 rang ailleurs. Le nombre de points par niveau est `cla_pointsCompetences`.
+- *[DD2024]* — les compétences que le personnage **peut** maîtriser. Il en choisit un nombre fixe,
+  porté par `cla_pointsCompetences` (« 2 au choix parmi : … »). Une classe sans liste fermée — le
+  Barde choisit parmi les 18 — n'a **aucune ligne ici** : seul le texte `cla_competences` la décrit.
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | ccomp_id | int unsigned | PK | |
@@ -408,7 +459,13 @@ Capacités spéciales attribuables aux classes.
 | cap_nom | varchar(150) | nn | |
 | cap_description | text | null | Description complète |
 | cap_type | varchar(50) | null | Ex : Ext, Mag, Sur |
-| cap_categorie_var_id | int unsigned | null | Catégorie -> dd_variables (cat=tcap) |
+| cap_classe_initiale | int | null | -> dd_classes, classe d'origine de la capacité |
+
+> `cap_categorie_var_id` **supprimée le 2026-08-28** (`sql/2026-08-28_capacites_drop_categorie.sql`).
+> Reliquat de la v1 : elle distinguait capacité de race (91) de capacité de classe (92), information
+> désormais portée par les tables de liaison `dd_race_capacite` et `dd_classe_capacite` — une même
+> capacité pouvant relever des deux. Les valeurs 91/92 ne désignaient plus rien depuis la refonte de
+> `dd_variables`. Catégorie `tcap` : n'existe plus.
 
 ---
 
@@ -741,6 +798,7 @@ Sorts préparés d'un personnage.
 | pesp_metamagie | varchar(100) | null | *[DD3.5]* IDs de dons de métamagie appliqués, séparés par virgule |
 | pesp_niveau | tinyint unsigned | null | *[DD3.5]* Niveau effectif après application de la métamagie |
 | pesp_nb | tinyint unsigned | nn, défaut 0 | *[DD3.5]* Nombre d'exemplaires préparés ; *[DD2024]* 0 ou 1 |
+| pesp_origine | tinyint unsigned | nn, défaut 0 | *[DD2024]* Origine du sort préparé (SP-MA4a) : **0** = préparé normalement, **compte** dans `cn_sortPrepare` ; **1** = toujours préparé au choix du joueur (Secrets magiques du Barde niv. 10, Sorts de prédilection du Magicien niv. 20) ; **2** = arcanum mystique (Occultiste 11/13/15/17). Les sorts accordés par une classe ou sous-classe ne sont **pas** stockés ici — ils se déduisent de `dd_classe_sort` |
 
 ---
 
@@ -836,7 +894,7 @@ Ruleset hérité de la campagne (pas de colonne ruleset).
 |---|---|---|---|
 | sce_id | int unsigned | PK | |
 | sce_nom | varchar(150) | nn | |
-| sce_ordre | smallint unsigned | nn, défaut 0 | Ordre d'affichage dans la campagne |
+| sce_ordre | smallint unsigned | nn, défaut 0 | Ordre d'affichage dans la campagne. Glisser-déposer uniquement, plus saisi au formulaire depuis SP-CP |
 | sce_description | longtext | null | Description (HTML TinyMCE, images uploadées autorisées) |
 | sce_camp_id | int unsigned | nn | -> dd_campagnes |
 
@@ -853,8 +911,8 @@ Ruleset hérité de la campagne (pas de colonne ruleset).
 | scc_id | int unsigned | PK | |
 | scc_sce_id | int unsigned | nn | -> dd_scenarios |
 | scc_nom | varchar(150) | nn | |
-| scc_ordre | smallint unsigned | nn, défaut 0 | |
-| scc_abreviation | varchar(10) | null | |
+| scc_ordre | smallint unsigned | nn, défaut 0 | Glisser-déposer uniquement, plus saisi au formulaire depuis SP-CP |
+| scc_abreviation | varchar(10) | null | Affichée **en préfixe du nom** (`ABR : Nom`) depuis SP-CP |
 | scc_description | text | null | |
 
 ---
@@ -866,7 +924,8 @@ Une rencontre appartient **obligatoirement** à un chapitre (plus de rencontre o
 |---|---|---|---|
 | re_id | int unsigned | PK | |
 | re_nom | varchar(150) | nn | |
-| re_code | varchar(20) | null | Code de référence libre |
+| re_code | varchar(20) | null | Code de référence libre. Affiché **en préfixe du nom** (`CODE : Nom`) depuis SP-CP — plus de colonne dédiée dans les listes |
+| re_ordre | smallint unsigned | nn, défaut 0 | Ordre d'affichage dans le chapitre. Glisser-déposer uniquement, jamais saisi (SP-CP0) |
 | re_scc_id | int unsigned | nn | Chapitre parent -> dd_scenarios_chapitres |
 | re_description | longtext | null | Description (HTML TinyMCE, images uploadées autorisées) |
 | re_composition | text | null | **Détail littéral de la composition de la rencontre (effectifs, disposition, vagues…)**. Champ texte mis en évidence dans l'UI rencontre. Remplace tout stockage chiffré d'effectif. |
@@ -891,6 +950,7 @@ librement pour sa partie, **sans altérer le compendium** ; ou bien saisit direc
 | opp_nom | varchar(150) | nn | Recopié de `mo_nom` si monstre choisi, sinon saisi librement. Éditable |
 | opp_mocat_nom | varchar(150) | null | Recopié du libellé de catégorie (`mocat_nom` via `mo_mocat_id`) si monstre choisi, sinon texte libre. Éditable |
 | opp_stats | text | null | Recopié de `mo_stats` si monstre choisi, sinon saisi librement. Éditable |
+| opp_ordre | smallint unsigned | nn, défaut 0 | Ordre d'affichage dans la rencontre. Glisser-déposer uniquement (SP-CP0). Une opposition transférée ou dupliquée se pose en fin de la rencontre d'arrivée |
 | opp_re_id | int unsigned | nn | Rencontre parente -> dd_rencontres |
 | opp_mo_id | int unsigned | **null** | Monstre-template d'origine -> dd_monstres. **Non éditable** par le MJ une fois fixé (traçabilité). **`NULL` = opposition saisie manuellement**, sans monstre d'origine au compendium. |
 

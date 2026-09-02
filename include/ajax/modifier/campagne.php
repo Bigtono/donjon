@@ -271,14 +271,15 @@ $titre = $id > 0 ? 'Modifier ' . h($camp['camp_nom']) : 'Nouvelle campagne';
     .then(data => {
       if (data.ok) {
         fermerModification();
-        // Ouvre la fiche détail en contexte 'liste' pour que fermerDetailPP()
-        // déclenche rafraichirListe() via _pendingListRefresh.
-        if (data.id) {
-          actualiserPage(campUrlDetail, { id: data.id }, 'liste');
+        // SP-CP : navigation pleine page. Depuis la liste, une création doit
+        // mener à la campagne créée (rien d'autre à en faire) ; depuis sa
+        // propre page, une modification recharge simplement celle-ci.
+        const surSaPage = document.querySelector('.camp-page__contenu[data-camp-id]');
+        if (!surSaPage && data.id) {
+          window.location.href = BASE_URL + '/campagnes/campagne.php?id=' + data.id;
+        } else {
+          window.location.reload();
         }
-        // _pendingListRefresh est déclaré avec let au niveau global de main.js
-        // (classic script) : accessible depuis tout autre classic script.
-        _pendingListRefresh = true;
       } else {
         alert(data.erreur || "Erreur lors de l'enregistrement.");
       }

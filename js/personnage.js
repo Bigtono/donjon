@@ -5,8 +5,10 @@
 // SP-PE0 : socle — menu contextuel + suppression inline depuis la liste.
 // SP-PE2 : éditeur DOM Classes inline.
 // SP-PE3 : éditeur DOM Compétences inline.
-// Les éditeurs DOM restants (dons, NLS, sorts) seront ajoutés
-// en SP-PE4 à SP-PE7.
+// SP-PE4 : sélecteur de dons deux volets (donsPicker).
+// SP-PE5 : éditeur de rattachement aux campagnes (campagnesEditor).
+// SP-PE6 : éditeur NLS prestige DD3.5 (nlsEditor).
+// Reste : sorts (SP-PE7 — vue Magie).
 'use strict';
 
 // ============================================================
@@ -817,6 +819,9 @@ const donsPicker = (function() {
       _majBoutonListe(li, data.possede);
       _majBoutonDetail(doId);
       _majCompteur(data.total);
+      // Écriture immédiate, sans bouton Enregistrer : elle doit laisser une
+      // trace visible (composant notifier(), SP-CP1 — voir doc §12b).
+      notifier(data.possede ? 'Don ajouté' : 'Don retiré');
     } catch (e) {
       alert('Erreur réseau : ' + e);
     } finally {
@@ -1050,7 +1055,11 @@ const campagnesEditor = (function() {
       _modifie = true;
       _appliquerEtat(action, data);
       _render();
-      _afficherMsg('Enregistré.', 'ok');
+      // Écriture immédiate : pastille globale plutôt qu'un message local, pour
+      // que le retour soit le même partout dans le site (SP-CP1, doc §12b).
+      // _afficherMsg reste employée pour les erreurs, qui doivent rester
+      // affichées près de l'éditeur.
+      notifier('Enregistré');
     } catch (e) {
       _afficherMsg('Erreur réseau : ' + e, 'erreur');
     } finally {
@@ -1095,6 +1104,246 @@ const campagnesEditor = (function() {
   }
 
   return { basculerEdition, fermer };
+
+})();
+
+// ============================================================
+// ÉDITEUR NLS PRESTIGE (SP-PE6 — DD3.5)
+// Gère le bloc NLS prestige de la fiche : un tableau par classe de
+// prestige influant sur le NLS, un select de classe de base lanceuse
+// compatible par niveau. Commit global du bloc (action enregistrerNls),
+// comme Classes et Compétences — DELETE + INSERT côté serveur.
+//
+// Saisie déclarative : un niveau peut rester « À affecter » (archi §7.5d).
+// Un niveau dont aucun drapeau cn_niveauSort* n'est levé ne fait pas
+// progresser le NLS : ligne grisée, sans select.
+//
+// Dépend des variables injectées par fiche.php :
+//   perPeId, perUrlEnreg, perNlsBases, perNlsPrestiges
+// ============================================================
+
+const nlsEditor = (function() {
+  'use strict';
+
+  let _etatEdition = false;
+  // Copie locale : [{pc_id, nom, niveau, niveaux: {n: {arcane, divin,
+  // effectif, base_pc_id}}}] — niveaux est un objet (clés JSON "1".."n").
+  let _prestiges = [];
+
+  function _csrf() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
+  // Classes de base compatibles avec les drapeaux d'un niveau :
+  // effectif → toutes les lanceuses ; arcane → cla_mag_id = 1 ;
+  // divin → cla_mag_id = 2. Les drapeaux se cumulent (union).
+  function _basesCompatibles(niv) {
+    return (perNlsBases || []).filter(function(b) {
+      if (niv.effectif) return true;
+      if (niv.arcane && b.mag_id === 1) return true;
+      if (niv.divin  && b.mag_id === 2) return true;
+      return false;
+    });
+  }
+
+  // ---- Rendu ----------------------------------------------------
+
+  function _buildSelectBase(prestige, n, niv) {
+    const sel = document.createElement('select');
+    sel.className = 'per-comp-editor__select';
+
+    const opt0 = document.createElement('option');
+    opt0.value = '0';
+    opt0.textContent = '— À affecter —';
+    sel.appendChild(opt0);
+
+    _basesCompatibles(niv).forEach(function(b) {
+      const opt = document.createElement('option');
+      opt.value = b.pc_id;
+      opt.textContent = b.nom;
+      if (b.pc_id === niv.base_pc_id) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    sel.addEventListener('change', function() {
+      niv.base_pc_id = parseInt(this.value, 10) || 0;
+    });
+    return sel;
+  }
+
+  function _renderPrestige(prestige) {
+    const div = document.createElement('div');
+    div.className = 'per-nls__classe';
+
+    const h3 = document.createElement('h3');
+    h3.className = 'per-nls__titre';
+    h3.textContent = prestige.nom + ' ';
+    const spanNiv = document.createElement('span');
+    spanNiv.className = 'per-classes__niveau';
+    spanNiv.textContent = 'niv. ' + prestige.niveau;
+    h3.appendChild(spanNiv);
+    div.appendChild(h3);
+
+    const wrap  = document.createElement('div');
+    wrap.className = 'table-dd-wrap';
+    const table = document.createElement('table');
+    table.className = 'table-dd per-nls-table';
+
+    const thead = document.createElement('thead');
+    thead.innerHTML =
+      '<tr>' +
+        '<th class="col-stat">Niveau</th>' +
+        '<th class="per-nls-table__prog">Progression</th>' +
+        '<th class="per-nls-table__classe">Classe de base affectée</th>' +
+      '</tr>';
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    Object.keys(prestige.niveaux).forEach(function(n) {
+      const niv = prestige.niveaux[n];
+      const progresse = !!(niv.arcane || niv.divin || niv.effectif);
+
+      const tr = document.createElement('tr');
+
+      const tdNiv = document.createElement('td');
+      tdNiv.textContent = n;
+      tr.appendChild(tdNiv);
+
+      const tdProg = document.createElement('td');
+      tdProg.className = 'per-nls-table__prog';
+      if (progresse) {
+        const parts = [];
+        if (niv.effectif) parts.push('Effectif');
+        if (niv.arcane)   parts.push('Arcane');
+        if (niv.divin)    parts.push('Divin');
+        tdProg.textContent = parts.join(' + ');
+      } else {
+        const span = document.createElement('span');
+        span.className   = 'text-muted';
+        span.textContent = '—';
+        tdProg.appendChild(span);
+      }
+      tr.appendChild(tdProg);
+
+      const tdClasse = document.createElement('td');
+      tdClasse.className = 'per-nls-table__classe';
+      if (progresse) {
+        tdClasse.appendChild(_buildSelectBase(prestige, n, niv));
+      } else {
+        const span = document.createElement('span');
+        span.className   = 'text-muted';
+        span.textContent = 'Sans progression de NLS';
+        tdClasse.appendChild(span);
+      }
+      tr.appendChild(tdClasse);
+
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    wrap.appendChild(table);
+    div.appendChild(wrap);
+    return div;
+  }
+
+  function _render() {
+    const zone = document.getElementById('nls-editor-lignes');
+    if (!zone) return;
+    zone.innerHTML = '';
+    _prestiges.forEach(function(p) {
+      zone.appendChild(_renderPrestige(p));
+    });
+  }
+
+  // ---- API publique ---------------------------------------------
+
+  function _init() {
+    // Copie profonde : annuler ne doit pas garder les choix abandonnés
+    _prestiges = JSON.parse(JSON.stringify(perNlsPrestiges || []));
+  }
+
+  function basculerEdition() {
+    _etatEdition = !_etatEdition;
+    const lecture = document.getElementById('nls-lecture');
+    const edition = document.getElementById('nls-edition');
+    const btn     = document.getElementById('btn-editer-nls');
+    if (!lecture || !edition) return;
+
+    if (_etatEdition) {
+      _init();
+      _render();
+      lecture.classList.add('noDisplay');
+      edition.classList.remove('noDisplay');
+      if (btn) btn.innerHTML = '<i class="fa fa-times"></i><span class="per-btn-label">Annuler</span>';
+    } else {
+      annuler();
+    }
+  }
+
+  function annuler() {
+    _etatEdition = false;
+    const lecture = document.getElementById('nls-lecture');
+    const edition = document.getElementById('nls-edition');
+    const btn     = document.getElementById('btn-editer-nls');
+    if (lecture) lecture.classList.remove('noDisplay');
+    if (edition) edition.classList.add('noDisplay');
+    if (btn)     btn.innerHTML = '<i class="fa fa-edit"></i><span class="per-btn-label">Modifier</span>';
+    _cacherMsg();
+  }
+
+  async function enregistrer() {
+    const formData = new FormData();
+    formData.append('action', 'enregistrerNls');
+    formData.append('pe_id',  perPeId);
+    // CSRF token lu depuis la meta tag (même pattern que postAjax dans main.js)
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) formData.append('csrf_token', csrfMeta.getAttribute('content'));
+
+    // Seules les affectations réellement saisies sont transmises : un niveau
+    // laissé « À affecter » n'envoie rien, l'enregistrement reste valide.
+    let i = 0;
+    _prestiges.forEach(function(p) {
+      Object.keys(p.niveaux).forEach(function(n) {
+        const niv = p.niveaux[n];
+        if (niv.base_pc_id > 0) {
+          formData.append('nls[' + i + '][pc_prestige]', p.pc_id);
+          formData.append('nls[' + i + '][niveau]',      n);
+          formData.append('nls[' + i + '][pc_base]',     niv.base_pc_id);
+          i++;
+        }
+      });
+    });
+
+    try {
+      const resp = await fetch(perUrlEnreg, { method: 'POST', body: formData });
+      const data = await resp.json();
+      if (data.ok) {
+        _afficherMsg('Enregistré.', 'ok');
+        // Recharger la page pour mettre à jour le mode lecture
+        setTimeout(function() { window.location.reload(); }, 600);
+      } else {
+        _afficherMsg(data.erreur || 'Erreur.', 'erreur');
+      }
+    } catch(e) {
+      _afficherMsg('Erreur réseau : ' + e, 'erreur');
+    }
+  }
+
+  function _afficherMsg(txt, type) {
+    const el = document.getElementById('nls-msg');
+    if (!el) return;
+    el.textContent = txt;
+    el.className   = 'per-classes-commit__msg per-classes-commit__msg--' + type;
+    el.classList.remove('noDisplay');
+  }
+
+  function _cacherMsg() {
+    const el = document.getElementById('nls-msg');
+    if (el) el.classList.add('noDisplay');
+  }
+
+  return { basculerEdition, annuler, enregistrer };
 
 })();
 

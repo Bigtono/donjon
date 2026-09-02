@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-01 16:55 -->
+<!-- Mis à jour : 2026-08-24 22:10 -->
 
 # Codex DD v2 — Architecture : Campagnes
 
@@ -6,9 +6,11 @@
 > Pour les règles fonctionnelles, voir `METIER_10_Campagnes.md`.
 > Pour le schéma des tables, voir `SCHEMA_SQL.md` (section 7).
 >
-> **Statut : structure de données validée (schéma v1.1, patch SQL étape 1 appliqué).**
-> L'architecture de code ci-dessous est la **cible proposée** ; le découpage en sous-phases et
-> certains points marqués « à arbitrer » restent ouverts.
+> **Statut : module livré. Refondu le 2026-08-24 par SP-CP** — navigation pleine page,
+> ordre manuel des quatre niveaux, colonne d'outils de partie.
+> ⚠️ Les §2 et §4 ci-dessous décrivaient l'architecture **d'origine, en panneaux `#detail-pp`** ;
+> ils sont corrigés en place et signalés. La référence à jour est
+> `ARCHITECTURE_0_REFERENCE.md` §8 et §8b.
 
 ---
 
@@ -41,22 +43,26 @@ Voir `SCHEMA_SQL.md` pour la structure détaillée.
 
 ---
 
-## 2. Fichiers (cible)
+## 2. Fichiers — état réel après SP-CP (2026-08-24)
 
 ```
 campagnes/
-  campagnes.php            ← liste des campagnes du MJ (liste dédiée, voir §3)
-  campagne.php             ← détail d'une campagne (scénarios, sources, personnages, PJ)
-  scenario.php             ← détail d'un scénario (chapitres, rencontres)
-  rencontre.php            ← détail d'une rencontre (oppositions, composition, PJ)
+  index.php                ← liste des campagnes du MJ (liste dédiée, voir §3)
+  campagne.php             ← PAGE campagne (scénarios, personnages, sources)
+  scenario.php             ← PAGE scénario (chapitres)
+  chapitre.php             ← PAGE chapitre (rencontres)
+  rencontre.php            ← PAGE rencontre (composition, oppositions à stats dépliées)
   enregistrement.php       ← POST centralisé du module (commit transactionnel)
 
+include/
+  campagne-outils.php      ← colonne d'outils commune aux quatre pages
+
 include/ajax/
-  detail-pp/
-    campagne.php           ← rendu panel detail-pp campagne
-    scenario.php           ← rendu panel detail-pp scénario
-    rencontre.php          ← rendu panel detail-pp rencontre
-    opposition.php         ← rendu panel detail-pp opposition (sous-panneau possible)
+  detail-pp/               ← SUPPRIMÉS pour ce module (campagne, scenario, chapitre,
+                             rencontre). Seul monstre.php sert encore aux liens .mo-lien
+                             des blocs de stats d'opposition
+  detail-pp-sub/           ← opposition.php SUPPRIMÉ (orphelin depuis que les stats sont
+                             rendues en place) ; recherche-monstre.php conservé
   modifier/
     campagne.php           ← formulaire création / modification campagne
     scenario.php           ← formulaire scénario
@@ -84,8 +90,8 @@ doc/
   DECISIONS_LOG.md              ← décisions de la session campagnes
 ```
 
-> Les noms `campagnes.php` / `scenario.php` / `rencontre.php` remplacent l'ébauche
-> `campagne.php, scenario.php, rencontres.php` de la §13 de la référence. **À arbitrer.**
+> Arbitré le 2026-08-24 (SP-CP, question 4) : la liste reste `index.php` — convention du site —
+> et les quatre niveaux prennent le nom de leur entité au singulier.
 
 ---
 
@@ -100,21 +106,24 @@ ruleset et l'univers affichés en colonnes secondaires (jointures `dd_variables`
 
 ---
 
-## 4. Panels detail-pp et overlays
+## 4. Navigation et overlays — refondu par SP-CP
 
-Le module réutilise le **système d'overlays empilés** existant (`#detail-pp`, `#modification`,
-`#detail-pp-sub`) décrit au §12 de la référence — rien à réinventer.
+> ⚠️ **Périmé** : la version d'origine de cette section faisait de `#detail-pp` le lieu de
+> consultation des quatre niveaux. Ce n'est plus le cas depuis le 2026-08-24.
 
-- **`#detail-pp`** : détail principal d'une campagne, d'un scénario ou d'une rencontre, ouvert en
-  contexte `'externe'` (navigation interne au module) ou `'liste'` (depuis `campagnes.php`).
-- **`#modification`** : tous les formulaires de création/édition (campagne, scénario, chapitre,
-  rencontre, opposition). Édition locale DOM, **zéro écriture** ; commit via `enregistrement.php`.
-- **`#detail-pp-sub`** : consultation en lecture seule d'un élément référencé sans fermer le
-  panneau courant — typiquement l'aperçu d'une **opposition** depuis la fiche rencontre, ou la
-  fiche du **monstre modèle** (lien `opp_mo_id`) via le `detail-pp/monstre.php` du compendium.
+- **Consultation** : quatre **pages** (§2), une URL par niveau, un bouton retour par niveau vers
+  le niveau supérieur, plus le fil d'Ariane du header (liens) pour revenir de n'importe où.
+  Détail du gabarit deux colonnes dans `ARCHITECTURE_0_REFERENCE.md` §8b.
+- **`#modification`** : inchangé. Tous les formulaires de création/édition (campagne, scénario,
+  chapitre, rencontre, opposition) restent des overlays. Édition locale DOM, **zéro écriture** ;
+  commit via `enregistrement.php`. Après commit : **rechargement de la page courante** (deux
+  exceptions, §8b).
+- **`#detail-pp` / `#detail-pp-sub`** : conservés pour ce qui vient du **compendium** — la fiche du
+  monstre modèle (`opp_mo_id`) et les entités liées depuis un bloc de stats (`.mo-lien`), ainsi que
+  le sélecteur de monstre du formulaire d'opposition.
 
-Bouton **Modifier** injecté dans `detail-pp` selon les droits (propriété de la campagne, vérifiée
-serveur). `apresModification()` rafraîchit le panel courant (+ la liste si contexte `'liste'`).
+Bouton **Modifier** rendu dans le bandeau de titre de chaque page selon les droits (propriété de la
+campagne, vérifiée serveur par `isMJ()` avant tout affichage).
 
 ---
 
@@ -131,6 +140,7 @@ par commit, validation métier serveur, CSRF obligatoire. Aiguillage par un para
 | `enregistrerRencontre` | INSERT/UPDATE `dd_rencontres` (dont `re_composition`) |
 | `enregistrerOpposition` | INSERT/UPDATE `dd_oppositions` (`opp_mo_id` figé après création) |
 | `supprimer*` | Suppression douce (stratégie à préciser, cf. §8) |
+| `reordonnerScenarios` / `Chapitres` / `Rencontres` / `Oppositions` | Ordre manuel (SP-CP2). Propriété vérifiée sur le **parent**, lot d'ids **exact** exigé, rangs écrits en transaction. Voir `ARCHITECTURE_0_REFERENCE.md` §12b |
 
 ### Contrôle de propriété — systématique
 
@@ -187,10 +197,11 @@ Stratégie actée sur le principe ; **topo détaillé à fournir avant implémen
 
 ## 9. Points encore à arbitrer
 
-- Noms de fichiers de pages (`campagnes.php` / `scenario.php` / `rencontre.php`) vs ébauche §13.
+- ~~Noms de fichiers de pages~~ — tranché le 2026-08-24 (SP-CP), voir §2.
+- ~~Découpage en sous-phases de développement~~ — codifié `SP-CP` (référence §0).
 - Numérotation documentaire : ce fichier est `ARCHITECTURE_8_*` (aligné sur la §8 de la référence),
   le métier est `METIER_10_*` (prochain numéro libre) — à harmoniser si souhaité.
 - Stratégie FK/cascade en base (le `schema.sql` actuel n'utilise pas de contraintes FK).
 - Détail de la suppression douce (§8).
 - Taille max des pièces jointes PDF.
-- Découpage en sous-phases de développement.
+- Contenu de la colonne d'outils au-delà de l'écran du MJ (SP-CP8).

@@ -104,11 +104,7 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
                  value="<?= h($scc['scc_abreviation'] ?? '') ?>" maxlength="10" style="width:120px;">
         </div>
 
-        <div class="form-group">
-          <label for="scc_ordre">Ordre d'affichage</label>
-          <input type="number" id="scc_ordre" name="scc_ordre"
-                 value="<?= (int)$scc['scc_ordre'] ?>" min="0" step="1" style="width:80px;">
-        </div>
+        <?php // SP-CP : plus de saisie de l'ordre d'affichage — cf. modifier/scenario.php. ?>
 
         <div class="form-group modif-grid__full">
           <label for="scc_description">Description</label>
@@ -135,11 +131,6 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
 <script>
 (function() {
   'use strict';
-
-  const SCC_ID         = <?= (int)$scc['scc_id'] ?>;
-  const SCE_ID         = <?= $sce_id ?>;
-  const URL_SCC_DETAIL = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/chapitre.php') ?>;
-  const URL_SCE_DETAIL = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/scenario.php') ?>;
 
   (function initTMCE() {
     if (typeof tinymce === 'undefined') { setTimeout(initTMCE, 100); return; }
@@ -187,14 +178,9 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
+          // SP-CP : navigation pleine page — cf. modifier/scenario.php.
           fermerModification();
-          if (SCC_ID > 0) {
-            // Modification : rafraîchit la vue chapitre courante dans #detail-pp.
-            naviguerDetailPP(URL_SCC_DETAIL, { id: SCC_ID });
-          } else {
-            // Création : remonte à la vue scénario parent.
-            naviguerDetailPP(URL_SCE_DETAIL, { id: SCE_ID });
-          }
+          window.location.reload();
         } else {
           alert(data.erreur || "Erreur lors de l'enregistrement.");
         }

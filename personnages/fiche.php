@@ -10,8 +10,9 @@
 //          deux volets ouvert dans #detail-pp (detail-pp/dons-picker.php).
 // SP-PE5 : bloc Campagnes — lecture (campagne en cours + historique) et
 //          éditeur inline de rattachement à écriture immédiate.
-//
-// Blocs à venir : NLS prestige DD3.5 (SP-PE6).
+// SP-PE6 : bloc NLS prestige (DD3.5) — un tableau par classe de prestige
+//          influant sur le NLS, affectation vers les classes de base
+//          lanceuses via l'éditeur DOM inline (commit global du bloc).
 require_once '../include/db.php';
 require_once '../include/auth.php';
 require_once '../include/helpers.php';
@@ -94,6 +95,16 @@ endforeach;
 $competences_maitrisees = array_values(array_filter($competences, function($c) {
   return (int)$c['pec_maitrise'] > 0;
 }));
+
+// ------------------------------------------------------------
+// NLS PRESTIGE (SP-PE6 — DD3.5 uniquement)
+// $nls est null si le bloc n'a pas lieu d'être : pas de classe de base
+// lanceuse, ou aucune classe de prestige dont un niveau détenu fait
+// progresser le NLS (archi §7.5d). Le bloc est alors omis de la fiche.
+// ------------------------------------------------------------
+$nls = ($ruleset_rep === 'DD3.5')
+  ? getPersonnageNls($db, $classes, (int)$perso['pe_id'])
+  : null;
 
 // ------------------------------------------------------------
 // DONS (SP-PE4)
@@ -234,6 +245,17 @@ require_once '../include/header.php';
   // Campagnes (SP-PE5) — état initial de l'éditeur de rattachement
   var perCampagnesEditeur = <?= json_encode(array_values($campagnes_editeur), JSON_UNESCAPED_UNICODE) ?>;
   var perCampCourante     = <?= $pe_camp_id ?>;
+
+  // NLS prestige (SP-PE6) — état initial de l'éditeur. null si le bloc est omis.
+  var perNlsBases = <?= json_encode($nls ? $nls['bases'] : [], JSON_UNESCAPED_UNICODE) ?>;
+  var perNlsPrestiges = <?= json_encode($nls ? array_map(function($p) {
+    return [
+      'pc_id'   => $p['pc_id'],
+      'nom'     => $p['nom'],
+      'niveau'  => $p['niveau'],
+      'niveaux' => $p['niveaux'],
+    ];
+  }, $nls['prestiges']) : [], JSON_UNESCAPED_UNICODE) ?>;
 </script>
 
 <div class="per-fiche">
@@ -599,8 +621,113 @@ require_once '../include/header.php';
 
   </section>
 
+  <?php if ($nls): ?>
   <!-- ============================================================
-       BLOC 7 — DONS (SP-PE4)
+       BLOC 7 — NLS PRESTIGE (SP-PE6 — DD3.5 uniquement)
+       Affiché seulement si le personnage a au moins une classe de base
+       lanceuse ET une classe de prestige dont un niveau détenu fait
+       progresser le NLS (archi §7.5d).
+       Lecture : un tableau par classe de prestige, un niveau par ligne.
+       Édition : select des classes de base compatibles par niveau,
+       commit global du bloc (action enregistrerNls).
+       ============================================================ -->
+  <section class="per-fiche__bloc" id="bloc-nls">
+    <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
+      <h2 class="per-fiche__bloc-titre">
+        <i class="fa fa-hat-wizard"></i> NLS prestige
+      </h2>
+      <button class="btn btn-link btn-sm" id="btn-editer-nls"
+              onclick="nlsEditor.basculerEdition()">
+        <i class="fa fa-edit"></i> Modifier
+      </button>
+    </header>
+
+    <!-- Mode lecture -->
+    <div class="per-fiche__bloc-body" id="nls-lecture">
+      <p class="text-muted text-sm">
+        Affectation des niveaux de classe de prestige aux classes de base
+        lanceuses de sorts. Le niveau de lanceur de sorts effectif est calculé
+        dans la vue Magie.
+      </p>
+      <?php foreach ($nls['prestiges'] as $p): ?>
+        <div class="per-nls__classe">
+          <h3 class="per-nls__titre">
+            <?= h($p['nom']) ?>
+            <span class="per-classes__niveau">niv. <?= (int)$p['niveau'] ?></span>
+          </h3>
+          <div class="table-dd-wrap">
+            <table class="table-dd per-nls-table">
+              <thead>
+                <tr>
+                  <th class="col-stat">Niveau</th>
+                  <th class="per-nls-table__prog">Progression</th>
+                  <th class="per-nls-table__classe">Classe de base affectée</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($p['niveaux'] as $n => $niv): ?>
+                  <?php
+                    $progresse = $niv['arcane'] || $niv['divin'] || $niv['effectif'];
+                    $base_nom  = '';
+                    foreach ($nls['bases'] as $b):
+                      if ($b['pc_id'] === $niv['base_pc_id']):
+                        $base_nom = $b['nom'];
+                        break;
+                      endif;
+                    endforeach;
+                  ?>
+                  <tr>
+                    <td><?= (int)$n ?></td>
+                    <td class="per-nls-table__prog">
+                      <?php if ($progresse): ?>
+                        <?= h(libelleProgressionNls($niv)) ?>
+                      <?php else: ?>
+                        <span class="text-muted">—</span>
+                      <?php endif ?>
+                    </td>
+                    <td class="per-nls-table__classe">
+                      <?php if (!$progresse): ?>
+                        <span class="text-muted">Sans progression de NLS</span>
+                      <?php elseif ($base_nom !== ''): ?>
+                        <?= h($base_nom) ?>
+                      <?php else: ?>
+                        <span class="per-nls__a-affecter">À affecter</span>
+                      <?php endif ?>
+                    </td>
+                  </tr>
+                <?php endforeach ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      <?php endforeach ?>
+    </div>
+
+    <!-- Mode édition (caché par défaut, activé par JS) -->
+    <div class="per-fiche__bloc-body noDisplay" id="nls-edition">
+      <p class="text-muted text-sm">
+        Affectez chaque niveau à l'une des classes de base lanceuses du
+        personnage. Seules les classes compatibles avec le type de magie du
+        niveau sont proposées. Un niveau peut rester « À affecter ».
+      </p>
+      <div id="nls-editor-lignes">
+        <!-- Les tableaux sont générés par nlsEditor en JS -->
+      </div>
+      <div class="per-classes-commit">
+        <button class="btn btn-primary btn-sm" onclick="nlsEditor.enregistrer()">
+          <i class="fa fa-save"></i> Enregistrer
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="nlsEditor.annuler()">
+          Annuler
+        </button>
+        <span class="per-classes-commit__msg noDisplay" id="nls-msg"></span>
+      </div>
+    </div>
+  </section>
+  <?php endif ?>
+
+  <!-- ============================================================
+       BLOC 8 — DONS (SP-PE4)
        Lecture seule ici ; l'ajout et le retrait passent par le
        sélecteur deux volets ouvert dans #detail-pp.
        ============================================================ -->
@@ -638,7 +765,7 @@ require_once '../include/header.php';
   </section>
 
   <!-- ============================================================
-       BLOC 8 — CAMPAGNES (SP-PE5)
+       BLOC 9 — CAMPAGNES (SP-PE5)
        Lecture : campagne en cours en tête, puis historique traversé.
        Édition : rattachement à écriture immédiate (aucun bouton
        « Enregistrer » — cf. archi §7.5c).
@@ -669,8 +796,8 @@ require_once '../include/header.php';
             <?php $est_courante = (int)$c['est_courante'] === 1 ?>
             <li class="per-camp__item<?= $est_courante ? ' is-courante' : '' ?>">
               <div class="per-camp__ligne">
-                <a href="javascript:void(0)"
-                   onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/campagne.php', {id: <?= (int)$c['camp_id'] ?>}, 'externe')">
+                <?php // SP-CP : la campagne est une page, plus un panneau detail-pp. ?>
+                <a href="<?= BASE_URL ?>/campagnes/campagne.php?id=<?= (int)$c['camp_id'] ?>">
                   <?= h($c['camp_nom']) ?>
                 </a>
                 <?php if ($est_courante): ?>
@@ -718,7 +845,7 @@ require_once '../include/header.php';
     </div>
   </section>
 
-  <!-- BLOC 9 — BACKGROUND -->
+  <!-- BLOC 10 — BACKGROUND -->
   <?php if (!empty($perso['pe_background'])): ?>
   <section class="per-fiche__bloc">
     <header class="per-fiche__bloc-header">
@@ -741,9 +868,6 @@ require_once '../include/header.php';
     </header>
     <div class="per-fiche__bloc-body">
       <ul class="per-avenir-liste">
-        <?php if ($ruleset_rep === 'DD3.5'): ?>
-          <li>NLS prestige</li>
-        <?php endif ?>
         <li>
           Vue Magie dédiée —
           <a href="<?= BASE_URL ?>/personnages/magie.php?id=<?= (int)$perso['pe_id'] ?>">accéder</a>

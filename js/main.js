@@ -56,19 +56,9 @@ function togglePlusExclusif(id, groupSelector) {
 // ============================================================
 // CONTEXTE DE NAVIGATION (HEADER)
 // ============================================================
-
-// Ouvre directement un niveau de la hiérarchie Campagne → Scénario → Chapitre
-// depuis un bouton du header, en reconstruisant toute la chaîne d'ancêtres
-// dans _detailPpStack — pour que le bouton ← Retour reste cohérent une fois
-// revenu dans le panneau. `chain` = [{url, params}, ...] du niveau racine
-// jusqu'au niveau cible (fourni côté serveur par include/header.php).
-function ouvrirContextePP(chain) {
-  if (!Array.isArray(chain) || chain.length === 0) return;
-  _detailPpContext = 'externe';
-  _detailPpStack    = chain;
-  const cible = chain[chain.length - 1];
-  _chargerDetailPP(cible.url, cible.params, chain.length > 1);
-}
+// SP-CP : ouvrirContextePP() a été retirée. Les niveaux de campagne du fil
+// d'Ariane sont maintenant de simples liens vers campagnes/{niveau}.php —
+// plus de pile à reconstruire côté client (cf. include/header-context.php).
 
 // ============================================================
 // PATTERN DETAIL-PP / MODIFICATION
@@ -334,6 +324,53 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => flash.classList.add('flash-message--hidden'), 3500);
   }
 });
+
+// ============================================================
+// NOTIFICATION D'ENREGISTREMENT AUTOMATIQUE — notifier() (SP-CP1)
+// ============================================================
+// Composant transverse : à appeler dès qu'une donnée est écrite SANS que
+// l'utilisateur ait cliqué sur « Enregistrer » (glisser-déposer d'ordre,
+// sélecteur de dons, rattachement de campagne…). Une écriture invisible doit
+// laisser une trace visible, sinon rien ne distingue « enregistré » de
+// « perdu ».
+//
+// À ne PAS utiliser pour les commits explicites de formulaire : ceux-là ont
+// déjà leur retour (fermeture du panneau + rechargement, ou .flash-message).
+//
+// La pastille se pose en bas à droite, empilable, effacement automatique —
+// même famille visuelle que le badge de debug (css/modules.css § TOAST).
+//   notifier('Ordre enregistré');
+//   notifier('Erreur : ordre non enregistré', 'erreur');
+
+var TOAST_DUREE = 2500;
+
+function notifier(message, type) {
+  if (!message) return;
+
+  var zone = document.getElementById('toast-zone');
+  if (!zone) {
+    zone = document.createElement('div');
+    zone.id = 'toast-zone';
+    zone.className = 'toast-zone';
+    document.body.appendChild(zone);
+  }
+
+  var toast = document.createElement('div');
+  toast.className = 'toast toast--' + (type || 'ok');
+  var icones = { ok: 'fa-check', erreur: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+  toast.innerHTML = '<i class="fa ' + (icones[type] || icones.ok) + '" aria-hidden="true"></i>'
+                  + '<span class="toast__texte"></span>';
+  toast.querySelector('.toast__texte').textContent = message;
+  zone.appendChild(toast);
+
+  // Retrait en deux temps : classe de sortie, puis suppression du nœud à la
+  // fin de la transition (transitionend n'est pas garanti si l'onglet passe en
+  // arrière-plan — d'où le setTimeout de sécurité).
+  setTimeout(function () {
+    toast.classList.add('toast--sortie');
+    setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 400);
+  }, TOAST_DUREE);
+}
 
 // ============================================================
 // CONFIRMATION AVANT ACTION DESTRUCTIVE

@@ -141,7 +141,8 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
 1. **Tout nouveau chantier reçoit un code projet** (`SP-<lettres>`) et ses phases sont
    **numérotées** dès l'arbitration : `SP-TB0`, `SP-TB1`, … Codes en service : `SP-C`
    (supplément compendium), `SP-E` (équipements), `SP-T` (transfert d'opposition),
-   `SP-TB` (tableaux de règles), `SP-GL` (glossaire), `SP-PE` (module Personnages).
+   `SP-TB` (tableaux de règles), `SP-GL` (glossaire), `SP-PE` (module Personnages),
+   `SP-IM` (import des données du compendium).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
    ```markdown
@@ -180,9 +181,13 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   `include/aide-contextuelle.php` (une clé par jeu de parsers réellement appliqué)
 
 ### À faire (priorités)
-- SP-PE5→PE8 : module Personnages (`SP-PE0→PE4` livrées : socle, fiche identité, éditeur
-  Classes inline, bloc Compétences, sélecteur de Dons). Reste : bloc Campagnes, NLS prestige
-  DD3.5, vue Magie, mode jeu + passe responsive. Aucun patch SQL attendu
+- SP-IM6 : **seule phase du cycle d'import encore ouverte** — les descriptions des 8 classes
+  DD2024, absentes du SRD, à saisir depuis le MdJ 2024. Tout le reste est livré le 2026-08-28 :
+  classes complètes, 9 espèces, 38 options de classe en dons, et les 356 objets magiques du SRD
+  redressés (rareté, harmonisation, catégorie, texte intégral). L'équipement part en `SP-E6`
+- SP-PE7→PE8 : module Personnages (`SP-PE0→PE6` livrées : socle, fiche identité, éditeur
+  Classes inline, bloc Compétences, sélecteur de Dons, bloc Campagnes, NLS prestige DD3.5).
+  Reste : vue Magie, mode jeu + passe responsive. Aucun patch SQL attendu
 - SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)
 - SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
 - SP-C6 : profil "Mes sources" — suppléments publics tiers

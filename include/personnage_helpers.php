@@ -8,8 +8,10 @@
 // les selects de modification.
 // SP-PE5 : rattachement aux campagnes — getCampagnesPersonnage() étendue,
 //          getCampagnesRattachables().
-// Les helpers métier plus lourds (calcul NLS, emplacements de sorts par
-// jour) seront ajoutés en SP-PE6 et SP-PE7.
+// SP-PE6 : contexte NLS prestige DD3.5 — getPersonnageNls(),
+//          libelleProgressionNls().
+// Le calcul du NLS effectif et des emplacements de sorts par jour sera
+// ajouté en SP-PE7 (vue Magie).
 //
 // PRÉREQUIS : ce fichier suppose que include/db.php, include/auth.php et
 // include/helpers.php sont déjà chargés (variable globale $db disponible).
@@ -228,6 +230,126 @@ function getPersonnageCompetences(PDO $db, int $pe_id, int $ruleset_id, array $r
   return $stmt->fetchAll();
 }
 
+/**
+ * Contexte NLS prestige du personnage (SP-PE6 — DD3.5 uniquement).
+ *
+ * Construit tout ce que le bloc NLS de la fiche consomme : les classes de base
+ * lanceuses de sorts (réceptrices), les classes de prestige qui influent sur le
+ * NLS et, niveau par niveau, les drapeaux de progression (`cn_niveauSortArcane`
+ * / `Divin` / `Effectif` de `dd_classe_niveau`) et l'affectation déjà saisie
+ * dans `dd_personnages_nls`.
+ *
+ * Renvoie null si le bloc n'a pas lieu d'être affiché (archi §7.5d) : aucune
+ * classe de base lanceuse, ou aucune classe de prestige dont au moins un niveau
+ * détenu fait progresser le NLS. Un niveau absent de `dd_classe_niveau` est
+ * traité comme sans progression — la saisie du compendium peut être incomplète,
+ * le bloc ne doit pas inventer une affectation à faire.
+ *
+ * @param  PDO    $db
+ * @param  array  $classes  Sortie de getPersonnageClasses() (pc_id, pc_niveau,
+ *                          cla_clt_id, cla_mag_id, cla_nom déjà chargés)
+ * @param  int    $pe_id
+ * @return array|null  ['bases' => [{pc_id, nom, mag_id}, …],
+ *                      'prestiges' => [{pc_id, nom, niveau,
+ *                        'niveaux' => [n => {arcane, divin, effectif, base_pc_id}]}, …]]
+ */
+function getPersonnageNls(PDO $db, array $classes, int $pe_id): ?array {
+  // Classes de base lanceuses (réceptrices) et classes de prestige détenues.
+  // Littéraux DD3.5 : clt_id 1 = base, 2 = prestige (cf. SCHEMA_SQL dd_classe_type).
+  $bases     = [];
+  $prestiges = [];
+  foreach ($classes as $c):
+    if ((int)$c['cla_clt_id'] === 1 && (int)$c['cla_mag_id'] > 0):
+      $bases[] = [
+        'pc_id'  => (int)$c['pc_id'],
+        'nom'    => $c['cla_nom'],
+        'mag_id' => (int)$c['cla_mag_id'],
+      ];
+    elseif ((int)$c['cla_clt_id'] === 2):
+      $prestiges[(int)$c['pc_cla_id']] = [
+        'pc_id'   => (int)$c['pc_id'],
+        'nom'     => $c['cla_nom'],
+        'niveau'  => (int)$c['pc_niveau'],
+        'niveaux' => [],
+      ];
+    endif;
+  endforeach;
+
+  if (empty($bases) || empty($prestiges)) return null;
+
+  // Drapeaux de progression des niveaux détenus, en une seule requête
+  $ph   = implode(',', array_fill(0, count($prestiges), '?'));
+  $stmt = $db->prepare("
+    SELECT cn_cla_id, cn_niveau,
+           cn_niveauSortArcane, cn_niveauSortDivin, cn_niveauSortEffectif
+      FROM dd_classe_niveau
+     WHERE cn_cla_id IN ($ph)
+  ");
+  $stmt->execute(array_keys($prestiges));
+  $flags = [];
+  foreach ($stmt->fetchAll() as $row):
+    $flags[(int)$row['cn_cla_id']][(int)$row['cn_niveau']] = $row;
+  endforeach;
+
+  // Affectations existantes, indexées par (pc de prestige, niveau)
+  $stmt = $db->prepare('
+    SELECT penl.penl_pc_id_prestige, penl.penl_niveau, penl.penl_pc_id_base
+      FROM dd_personnages_nls penl
+      JOIN dd_personnages_classes pc ON pc.pc_id = penl.penl_pc_id_prestige
+     WHERE pc.pc_pe_id = ?
+  ');
+  $stmt->execute([$pe_id]);
+  $affectations = [];
+  foreach ($stmt->fetchAll() as $row):
+    $affectations[(int)$row['penl_pc_id_prestige']][(int)$row['penl_niveau']]
+      = (int)$row['penl_pc_id_base'];
+  endforeach;
+
+  // Assemblage : une entrée par niveau détenu, drapeaux + affectation.
+  // Seules les classes de prestige dont au moins un niveau détenu fait
+  // progresser le NLS sont retenues (condition d'affichage du bloc).
+  $retenues = [];
+  foreach ($prestiges as $cla_id => $p):
+    $influe = false;
+    for ($n = 1; $n <= $p['niveau']; $n++):
+      $f = $flags[$cla_id][$n] ?? null;
+      $niveau = [
+        'arcane'     => $f ? (int)$f['cn_niveauSortArcane']   : 0,
+        'divin'      => $f ? (int)$f['cn_niveauSortDivin']    : 0,
+        'effectif'   => $f ? (int)$f['cn_niveauSortEffectif'] : 0,
+        'base_pc_id' => (int)($affectations[$p['pc_id']][$n] ?? 0),
+      ];
+      if ($niveau['arcane'] || $niveau['divin'] || $niveau['effectif']):
+        $influe = true;
+      endif;
+      $p['niveaux'][$n] = $niveau;
+    endfor;
+    if ($influe):
+      $retenues[] = $p;
+    endif;
+  endforeach;
+
+  if (empty($retenues)) return null;
+
+  return ['bases' => $bases, 'prestiges' => $retenues];
+}
+
+/**
+ * Libellé de progression NLS d'un niveau de prestige, depuis ses drapeaux
+ * (aide d'affichage du bloc NLS — SP-PE6). Ex. « Arcane », « Effectif »,
+ * « Arcane + Divin ». Chaîne vide si le niveau ne fait pas progresser le NLS.
+ *
+ * @param  array  $niveau  {arcane, divin, effectif}
+ * @return string
+ */
+function libelleProgressionNls(array $niveau): string {
+  $parts = [];
+  if (!empty($niveau['effectif'])) $parts[] = 'Effectif';
+  if (!empty($niveau['arcane']))   $parts[] = 'Arcane';
+  if (!empty($niveau['divin']))    $parts[] = 'Divin';
+  return implode(' + ', $parts);
+}
+
 // ============================================================
 // LISTES AUXILIAIRES POUR LES SELECTS DE MODIFICATION
 // ============================================================
@@ -252,29 +374,11 @@ function getAlignements(PDO $db): array {
 // CALCULS LÉGERS (aide d'affichage — pas du moteur de règles)
 // ============================================================
 
-/**
- * Modificateur d'une caractéristique (formule DD standard : floor((val - 10) / 2)).
- * Affichage uniquement — aucune règle de génération.
- *
- * Exemples : 10 → 0, 11 → 0, 12 → +1, 8 → -1, 18 → +4.
- *
- * @param  int  $valeur  Valeur brute de la caractéristique
- * @return int           Modificateur (peut être négatif)
- */
-function modCarac(int $valeur): int {
-  // PHP : intdiv tronque vers zéro, donc on utilise floor pour les valeurs < 10.
-  return (int) floor(($valeur - 10) / 2);
-}
-
-/**
- * Formate un modificateur signé pour affichage : 0 → "+0", 3 → "+3", -1 → "-1".
- *
- * @param  int  $modificateur
- * @return string
- */
-function formatMod(int $modificateur): string {
-  return ($modificateur >= 0 ? '+' : '') . $modificateur;
-}
+// modCarac() et formatMod() ont été déplacés dans include/helpers.php (SP-MA1) :
+// bonusSortsCarac() a besoin de la même formule de modificateur, et dupliquer
+// celle-ci dans deux fichiers était le meilleur moyen de la voir diverger.
+// helpers.php est chargé avant ce fichier par les 7 points d'entrée du module,
+// les appels existants n'ont donc pas bougé.
 
 /**
  * Bonus de maîtrise DD2024 au niveau global du personnage (`dd_bonus_maitrise`).

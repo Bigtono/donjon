@@ -42,7 +42,8 @@ require_once '../include/header.php';
 ?>
 
 <script>
-  var campUrlDetail   = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/campagne.php') ?>;
+  // SP-CP : la fiche d'une campagne est une page (campagnes/campagne.php),
+  // plus un panneau #detail-pp — il n'y a donc plus d'URL de détail à injecter.
   var campUrlModifier = <?= json_encode(BASE_URL . '/include/ajax/modifier/campagne.php') ?>;
   var campUrlEnreg    = <?= json_encode(BASE_URL . '/campagnes/enregistrement.php?ajax=1') ?>;
 </script>
@@ -87,9 +88,12 @@ require_once '../include/header.php';
       <tbody>
 
         <?php foreach ($campagnes as $camp): ?>
-          <?php $cid = (int)$camp['camp_id'] ?>
+          <?php
+            $cid      = (int)$camp['camp_id'];
+            $url_camp = BASE_URL . '/campagnes/campagne.php?id=' . $cid;
+          ?>
 
-          <tr id="camp-row-<?= $cid ?>">
+          <tr id="camp-row-<?= $cid ?>" data-href="<?= h($url_camp) ?>">
 
             <!-- Menu contextuel -->
             <td class="col-action">
@@ -118,28 +122,21 @@ require_once '../include/header.php';
               </div>
             </td>
 
-            <!-- Cellules données — clic → fiche détail -->
-            <td class="camp-liste__nom"
-                onclick="actualiserPage(campUrlDetail, {id: <?= $cid ?>}, 'liste')"
-                style="cursor:pointer">
-              <?= h($camp['camp_nom']) ?>
+            <?php // Cellules données — clic → page de la campagne (data-href sur
+                  // la ligne, cf. js/campagne.js). ?>
+            <td class="camp-liste__nom">
+              <a href="<?= h($url_camp) ?>"><?= h($camp['camp_nom']) ?></a>
               <?php if (!empty($camp['camp_resume'])): ?>
                 <span class="camp-liste__resume"><?= h($camp['camp_resume']) ?></span>
               <?php endif ?>
             </td>
-            <td class="camp-liste__col-sec"
-                onclick="actualiserPage(campUrlDetail, {id: <?= $cid ?>}, 'liste')"
-                style="cursor:pointer">
+            <td class="camp-liste__col-sec">
               <?= $camp['univers_nom'] ? h($camp['univers_nom']) : '<span class="text-muted">—</span>' ?>
             </td>
-            <td class="camp-liste__col-num"
-                onclick="actualiserPage(campUrlDetail, {id: <?= $cid ?>}, 'liste')"
-                style="cursor:pointer">
+            <td class="camp-liste__col-num">
               <?= (int)$camp['nb_scenarios'] ?>
             </td>
-            <td class="camp-liste__col-num"
-                onclick="actualiserPage(campUrlDetail, {id: <?= $cid ?>}, 'liste')"
-                style="cursor:pointer">
+            <td class="camp-liste__col-num">
               <?= (int)$camp['nb_personnages'] ?>
             </td>
 

@@ -154,6 +154,12 @@ require_once '../include/header.php';
           <i class="fa fa-search"></i>
         </button>
       </form>
+
+      <?php // Gestionnaire partagé, hors module Règles depuis SP-TB10. ?>
+      <a class="btn btn--sm btn--secondary" href="<?= BASE_URL ?>/tableaux/index.php"
+         title="Tableaux de données">
+        <i class="fa fa-table"></i> Tableaux
+      </a>
     </div>
 
     <?php if ($erreur): ?>

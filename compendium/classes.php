@@ -65,16 +65,38 @@ if ($filtre_parente):
   ];
 endif;
 
+// Type de magie : DD3.5 seulement. DD2024 ne distingue plus profane et divin,
+// cla_mag_id n'y est plus qu'un drapeau 0/1 (D-MAG2) — le critère listerait des
+// valeurs dd_typemagie que plus aucune classe ne porte.
+if ($ruleset_id === 1):
+  $filtres[] = [
+    'type'         => 'select',
+    'name'         => 'f_mag_id',
+    'label'        => 'Type de magie',
+    'champ'        => 'cla.cla_mag_id',
+    'query'        => 'SELECT mag_id val, mag_nom lab
+                       FROM   dd_typemagie
+                       WHERE  mag_ruleset_var_id = ?
+                       ORDER  BY mag_nom',
+    'query_params' => [$ruleset_id],
+  ];
+else:
+  unset($_GET['f_mag_id']);
+endif;
+
+// Profil d'incantation (SP-MA0) — proposé dans les deux rulesets, avec la
+// valeur hors-ruleset écartée : « Répertoire spontané » n'existe qu'en DD3.5,
+// « Magie de pacte » qu'en DD2024 (METIER_7_SORTS.md §6).
 $filtres[] = [
   'type'         => 'select',
-  'name'         => 'f_mag_id',
-  'label'        => 'Type de magie',
-  'champ'        => 'cla.cla_mag_id',
-  'query'        => 'SELECT mag_id val, mag_nom lab
-                     FROM   dd_typemagie
-                     WHERE  mag_ruleset_var_id = ?
-                     ORDER  BY mag_nom',
-  'query_params' => [$ruleset_id],
+  'name'         => 'f_profinc',
+  'label'        => "Profil d'incantation",
+  'champ'        => 'cla.cla_profil_incantation',
+  'query'        => 'SELECT var_id val, var_valeur lab
+                     FROM   dd_variables
+                     WHERE  var_cat = \'profinc\' AND var_id <> ?
+                     ORDER  BY var_ordre, var_valeur',
+  'query_params' => [$ruleset_id === 1 ? PROFINC_PACTE : PROFINC_REPERTOIRE],
 ];
 
 // ============================================================
@@ -86,6 +108,7 @@ $listConfig = [
   'from'          => 'dd_classes cla
                       LEFT JOIN dd_classe_type clt ON clt.clt_id   = cla.cla_clt_id
                       LEFT JOIN dd_typemagie   mag ON mag.mag_id   = cla.cla_mag_id
+                      LEFT JOIN dd_variables profinc ON profinc.var_id = cla.cla_profil_incantation
                       LEFT JOIN dd_ressources  res ON res.res_id   = cla.cla_res_id
                       LEFT JOIN dd_classes  clapar ON clapar.cla_id = cla.cla_cla_id',
   'champ_id'      => 'cla.cla_id',
@@ -114,9 +137,11 @@ $listConfig = [
       'tri'    => true,
     ],
     [
-      'sql'    => 'mag.mag_abreviation',
-      'champ'  => 'mag_abreviation',
-      'label'  => 'Magie',
+      // DD3.5 : abréviation du type de magie (Prof / Div).
+      // DD2024 : la distinction n'existe plus — on affiche le profil d'incantation.
+      'sql'    => $ruleset_id === 1 ? 'mag.mag_abreviation' : 'profinc.var_valeur',
+      'champ'  => $ruleset_id === 1 ? 'mag_abreviation' : 'var_valeur',
+      'label'  => $ruleset_id === 1 ? 'Magie' : 'Incantation',
       'mobile' => false,
       'tri'    => false,
     ],

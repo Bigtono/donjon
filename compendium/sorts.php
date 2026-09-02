@@ -63,6 +63,38 @@ $filtres = [
   ],
 ];
 
+// Registre — DD3.5 uniquement, la notion n'existe pas en DD2024 (SP-MA3).
+// Un sort peut en porter plusieurs (« mental, terreur ») : le critère cherche
+// le mot dans la liste, pas l'égalité stricte. FIND_IN_SET impose un séparateur
+// sans espace, d'où le REPLACE.
+//
+// La liste des valeurs est éclatée en PHP et non en SQL : JSON_TABLE n'existe
+// pas avant MariaDB 10.6 et le serveur de dev est en 10.4.
+if ($ruleset_rep === 'DD3.5'):
+  $stmt_reg = $db->prepare("SELECT DISTINCT so_registre FROM dd_sorts
+                            WHERE so_ruleset_var_id = ?
+                              AND TRIM(COALESCE(so_registre, '')) <> ''");
+  $stmt_reg->execute([$ruleset_id]);
+  $registres = [];
+  foreach ($stmt_reg->fetchAll(PDO::FETCH_COLUMN) as $liste):
+    foreach (array_map('trim', explode(',', $liste)) as $reg):
+      if ($reg !== '') $registres[$reg] = true;
+    endforeach;
+  endforeach;
+  $registres = array_keys($registres);
+  sort($registres, SORT_FLAG_CASE | SORT_STRING);
+
+  if ($registres):
+    $filtres[] = [
+      'type'    => 'exists_range',
+      'name'    => 'f_registre',
+      'label'   => 'Registre',
+      'sql'     => "FIND_IN_SET(?, REPLACE(COALESCE(so.so_registre, ''), ', ', ','))",
+      'valeurs' => $registres,
+    ];
+  endif;
+endif;
+
 // ============================================================
 // Configuration de la liste
 // ============================================================

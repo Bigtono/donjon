@@ -133,21 +133,27 @@
 }
 
 /* ============================================================
-   DETAIL-PP — CLASSE : capacités spéciales
+   DETAIL-PP — CLASSE / RACE : capacités spéciales
    Pas de libellé de section : chaque titre « Niveau X : Nom » ouvre son bloc.
+   Les capacités raciales partagent le même jeu de règles : ce sont les mêmes
+   entrées (dd_capacites_speciales), elles doivent se lire de la même façon
+   d'une fiche à l'autre.
    ============================================================ */
 
-.classe-detail__capacites {
+.classe-detail__capacites,
+.race-detail__capacites {
   margin-top: var(--sp-lg);
 }
 
 /* L'air entre deux capacités vient du margin-top du suivant, jamais d'un
    margin-bottom : la dernière ne creuse donc pas de vide avant le pied de fiche. */
-.classe-detail__capacite + .classe-detail__capacite {
+.classe-detail__capacite + .classe-detail__capacite,
+.race-detail__capacite + .race-detail__capacite {
   margin-top: var(--sp-lg);
 }
 
-.classe-detail__capacite-nom {
+.classe-detail__capacite-nom,
+.race-detail__capacite-nom {
   /* +20% sur le corps de texte de la fiche (1rem), accent du nom de la classe */
   font-size: 1.2rem;
   font-weight: 700;
@@ -157,7 +163,8 @@
 
 /* Le type de capacité reste une mention secondaire : il ne suit pas le
    grossissement du titre qui le porte. */
-.classe-detail__capacite-nom .cap-type {
+.classe-detail__capacite-nom .cap-type,
+.race-detail__capacite-nom .cap-type {
   font-size: 0.85rem;
   font-weight: 400;
   color: var(--clr-text-muted);
@@ -170,11 +177,14 @@
 @media (max-width: 991px) {
 
   .classe-detail__capacites,
-  .classe-detail__capacite + .classe-detail__capacite {
+  .race-detail__capacites,
+  .classe-detail__capacite + .classe-detail__capacite,
+  .race-detail__capacite + .race-detail__capacite {
     margin-top: var(--sp-md);
   }
 
-  .classe-detail__capacite-nom {
+  .classe-detail__capacite-nom,
+  .race-detail__capacite-nom {
     font-size: 1.1rem;
   }
 

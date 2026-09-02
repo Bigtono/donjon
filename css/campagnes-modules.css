@@ -480,3 +480,275 @@ blockquote {
   border-top: 1px solid var(--clr-border);
   font-style: italic;
 }
+/* ============================================================
+   SP-CP — PAGES PLEINE PAGE (campagne / scénario / chapitre / rencontre)
+   Le module a quitté #detail-pp : chaque niveau de la hiérarchie est une
+   vraie page, avec son URL, son bouton retour et sa colonne d'outils.
+   Cible d'affichage : 1536 × 799 (poste de MJ en partie).
+   ============================================================ */
+
+/* Le cadre commun du site plafonne à 1200px (--main-max) — trop étroit ici :
+   à 1536 il resterait ~330px de vide de chaque côté alors que la table de jeu
+   a besoin de toute la largeur. Élargissement limité aux pages du module, via
+   $body_class = 'camp-plein'. */
+body.camp-plein .site-main {
+  max-width: 1500px;
+}
+
+/* 1/4 – 3/4. Le minmax() garde la colonne d'outils lisible sur un écran plus
+   étroit que la cible ; à 1536 elle vaut ~363px, soit le quart demandé. */
+.camp-page {
+  display: grid;
+  grid-template-columns: minmax(260px, 25%) minmax(0, 1fr);
+  gap: var(--sp-lg);
+  align-items: start;
+}
+
+/* Sticky : les outils restent sous la main pendant que la colonne de données
+   défile. top = hauteur du header collant + une gouttière. */
+.camp-page__outils {
+  position: sticky;
+  top: calc(var(--header-h) + var(--sp-md));
+}
+
+.camp-page__contenu {
+  min-width: 0; /* sans ça, un tableau large déborde la grille */
+}
+
+/* ------------------------------------------------------------
+   Bandeau de titre — nom à gauche, retour à droite
+   ------------------------------------------------------------ */
+
+.camp-page__titre-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-bottom: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.camp-page__titre {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+}
+
+/* Code / abréviation devant le nom (SP-CP) : même graisse et même couleur que
+   le nom — c'est une part du titre, pas une métadonnée secondaire. */
+.camp-page__code {
+  color: var(--clr-text);
+}
+
+.camp-page__titre-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex: 0 0 auto;
+}
+
+.camp-page__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+  margin-top: var(--sp-xs);
+  font-size: .9em;
+  color: var(--clr-text-muted);
+}
+
+/* ------------------------------------------------------------
+   Colonne d'outils — boutons pleine largeur
+   ------------------------------------------------------------ */
+
+.camp-outils__toggle {
+  display: none; /* desktop : la colonne est toujours dépliée */
+}
+
+.camp-outils__corps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
+.camp-outil {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  width: 100%;
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font-family: var(--font-main);
+  font-size: .92rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.camp-outil:hover {
+  background: var(--clr-surface-2);
+  border-color: var(--clr-accent);
+}
+
+.camp-outil i {
+  width: 18px;
+  text-align: center;
+  color: var(--clr-accent);
+}
+
+/* Outil annoncé mais pas encore développé (écran du MJ — SP-TB8). Visible,
+   inerte, et qui le dit : mieux qu'un bouton absent, qui ne promet rien. */
+.camp-outil--inactif {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.camp-outil--inactif:hover {
+  background: var(--clr-surface);
+  border-color: var(--clr-border);
+}
+
+.camp-outil--inactif i {
+  color: var(--clr-text-muted);
+}
+
+.camp-outils__titre {
+  margin: 0 0 var(--sp-sm);
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--clr-text-muted);
+}
+
+/* ------------------------------------------------------------
+   Sous-listes triables — colonne de poignée
+   ------------------------------------------------------------ */
+
+.camp-sous-liste .tri-poignee {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.camp-sous-liste__col-poignee {
+  width: 26px;
+}
+
+.camp-sous-liste__code {
+  color: var(--clr-text);
+}
+
+/* ------------------------------------------------------------
+   Oppositions — cartes dépliées (SP-CP)
+   Le bloc de stats est lisible sans clic : en partie, le MJ ne doit
+   pas avoir à ouvrir un panneau pour lire une créature.
+   ------------------------------------------------------------ */
+
+.camp-opp-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+  margin-top: var(--sp-sm);
+}
+
+.camp-opp {
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+}
+
+.camp-opp__header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 1px solid var(--clr-border);
+  background: var(--clr-surface-2);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.camp-opp__nom {
+  margin: 0;
+  font-size: 1rem;
+  flex: 1 1 auto;
+}
+
+.camp-opp__cat {
+  font-weight: 400;
+  font-size: .85em;
+  color: var(--clr-text-muted);
+}
+
+.camp-opp__corps {
+  padding: var(--sp-md);
+}
+
+.camp-opp__corps .mo-stats {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------
+   Sous 992px — colonne d'outils repliée au-dessus du contenu
+   Le module reste pensé pour le desktop (§8) ; cette bascule évite
+   simplement une mise en page cassée sur un écran étroit.
+   ------------------------------------------------------------ */
+
+@media (max-width: 991px) {
+
+  body.camp-plein .site-main {
+    max-width: 100%;
+  }
+
+  .camp-page {
+    grid-template-columns: 1fr;
+    gap: var(--sp-md);
+  }
+
+  .camp-page__outils {
+    position: static;
+  }
+
+  .camp-outils__toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-sm);
+    width: 100%;
+    min-height: 44px;
+    padding: var(--sp-sm) var(--sp-md);
+    background: var(--clr-surface-2);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-sm);
+    color: var(--clr-text);
+    font-family: var(--font-main);
+    font-size: .92rem;
+    cursor: pointer;
+  }
+
+  .camp-outils__toggle-chevron {
+    margin-left: auto;
+    transition: transform .2s ease;
+  }
+
+  /* Replié par défaut sur mobile — déplié uniquement sur action. */
+  .camp-outils__corps {
+    display: none;
+    margin-top: var(--sp-sm);
+  }
+
+  .camp-page__outils.est-ouvert .camp-outils__corps {
+    display: flex;
+  }
+
+  .camp-page__outils.est-ouvert .camp-outils__toggle-chevron {
+    transform: rotate(180deg);
+  }
+
+  .camp-outils__titre {
+    display: none;
+  }
+
+}
