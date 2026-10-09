@@ -56,6 +56,19 @@ const personnageListe = {
 //   perClassesDisponibles, perDomaines, perUrlEnreg
 // ============================================================
 
+// Bascule l'apparence d'un bouton « Modifier » d'en-tête de bloc.
+//
+// Depuis SP-PE10h ces boutons n'ont plus que leur icône : le title est leur
+// seul libellé, il doit donc suivre la bascule. Le title d'origine est relevé
+// au premier passage et restauré au retour en lecture — « Modifier les
+// compétences » est plus utile qu'un « Modifier » générique (SP-PE10i).
+function perBasculerBoutonEditer(btn, enEdition) {
+  if (!btn) return;
+  if (!btn.dataset.titreLecture) btn.dataset.titreLecture = btn.title || 'Modifier';
+  btn.innerHTML = enEdition ? '<i class="fa fa-times"></i>' : '<i class="fa fa-edit"></i>';
+  btn.title     = enEdition ? 'Annuler la modification' : btn.dataset.titreLecture;
+}
+
 const classesEditor = (function() {
   'use strict';
 
@@ -256,11 +269,11 @@ const classesEditor = (function() {
       _renderToutesLignes();
       lecture.classList.add('noDisplay');
       edition.classList.remove('noDisplay');
-      if (btn) btn.innerHTML = '<i class="fa fa-times"></i><span class="per-btn-label">Annuler</span>';
+      if (btn) perBasculerBoutonEditer(btn, true);
     } else {
       lecture.classList.remove('noDisplay');
       edition.classList.add('noDisplay');
-      if (btn) btn.innerHTML = '<i class="fa fa-edit"></i><span class="per-btn-label">Modifier</span>';
+      if (btn) perBasculerBoutonEditer(btn, false);
       _cacherMsg();
     }
   }
@@ -292,7 +305,7 @@ const classesEditor = (function() {
     const btn     = document.getElementById('btn-editer-classes');
     if (lecture) lecture.classList.remove('noDisplay');
     if (edition) edition.classList.add('noDisplay');
-    if (btn)     btn.innerHTML = '<i class="fa fa-edit"></i><span class="per-btn-label">Modifier</span>';
+    if (btn)     perBasculerBoutonEditer(btn, false);
     _cacherMsg();
   }
 
@@ -410,7 +423,9 @@ const competencesEditor = (function() {
     if (perRuleset === 'DD2024') {
       const sel = document.createElement('select');
       sel.className = 'per-comp-editor__select';
-      [[0, '—'], [1, 'Maîtrise'], [2, 'Expertise']].forEach(function(paire) {
+      // Mêmes abréviations qu'en lecture (SP-PE10j) : la colonne de saisie
+      // n'a pas à être plus large que celle qu'elle remplace.
+      [[0, '—'], [1, 'M.'], [2, 'E']].forEach(function(paire) {
         const opt = document.createElement('option');
         opt.value       = paire[0];
         opt.textContent = paire[1];
@@ -571,11 +586,11 @@ const competencesEditor = (function() {
       _renderTable();
       lecture.classList.add('noDisplay');
       edition.classList.remove('noDisplay');
-      if (btn) btn.innerHTML = '<i class="fa fa-times"></i><span class="per-btn-label">Annuler</span>';
+      if (btn) perBasculerBoutonEditer(btn, true);
     } else {
       lecture.classList.remove('noDisplay');
       edition.classList.add('noDisplay');
-      if (btn) btn.innerHTML = '<i class="fa fa-edit"></i><span class="per-btn-label">Modifier</span>';
+      if (btn) perBasculerBoutonEditer(btn, false);
       _cacherMsg();
     }
   }
@@ -597,7 +612,7 @@ const competencesEditor = (function() {
     const filtre  = document.getElementById('competences-filtre');
     if (lecture) lecture.classList.remove('noDisplay');
     if (edition) edition.classList.add('noDisplay');
-    if (btn)     btn.innerHTML = '<i class="fa fa-edit"></i><span class="per-btn-label">Modifier</span>';
+    if (btn)     perBasculerBoutonEditer(btn, false);
     if (filtre)  filtre.value = '';
     _cacherMsg();
   }
@@ -894,7 +909,7 @@ const campagnesEditor = (function() {
       _init();
       if (lecture) lecture.classList.add('noDisplay');
       if (edition) edition.classList.remove('noDisplay');
-      if (btn)     btn.innerHTML = '<i class="fa fa-times"></i><span class="per-btn-label">Fermer</span>';
+      if (btn)     perBasculerBoutonEditer(btn, true);
     } else {
       fermer();
     }
@@ -907,7 +922,7 @@ const campagnesEditor = (function() {
     const btn     = document.getElementById('btn-editer-campagnes');
     if (lecture) lecture.classList.remove('noDisplay');
     if (edition) edition.classList.add('noDisplay');
-    if (btn)     btn.innerHTML = '<i class="fa fa-edit"></i><span class="per-btn-label">Modifier</span>';
+    if (btn)     perBasculerBoutonEditer(btn, false);
     _cacherMsg();
 
     // Le bloc en lecture est rendu par le serveur : on ne le resynchronise
@@ -1271,11 +1286,14 @@ const nlsEditor = (function() {
     if (!lecture || !edition) return;
 
     if (_etatEdition) {
+      // Le bloc est replié par défaut : on l'ouvre, sinon l'éditeur se
+      // chargerait dans un corps masqué (SP-PE10n).
+      perDeplierBloc('bloc-nls-body', 'btn-replier-nls');
       _init();
       _render();
       lecture.classList.add('noDisplay');
       edition.classList.remove('noDisplay');
-      if (btn) btn.innerHTML = '<i class="fa fa-times"></i><span class="per-btn-label">Annuler</span>';
+      if (btn) perBasculerBoutonEditer(btn, true);
     } else {
       annuler();
     }
@@ -1288,7 +1306,7 @@ const nlsEditor = (function() {
     const btn     = document.getElementById('btn-editer-nls');
     if (lecture) lecture.classList.remove('noDisplay');
     if (edition) edition.classList.add('noDisplay');
-    if (btn)     btn.innerHTML = '<i class="fa fa-edit"></i><span class="per-btn-label">Modifier</span>';
+    if (btn)     perBasculerBoutonEditer(btn, false);
     _cacherMsg();
   }
 
@@ -1363,3 +1381,358 @@ function perReplierBloc(idCorps, btn) {
     btn.classList.toggle('is-open', ouvert);
   }
 }
+
+// Déplie un bloc replié, sans le replier s'il est déjà ouvert.
+//
+// Un bloc replié par défaut (SP-PE10n) garde son bouton Modifier accessible
+// dans l'en-tête : sans cela, ouvrir l'éditeur reviendrait à le charger dans
+// un corps masqué, et le clic n'aurait aucun effet visible.
+function perDeplierBloc(idCorps, idBtn) {
+  const corps = document.getElementById(idCorps);
+  if (!corps || !corps.classList.contains('noDisplay')) return;
+  perReplierBloc(idCorps, document.getElementById(idBtn));
+}
+
+// ============================================================
+// SÉLECTEUR DE SORTS (SP-PE7b)
+// ============================================================
+//
+// Même motif que donsPicker : deux volets dans #detail-pp, écriture immédiate au
+// clic, panneau qui reste ouvert pour enchaîner les choix (Q8, D-MAG13).
+//
+// Deux différences tenant aux règles :
+//   * il est TOUJOURS PORTÉ PAR CLASSE (pc_id) — en multiclassage, une écriture
+//     ne doit jamais toucher la liste d'une autre classe ;
+//   * il a deux modes, « repertoire » et « prepare », dont le réservoir diffère
+//     selon le profil d'incantation (voir l'en-tête de sorts-picker.php).
+//
+// Globals attendus, injectés par personnages/magie.php :
+//   perPeId, perUrlEnreg, perUrlSortsPicker, perUrlSortDetail
+const sortsPicker = (function() {
+  'use strict';
+
+  let _modifie = false;   // au moins une écriture → la page sera rechargée
+
+  function _panel()    { return document.getElementById('detail-pp'); }
+  function _backdrop() { return document.getElementById('detail-pp-backdrop'); }
+  function _racine()   { return document.querySelector('.sorts-picker'); }
+
+  // ---- Ouverture / fermeture ------------------------------------
+
+  function ouvrir(pcId, mode) {
+    const panel = _panel();
+    const bd    = _backdrop();
+    if (!panel) return;
+
+    _modifie = false;
+    if (bd) bd.classList.remove('noDisplay');
+    panel.classList.remove('noDisplay');
+    panel.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
+
+    const url = perUrlSortsPicker
+      + '?pe_id=' + encodeURIComponent(perPeId)
+      + '&pc_id=' + encodeURIComponent(pcId)
+      + '&mode='  + encodeURIComponent(mode || 'repertoire');
+
+    fetch(url)
+      .then(function(r) { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
+      .then(function(html) {
+        panel.innerHTML =
+          '<button class="overlay-close" onclick="sortsPicker.fermer()" title="Fermer">'
+          + '<i class="fa fa-times"></i></button>'
+          + '<div class="overlay-panel__inner">' + html + '</div>';
+        filtrer();
+        _majCompteurs();
+      })
+      .catch(function(e) { panel.innerHTML = '<p class="erreur">' + e + '</p>'; });
+  }
+
+  function fermer() {
+    const panel = _panel();
+    const bd    = _backdrop();
+    if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+    if (bd)    bd.classList.add('noDisplay');
+    // Les sections de la page sont rendues côté serveur (emplacements, compteurs,
+    // sorts toujours préparés) : on ne les resynchronise qu'à la fermeture, et
+    // seulement si quelque chose a bougé.
+    if (_modifie) window.location.reload();
+  }
+
+  // ---- Filtrage local (nom + niveau de sort) --------------------
+
+  function filtrer() {
+    const champQ   = document.getElementById('sorts-picker-q');
+    const champNiv = document.getElementById('sorts-picker-niv');
+    const champMi  = document.getElementById('sorts-picker-miens');
+    const q        = champQ   ? champQ.value.trim().toLowerCase() : '';
+    const niv      = champNiv ? champNiv.value : '';
+    // « Les siens seulement » : la liste de classe fait plus de mille entrées
+    // chez un magicien ; retrouver ce qu'on possède déjà y est pénible.
+    const miens    = champMi ? champMi.checked : false;
+
+    let visibles = 0;
+    // Un niveau encore représenté garde son en-tête ; les autres s'effacent.
+    const niveauxVus = {};
+    document.querySelectorAll('.sorts-picker__item').forEach(function(li) {
+      const okNom = !q   || li.dataset.nom.indexOf(q) !== -1;
+      const okNiv = niv === '' || li.dataset.niv === niv;
+      const okMi  = !miens || li.classList.contains('est-choisi');
+      const ok    = okNom && okNiv && okMi;
+      li.classList.toggle('noDisplay', !ok);
+      if (ok) { visibles++; niveauxVus[li.dataset.niv] = true; }
+    });
+
+    // L'en-tête de niveau remplace la pastille que portait chaque ligne
+    // (SP-PE10f) : il ne doit pas survivre au filtrage de son groupe.
+    document.querySelectorAll('.sorts-picker__entete').forEach(function(li) {
+      li.classList.toggle('noDisplay', !niveauxVus[li.dataset.entete]);
+    });
+
+    const d = document.getElementById('sorts-picker-decompte');
+    if (d) d.textContent = visibles + ' sort' + (visibles > 1 ? 's' : '');
+  }
+
+  // ---- Fiche du sort --------------------------------------------
+  //
+  // Sur ordinateur, elle s'affiche dans le volet droit, à côté de la liste.
+  // Sur téléphone ce volet est masqué (SP-PE10d) : il mangeait plus de la
+  // moitié de la largeur alors que le choix se fait dans la liste. La fiche
+  // s'ouvre alors dans #detail-pp-sub, PAR-DESSUS le sélecteur, qui reste
+  // ouvert et retrouve sa place à la fermeture du sous-panneau.
+  function _estCompact() {
+    return window.matchMedia('(max-width: 991px)').matches;
+  }
+
+  function voir(soId) {
+    document.querySelectorAll('.sorts-picker__item').forEach(function(li) {
+      li.classList.toggle('is-courant', parseInt(li.dataset.id, 10) === soId);
+    });
+
+    if (_estCompact()) {
+      actualiserPageSub(perUrlSortDetail, { id: soId });
+      return;
+    }
+
+    const zone = document.getElementById('sorts-picker-detail');
+    if (!zone) return;
+
+    zone.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
+    fetch(perUrlSortDetail + '?id=' + encodeURIComponent(soId))
+      .then(function(r) { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
+      .then(function(html) { zone.innerHTML = html; zone.scrollTop = 0; })
+      .catch(function(e) { zone.innerHTML = '<p class="erreur">' + e + '</p>'; });
+  }
+
+  // ---- Compteurs de préparation ---------------------------------
+  //
+  // Recalculés depuis le DOM plutôt que depuis la réponse serveur : le serveur
+  // renvoie un total par classe, alors qu'en DD3.5 il faut un décompte PAR
+  // NIVEAU DE SORT — c'est le nombre d'emplacements de chaque niveau qui borne
+  // la préparation, pas un plafond global. Compter les éléments cochés est
+  // exact et évite un aller-retour par clic.
+  function _majCompteurs() {
+    const r = _racine();
+    if (!r || r.dataset.mode !== 'prepare') return;
+
+    // Somme des exemplaires d'une sélection de lignes. En DD3.5 un sort se
+    // prépare plusieurs fois (data-nb) ; ailleurs, une ligne retenue vaut 1.
+    function _total(sel) {
+      let n = 0;
+      r.querySelectorAll(sel).forEach(function(li) {
+        n += Math.max(1, parseInt(li.dataset.nb, 10) || 1);
+      });
+      return n;
+    }
+
+    // DD2024 — plafond global, en sorts DISTINCTS
+    const global = r.querySelector('[data-restant-global]');
+    if (global && r.dataset.plafond !== '') {
+      const max     = parseInt(r.dataset.plafond, 10) || 0;
+      const choisis = r.querySelectorAll('.sorts-picker__item.est-choisi').length;
+      const reste   = Math.max(0, max - choisis);
+      global.textContent = reste;
+      global.closest('.sorts-picker__compteur')
+            .classList.toggle('est-plein', reste === 0);
+      return;
+    }
+
+    // DD3.5 — un compteur par niveau de sort
+    let plafonds = {};
+    try { plafonds = JSON.parse(r.dataset.plafondsNiveau || '{}'); } catch (e) { plafonds = {}; }
+    Object.keys(plafonds).forEach(function(n) {
+      const cible = r.querySelector('[data-restant="' + n + '"]');
+      if (!cible) return;
+      // Un emplacement par exemplaire préparé : c'est la somme qui compte.
+      const choisis = _total('.sorts-picker__item.est-choisi[data-niv="' + n + '"]');
+      const reste = Math.max(0, parseInt(plafonds[n], 10) - choisis);
+      cible.textContent = reste;
+      const jeton = cible.closest('.sorts-picker__jeton');
+      if (jeton) jeton.classList.toggle('est-plein', reste === 0);
+    });
+  }
+
+  // ---- Écritures ------------------------------------------------
+
+  function _contexte() {
+    const r = _racine();
+    return r ? { pc: r.dataset.pc, cla: r.dataset.cla, mode: r.dataset.mode } : null;
+  }
+
+  async function basculer(soId) {
+    const ctx = _contexte();
+    const li  = document.querySelector('.sorts-picker__item[data-id="' + soId + '"]');
+    if (!ctx || !li) return;
+
+    const choisi = li.classList.contains('est-choisi');
+    let action;
+    if (ctx.mode === 'prepare') action = choisi ? 'retirerPrepare' : 'preparerSort';
+    else                        action = choisi ? 'retirerSort'    : 'ajouterSort';
+
+    try {
+      const data = await postAjax(perUrlEnreg, {
+        action: action, pe_id: perPeId, pc_id: ctx.pc, cla_id: ctx.cla, so_id: soId
+      });
+      if (!data.ok) { notifier(data.erreur || 'Échec de l\'enregistrement', 'erreur'); return; }
+
+      _modifie = true;
+      li.dataset.nb = choisi ? 0 : 1;
+      li.classList.toggle('est-choisi', !choisi);
+      const icone = li.querySelector('.dons-picker__toggle i');
+      if (icone) icone.className = 'fa fa-' + (choisi ? 'plus' : 'minus');
+      _majBoutonGrimoire(li, soId, !choisi);
+      _majCompteurs();
+      // « Les siens seulement » actif : un sort retiré doit disparaître aussitôt.
+      const champMi = document.getElementById('sorts-picker-miens');
+      if (champMi && champMi.checked) filtrer();
+      notifier(choisi ? 'Sort retiré' : 'Sort ajouté');
+    } catch (e) {
+      notifier('Erreur réseau', 'erreur');
+    }
+  }
+
+  // ---- Quantité préparée (DD3.5) --------------------------------
+  //
+  // En DD3.5, préparer n'est pas un oui/non : un magicien mémorise plusieurs
+  // fois le même sort, chaque exemplaire occupant un emplacement de son niveau.
+  // La ligne porte donc un compteur, et chaque clic vaut UN exemplaire — le
+  // serveur incrémente ou décrémente `pesp_nb`, et supprime la ligne au dernier
+  // retrait (SP-PE10e).
+  //
+  // Rien n'interdit de dépasser le nombre d'emplacements : la page est une aide
+  // de jeu, pas un moteur de règles (§7.1). Le jeton du niveau vire au rouge,
+  // et c'est tout.
+  function ajouterUn(soId) { return _ajuster(soId, +1); }
+  function retirerUn(soId) { return _ajuster(soId, -1); }
+
+  async function _ajuster(soId, delta) {
+    const ctx = _contexte();
+    const li  = document.querySelector('.sorts-picker__item[data-id="' + soId + '"]');
+    if (!ctx || !li) return;
+
+    const avant = Math.max(0, parseInt(li.dataset.nb, 10) || 0);
+    if (delta < 0 && avant === 0) return;
+
+    try {
+      const data = await postAjax(perUrlEnreg, {
+        action: delta > 0 ? 'preparerSort' : 'retirerPrepare',
+        pe_id: perPeId, pc_id: ctx.pc, cla_id: ctx.cla, so_id: soId
+      });
+      if (!data.ok) { notifier(data.erreur || 'Echec de l\'enregistrement', 'erreur'); return; }
+
+      _modifie = true;
+      // Le serveur fait foi : lui seul sait ce que la ligne porte vraiment.
+      const nb = (typeof data.nb === 'number') ? data.nb : Math.max(0, avant + delta);
+      _poserQuantite(li, nb);
+      _majCompteurs();
+      const champMi = document.getElementById('sorts-picker-miens');
+      if (champMi && champMi.checked) filtrer();
+      notifier(delta > 0 ? 'Sort préparé' : 'Exemplaire retiré');
+    } catch (e) {
+      notifier('Erreur réseau', 'erreur');
+    }
+  }
+
+  function _poserQuantite(li, nb) {
+    li.dataset.nb = nb;
+    li.classList.toggle('est-choisi', nb > 0);
+    const lbl = li.querySelector('[data-nb-lbl]');
+    if (lbl) lbl.textContent = nb;
+    const moins = li.querySelector('.sorts-picker__moins');
+    if (moins) moins.disabled = (nb === 0);
+  }
+
+  // Le bouton « recopier dans le grimoire » n'a de sens que sur un sort retenu :
+
+  // on ne recopie pas un sort qu'on ne connaît pas. Il n'était posé qu'au rendu
+  // serveur, si bien qu'un sort tout juste ajouté n'en avait pas tant que le
+  // panneau n'était pas rouvert (SP-PE10d). Il suit maintenant l'état du sort.
+  //
+  // Un sort ajouté ici ne l'est jamais déjà recopié (`pes_compris = 0`) : le
+  // bouton naît donc toujours sur « livre ouvert ».
+  function _majBoutonGrimoire(li, soId, retenu) {
+    const r = _racine();
+    if (!r || r.dataset.mode !== 'repertoire' || r.dataset.grimoire !== '1') return;
+
+    const existant = li.querySelector('.dons-picker__grimoire');
+    if (!retenu) { if (existant) existant.remove(); return; }
+    if (existant) return;
+
+    const btn = document.createElement('button');
+    btn.type      = 'button';
+    btn.className = 'btn btn-sm dons-picker__toggle dons-picker__grimoire';
+    btn.title     = 'Recopier dans le grimoire';
+    btn.onclick   = function() { grimoire(soId); };
+    btn.innerHTML = '<i class="fa fa-book-open"></i>';
+    li.appendChild(btn);
+  }
+
+  // « Recopier dans le grimoire » et son inverse : un sort CONNU n'est
+  // préparable qu'une fois COMPRIS (lecture A, D-MAG6).
+  async function grimoire(soId) {
+    const ctx = _contexte();
+    const li  = document.querySelector('.sorts-picker__item[data-id="' + soId + '"]');
+    if (!ctx || !li) return;
+
+    // Ciblé par sa classe : le bouton n'est plus forcément le second
+    // enfant depuis qu'il est posé et retiré dynamiquement.
+    const btn    = li.querySelector('.dons-picker__grimoire');
+    const dedans = btn && btn.querySelector('i').classList.contains('fa-book');
+
+    try {
+      const data = await postAjax(perUrlEnreg, {
+        action: 'basculerGrimoire', pe_id: perPeId, pc_id: ctx.pc,
+        so_id: soId, compris: dedans ? 0 : 1
+      });
+      if (!data.ok) { notifier(data.erreur || 'Échec de l\'enregistrement', 'erreur'); return; }
+
+      _modifie = true;
+      if (btn) {
+        btn.querySelector('i').className = 'fa fa-book' + (data.compris ? '' : '-open');
+        btn.title = data.compris ? 'Retirer du grimoire' : 'Recopier dans le grimoire';
+      }
+      notifier(data.compris ? 'Recopié dans le grimoire' : 'Retiré du grimoire');
+    } catch (e) {
+      notifier('Erreur réseau', 'erreur');
+    }
+  }
+
+  // Contrepartie de l'écriture immédiate : refaire sa liste du matin en un geste
+  // plutôt qu'un sort à la fois. Ne touche pas les sorts toujours préparés.
+  async function reinitialiser(claId, nomClasse) {
+    if (!confirm('Vider la liste des sorts préparés de ' + nomClasse + ' ?\n'
+               + 'Les sorts toujours préparés sont conservés.')) return;
+    try {
+      const data = await postAjax(perUrlEnreg, {
+        action: 'reinitialiserPrepares', pe_id: perPeId, cla_id: claId
+      });
+      if (!data.ok) { notifier(data.erreur || 'Échec', 'erreur'); return; }
+      notifier(data.supprimes + ' sort(s) retiré(s)');
+      window.location.reload();
+    } catch (e) {
+      notifier('Erreur réseau', 'erreur');
+    }
+  }
+
+  return { ouvrir, fermer, filtrer, voir, basculer, ajouterUn, retirerUn,
+           grimoire, reinitialiser };
+})();

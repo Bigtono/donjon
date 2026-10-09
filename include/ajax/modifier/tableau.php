@@ -161,17 +161,17 @@ $uid   = 'tab_' . ($id ?: 'new');
 
     <?php // ---- Aperçu ---- ?>
     <div class="form-group">
-      <button type="button" class="btn btn--sm btn--secondary" id="<?= $uid ?>_btn_apercu">
+      <button type="button" class="btn btn-sm btn-secondary" id="<?= $uid ?>_btn_apercu">
         <i class="fa fa-eye"></i> Aperçu
       </button>
       <div class="reg-tab-apercu" id="<?= $uid ?>_apercu"></div>
     </div>
 
     <div class="form-actions">
-      <button type="button" class="btn btn--primary" id="<?= $uid ?>_btn_save">
+      <button type="button" class="btn btn-primary" id="<?= $uid ?>_btn_save">
         <i class="fa fa-save"></i> Enregistrer
       </button>
-      <button type="button" class="btn btn--secondary" onclick="fermerModification()">
+      <button type="button" class="btn btn-secondary" onclick="fermerModification()">
         Annuler
       </button>
     </div>

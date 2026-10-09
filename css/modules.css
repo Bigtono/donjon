@@ -1649,6 +1649,219 @@
 }
 
 /* ============================================================
+   SP-PE7b / SP-PE10d — Sélecteur de SORTS (.sorts-picker)
+
+   Le sélecteur de sorts réutilise la coque du sélecteur de dons
+   (.dons-picker, ci-dessus) mais a ses propres éléments : compteurs de
+   préparation, pastille de niveau, second bouton « grimoire ». Aucun de
+   ces éléments — ni même son <ul>, ni ses boutons — n'avait de style :
+   la liste s'affichait à puces et un sort retenu ne se distinguait pas
+   d'un autre. Tout est posé ici (SP-PE10d).
+   ============================================================ */
+
+.sorts-picker .dons-picker__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Bouton d'action d'une ligne : carré, l'icône seule porte le sens. */
+.sorts-picker .dons-picker__toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.sorts-picker .dons-picker__toggle:hover {
+  border-color: var(--clr-accent);
+  color: var(--clr-accent);
+}
+
+/* Compteur d'exemplaires préparés — DD3.5 seulement (SP-PE10e).
+   Un magicien mémorise plusieurs fois le même sort : la ligne porte
+   [−] N [+] au lieu d'une bascule. Les trois éléments sont toujours là,
+   la ligne ne bouge donc pas quand la quantité change. */
+/* Le cadre posé en SP-PE10e a sauté (SP-PE10f) : il servait à distinguer le
+   compteur de la pastille de niveau qui le suivait — or la pastille a disparu
+   des lignes au profit d'un en-tête par niveau. Plus rien à départager, et un
+   cadre de moins sur chaque ligne. */
+.sorts-picker__stepper {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.sorts-picker__nb {
+  min-width: 1.4rem;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--clr-text);
+}
+/* Zéro exemplaire : le chiffre s'efface, le « − » n'a rien à retirer. */
+.sorts-picker__item:not(.est-choisi) .sorts-picker__nb {
+  color: var(--clr-text-muted);
+  font-weight: 400;
+}
+.sorts-picker .dons-picker__toggle:disabled {
+  opacity: .35;
+  cursor: default;
+}
+.sorts-picker .dons-picker__toggle:disabled:hover {
+  border-color: var(--clr-border);
+  color: var(--clr-text);
+}
+
+/* En-tête d'un groupe de niveau (SP-PE10f) — les sorts arrivent triés par
+   niveau, un intertitre remplace la pastille que chaque ligne portait. Il se
+   masque avec son groupe quand le filtre le vide (voir sortsPicker.filtrer). */
+.sorts-picker__entete {
+  padding: var(--sp-xs) var(--sp-sm);
+  background: var(--clr-surface-alt);
+  border-bottom: 1px solid var(--clr-border);
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--clr-text-muted);
+  /* Le niveau reste lisible pendant qu'on fait défiler son groupe. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Sort RETENU — la ligne entière change de fond : à la lecture, c'est le
+
+   fond qui répond à « qu'est-ce que j'ai déjà ? », pas l'icône du bouton. */
+.sorts-picker__item.est-choisi {
+  /* Teinte dérivée de l'accent du thème : lisible sur parchemin comme sur
+     fond sombre, et sans couleur écrite en dur. La première déclaration sert
+     de repli aux navigateurs sans color-mix. */
+  background: var(--clr-surface-alt);
+  background: color-mix(in srgb, var(--clr-accent) 14%, transparent);
+  box-shadow: inset 3px 0 0 var(--clr-accent);
+}
+.sorts-picker__item.est-choisi .dons-picker__nom {
+  font-weight: 600;
+}
+/* Le bouton retire, il n'ajoute plus : il le dit. */
+.sorts-picker__item.est-choisi .dons-picker__toggle:not(.dons-picker__grimoire) {
+  border-color: var(--clr-accent);
+  color: var(--clr-accent);
+}
+
+/* Sort affiché dans le volet droit — repère discret, il ne doit pas
+   concurrencer le fond « retenu » ci-dessus. */
+.sorts-picker__item.is-courant .dons-picker__nom {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---- Compteurs de préparation ---- */
+
+.sorts-picker__compteur {
+  margin: 0;
+  color: var(--clr-text-muted);
+  font-size: .9rem;
+}
+.sorts-picker__compteur strong { color: var(--clr-accent); font-size: 1.15rem; }
+.sorts-picker__compteur.est-plein strong { color: var(--clr-danger); }
+
+.sorts-picker__compteurs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-xs);
+}
+.sorts-picker__jeton {
+  padding: 2px var(--sp-sm);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface-alt);
+  font-size: .85rem;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+.sorts-picker__jeton strong { color: var(--clr-text); }
+.sorts-picker__jeton.est-plein {
+  border-color: var(--clr-danger);
+}
+.sorts-picker__jeton.est-plein strong { color: var(--clr-danger); }
+
+.dons-picker__decompte {
+  margin-left: auto;
+  color: var(--clr-text-muted);
+  font-size: .85rem;
+  white-space: nowrap;
+}
+
+/* ---- Téléphone : la liste prend tout, la fiche passe au-dessus ----
+   Le volet droit mangeait plus de la moitié de la largeur alors que le
+   choix se fait dans la liste. Il est masqué sous 992px et la fiche
+   s'ouvre dans #detail-pp-sub (voir sortsPicker.voir()).
+
+   La liste se resserre — un seul padding, le nom sur une ligne — mais le
+   bouton garde 44px : c'est lui qu'on vise du pouce, et c'est lui qui fixe
+   la hauteur de ligne. */
+@media (max-width: 991px) {
+  .sorts-picker .dons-picker__detail { display: none; }
+
+  /* Le cadre de la liste saute et elle déborde du padding du panneau
+     (SP-PE10g) : sur un téléphone, ce cadre redoublait celui de l'overlay à
+     quelques pixels près, et les deux mangeaient la largeur du nom des sorts.
+     Le débordement est modéré — il reste --sp-sm de marge de chaque côté. */
+  .sorts-picker .dons-picker__liste {
+    flex: 1 1 100%;
+    max-width: none;
+    max-height: 70vh;
+    border: none;
+    border-radius: 0;
+    margin-left: calc(var(--sp-sm) * -1);
+    margin-right: calc(var(--sp-sm) * -1);
+    width: calc(100% + var(--sp-md));
+  }
+
+  .sorts-picker .dons-picker__item {
+    gap: var(--sp-xs);
+    padding: 2px var(--sp-xs);
+    /* Pas de retour à la ligne : une ligne = un sort. */
+    flex-wrap: nowrap;
+  }
+
+  .sorts-picker .dons-picker__toggle {
+    width: 44px;
+    min-height: 44px;
+  }
+
+  /* Le compteur DD3.5 coûte DEUX cibles tactiles là où les autres modes n'en
+     demandent qu'une : sur 343px de liste, le nom du sort n'avait plus de quoi
+     s'écrire. Ses boutons descendent à 40px — la cible reste confortable, et
+     c'est la taille déjà retenue pour le sélecteur de dons en mobile — et le
+     compteur se resserre sur ses chiffres (SP-PE10f). */
+  .sorts-picker .sorts-picker__stepper .dons-picker__toggle {
+    width: 40px;
+    min-height: 40px;
+  }
+  .sorts-picker__stepper { gap: 0; }
+  .sorts-picker__nb { min-width: 1rem; }
+
+  .sorts-picker .dons-picker__nom {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* ============================================================
    SP-PE5 — Badge de statut d'un rattachement personnage / campagne
    Placé ici et non dans personnages-modules.css : le panneau de détail
    d'une campagne (fragment injecté en AJAX depuis le module Campagnes)

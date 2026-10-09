@@ -150,13 +150,13 @@ require_once '../include/header.php';
         <input type="text" name="q" class="regles-recherche-input"
                placeholder="Rechercher une règle…"
                value="<?= h($q) ?>" autocomplete="off" autofocus>
-        <button type="submit" class="btn btn--sm" title="Rechercher">
+        <button type="submit" class="btn btn-primary btn-sm" title="Rechercher">
           <i class="fa fa-search"></i>
         </button>
       </form>
 
       <?php // Gestionnaire partagé, hors module Règles depuis SP-TB10. ?>
-      <a class="btn btn--sm btn--secondary" href="<?= BASE_URL ?>/tableaux/index.php"
+      <a class="btn btn-sm btn-secondary" href="<?= BASE_URL ?>/tableaux/index.php"
          title="Tableaux de données">
         <i class="fa fa-table"></i> Tableaux
       </a>

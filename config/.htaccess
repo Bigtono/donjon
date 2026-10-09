@@ -1,0 +1,6 @@
+# config/.htaccess — Aucun accès web au dossier (SP-DP6)
+# Identifiants de base (db.config.php) et jeton à usage unique des migrations
+# (.migrations-jeton) : lus par PHP sur le disque, jamais servis.
+# Même syntaxe que le .htaccess racine, éprouvée sur OVH.
+Order Allow,Deny
+Deny from all

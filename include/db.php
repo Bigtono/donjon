@@ -12,6 +12,14 @@ if (!file_exists($configFile)) {
 
 require_once $configFile;
 
+// Mode maintenance (SP-DP4) : le déployeur pose .maintenance à la racine le
+// temps d'un envoi. Seul le point d'entrée des migrations passe outre
+// (admin/migrations-auto.php définit MAINTENANCE_IGNOREE).
+if (is_file(__DIR__ . '/../.maintenance') && !defined('MAINTENANCE_IGNOREE')):
+  require __DIR__ . '/maintenance.php';
+  exit;
+endif;
+
 $options = [
   PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
   PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

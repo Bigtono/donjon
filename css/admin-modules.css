@@ -706,3 +706,24 @@
   color: var(--clr-text-muted);
   margin-bottom: var(--sp-sm);
 }
+
+/* ============================================================
+   MIGRATIONS SQL — admin/migrations.php (SP-DP5)
+   ============================================================ */
+
+.migrations-bilan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+  font-size: 0.9rem;
+}
+
+.migrations-bilan__alerte {
+  color: var(--clr-danger);
+}
+
+.migrations-fichier {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  word-break: break-all;
+}

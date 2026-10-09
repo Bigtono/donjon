@@ -1,11 +1,12 @@
 -- sql/2026-08-28_registre_sp-ma3_donnees.sql
 -- SP-MA3 — Migration des données branche → (branche, registre), en SQL pur.
 --
--- POURQUOI CE FICHIER. La migration existe en PHP (sql/migrate_registre_sp-ma3.php),
--- mais /sql est interdit en HTTP (sql/.htaccess, « Deny from all », en place depuis
--- la Phase 1) et c'est très bien ainsi : un script de migration joignable au
--- navigateur serait une porte ouverte sur la base. Sur un hébergement sans accès
--- CLI, ce fichier permet d'appliquer la migration depuis phpMyAdmin.
+-- POURQUOI CE FICHIER. La migration a d'abord été écrite en PHP, mais /sql est interdit
+-- en HTTP (sql/.htaccess, « Deny from all », en place depuis la Phase 1) et c'est très bien
+-- ainsi : un script de migration joignable au navigateur serait une porte ouverte sur la
+-- base. Ce fichier est la SORTIE FIGÉE de ce script, applicable depuis phpMyAdmin sur un
+-- hébergement sans accès CLI. Le script d'origine n'existe plus — il est sans usage,
+-- l'équivalence des deux voies ayant été contrôlée par empreinte MD5 le 2026-08-28.
 --
 -- Les 680 UPDATE ci-dessous sont la SORTIE du classifieur PHP, figée. Ils ne sont
 -- donc pas à relire un par un : leur logique est documentée dans le script PHP et

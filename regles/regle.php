@@ -96,30 +96,30 @@ require_once '../include/header.php';
         <input type="text" name="q" class="regles-recherche-input"
                placeholder="Rechercher une règle…"
                value="<?= h($q) ?>" autocomplete="off">
-        <button type="submit" class="btn btn--sm" title="Rechercher">
+        <button type="submit" class="btn btn-primary btn-sm" title="Rechercher">
           <i class="fa fa-search"></i>
         </button>
       </form>
 
       <?php // Gestionnaire partagé, hors module Règles depuis SP-TB10. ?>
-      <a class="btn btn--sm btn--secondary" href="<?= BASE_URL ?>/tableaux/index.php"
+      <a class="btn btn-sm btn-secondary" href="<?= BASE_URL ?>/tableaux/index.php"
          title="Tableaux de données">
         <i class="fa fa-table"></i> Tableaux
       </a>
 
       <?php if ($peut_editer): ?>
         <div class="regles-toolbar__actions">
-          <button class="btn btn--sm btn--secondary"
+          <button class="btn btn-sm btn-secondary"
                   onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/regle.php', <?= $id ?>)"
                   title="Modifier ce nœud">
             <i class="fa fa-edit"></i> Modifier
           </button>
-          <button class="btn btn--sm btn--secondary"
+          <button class="btn btn-sm btn-secondary"
                   onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/regle.php', 0, <?= $id ?>)"
                   title="Ajouter un enfant">
             <i class="fa fa-plus"></i> Ajouter ici
           </button>
-          <button class="btn btn--sm btn--danger"
+          <button class="btn btn-sm btn-danger"
                   onclick="reglesConfirmerSuppression(<?= $id ?>, <?= $enfants ? 'true' : 'false' ?>)"
                   title="Supprimer">
             <i class="fa fa-trash"></i>
@@ -206,7 +206,7 @@ require_once '../include/header.php';
 
         <?php if ($peut_editer): ?>
           <div class="regles-sous-sommaire__actions">
-            <button class="btn btn--sm btn--secondary"
+            <button class="btn btn-sm btn-secondary"
                     onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/regle.php', 0, <?= $id ?>)"
                     title="Ajouter une section ici">
               <i class="fa fa-plus"></i> Ajouter une section

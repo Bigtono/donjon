@@ -1,0 +1,33 @@
+# .deployignore — Fichiers versionnés qui ne partent pas en production (SP-DP)
+#
+# Syntaxe identique à .gitignore ; c'est git lui-même qui l'interprète
+# (git ls-files --exclude-from), comme pour .gitignore.
+#
+# Inutile d'y répéter ce que .gitignore exclut déjà : un fichier ignoré par git
+# ne part jamais, même s'il a été commité avant d'être ignoré (export/, tools/).
+#
+# Exclus en dur par le code, quoi qu'on écrive ici : le module de déploiement
+# (admin/deploiement/), config/db.config.php, .maintenance et
+# config/.migrations-jeton.
+
+# --- Dépôt et outillage --------------------------------------------------------
+/.gitignore
+/.deployignore
+/.agents/
+/.codex/
+/CLAUDE.md
+/doc/
+/scss/
+/demo/
+/data/
+/config/db.config.example.php
+
+# --- Diagnostic : n'a rien à faire en production -------------------------------
+/phpinfo.php
+
+# --- SQL : seules les migrations datées partent --------------------------------
+# Le moteur de migrations les lit sur le disque du serveur. Dumps, seeds,
+# imports, sauvegardes et scripts restent sur le poste.
+/sql/*
+!/sql/.htaccess
+!/sql/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*.sql

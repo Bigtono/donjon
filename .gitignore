@@ -26,3 +26,7 @@ uploads/
 
 # --- fichiers d'export roll20 ---
 /export/
+
+# --- Déploiement (SP-DP) : fichiers techniques, jamais versionnés ---
+.maintenance
+config/.migrations-jeton

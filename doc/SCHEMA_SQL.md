@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-09-01 -->
+<!-- Mis à jour : 2026-10-07 17:15 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -25,6 +25,7 @@
 | 1.11 | 2026-08-28 | JM | **SP-IM9a** — redressement de 235 objets magiques DD2024 (description, `om_rarete`, `om_harmonisation`, `om_com_id`) d'après la ligne de type du SRD. Aucune évolution de structure. Reste `om_rarete` à 0 sur 119 lignes — les déclinaisons, traitées en SP-IM9b. SQL committé : `sql/2026-08-28_objets_dd2024_sp-im9a.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
 | 1.12 | 2026-08-28 | JM | **SP-IM9b** — 121 déclinaisons d'objets magiques DD2024 redressées (description, rareté propre, catégorie, harmonisation). Aucune évolution de structure. Les 356 objets de la source SRD ont désormais une rareté valide. SQL committé : `sql/2026-08-28_objets_dd2024_sp-im9b.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
 | 1.13 | 2026-08-28 | JM | **SP-IM9c** — 10 tables d'objets magiques saisies dans `dd_tableaux` (ids 43-52) et 10 descriptions réécrites avec le tag `[[tab:slug]]`. Aucune évolution de structure. SQL committé : `sql/2026-08-28_objets_dd2024_sp-im9c.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
+| 1.14 | 2026-10-07 | JM | **SP-DP5** — `dd_migrations` CRÉÉE : trace des migrations SQL appliquées à la base de chaque environnement. Pas de fichier SQL : la table est créée par le moteur (`include/migrations.php`, `migrationsAssurerTable()`) à son premier appel, qui y inscrit aussitôt les 37 migrations antérieures au statut `reference` sans les rejouer. Créée en dev le 2026-10-07 ; sera créée en prod au premier déploiement (SP-DP). Préfixe `dd_` confirmé en production — le renommage `dd2_` n'a jamais été appliqué |
 | 1.5 | 2026-07-01 | JM | Audit `SHOW CREATE TABLE` sur les 7 tables restantes du Supplément (SP-C5/C6, débloquant) : `_public`/`_visible` **existent déjà en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques` (+ `om_public` sur `dd_objets_magiques`, `om_visible` déjà documenté). Colonnes ajoutées à la doc ci-dessous. `sql/patch_004_supplements.sql` reste introuvable dans le dépôt (appliqué directement en base, jamais committé — même écart que l'incident `mo_j_id`). Écart noté au passage : `dd_dons.do_page_source` (int NOT NULL) présent en base, non documenté, sans rapport avec SP-C — non traité ici |
 
 ---
@@ -61,6 +62,7 @@
 7. [Campagnes](#7-campagnes)
 8. [Wiki / Univers](#8-wiki--univers)
 9. [Notes](#9-notes)
+10. [Technique](#10-technique)
 
 ---
 
@@ -1109,6 +1111,22 @@ Blocs de contenu d'une note, avec niveau de difficulté d'accès.
 | notag_id | int unsigned | PK | |
 | notag_no_id | int unsigned | nn, UK(notag_no_id, notag_tag_id) | -> dd_notes |
 | notag_tag_id | int unsigned | nn | -> dd_tags |
+
+---
+
+## 10. Technique
+
+### dd_migrations
+Migrations SQL appliquées à la base de l'environnement (local ou production) — SP-DP5. Une migration est un fichier `sql/AAAA-MM-JJ_*.sql` ; un fichier sans ligne est « en attente ». Table créée par le moteur, sans fichier SQL (voir `ARCHITECTURE_0_REFERENCE.md` §6b).
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| mig_id | int unsigned | PK | |
+| mig_fichier | varchar(190) | nn, UK | Nom du fichier dans `sql/` |
+| mig_checksum | char(64) | nn | SHA-256 du fichier au moment de son application — un écart signale une migration retouchée, jamais rejouée |
+| mig_statut | varchar(12) | nn | `executee` (jouée par le moteur) \| `reference` (antérieure au moteur, inscrite sans exécution) \| `marquee` (jouée à la main, déclarée depuis `admin/migrations.php`) |
+| mig_date | datetime | nn | Date d'application ou d'inscription |
+| mig_duree_ms | int unsigned | null | Durée d'exécution (statut `executee`) |
 
 
 

@@ -143,6 +143,25 @@ switch ($action):
     basculerDon($db, $is_ajax, $j_id, $action === 'ajouterDon');
     break;
 
+  // --- Sorts du personnage (SP-PE7b) — écriture immédiate, portée par classe
+  case 'ajouterSort':
+  case 'retirerSort':
+    basculerSort($db, $is_ajax, $action === 'ajouterSort');
+    break;
+
+  case 'basculerGrimoire':
+    basculerGrimoire($db, $is_ajax);
+    break;
+
+  case 'preparerSort':
+  case 'retirerPrepare':
+    basculerPrepare($db, $is_ajax, $action === 'preparerSort');
+    break;
+
+  case 'reinitialiserPrepares':
+    reinitialiserPrepares($db, $is_ajax);
+    break;
+
   case 'enregistrerNls':
     enregistrerNls($db, $is_ajax);
     break;
@@ -522,6 +541,200 @@ function enregistrerCompetences(PDO $db, bool $is_ajax, int $j_id): void {
 //
 // Renvoie {ok, possede, total} : `total` est le nombre de dons du personnage
 // après l'opération, lu en base — le compteur du panneau n'extrapole jamais.
+
+// ============================================================
+// SORTS DU PERSONNAGE (SP-PE7b)
+// ============================================================
+//
+// Écriture immédiate, sur le modèle du sélecteur de dons (Q8, D-MAG13) et
+// TOUJOURS PORTÉE PAR CLASSE : un commit global couvrant plusieurs classes
+// lanceuses serait dangereux en multiclassage — une sauvegarde toucherait deux
+// listes à la fois.
+
+/**
+ * Garde commune : le personnage appartient à l'utilisateur, la classe est bien
+ * l'une des siennes, et le sort relève de son ruleset.
+ *
+ * Le contrôle du sort vaut aussi au RETRAIT : un identifiant forgé ne doit pas
+ * servir à sonder la base (même principe que basculerDon).
+ *
+ * @return array [pe_id, pc_id, cla_id, so_id]
+ */
+function gardeSortPersonnage(PDO $db, bool $is_ajax, bool $exigePc): array {
+  $pe_id = intParam($_POST['pe_id'] ?? 0);
+  $pc_id = intParam($_POST['pc_id'] ?? 0);
+  $so_id = intParam($_POST['so_id'] ?? 0);
+
+  if ($pe_id <= 0 || ($exigePc && $pc_id <= 0)):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Identifiant manquant.']);
+  endif;
+
+  $stmt = $db->prepare('SELECT pe_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt->execute([$pe_id]);
+  $perso = $stmt->fetch();
+  if (!$perso || !canAccess((int)$perso['pe_j_id'])):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
+  endif;
+
+  $cla_id = intParam($_POST['cla_id'] ?? 0);
+  if ($pc_id > 0):
+    $stmt = $db->prepare('SELECT pc_cla_id FROM dd_personnages_classes WHERE pc_id = ? AND pc_pe_id = ?');
+    $stmt->execute([$pc_id, $pe_id]);
+    $cla_id = (int)$stmt->fetchColumn();
+    if (!$cla_id):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Cette classe n\'est pas celle du personnage.']);
+    endif;
+  endif;
+
+  if ($so_id > 0):
+    $stmt = $db->prepare('SELECT so_id FROM dd_sorts WHERE so_id = ? AND so_ruleset_var_id = ?');
+    $stmt->execute([$so_id, (int)$perso['pe_ruleset_var_id']]);
+    if (!$stmt->fetchColumn()):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Ce sort n\'appartient pas au ruleset du personnage.']);
+    endif;
+  endif;
+
+  return ['pe_id' => $pe_id, 'pc_id' => $pc_id, 'cla_id' => $cla_id, 'so_id' => $so_id,
+          'ruleset' => (int)$perso['pe_ruleset_var_id']];
+}
+
+/** Ajoute ou retire un sort du répertoire d'une classe (dd_personnages_sorts). */
+function basculerSort(PDO $db, bool $is_ajax, bool $ajouter): void {
+  $g = gardeSortPersonnage($db, $is_ajax, true);
+  try {
+    if ($ajouter):
+      // INSERT IGNORE : uk_pes (pes_pc_id, pes_so_id) existe bien — vérifié
+      // en base, contrairement à la clé fantôme de dd_classe_niveau. Un double
+      // clic ne crée donc pas de doublon.
+      $db->prepare('INSERT IGNORE INTO dd_personnages_sorts (pes_pc_id, pes_so_id, pes_compris) VALUES (?, ?, 0)')
+         ->execute([$g['pc_id'], $g['so_id']]);
+    else:
+      $db->prepare('DELETE FROM dd_personnages_sorts WHERE pes_pc_id = ? AND pes_so_id = ?')
+         ->execute([$g['pc_id'], $g['so_id']]);
+    endif;
+    $db->prepare('UPDATE dd_personnages SET pe_date_modif = NOW() WHERE pe_id = ?')->execute([$g['pe_id']]);
+    $stmt = $db->prepare('SELECT COUNT(*), COALESCE(SUM(pes_compris),0) FROM dd_personnages_sorts WHERE pes_pc_id = ?');
+    $stmt->execute([$g['pc_id']]);
+    [$total, $compris] = $stmt->fetch(PDO::FETCH_NUM);
+  } catch (PDOException $e) {
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+  repondre($is_ajax, ['ok' => true, 'possede' => $ajouter, 'total' => (int)$total, 'compris' => (int)$compris]);
+}
+
+/**
+ * « Recopier dans le grimoire » et son inverse : bascule pes_compris.
+ *
+ * Lecture A (D-MAG6) : un sort CONNU est à disposition — parchemin ou grimoire
+ * ramassé — mais n'est PRÉPARABLE qu'une fois COMPRIS, c'est-à-dire recopié.
+ */
+function basculerGrimoire(PDO $db, bool $is_ajax): void {
+  $g = gardeSortPersonnage($db, $is_ajax, true);
+  $compris = !empty($_POST['compris']) ? 1 : 0;
+  try {
+    $db->prepare('UPDATE dd_personnages_sorts SET pes_compris = ? WHERE pes_pc_id = ? AND pes_so_id = ?')
+       ->execute([$compris, $g['pc_id'], $g['so_id']]);
+    $db->prepare('UPDATE dd_personnages SET pe_date_modif = NOW() WHERE pe_id = ?')->execute([$g['pe_id']]);
+  } catch (PDOException $e) {
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+  repondre($is_ajax, ['ok' => true, 'compris' => (bool)$compris]);
+}
+
+/**
+ * Ajoute ou retire UN EXEMPLAIRE préparé d'un sort, pour une classe.
+ *
+ * dd_personnages_sorts_prepares n'a VOLONTAIREMENT pas de clé unique : un
+ * magicien DD3.5 peut préparer plusieurs fois le même sort, en version normale
+ * et en versions métamagiques, chacune occupant son emplacement. La version
+ * sans métamagie tient sa quantité dans `pesp_nb` (SP-PE10e) ; les versions
+ * métamagiques auront leur propre ligne le jour où elles seront saisies.
+ *
+ * LA QUANTITÉ EST UNE RÈGLE DD3.5. En DD2024 la liste préparée est un ENSEMBLE
+ * de sorts distincts — on lance n'importe lequel avec l'emplacement de son
+ * choix, préparer deux fois le même n'a pas de sens. D'où la bascule
+ * présent/absent conservée pour ce ruleset.
+ *
+ * `pesp_nb` vaut 0 par défaut en base alors qu'un exemplaire préparé compte
+ * pour 1 : toute lecture passe donc par GREATEST(pesp_nb, 1), comme le total.
+ *
+ * Le compteur renvoyé ne totalise que pesp_origine = 0 : les sorts toujours
+ * préparés ne pèsent pas sur le plafond (Q7).
+ */
+function basculerPrepare(PDO $db, bool $is_ajax, bool $ajouter): void {
+  $g = gardeSortPersonnage($db, $is_ajax, false);
+  if ($g['cla_id'] <= 0):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Classe manquante.']);
+  endif;
+  $est35 = ((int)$g['ruleset'] === 1);
+  try {
+    $stmt = $db->prepare('SELECT pesp_id, GREATEST(pesp_nb, 1) AS nb
+                            FROM dd_personnages_sorts_prepares
+                           WHERE pesp_pe_id = ? AND pesp_cla_id = ? AND pesp_so_id = ?
+                             AND pesp_metamagie IS NULL AND pesp_origine = 0');
+    $stmt->execute([$g['pe_id'], $g['cla_id'], $g['so_id']]);
+    $ligne = $stmt->fetch();
+    $nb    = $ligne ? (int)$ligne['nb'] : 0;
+
+    if ($ajouter):
+      if (!$ligne):
+        $db->prepare('INSERT INTO dd_personnages_sorts_prepares
+                        (pesp_pe_id, pesp_cla_id, pesp_so_id, pesp_nb, pesp_origine)
+                      VALUES (?, ?, ?, 1, 0)')
+           ->execute([$g['pe_id'], $g['cla_id'], $g['so_id']]);
+        $nb = 1;
+      elseif ($est35):
+        $nb++;
+        $db->prepare('UPDATE dd_personnages_sorts_prepares SET pesp_nb = ? WHERE pesp_id = ?')
+           ->execute([$nb, (int)$ligne['pesp_id']]);
+      endif;
+    elseif ($ligne):
+      if ($est35 && $nb > 1):
+        $nb--;
+        $db->prepare('UPDATE dd_personnages_sorts_prepares SET pesp_nb = ? WHERE pesp_id = ?')
+           ->execute([$nb, (int)$ligne['pesp_id']]);
+      else:
+        // Le dernier exemplaire retiré emporte la ligne.
+        $db->prepare('DELETE FROM dd_personnages_sorts_prepares WHERE pesp_id = ?')
+           ->execute([(int)$ligne['pesp_id']]);
+        $nb = 0;
+      endif;
+    endif;
+
+    $db->prepare('UPDATE dd_personnages SET pe_date_modif = NOW() WHERE pe_id = ?')->execute([$g['pe_id']]);
+    $stmt = $db->prepare('SELECT COALESCE(SUM(GREATEST(pesp_nb,1)),0) FROM dd_personnages_sorts_prepares
+                           WHERE pesp_pe_id = ? AND pesp_cla_id = ? AND pesp_origine = 0');
+    $stmt->execute([$g['pe_id'], $g['cla_id']]);
+    $total = (int)$stmt->fetchColumn();
+  } catch (PDOException $e) {
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+  repondre($is_ajax, ['ok' => true, 'possede' => $nb > 0, 'nb' => $nb, 'total' => $total]);
+}
+
+/**
+ * Vide la liste préparée d'une classe — la contrepartie de l'écriture immédiate
+ * retenue en Q8 : refaire sa liste du matin en un geste plutôt qu'un par un.
+ *
+ * Ne touche QUE pesp_origine = 0 : les sorts toujours préparés ne sont pas des
+ * choix du joueur et ne doivent pas disparaître.
+ */
+function reinitialiserPrepares(PDO $db, bool $is_ajax): void {
+  $g = gardeSortPersonnage($db, $is_ajax, false);
+  if ($g['cla_id'] <= 0):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Classe manquante.']);
+  endif;
+  try {
+    $stmt = $db->prepare('DELETE FROM dd_personnages_sorts_prepares
+                           WHERE pesp_pe_id = ? AND pesp_cla_id = ? AND pesp_origine = 0');
+    $stmt->execute([$g['pe_id'], $g['cla_id']]);
+    $supprimes = $stmt->rowCount();
+    $db->prepare('UPDATE dd_personnages SET pe_date_modif = NOW() WHERE pe_id = ?')->execute([$g['pe_id']]);
+  } catch (PDOException $e) {
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+  repondre($is_ajax, ['ok' => true, 'supprimes' => $supprimes, 'total' => 0]);
+}
 
 function basculerDon(PDO $db, bool $is_ajax, int $j_id, bool $ajouter): void {
   $pe_id = intParam($_POST['pe_id'] ?? 0);

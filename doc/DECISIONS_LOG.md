@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-09-01 -->
+<!-- Mis à jour : 2026-10-09 17:48 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -5252,3 +5252,801 @@ renseignées. Code : `helpers.php` (`cadencesRenouvellement()`), formulaire, fic
   simplement utilisée par aucune classe DD3.5 du SRD, mais rien ne l'interdit à une classe maison.
 → `SP-MA4` est close à un reliquat près, désormais suivi en **`SP-MA4c`** : l'école de prédilection
   du magicien DD3.5, non bloquante pour `SP-PE7`.
+
+**[2026-09-01] D-PE7a — Helpers de calcul de la magie, et ce que le banc d'essai a révélé**
+`getMagieContexte()` et 5 auxiliaires dans `personnage_helpers.php`. Aucune interface : la phase
+est validée par un banc d'essai en ligne de commande, sur 4 personnages dont deux **synthétiques
+créés en transaction annulée** (précédent D-RS36 — on ne détruit pas les données pour un contrôle).
+→ **Le découpage `PE7a` / `PE7b` a payé.** Six défauts de calcul trouvés au premier passage, qu'une
+  page aurait rendus sans les signaler :
+  1. **Emplacements lus au niveau de classe et non au NLS effectif.** Un magicien 15 / archimage 5
+     aurait lu la ligne 15 au lieu de la ligne 20.
+  2. **NULL et 0 confondus** dans `cn_sort_n*` — voir le point suivant, c'est le plus lourd.
+  3. **Niveau 0 absent des emplacements en DD3.5**, où `cn_sort_n0` est un vrai quota quotidien
+     (en DD2024 la même colonne compte des sorts mineurs connus : deux sens, une colonne).
+  4. **Bonus de maîtrise faux en DD2024** : le niveau global additionnait les lignes de
+     sous-classe, une sous-classe étant une ligne de `dd_personnages_classes` sans être un niveau.
+     Un paladin 6 / occultiste 5 était traité comme un personnage de niveau 17.
+  5. `cn_sortPrepare` (0 en DD3.5) affiché comme un plafond réel.
+  6. Sous-classes : **toutes** celles de la classe étaient retenues au lieu de celle que le
+     personnage détient — n'importe quel clerc aurait vu les sorts du Domaine de la Vie.
+→ **`NULL` et `0` ont deux sens opposés au SRD 3.5**, et la base ne les distinguait pas :
+  « — » signifie que le niveau de sort est inaccessible, « 0 » qu'il l'est mais **uniquement par
+  les sorts en bonus** de caractéristique. Relevé : Barde, Paladin, Rôdeur, Assassin, Chevalier
+  noir et Tueur de Domiel portent 4 à 6 « 0 » **légitimes** chacun ; Druide, Ensorceleur et
+  Magicien sont propres ; **Prêtre (72 cellules) et Élu divin (80) utilisaient « 0 » partout**.
+  Conséquence concrète : un prêtre de niveau 6 recevait un emplacement de 4e niveau qu'il ne peut
+  pas lancer, sur la seule foi de son bonus de Sagesse.
+  Corrigé par `sql/2026-09-01_cn_sort_null_vs_zero_sp-pe7a.sql`, qui ne convertit que les « 0 »
+  situés **au-delà** du plus haut niveau accessible, et seulement pour ces deux classes — les
+  « 0 » du SRD sont préservés, vérifié sur le Barde niveau 2.
+→ **Défaut de données corrigé le 2026-09-01** (`sql/2026-09-01_decalage_paladin_rodeur_sp-pe7a.sql`,
+  avec sauvegarde et retour arrière) : les tables du **Paladin et du Rôdeur DD3.5 étaient
+  décalées d'une colonne**. Preuve : au niveau 20 elles portent `n0..n3 = 3,3,3,3`, alors que le
+  SRD donne à ces classes 4 niveaux de sorts (1 à 4) à 3 sorts par jour. `cn_sort_n0` contient donc
+  les sorts de **1er** niveau. Or ni le Paladin ni le Rôdeur n'ont de sorts de niveau 0 — et les
+  trois autres classes DD3.5 sans niveau 0 (Assassin, Chevalier noir, Tueur de Domiel) ont bien
+  `cn_sort_n0` vide. 17 niveaux × 2 classes, colonnes n4..n9 vérifiées vides avant décalage.
+  Contrôlé après coup contre la table du SRD : niveau 4 → `0` (sorts bonus seulement), niveau 6
+  → 1, niveau 8 → 1/0, niveau 20 → 3/3/3/3, et plus aucun `cn_sort_n0` renseigné. Vérification
+  de bout en bout par `getMagieContexte()` : un paladin 4 à Sagesse 14 obtient **1** sort de
+  1er niveau (0 par la table + 1 en bonus), un paladin 4 à Sagesse 10 en obtient **0** sans que
+  le niveau cesse d'être accessible — la règle « quota 0 ≠ pas de sorts » du SRD est tenue.
+→ Trois pièges documentés en §0 ont été portés dans le code et vérifiés : l'Occultiste lit ses
+  emplacements dans `cn_pouvoir1..3` (2 emplacements de niveau 3 au niveau 5, conforme au SRD) ;
+  les sorts toujours préparés sont cumulatifs (un paladin 6 du Serment de Dévotion voit ceux des
+  niveaux 1, 3 et 5) ; `bonusSortsCarac()` n'est appelée qu'en DD3.5.
+→ Le multiclassage DD2024 lit ses emplacements dans la table du **lanceur complet** au niveau
+  d'incantateur agrégé, et cette classe de référence est **déduite** (celle qui atteint les
+  emplacements de 9e niveau au niveau 20) plutôt que codée en dur.
+
+**[2026-09-01] D-PE7b — Vue Magie livrée**
+`personnages/magie.php`, `include/ajax/detail-pp/sorts-picker.php`, module JS `sortsPicker`,
+6 actions dans `personnages/enregistrement.php`. Aucun patch SQL.
+→ **Le regroupement de premier rang est la CLASSE**, jamais le niveau de sort (objectif produit
+  §10.1). Un monoclasse ne voit qu'une section ; un multiclassé en voit autant qu'il a de classes
+  lanceuses, chacune avec sa caractéristique, son NLS et ses listes propres.
+→ **Toute écriture est portée par la classe** (`pc_id` pour le répertoire, `cla_id` pour les
+  préparés). C'est la garantie promise en Q8 : en multiclassage, une sauvegarde ne peut pas
+  toucher la liste d'une autre classe.
+→ **Le sélecteur a deux modes, et son réservoir dépend du profil** : en mode « préparation », un
+  profil Grimoire ne propose que les sorts **compris** — préparable ⟺ compris (D-MAG6) — là où
+  les autres profils proposent la liste de classe entière. Un grimoire vide affiche « recopiez
+  d'abord des sorts » plutôt qu'une liste vide sans explication.
+→ En DD3.5 le niveau d'un sort est **relatif à la classe** (`dd_sortclasse.sc_niveau`), en DD2024
+  il est absolu (`so_niveau`) : deux requêtes distinctes dans le sélecteur plutôt qu'un COALESCE
+  qui aurait masqué la différence.
+→ **Clés uniques vérifiées avant de s'y fier**, leçon de `dd_classe_niveau` : `uk_pes` existe bien
+  sur `dd_personnages_sorts`, l'`INSERT IGNORE` absorbe donc les doubles clics. `dd_personnages_
+  sorts_prepares` n'en a **volontairement pas** — un magicien DD3.5 prépare plusieurs fois le même
+  sort, en versions normale et métamagiques — d'où un test d'existence avant insertion.
+→ Le compteur de sorts préparés ne totalise que `pesp_origine = 0`, et « Réinitialiser » ne
+  supprime que ceux-là : les sorts toujours préparés ne sont pas des choix du joueur.
+→ Testé en transaction annulée : double ajout absorbé, bascule du grimoire, compteur excluant les
+  toujours préparés (3 lignes, 2 comptées), réinitialisation préservant le toujours préparé.
+→ **Poids du sélecteur** : 400 Ko pour les 1 062 sorts de magicien DD3.5, contre 139 Ko pour les
+  300 dons de `SP-PE4` — même coût par entrée, liste simplement plus longue. Le filtrage reste
+  côté client (réactivité au doigt) et le `.htaccess` applique DEFLATE. À reconsidérer si les
+  relevés `SP-RS5` montrent un problème sur mobile.
+→ **Signalé, hors périmètre** : « Abri de léomund » et « Abri de Leomund » coexistent en double
+  dans le compendium DD3.5 — deux entrées pour un même sort, à fusionner.
+
+**[2026-09-01] D-PE7c — Fiche éclatée en cinq sous-pages, et refonte de la vue Magie**
+Retours d'usage après le premier essai en navigateur. Deux chantiers distincts.
+
+**1. La fiche devenait trop longue → sous-menu horizontal et cinq pages.**
+→ Arbitrage : **des sous-pages**, pas des onglets sur une seule page. Trois raisons — `magie.php`
+  en était déjà une, `SP-CP` a pris la même direction pour les Campagnes (« chaque niveau devient
+  une page, avec son URL »), et la fiche chargeait déjà tout le référentiel des compétences du
+  ruleset : y empiler la Magie aurait pénalisé le téléphone, exactement ce qu'on cherche à éviter.
+→ Découpage : **Fiche** (identité, caracs, combat, compétences, NLS, dons) · **Magie** ·
+  **Possessions** · **Background** · **Campagnes**. Partiel commun `include/personnage-nav.php`,
+  qui surligne la page courante et **masque l'onglet Magie pour un non-lanceur**.
+→ Sur téléphone, le sous-menu ne garde que les icônes et défile horizontalement : cinq libellés ne
+  tiennent pas sur une ligne, et un menu replié sur deux lignes mange la hauteur utile.
+→ `objets.php` devient `possessions.php` — le périmètre couvre objets magiques ET équipement — et
+  l'ancien fichier subsiste en **redirection 301** pour ne casser aucun signet.
+→ Nettoyage au passage : `fiche.php` chargeait toujours les campagnes (deux requêtes et une
+  sérialisation JSON) pour un bloc qui n'y est plus. Retiré. Le global `perCampCourante`, oublié
+  à l'extraction, a été ajouté à `campagnes.php` — l'éditeur lit ses données défensivement
+  (`typeof … !== 'undefined'`), le défaut serait passé inaperçu jusqu'au premier rattachement.
+
+**2. Vue Magie — dix corrections.**
+→ **Quatre cases** de synthèse au lieu d'une liste : caractéristique, NLS, DD de sauvegarde,
+  attaque des sorts. L'attaque était accolée au DD sur la même ligne — deux chiffres différents
+  qu'on confond au premier coup d'œil. Grille `auto-fit` : 4 de front sur un poste, 2 sur
+  tablette, 1 sur téléphone, sans média-query.
+→ Les **boutons d'action descendent après les cases**, et prennent toute la largeur sur téléphone.
+→ **Tableau des emplacements** repris sur `.table-dd` / `.col-sort`, comme la table « Nombre de
+  sorts par jour » du descriptif de classe : c'est la même information, elle doit se lire pareil.
+  Les **9 niveaux restent affichés** même inaccessibles (« — ») — une table dont le nombre de
+  colonnes varie d'une classe à l'autre se compare mal. Ligne **« En stock »** ajoutée avec son
+  bouton de réinitialisation : emplacement réservé, le suivi réel des emplacements consommés
+  demande une table dédiée et relève de `SP-PE8` (arbitré).
+→ **Ordre des listes inversé, du plus immédiat au plus lointain** : Sorts préparés → Grimoire →
+  Connus. On lisait auparavant l'inverse.
+→ Listes sans puce, **niveau du sort en pastille**, **2 à 3 colonnes** selon la largeur (`columns`
+  et non `grid`, pour qu'on lise une colonne entière avant de passer à la suivante), une seule sur
+  téléphone. Espacement augmenté au-dessus de chaque bloc.
+→ Les explications passent en **bulles d'aide** (`aideIcone()`, 4 clés ajoutées à
+  `aide-contextuelle.php`), reformulées pour dire le *pourquoi* et non le *quoi* — et le texte
+  diffère selon le ruleset, la préparation n'ayant pas le même sens en DD3.5 et en DD2024.
+→ `cursor: pointer` sur tout ce qui est cliquable.
+→ **Défaut corrigé au passage** : la pastille de niveau restait vide sur tout le DD3.5. Le niveau
+  d'un sort y est **relatif à la classe** (`dd_sortclasse.sc_niveau`) et non absolu — les deux
+  requêtes de la page ne le résolvaient pas. Effet de bord bienvenu : les listes se trient
+  désormais par niveau puis par nom.
+
+**3. Sélecteur de sorts.**
+→ **Compteurs en direct** : plafond global en DD2024 (`cn_sortPrepare`), **un compteur par niveau
+  de sort en DD3.5** — il n'y a pas de plafond global dans ce ruleset, c'est le nombre
+  d'emplacements de chaque niveau qui borne la préparation. Recalculés depuis le DOM plutôt que
+  depuis la réponse serveur, qui ne renvoie qu'un total par classe.
+→ La liste est **bornée aux niveaux accessibles** : proposer des sorts de niveau 9 à un magicien
+  de niveau 5 noie le choix utile. Le critère est l'accessibilité calculée par
+  `getMagieContexte()`, pas le niveau de classe — un « 0 » du SRD reste un niveau accessible.
+→ Filtre **« Les siens seulement »** en mode répertoire : la liste de classe fait plus de mille
+  entrées chez un magicien.
+
+---
+
+## SP-PE10 — Compaction de l'interface personnage
+
+**[2026-09-19] D-RS45 — SP-PE10a : le bloc Identité tient sur deux rangées**
+Code : `personnages/fiche.php`, `css/personnages-modules.css`. Aucun patch SQL.
+→ **Le chantier reçoit son code projet `SP-PE10`** — passe de compaction de l'interface du module
+  Personnages, distincte de `SP-PE8` (Mode jeu + passe responsive) qui reste ouverte. Sous-phases
+  par écran : `SP-PE10a` pour la fiche, les suivantes numérotées à mesure des demandes.
+→ **Race, Historique (DD2024), Sexe et Alignement passent sur une seule rangée.** Les trois
+  dernières lignes du bloc remontent devant la ligne Classes dans le DOM : c'est ce qui rend la
+  rangée contiguë. La ligne Classes, qui porte une liste, reste pleine largeur et ferme le bloc —
+  elle n'est donc plus « juste après la race » comme depuis SP-RS6d, mais toujours en vue sans
+  défilement.
+→ **`.per-identite` passe de `grid` à `flex`.** En grille `auto-fit minmax(190px, 1fr)`, les quatre
+  entrées tenaient bien sur une ligne mais laissaient une piste vide à droite — deux en DD3.5, qui
+  n'a pas d'historique. En flex, `flex: 1 1 190px` répartit les entrées présentes sur toute la
+  largeur : 4 × 255px en DD2024, 3 × 345px en DD3.5.
+→ **Les libellés ne réservent plus 110px** (`flex: 0 0 auto`), le `padding` vertical des lignes
+  passe de 4px à 3px et le `gap` vertical de la liste disparaît. La valeur peut passer sous son
+  libellé (`flex-wrap: wrap` sur la ligne) — sauf sur la ligne Classes, tenue en `nowrap`.
+→ **Responsive** : base de 160px sous 992px (les quatre entrées tiennent encore de front à 820px),
+  130px sous 480px — deux colonnes jusqu'à 342px, seuil de référence du Galaxy A52 (§10h), repli
+  sur une colonne en dessous.
+→ Mesuré dans le navigateur sur le personnage *Adon* (DD2024, clerc/guerrier) : le bloc passe de
+  **255px à 201px** sur un poste à 1280px, et de **294px à 254px** à 342px. Aucun débordement
+  horizontal à 1280 / 820 / 375 / 342px. Le cas DD3.5 a été vérifié sur *Elminster*
+  (magicien 20 / archimage 5) : trois entrées de 345px sur une rangée, même hauteur de bloc.
+→ `include/ajax/detail-pp/personnage.php` réutilise `.per-identite` et présente déjà les mêmes
+  entrées dans cet ordre : il bénéficie de la compaction sans modification.
+
+**[2026-09-19] D-RS46 — SP-PE10b : la vue Magie se lit en trois temps**
+Code : `personnages/magie.php`, `css/personnages-modules.css`. Aucun patch SQL. Structure posée
+par une maquette de l'utilisateur (bloc du Magicien DD2024), déclinée aux autres profils et au
+DD3.5.
+→ **Le corps d'un bloc de classe suit désormais trois temps** : les quatre cases de synthèse et
+  la barre d'actions, puis une rangée à deux colonnes — tableau des emplacements à gauche,
+  panneau « Ressources de sorts » à droite —, puis les listes de sorts.
+→ **Le panneau « Ressources de sorts » rassemble ce qui se dispersait.** Trois endroits
+  différents portaient des compteurs : un paragraphe « Renouvellement · Domaines » sous les
+  cases, un paragraphe de plafonds sous le tableau, et une pastille de comptage dans le titre de
+  chaque liste. Tout est réuni en paires libellé / valeur, dans l'ordre de la maquette : sorts
+  mineurs connus, sorts préparés, sorts en grimoire, sorts connus, renouvellement, domaines.
+→ **Une ligne n'apparaît que si le profil la porte réellement.** Un clerc n'a ni grimoire ni
+  répertoire : lui afficher « Sorts connus : 0 » lui ferait croire à une donnée manquante. D'où
+  le tri par `cla_profil_incantation` — grimoire et connus pour `PROFINC_GRIMOIRE`, « Sorts au
+  répertoire » pour `PROFINC_REPERTOIRE`, aucune des deux pour `PROFINC_LISTE` et le pacte.
+  Même règle pour les plafonds : « Sorts mineurs connus » est une donnée DD2024
+  (`cn_sort_n0` y compte les sorts mineurs, là où il porte les emplacements de niveau 0 en
+  DD3.5), et le plafond de préparation n'existe qu'en DD2024 (`cn_sortPrepare`) — en DD3.5 la
+  ligne n'affiche que le nombre préparé, puisque c'est le tableau des emplacements qui borne.
+→ **Les listes de sorts passent en flux.** `columns: 2/3` découpait la largeur en tranches
+  égales : la deuxième colonne démarrait au milieu de la page, loin de son titre, et un nom
+  court laissait un vide aussi large qu'un nom long. Les sorts se suivent maintenant sur la
+  ligne (`flex-wrap`), à écart **fixe de 24px** (`--sp-lg`, 8px entre deux lignes), et chaque
+  liste repart à gauche, à l'aplomb de son titre.
+→ **Deux correctifs de fond au passage.** La liste « Toujours préparés » portait
+  `.per-liste-inline`, une classe **sans aucun style dans le projet** : elle s'affichait en
+  liste à puces. Elle prend le flux commun. Et `.per-fiche__sous-titre`, qui coiffe toutes les
+  listes de la page, n'était lui non plus **défini nulle part** — les titres tombaient sur le
+  `h3` par défaut du navigateur, dont la marge haute ouvrait un trou sous le tableau.
+→ « Niveau de sort » devient « **Niveaux de sort** » dans l'en-tête du tableau : la cellule
+  coiffe les neuf colonnes, pas une seule.
+→ Contrôlé dans le navigateur sur les trois profils présents en base : *Telgar Weyr* (DD2024,
+  clerc 10 `PROFINC_LISTE` + magicien 20 `PROFINC_GRIMOIRE`) et *Elminster* (DD3.5, magicien 20
+  + archimage 5). Tableau 601px / panneau 441px côte à côte à 1280px, encore côte à côte à
+  820px (446 / 286), empilés à 375px ; aucun débordement horizontal, et les 11 colonnes du
+  DD3.5 n'appellent pas de défilement interne. Écarts de liste relevés à 23-25px selon
+  l'arrondi sous-pixel, listes alignées à x = celui de leur titre.
+→ **Reste hors périmètre** : le suivi réel des emplacements consommés (ligne « En stock »,
+  toujours un miroir de « Par jour ») demande une table dédiée et relève de `SP-PE8`.
+
+**[2026-09-19] D-RS47 — SP-PE10c : le tableau des emplacements prend l'échelle de la page**
+Code : `css/personnages-modules.css` seul. Aucun patch SQL, aucun changement de structure.
+→ **`.table-dd` est réglé pour le compendium, pas pour cette page.** Il habille des tables de
+  progression de classe qui alignent vingt lignes et une quinzaine de colonnes : d'où des
+  cellules de 26px, un padding de 3px et une police de .82rem. Illisible ici, où le tableau n'a
+  que deux ou trois lignes et se consulte d'un coup d'œil en séance.
+→ **La référence est le panneau qui lui fait face, pas une taille choisie dans l'absolu.** Une
+  première passe avait grossi le tableau bien au-delà (chiffres à 1.25rem, en-tête à 1.5rem) :
+  il écrasait le reste du bloc. Les deux colonnes de la rangée partagent désormais la même
+  échelle — en-tête de groupe à **1.05rem** comme le titre « Ressources de sorts », libellés de
+  ligne et chiffres à **1rem** comme les libellés et valeurs des ressources, le gras marquant
+  de part et d'autre ce qui est une valeur. Colonnes à 34px, padding 5px/8px.
+→ **Rien ne change sous 992px** : la version compacte reste celle qui tient dans un téléphone.
+→ **Le séparateur rouge de `.table-dd` est neutralisé sur cette table** (arbitré : surcharge
+  locale, ni conservation ni retrait global). Il sépare les colonnes de sorts des autres
+  colonnes d'une table de progression ; ici, où seule une colonne de libellés leur fait face,
+  il ne sépare rien. Les tables du compendium et des règles le gardent.
+→ Contrôlé dans les deux thèmes sur *Telgar Weyr* (DD2024, 10 colonnes) et *Elminster* (DD3.5,
+  11 colonnes avec le niveau 0) : tailles rendues identiques de part et d'autre de la rangée
+  (15,75px pour les deux en-têtes, 15px pour libellés et valeurs — la base `rem` du site fait
+  15px) ; à 1000px, tableau de 520px et panneau de 360px, côte à côte et **sans défilement
+  interne** malgré les 11 colonnes ; à 375px, retour au compact (13,1px) sans débordement.
+
+**[2026-09-19] D-RS48 — SP-PE10d : le sélecteur de sorts n'avait aucun style à lui**
+Code : `include/ajax/detail-pp/sorts-picker.php`, `js/personnage.js`, `css/modules.css`.
+Aucun patch SQL.
+→ **Constat de départ.** `sorts-picker.php` emprunte la coque du sélecteur de dons
+  (`.dons-picker`) mais nomme ses propres éléments : `.dons-picker__items`,
+  `.dons-picker__toggle`, `.dons-picker__decompte`, `.dons-picker__grimoire`, `.est-choisi`,
+  `.sorts-picker__compteur(s)`, `.sorts-picker__jeton`, `.est-plein`. **Aucun n'existait dans
+  les CSS du projet** : le `<ul>` s'affichait à puces, les boutons n'avaient que l'habillage
+  générique `.btn`, les jetons de compteur DD3.5 étaient du texte nu — et un sort retenu ne se
+  distinguait d'un autre que par l'icône de son bouton. La demande « changer la couleur de fond
+  d'une ligne sélectionnée » portait donc sur un composant entièrement à styler.
+→ **Ligne retenue : fond teinté + filet d'accent.** `color-mix(in srgb, var(--clr-accent) 14%,
+  transparent)`, précédé de `var(--clr-surface-alt)` en repli pour les navigateurs sans
+  `color-mix` (déjà employé dans `campagnes-modules.css`). Aucune couleur en dur, et la teinte
+  suit le thème — parchemin comme sombre. Le nom passe en gras, le bouton prend la couleur
+  d'accent : il retire, il ne l'ajoute plus.
+→ **Téléphone : le volet de description disparaît, la fiche passe au-dessus.** Il occupait plus
+  de la moitié de la largeur alors que le choix se fait dans la liste. Sous 992px, la liste
+  prend 100 % et la fiche s'ouvre dans `#detail-pp-sub` (z-index 300), **par-dessus** le
+  sélecteur (200), qui reste ouvert et retrouve sa place à la fermeture du sous-panneau. Le
+  seuil est le même des deux côtés — média-query CSS et `matchMedia` dans `voir()`.
+→ **Liste resserrée, bouton intact.** Padding de ligne ramené à 2px, nom sur une seule ligne
+  avec ellipsis, aucun retour à la ligne — mais le bouton garde **44px** : c'est lui qu'on vise
+  du pouce, et c'est lui qui fixe la hauteur de ligne (49px mesurés).
+→ **Filtre « Les préparés seulement ».** Le filtre existait en mode répertoire sous le libellé
+  « Les siens seulement » ; la même case sert désormais aux deux modes, avec le libellé et
+  l'infobulle du mode. Rien à changer dans `filtrer()` : `est-choisi` signifie « retenu » dans
+  un cas et « préparé » dans l'autre.
+→ **Le bouton « recopier dans le grimoire » suit l'état du sort.** Il n'était posé qu'au rendu
+  serveur, sur les sorts déjà retenus : un sort tout juste ajouté n'en avait pas tant que le
+  panneau n'était pas rouvert. `_majBoutonGrimoire()` le pose et le retire à chaque bascule.
+  Un sort ajouté ici n'est jamais déjà recopié (`pes_compris = 0`), le bouton naît donc toujours
+  sur « livre ouvert ». `grimoire()` visait `querySelectorAll('.dons-picker__toggle')[1]`, la
+  position dans la ligne : il vise maintenant `.dons-picker__grimoire`, sa classe.
+→ Le profil d'incantation descend dans le DOM (`data-grimoire`) : le JS ne peut pas deviner
+  qu'une classe tient grimoire.
+→ **Contrôlé dans le navigateur, sur une session authentifiée** (procédure D-RS35), sur
+  *Telgar Weyr* (magicien DD2024, 203 sorts au répertoire, 6 au grimoire) et *Elminster*
+  (magicien DD3.5, jetons de compteur par niveau) : ligne teintée et filtre vérifiés dans les
+  deux modes ; fiche dans le volet droit à 1280px, dans le sous-panneau à 375px sans que le
+  sélecteur se ferme ; bouton grimoire apparu, disparu, reparu au fil des bascules, et
+  **fonctionnel une fois posé en JS** (recopie puis retrait). Les écritures de contrôle ont été
+  faites sur la vraie base puis annulées ; état relevé avant et **vérifié identique après**
+  (9 sorts, mêmes `pes_compris`), conformément au précédent D-RS36.
+
+**[2026-09-19] D-RS49 — SP-PE10e : en DD3.5, préparer un sort n'est pas un oui/non**
+Code : `personnages/enregistrement.php`, `include/ajax/detail-pp/sorts-picker.php`,
+`js/personnage.js`, `css/modules.css`. **Aucun patch SQL** — la colonne existait déjà.
+→ **Le modèle était juste, l'interface ne le suivait pas.** Un magicien DD3.5 mémorise plusieurs
+  fois le même sort, chaque exemplaire occupant un emplacement de son niveau. `pesp_nb` porte
+  cette quantité depuis l'origine, `dd_personnages_sorts_prepares` n'a volontairement pas de clé
+  unique, la vue Magie affiche déjà « ×N » et somme `GREATEST(pesp_nb,1)`. Mais
+  `basculerPrepare()` insérait toujours `pesp_nb = 1` et supprimait la ligne au clic suivant, et
+  le sélecteur n'offrait qu'une bascule : la quantité était inatteignable depuis l'écran.
+→ **Un exemplaire par clic.** `preparerSort` incrémente (INSERT à 1, puis `pesp_nb + 1`),
+  `retirerPrepare` décrémente et **supprime la ligne au dernier retrait**. La réponse renvoie le
+  `nb` de la ligne : le serveur fait foi, le JS ne recompte pas de son côté.
+→ **La quantité est une règle DD3.5, et le code le dit.** En DD2024 la liste préparée est un
+  ENSEMBLE de sorts distincts — on lance n'importe lequel avec l'emplacement de son choix, et
+  `cn_sortPrepare` plafonne des sorts distincts. La bascule présent/absent y est donc conservée,
+  et `gardeSortPersonnage()` rend désormais le ruleset pour que l'écriture puisse trancher.
+→ **La ligne porte un compteur `[−] N [+]`** en préparation DD3.5, à la place du bouton bascule.
+  Les trois éléments sont toujours présents, y compris à zéro : la ligne ne bouge pas quand la
+  quantité change et le pouce garde sa cible. Le « − » est désactivé à zéro.
+→ **Le compteur est encadré.** Il est suivi de la pastille de niveau du sort : deux chiffres
+  voisins qui ne disent pas la même chose — « combien j'en prépare » et « de quel niveau il
+  est ». Le cadre marque la frontière, et prend la couleur d'accent quand la ligne est retenue.
+  Même souci que le DD et l'attaque des sorts accolés, réglé en SP-PE7b.
+→ **Les jetons de niveau comptent des exemplaires, plus des lignes.** `_majCompteurs()` sommait
+  `.est-choisi[data-niv=n]` ; il somme maintenant leur `data-nb`. Un sort préparé trois fois
+  consomme bien trois emplacements de son niveau.
+→ **Rien ne bloque au-delà du plafond** : la page est une aide de jeu, pas un moteur de règles
+  (§7.1). Le jeton du niveau vire au rouge, et c'est tout — cohérent avec ce qui existait.
+→ `pesp_nb` vaut **0 par défaut en base** alors qu'un exemplaire préparé compte pour 1 : toute
+  lecture passe par `GREATEST(pesp_nb, 1)`, comme le faisait déjà le total.
+→ Contrôlé dans le navigateur sur *Elminster* (magicien 20 DD3.5) : montée à 3 exemplaires d'un
+  même sort — jeton N0 de 4 à 1 —, saturation du niveau (jeton rouge à 0), retour à zéro avec
+  suppression de la ligne, et clic de trop sur « − » sans effet ; `pesp_nb` vérifié en base à
+  chaque palier. Sur *Telgar Weyr* (magicien 20 DD2024) : pas de compteur, bascule inchangée,
+  plafond global toujours en sorts distincts (22/25). États relevés avant et **vérifiés
+  identiques après** sur les deux personnages (précédent D-RS36).
+→ **Hors périmètre, à traiter le jour où les métamagies seront saisies** : une version
+  métamagique occupe sa propre ligne (`pesp_metamagie`), que cet écran ne montre pas encore. Le
+  compteur ne porte donc que la version sans métamagie ; le picker cumule les lignes à
+  l'affichage pour ne pas en masquer l'existence.
+
+**[2026-09-19] D-RS50 — SP-PE10f : le niveau passe en intertitre, la ligne se dégage**
+Code : `include/ajax/detail-pp/sorts-picker.php`, `js/personnage.js`, `css/modules.css`.
+Aucun patch SQL.
+→ **La pastille de niveau quitte chaque ligne** au profit d'un **en-tête par groupe de niveau**.
+  Les sorts arrivent déjà triés par niveau puis par nom : un intertitre à chaque rupture dit la
+  même chose que 203 pastilles, en neuf lignes. Sur un téléphone, le nom du sort passe de 193 à
+  **285px** en répertoire et à **234px** en préparation — c'est là que la place manquait.
+→ **L'en-tête est `sticky`** en haut de la liste : on sait toujours quel niveau on parcourt.
+→ **Il se masque avec son groupe.** `filtrer()` relève les niveaux encore représentés et efface
+  les en-têtes devenus orphelins — sans quoi une recherche laisserait des intertitres suivis de
+  rien. Vérifié : « boule » ne laisse que les niveaux 3 et 7, « les siens seulement » que le 1.
+→ **Le cadre du compteur, posé la veille en SP-PE10e, est retiré.** Il servait à le distinguer de
+  la pastille de niveau qui le suivait ; la pastille ayant disparu, il ne séparait plus rien et
+  surchargeait la ligne.
+→ **Le compteur DD3.5 se resserre sur téléphone** : ses deux boutons descendent de 44 à **40px**
+  — la taille déjà retenue pour le sélecteur de dons en mobile — et l'écart interne tombe à zéro.
+  Il coûte deux cibles tactiles là où les autres modes n'en demandent qu'une ; sur 343px de
+  liste, le nom du sort n'avait plus de quoi s'écrire. La hauteur de ligne passe de 49 à 45px.
+→ Contrôlé sur *Telgar Weyr* (DD2024, 203 sorts, 9 niveaux) et *Elminster* (DD3.5, préparation) à
+  375px et 1280px : en-têtes présents et collants, aucune pastille résiduelle, filtres exacts,
+  aucun débordement horizontal.
+
+**[2026-09-19] D-RS51 — SP-PE10g : sur téléphone, la liste du sélecteur sort de son cadre**
+Code : `css/modules.css` seul. Aucun patch SQL.
+→ Sous 992px, `.sorts-picker .dons-picker__liste` **perd sa bordure et son arrondi** : à quelques
+  pixels du cadre de l'overlay, il le redoublait sans rien délimiter de plus, et les deux
+  mangeaient la largeur du nom des sorts.
+→ Elle **déborde du padding du panneau** de `--sp-sm` de chaque côté (marges négatives et
+  `width: calc(100% + var(--sp-md))`). Débordement volontairement modéré : il reste 8px de marge,
+  le texte ne touche pas le bord de l'écran.
+→ Gain mesuré à 375px : la liste passe de 343 à **359px**, le nom du sort de 285 à **303px** en
+  répertoire et de 234 à **252px** en préparation DD3.5 — soit, cumulé avec SP-PE10f, **110px
+  gagnés sur le nom** depuis le début de la passe.
+→ **L'ordinateur ne bouge pas** : la règle vit dans la média-query 991px, bordure et arrondi y
+  sont vérifiés intacts, les deux volets aussi. Le **sélecteur de dons non plus** — la règle est
+  préfixée `.sorts-picker`.
+
+**[2026-10-07] D-RS52 — SP-PE10h : la fiche personnage reprend de la hauteur**
+Code : `include/header.php`, `include/helpers.php`, `include/personnage_helpers.php`,
+`include/ajax/detail-pp/personnage.php`, `personnages/fiche.php`, `personnages/background.php`,
+`js/personnage.js`, `css/main.css`, `css/personnages-modules.css`. Aucun patch SQL.
+
+**1. En-tête du site sur téléphone.**
+→ Le bouton Menu occupait **une ligne entière pour lui seul** pendant que le raccourci
+  personnage se serrait à 40 % au bout de la ligne de titre : exactement l'inverse de ce qu'il
+  fallait. Le burger devient une icône de 44px à l'extrême droite de la ligne du logo et du
+  badge de ruleset ; le raccourci prend la ligne suivante **sur toute la largeur** — c'est une
+  cible de doigt, et le nom d'un personnage n'y est plus tronqué.
+→ Le mot « Menu » et le chevron disparaissent sous 992px. **Le chevron a résisté** : Font
+  Awesome, chargé après `main.css`, pose un `display` sur toute icône `.fa` et gagnait à
+  spécificité égale. Ciblé depuis son bouton (`.site-header__burger .site-header__burger-chevron`)
+  plutôt qu'avec un `!important`.
+
+**2. Bloc Identité, refondu.**
+→ **Une rangée de couples libellé/valeur** : niveau, race, sexe, alignement, et l'historique en
+  DD2024. Chaque champ est un bloc insécable qui passe à la ligne entier — la grille de colonnes
+  d'avant pouvait séparer « Alignement » de sa valeur.
+→ **Le niveau total ouvre la rangée** et quitte la ligne sous le nom du personnage.
+→ **Les classes perdent leur libellé et leurs « niv. »** : une par ligne, nom puis nombre, le
+  liseré pointillé entre chacune. Dans un bloc Identité, « Clerc 5 » ne se lit pas autrement.
+→ **Le bouton Modifier est posé en absolu** au bout de la première ligne. La place lui est
+  réservée par le `padding-right` de cette ligne : un nom long passe à la ligne **avant** de
+  l'atteindre, au lieu de glisser dessous.
+→ **Le badge « P » des classes de prestige devient une italique** (DD3.5) — même information,
+  plus de pastille sur la ligne.
+→ **Les sous-classes DD2024 rejoignent leur classe, entre parenthèses** : « Clerc 5 (Domaine de
+  la Vie) ». Une sous-classe n'est pas une classe de plus, c'en est une facette. Le rattachement
+  se fait par `cla_cla_id`, que `getPersonnageClasses()` ne renvoyait pas.
+
+**3. Défaut découvert en chemin : le niveau total comptait les sous-classes.**
+→ `$niveau_global` sommait toutes les lignes de `dd_personnages_classes`. Le Domaine de la Vie
+  d'Adon y ajoutait son niveau 1 : un clerc 5 / guerrier 1 affichait **7**. Le bonus de maîtrise
+  DD2024, calculé sur ce total, était faux avec. Les sous-classes (`cla_clt_id = 5`) en sont
+  exclues.
+→ Les `clt_id` littéraux se dispersaient dans le code — un écueil déjà nommé dans
+  `helpers.php` à propos des profils d'incantation. Ils reçoivent leurs constantes :
+  `CLT_BASE_35`, `CLT_PRESTIGE`, `CLT_PNJ`, `CLT_BASE_2024`, `CLT_SOUS_CLASSE`.
+
+**4. Caractéristiques, CA et PV.**
+→ Les titres « Caractéristiques » et « Combat » tombent : le premier ne dit rien que la grille ne
+  dise, le second coiffait deux nombres. Les contours restent — c'est eux qui séparent.
+→ Les six caractéristiques passent en **deux lignes de trois**, comme le bloc de stats d'un
+  monstre (`.mo-carac-table`). À six de front, les tuiles s'étiraient en bandes.
+→ Le bloc Combat disparaît au profit de **deux tuiles** CA et PV, libellé et valeur sur la même
+  ligne.
+→ **Les trois blocs tiennent une rangée** sur un poste (caractéristiques 637px, CA et PV 216px
+  chacun à 1280px) ; sur téléphone, les caractéristiques prennent leur ligne et CA / PV se
+  partagent la suivante (176px chacun à 375px).
+
+**5. Reste de la passe.**
+→ **Les boutons ne gardent que leur icône**, sur la fiche comme dans les pages sœurs. Onze
+  libellés retirés, dont **dix que `js/personnage.js` réinjectait** à chaque bascule d'éditeur :
+  les masquer en CSS ne suffisait pas, ils reparaissaient au premier clic. La classe
+  `.per-btn-label` et sa règle de masquage disparaissent avec eux.
+→ **Compétences sur téléphone** : les colonnes Carac / Maîtrise / Total passent de 3.9 à 2.6rem
+  et se collent à droite. Le nom de la compétence gagne ~55px — il tenait sur moins de la moitié
+  de la ligne.
+→ **Bloc NLS (DD3.5)** : le paragraphe d'explication est masqué sous 992px. Une phrase qu'on ne
+  lit qu'une fois ne vaut pas quatre lignes sur un téléphone ; le bloc, lui, reste.
+
+**6. Portée.**
+→ `include/ajax/detail-pp/personnage.php` partage ces composants : il suit la refonte (champs
+  d'identité, tuiles CA / PV). Sans quoi le nettoyage des règles mortes l'aurait laissé sans
+  styles.
+→ Contrôlé dans le navigateur à 1280px et 375px sur *Adon* (DD2024, clerc 5 + Domaine de la Vie
+  + guerrier 1) et *Elminster* (DD3.5, magicien 20 + archimage 5) : rangée d'identité conforme,
+  « Clerc 5 (Domaine de la Vie) », « *Archimage* 5 » en italique sans badge, niveau total à 6 et
+  25, burger à 44px sur la ligne de titre, menu déroulant qui s'ouvre toujours, raccourci
+  personnage à 343px, aucun débordement horizontal. **L'éditeur de classes inline a été ouvert
+  et refermé** pour vérifier que le DOM remanié ne l'avait pas cassé.
+
+**[2026-10-07] D-RS53 — SP-PE10i : les caractéristiques prennent la forme d'un bloc de monstre**
+Code : `css/personnages-modules.css`, `js/personnage.js`, `personnages/fiche.php`,
+`personnages/campagnes.php`. Aucun patch SQL.
+→ **Sous 992px, chaque caractéristique tient sur une ligne** : abréviation sur son fond, valeur
+  en gras, modificateur en gris — la forme de `.mo-carac-table`, le bloc de stats d'un monstre.
+  Les tuiles empilaient les trois informations : trois lignes de texte par caractéristique, deux
+  rangs de tuiles, et un bloc de **236px pour six nombres**. Il en fait **71**.
+→ **Les tuiles CA et PV suivent** : leur padding et leur valeur se resserrent (130px → 50px).
+  Ce n'était pas demandé, mais une fois les caractéristiques ramenées à 71px, deux nombres sur
+  130px de haut à côté ne tenaient plus ensemble. La rangée entière passe de ~380 à **129px**.
+→ **Rien ne change sur ordinateur** : tout vit dans la média-query 991px, les tuiles empilées y
+  sont vérifiées intactes (220px, valeur à 24px).
+→ **Trois boutons « Modifier » gardaient leur libellé**, écrit en dur dans le HTML et non porté
+  par `.per-btn-label` — Compétences, NLS prestige, et Campagnes de la page sœur. Ils passent à
+  l'icône seule, avec un `title` explicite.
+→ **Conséquence traitée : le title doit suivre la bascule.** Sans libellé, il est le seul à dire
+  ce que fait le bouton — or le JS ne réécrivait que l'icône, laissant « Modifier les
+  compétences » sur un bouton devenu « Annuler ». Un helper unique,
+  `perBasculerBoutonEditer()`, relève le title d'origine au premier passage et le restaure au
+  retour en lecture ; les quatre éditeurs inline y passent (dix bascules).
+→ **Non touchés, volontairement** : « Enregistrer », « Annuler » et « Ajouter une classe » d'un
+  éditeur ouvert, et « Choisir des dons ». Ce sont des actions d'écriture ou d'ouverture, visibles
+  seulement en édition, où un mot vaut mieux qu'une icône seule — et elles ne pèsent pas sur la
+  lecture, qui est ce que cette passe cherche à alléger.
+→ Contrôlé à 375px et 1280px sur *Adon* : six caractéristiques sur deux lignes, CA / PV alignées,
+  bascule du bouton Compétences vérifiée dans les deux sens (icône **et** title), aucun
+  débordement.
+
+**[2026-10-07] D-RS54 — SP-PE10j : une règle de graisse, et un bonus de maîtrise retrouvé**
+Code : `include/personnage_helpers.php`, `personnages/fiche.php`, `js/personnage.js`,
+`css/personnages-modules.css`. Aucun patch SQL.
+
+**1. Règle d'interface posée : le libellé en gras, la valeur en graisse normale, les deux à la
+même taille et dans la même police.**
+→ Le bloc Identité faisait l'inverse à moitié : libellés **rapetissés et grisés**, valeurs en
+  corps normal — deux échelles de texte sur une ligne qui n'en demandait qu'une.
+→ Les tuiles **CA et PV** l'inversaient franchement : libellé petit et gris, valeur énorme et
+  grasse. Les deux passent à la même taille, le gras va au libellé.
+→ Les **classes** aussi : le niveau portait le gras, pas le nom. Le nom est le libellé.
+
+**2. Compacité.**
+→ Bloc Identité : marges internes ramenées à `--sp-xs`, corps du bloc à `--sp-sm` en vertical —
+  la dernière ligne de classe n'a pas de bordure, l'espace sous elle se voyait d'autant.
+→ Lignes de **classes** (5px → 2px de padding), de **compétences** et de **dons**
+  (`--sp-sm` → 2px), lignes du tableau **NLS** (3px → 1px, soit 27 → 23px).
+
+**3. Compétences : la colonne Carac porte deux valeurs, pas une.**
+→ Les trois colonnes avaient la même largeur, et l'abréviation passait sous son modificateur :
+  « INT » puis « +2 » sur deux lignes, dans les deux rulesets. Carac prend **4.6rem** (4.2 sur
+  téléphone), Maîtrise/Rangs et Total se contentent de **3.2rem** (2.4).
+→ Ce qui n'était possible qu'en **abrégeant la colonne Maîtrise** : « M. » et « E » au lieu de
+  « Maîtrise » et « Expertise », en lecture comme dans le select de l'éditeur. Le mot entier
+  reste dans le `title`.
+
+**4. Défaut corrigé : le bonus de maîtrise tombait à zéro au-delà du niveau 20.**
+→ `getBonusMaitrise()` cherchait la ligne de **niveau exact** dans `dd_bonus_maitrise`, qui
+  s'arrête au niveau 20. Un personnage multiclassé totalisant davantage — le magicien 20 /
+  clerc 10 de la base de test — n'y trouvait rien et repartait avec **0**. Toutes ses
+  compétences affichaient alors leur seul modificateur de caractéristique : « Discrétion DEX +5
+  Maîtrise **+5** », là où il fallait +11.
+→ La requête prend désormais le **palier le plus élevé qui ne dépasse pas le niveau**
+  (`bm_niveau <= ? ORDER BY bm_niveau DESC LIMIT 1`). Paliers vérifiés : +2 jusqu'à 4, +3 à 5,
+  +4 à 9, +5 à 13, +6 à 17 et au-delà.
+→ `bonusCompetence()` était juste et n'a pas bougé : mod seul sans maîtrise, + le bonus avec,
+  + deux fois le bonus en expertise. C'est son argument qui valait zéro.
+→ Contrôlé après correction sur *Telgar Weyr* (niveau 30, bonus +6) : Discrétion DEX +5 maîtrise
+  → **+11**, Investigation INT +4 expertise → **+16**, et les mêmes totaux en direct dans
+  l'éditeur inline, qui partage le calcul côté JS.
+→ Contrôlé à 375px et 1280px sur les trois personnages de test (DD2024 avec et sans
+  multiclassage, DD3.5) : colonne Carac sur une ligne dans les deux rulesets, select de l'éditeur
+  sur « — / M. / E », aucun débordement.
+
+**[2026-10-07] D-RS55 — SP-PE10k : le bloc Identité perd son titre, les boutons se remettent en ligne**
+Code : `personnages/fiche.php`, `css/personnages-modules.css`. Aucun patch SQL.
+→ **Le titre « Identité » est retiré**, comme ceux des blocs de stats avant lui : il ne disait
+  rien de plus que « Niveau 6 · Race Humain · Clerc 5 » juste en dessous, et coûtait une barre
+  d'en-tête entière. Le contour du bloc reste — c'est lui qui délimite.
+→ **Retour et Modifier ne s'empilent plus sur téléphone.** La surcharge mobile de
+  `.per-fiche__header` les posait l'un sous l'autre (`"nom retour" / "meta modifier"`), ce qui
+  les laissait littéralement superposés quand la ligne meta était vide — un personnage sans
+  campagne en cours. Elle **est simplement supprimée** : elle n'existait que parce que leurs
+  libellés « Liste » et « Modifier » ne tenaient pas côte à côte, or ce sont deux icônes depuis
+  SP-PE10h. La grille de base les remet tous deux au bout de la ligne du nom.
+→ Contrôlé à 375px et 1280px, avec et sans ligne meta (*Adon* a une campagne en cours, *Telgar
+  Weyr* non) : boutons sur la même ligne, sans chevauchement, et la ligne meta passe dessous
+  quand elle existe.
+
+**[2026-10-07] D-RS56 — SP-PE10l : Mode jeu optionnel, bonus de maîtrise affiché, caracs compactées partout**
+Code : `sql/2026-10-07_mode_jeu_optionnel_sp-pe10l.sql`, `profil/index.php`, `include/auth.php`,
+`index.php`, `personnages/fiche.php`, `css/personnages-modules.css`.
+**Un patch SQL** — appliqué et vérifié en local, à passer en prod.
+
+**1. Le bloc « Mode jeu » devient optionnel.**
+→ Nouvelle préférence `j_affichage_mode_jeu` dans `dd_joueurs`, sur le modèle de
+  `j_mode_campagne` et `j_affichage_ruleset` : même type, même emplacement dans le formulaire de
+  profil, même propagation en session (connexion par mot de passe **et** par cookie de
+  mémorisation — les deux requêtes la sélectionnent).
+→ **Défaut à 0, donc masqué.** Le bloc n'est encore qu'un emplacement réservé — le suivi des PV
+  et des variables de partie relève de `SP-PE8` — et coûtait une barre d'en-tête pour rien. Un
+  joueur qui le veut l'active ; **les utilisateurs existants le verront disparaître**, ce qui est
+  l'objet de la demande.
+
+**2. DD2024 : le bonus de maîtrise rejoint la rangée de stats.**
+→ Une tuile « Maît. +3 » avant CA et PV. C'est une valeur qu'on relit sans arrêt — tous les jets
+  de compétence et d'attaque en dépendent — et elle n'était visible nulle part sur la fiche.
+→ **Rien en DD3.5** : la notion n'y existe pas.
+→ Elles sont donc **trois** à se partager la rangée en DD2024. Base de tuile ramenée à 96px,
+  padding et `gap` resserrés, libellé et valeur à 1.5em : « Maît. +3 » tient sur sa ligne jusqu'à
+  **342px** de viewport (trois tuiles de 103px, mesuré), sans débordement interne.
+
+**3. Les caractéristiques prennent partout la forme compacte.**
+→ La forme « une ligne par caractéristique » posée sur téléphone en SP-PE10i devient la seule :
+  rien ne justifiait qu'un poste affiche six nombres sur **220px** de haut quand un téléphone s'en
+  tire avec 71. Le bloc fait désormais **87px** sur un poste.
+→ La surcharge mobile correspondante est supprimée — elle faisait double emploi ; seul le padding
+  du corps y reste resserré.
+
+→ Contrôlé à 1280, 375 et 342px sur *Adon* (DD2024, trois tuiles) et *Elminster* (DD3.5, deux
+  tuiles) : rangée sur une ligne dans tous les cas, aucun débordement. Préférence testée dans
+  les deux états — bloc présent quand elle est active, absent sinon — et l'écriture en base
+  vérifiée par une transaction annulée.
+
+**[2026-10-07] D-RS57 — SP-PE10m : les caractéristiques occupent leur place, les listes se partagent la ligne**
+Code : `personnages/fiche.php`, `css/personnages-modules.css`. Aucun patch SQL.
+→ **Les caractéristiques grossissent** : valeur à 1.5rem, abréviation et modificateur à 1rem.
+  Le bloc avait été resserré à 71px (SP-PE10i) puis étendu à l'ordinateur (SP-PE10l) ; à surface
+  égale dans la page, il lui restait beaucoup de blanc. Il fait 78px sur téléphone, 94 sur un
+  poste — pour des chiffres bien plus lisibles.
+→ **L'abréviation perd sa pastille de fond.** Elle découpait chaque ligne en deux blocs, et
+  c'est la valeur qu'on cherche du regard, pas le nom de la caractéristique : **la couleur
+  d'accent passe donc à la valeur**, l'abréviation reste en gris.
+→ **« Maît. » devient « BM »** sur la tuile du bonus de maîtrise ; le `title` garde le nom entier.
+→ **Compétences et Dons se partagent la rangée** au-dessus de 992px (542px chacun à 1280px) :
+  deux listes de même nature, lues de la même façon, qui laissaient chacune la moitié droite de
+  l'écran vide. Le **bloc NLS** garde sa pleine largeur **sous** la rangée — il porte un tableau
+  par classe de prestige. En DD3.5 l'ordre du DOM a donc changé : Compétences, Dons, puis NLS.
+→ Sous 992px, les trois restent empilés en pleine largeur : deux listes côte à côte sur un
+  téléphone ne laisseraient de place ni aux noms ni aux colonnes.
+→ **`min-width: 0` sur les blocs de la rangée** : sans lui, le tableau de l'éditeur de
+  compétences — toutes les compétences du ruleset, quatre colonnes — impose sa largeur
+  intrinsèque et fait déborder la rangée dès l'ouverture. Vérifié en ouvrant l'éditeur : la
+  rangée reste à 1100px, le bloc Dons ne bouge pas, et le tableau n'a même pas besoin de son
+  défilement interne.
+→ Contrôlé à 1280px et 375px sur *Adon* (DD2024) et *Elminster* (DD3.5, avec bloc NLS).
+
+**[2026-10-07] D-RS58 — SP-PE10n : le bloc NLS prestige se replie**
+Code : `personnages/fiche.php`, `js/personnage.js`, `css/personnages-modules.css`.
+Aucun patch SQL.
+→ **Replié par défaut**, avec le chevron des blocs repliables (celui du Mode jeu). L'affectation
+  des niveaux de prestige se règle une fois pour toutes, à la montée de niveau : elle n'a pas à
+  occuper la fiche entre deux. Le bloc passe de 286 à **43px** — son en-tête seul.
+→ Les deux corps du bloc, lecture et édition, sont enveloppés dans un `#bloc-nls-body` unique :
+  c'est lui que le chevron replie.
+→ **Conséquence traitée : le bouton Modifier reste accessible dans l'en-tête replié.** Cliquer
+  dessus aurait chargé l'éditeur dans un corps masqué, sans rien montrer. `nlsEditor` déplie le
+  bloc avant d'ouvrir, via un `perDeplierBloc()` qui ne fait rien si le bloc est déjà ouvert —
+  l'inverse de `perReplierBloc()`, qui bascule.
+→ **Les deux boutons sont groupés à droite.** `.per-fiche__bloc-header--flex` était en
+  `space-between`, ce qui convenait à un titre et un bouton ; le second se serait planté au
+  milieu de la barre. Le titre porte maintenant `margin-right: auto`.
+→ Nettoyage : `.per-classes__badge-prestige` n'avait plus de porteur depuis que l'italique a
+  remplacé le badge « P » (SP-PE10h).
+→ Contrôlé à 1280px et 375px : replié au chargement, ouverture et fermeture au chevron
+  (43 ⇄ 286px), et ouverture de l'éditeur depuis l'état replié — bloc déplié, cinq lignes
+  d'affectation générées, retour en lecture à l'annulation.
+
+**[2026-10-07] D-RS59 — SP-PE10o : les caractéristiques s'alignent en colonnes**
+Code : `css/personnages-modules.css` seul. Aucun patch SQL.
+→ **Abréviation, valeur et modificateur reçoivent une largeur fixe**, la même pour les six
+  caractéristiques, toutes calées à gauche : les deux rangs de trois se retrouvent ainsi à
+  l'aplomb l'un de l'autre. En largeur libre, « 9 » et « 11 » ou « +0 » et « -1 » décalaient
+  tout ce qui suivait sur leur ligne.
+→ **La base flex ne suffisait pas.** `flex: 0 0 2.2rem` fixe la base, mais `min-width: auto` —
+  la valeur par défaut d'un élément flex — laisse la boîte s'élargir à son contenu : une
+  caractéristique à trois chiffres reprenait 39px au lieu de 33 et décalait sa ligne. Le champ
+  est un `tinyint`, la valeur est saisissable. D'où `min-width: 0` sur les trois, et des
+  largeurs qui couvrent « 100 » et « -10 ».
+→ **Largeurs recalculées sur téléphone.** Celles du poste (2.6 + 2.8 + 2.4rem, gaps compris)
+  demandent 125px par caractéristique, quand une colonne de la grille en fait 111 à 375px et
+  **103 à 342px** : le modificateur de la troisième colonne sortait du bloc. Les colonnes
+  restent fixes — donc alignées — mais plus étroites, et la valeur passe à 1.3rem.
+→ Contrôlé à 1280, 375 et 342px, et en forçant une valeur à trois chiffres : alignement vertical
+  exact dans tous les cas, et 3px de marge au plus serré (342px) entre le dernier modificateur
+  et le bord du bloc.
+
+---
+
+## SP-DP — Déploiement en production et migrations SQL
+
+**[2026-10-07] D-DP1 — Nouveau projet SP-DP : arbitrage**
+Demande : déployer le site local vers OVH depuis un bouton discret du header, visible en local
+seulement, avec confirmation, exclusions dérivées du `.gitignore`, et si possible mise à jour de
+la base. Arbitrage validé le jour même :
+→ **SFTP uniquement.** Le FTP classique transmet le mot de passe en clair ; OVH propose le SFTP
+  sur toutes ses offres (activation manuelle sur Perso, onglet FTP-SSH).
+→ **Mot de passe mémorisé** dans un fichier hors du projet (plutôt que saisi à chaque envoi).
+→ **Mode maintenance** pendant l'envoi : accepté.
+→ **Migrations appliquées automatiquement** en fin d'envoi (SP-DP5 + SP-DP6), l'écran
+  d'administration restant le recours manuel.
+→ **Préfixe `dd_` en production** (cf. D-DP7).
+→ **Nouvelle table `dd_migrations`** et **nouveau module `admin/deploiement/`** : validés.
+
+**[2026-10-07] D-DP2 — Le module ne fonctionne qu'en local : quatre verrous indépendants**
+Code : `admin/deploiement/lib.php`, `garde.php`, `.htaccess`, `bouton.php` ; `include/header.php`,
+`admin/index.php`.
+→ (1) Le dossier s'exclut lui-même du transfert, en dur (`DEPLOIEMENT_EXCLUSIONS_FIXES`).
+  (2) Paramètres et secret hors du projet. (3) `REMOTE_ADDR` **et** `SERVER_ADDR` en boucle
+  locale, sinon 404. (4) `Require local` côté Apache.
+→ **Écarté : `DEV_MODE` ou `HTTP_HOST` comme signal.** Le client choisit l'en-tête Host, et
+  `DEV_MODE` en dérive avec un repli permissif (D-CFG1). D-RS35 l'avait déjà noté : un fichier
+  « local seulement » finit par partir en production — d'où plusieurs verrous plutôt qu'un.
+→ Le header et le tableau de bord admin n'incluent le module que si son fichier existe
+  (`is_file()`) : en production il est absent, rien ne s'affiche, aucune erreur.
+→ Remarque de test : `Require local` accepte aussi l'adresse réseau propre du poste (requête de la
+  machine vers elle-même) ; le contrôle PHP, plus strict, n'admet que 127.0.0.1 et ::1.
+  **Corrigé le 2026-10-09** : cette rigueur masquait le module à l'usage réel (D-DP10).
+
+**[2026-10-07] D-DP3 — Paramètres dans `C:/xampp/private/donjon-deploiement/`, pas en base**
+→ À côté de htdocs : hors webroot, hors git, **hors OneDrive** (le projet y est synchronisé),
+  hors de portée du déployeur qui ne parcourt que le projet.
+→ **Écarté : une table en base.** La base locale part régulièrement en dump dans `sql/`, et une
+  table créée par migration existerait aussi en production.
+→ **Mot de passe en clair dans `config.json`, assumé.** Le chiffrer avec une clé rangée à côté ne
+  protégerait de rien ; sa protection, c'est l'emplacement. Il n'est jamais renvoyé au navigateur
+  (champ vide, « laisser vide pour conserver »).
+
+**[2026-10-07] D-DP4 — Le périmètre est calculé par git, complété d'un `.deployignore`**
+Code : `deploiementPerimetre()`.
+→ git lui-même interprète `.gitignore` (négations, fichiers imbriqués, accents) : aucune
+  réimplémentation de la syntaxe. `.deployignore`, même syntaxe, est passé à
+  `git ls-files --exclude-from`.
+→ **Les fichiers commités puis ignorés sont exclus** (`git ls-files -c -i --exclude-standard`) :
+  `export/*` et `tools/gen_hash.php` sont suivis bien que `.gitignore` les exclue, ils seraient
+  partis sinon.
+→ L'arbre de travail fait foi, commité ou non : c'est lui qui est testé en local.
+→ **git introuvable ou en échec → refus**, jamais de repli sur « tout le dossier ».
+→ `.deployignore` retire : `doc/`, `scss/`, `demo/`, `data/`, `CLAUDE.md`, `phpinfo.php`,
+  l'exemple de config, et tout `sql/` sauf les migrations datées et le `.htaccess`. Résultat au
+  2026-10-07 : 179 fichiers envoyés, 108 exclusions.
+
+**[2026-10-07] D-DP5 — SFTP par l'extension curl de PHP, empreinte du serveur épinglée**
+→ Le curl de XAMPP (8.4.0) est compilé avec libssh2 : SFTP sans Composer ni extension.
+→ **Écarté : phpseclib** (dépendance à vendoriser) et **ext-ssh2** (absente, binaires Windows
+  incertains).
+→ L'empreinte SHA-256 est **lue sans s'authentifier** : épinglage volontairement faux, la poignée
+  de main échoue avant l'envoi de tout identifiant, libcurl cite l'empreinte réelle. Vérifié sur
+  github.com : l'empreinte lue est celle que GitHub publie pour sa clé ECDSA.
+→ Sans empreinte approuvée, toute connexion est refusée. Changer d'hôte ou de port l'oublie.
+→ Suppressions : uniquement des fichiers du manifeste, décochées par défaut. Les fichiers créés
+  en production (`img/uploads/`, logs) ne sont jamais touchés.
+
+**[2026-10-07] D-DP6 — Migrations : découpage en instructions, jamais `PDO::exec()` sur un script**
+Code : `migrationsInstructions()`, `migrationsAppliquer()`.
+→ **Constat en test.** `exec()` d'un script dont la première instruction renvoie un résultat
+  rend la main aussitôt : les instructions suivantes ne sont pas contrôlées, une erreur plus loin
+  passe inaperçue, et la connexion reste bloquée (« 2014 Cannot execute queries while other
+  unbuffered queries are active »). Même un `exec()` d'**une seule** instruction `SELECT`, `SHOW`
+  ou `OPTIMIZE TABLE` bloque la connexion.
+→ **Retenu** : découpage par un petit analyseur (chaînes, échappements et guillemets doublés,
+  identifiants, commentaires `-- `, `#`, `/* */` ; `/*! */` conservé), puis `query()` +
+  `closeCursor()` par instruction. Retirer les commentaires évite que PDO prenne un « 10:30 »
+  pour un marqueur `:30`.
+→ Vérifié : cas piégés (`?`, `:nom`, `;`, `--` dans des littéraux, apostrophes échappées) intacts ;
+  les 990 instructions des 36 migrations existantes **préparées** par le serveur (analyse sans
+  exécution) : aucune erreur de syntaxe.
+→ **Écarté : `mysqli::multi_query`**, conforme au besoin mais contraire à la règle « PDO
+  exclusivement ».
+→ Arrêt à la première erreur, avec le rang et un extrait de l'instruction fautive. Un script
+  contenant `DELIMITER` est refusé (commande du client mysql). Un fichier retouché après
+  application est signalé, jamais rejoué.
+
+**[2026-10-07] D-DP7 — Préfixe : `dd_` en production aussi**
+→ Confirmé par Jean-Michel. Le code porte `dd_` en dur (1 226 requêtes, aucune constante de
+  préfixe) et la production a sa propre base : le renommage en `dd2_` envisagé en 2025 n'a jamais
+  été appliqué. Mention corrigée dans `ARCHITECTURE_0_REFERENCE.md` §2 et dans `CLAUDE.md`.
+→ Les commentaires « dd2_ » des migrations existantes **ne sont pas corrigés** : modifier une
+  migration change son empreinte, le moteur la signalerait comme retouchée.
+
+**[2026-10-07] D-DP8 — Référence initiale : les 37 migrations existantes ne sont jamais rejouées**
+Code : `include/migrations-reference.php`, `migrationsAssurerTable()`.
+→ Toutes les migrations présentes ce jour ont été jouées à la main, en local comme en production
+  (déclaration de Jean-Michel). La plupart ne sont pas idempotentes (`ADD COLUMN` rejoué →
+  « Duplicate column name »).
+→ À la création de `dd_migrations` (table vide), le moteur inscrit ces 37 fichiers au statut
+  `reference`, avec leur SHA-256 du jour. **Liste figée** : on n'y ajoute jamais rien.
+→ **Écarté : une date butoir** (« tout ce qui précède le 2026-10-08 »). Une migration créée le
+  jour même après le moteur aurait été prise pour une ancienne.
+→ La base locale a reçu sa table le 2026-10-07 (37 lignes de référence, aucune exécution).
+
+**[2026-10-07] D-DP9 — Déclenchement en production par jeton à usage unique ; le schéma avant le code**
+Code : `admin/migrations-auto.php`, `deploiementAppliquerMigrations()`, `include/maintenance.php`.
+→ La base mutualisée OVH n'accepte que les connexions des serveurs d'hébergement : le SQL doit
+  être exécuté par le site lui-même.
+→ Le déployeur dépose par SFTP l'**empreinte** d'un jeton aléatoire (`config/.migrations-jeton`),
+  puis poste le jeton. Le serveur compare, supprime, refuse au-delà de 5 min (horloge serveur).
+  **Aucun secret permanent en production** ; un mauvais jeton ne détruit pas le fichier.
+→ **Écarté : un secret partagé permanent** (un fichier de plus à protéger, à faire tourner) et
+  **le clic manuel dans l'admin de production comme voie principale** (étape intercalée au milieu
+  de l'envoi). L'écran `admin/migrations.php` reste le recours.
+→ Le point d'entrée n'exécute que des fichiers déjà présents sur le disque, jamais du SQL reçu :
+  même contourné, il ne ferait qu'appliquer en avance une migration légitime.
+→ **Ordre** : maintenance → moteur et migrations → application → reste du code → suppressions →
+  fin de maintenance. Les migrations ajoutent : l'ancien code supporte le nouveau schéma, pas
+  l'inverse.
+→ `config/.htaccess` ajouté ; `sql/.htaccess` existait déjà (même effet) et **garde sa syntaxe
+  `Order` / `Deny`**, celle du `.htaccess` racine, éprouvée sur OVH — une première réécriture en
+  `Require all denied` a été annulée pour ne pas mêler les deux syntaxes.
+
+**[2026-10-07] Vérifications SP-DP**
+→ Banc d'essai en ligne de commande, serveur simulé par un dossier : 31 contrôles (ordre des
+  envois, maintenance première opération, exclusions, manifeste, suppressions limitées au
+  manifeste, fichier inconnu intact, envoi complet, validation des paramètres, refus SFTP sans
+  empreinte ou sur empreinte fausse).
+→ Contre l'Apache local : page 503 et contournement du point d'entrée, jeton absent, faux, mal
+  formé, expiré, fichier jeton inaccessible par le web, migration réussie puis migration en échec
+  (seule la première inscrite), retouche signalée. Fichiers et lignes de test retirés.
+→ Navigateur : paramètres, lecture et approbation d'empreinte, test de connexion (production
+  joignable, moteur absent → 404 attendu), validation, panneau (aperçu du vrai gabarit, texte de
+  confirmation, échec, reprise à la bonne étape, abandon réel avec verrou et journal).
+→ **Non vérifié** : un transfert réel vers OVH — aucun accès SFTP dans la session. C'est l'objet
+  de `SP-DP7` ; « Tester la connexion » exerce d'abord chaque opération (écriture, relecture,
+  suppression) sur un fichier témoin.
+
+---
+
+## [2026-10-09] Correctif — variantes de bouton inexistantes (`btn--*`, `btn-link`)
+
+**[2026-10-09] `btn--*` → `btn-*` (module Règles et gestionnaire de tableaux)**
+Les variantes de bouton du design system s'écrivent `btn-primary`, `btn-secondary`, `btn-danger`,
+`btn-sm` (`css/main.css`). 18 boutons portaient une graphie BEM `btn--…` qu'aucune feuille ne
+définit : un `<button>` y gardait le fond gris natif du navigateur (`#f0f0f0`) et un texte noir,
+y compris en thème sombre (le formulaire d'édition d'une règle et son bouton Enregistrer
+compris) ; un `<a>` s'affichait en simple lien.
+→ Renommage dans `regles/index.php`, `regles/recherche.php`, `regles/regle.php`,
+  `include/ajax/detail-pp/regle.php`, `include/ajax/detail-pp-sub/tableaux-picker.php`,
+  `include/ajax/modifier/regle.php`, `include/ajax/modifier/tableau.php`.
+→ Le bouton loupe de la recherche des règles n'avait aucune variante (`btn btn--sm`) : il prend
+  `btn btn-primary btn-sm`, comme le bouton de recherche de la barre de filtrage du compendium.
+
+**[2026-10-09] Variante `.btn-link` ajoutée au design system**
+12 boutons du module Personnages (`personnages/fiche.php`, `magie.php`, `campagnes.php` : retour,
+modifier ou replier un bloc, « Choisir des dons », « Réinitialiser »…) portaient `btn-link`, jamais
+défini — même fond gris natif, texte noir.
+→ Classe définie dans `css/main.css` (section BOUTONS) plutôt que de retoucher les 12 boutons :
+  le nom dit l'intention, une action discrète au rendu de lien. Ni fond ni bordure, couleur des
+  liens (`--clr-accent-2`), `--clr-text` au survol.
+→ Vérifié dans le navigateur, avant / après, sur des pages réelles rendues par le harnais CLI
+  (règles, fiche règle et son formulaire d'édition, fiche personnage, magie) : couleurs calculées
+  conformes aux variantes du design system dans les deux thèmes. Pas de code projet : correctif
+  ponctuel, hors chantier.
+
+**[2026-10-09] D-DP10 — « Local » = requête venue du poste lui-même, pas seulement de 127.0.0.1**
+Code : `deploiementEstLocal()` (`admin/deploiement/lib.php`) ; commentaires de `garde.php`,
+`bouton.php`, `.htaccess`, `admin/index.php`.
+→ **Constat** : ni le nuage du header ni la tuile Déploiement n'apparaissaient. Le journal
+  d'Apache montre que Jean-Michel consulte le site local par l'adresse réseau du poste,
+  `http://192.168.1.10/donjon/`, et non par `localhost`. `REMOTE_ADDR` valait donc
+  `192.168.1.10`, que le contrôle d'origine (127.0.0.1 / ::1 seulement) refusait.
+→ **Nouvelle règle** : `REMOTE_ADDR` **identique** à `SERVER_ADDR`, et adresse **non publique**
+  (plages privées ou réservées). C'est la définition de « même machine » qu'applique déjà
+  `Require local` côté Apache.
+→ Refusés : un autre appareil du réseau (téléphone : adresse différente de celle du serveur), un
+  visiteur Internet, et un serveur public qui s'appellerait lui-même — l'adresse d'un hébergement
+  OVH n'est jamais privée. Les trois autres verrous (auto-exclusion du dossier, paramètres hors
+  projet, `Require local`) sont inchangés.
+→ **Écarté : imposer `http://localhost/donjon/`.** L'accès par l'adresse réseau est l'usage
+  habituel du poste ; un verrou qui masque l'outil à son seul utilisateur légitime est un défaut.
+→ Vérifié : 7 cas unitaires (localhost IPv4/IPv6, adresse réseau du poste, téléphone, serveur
+  public, visiteur, CLI) ; navigateur par `http://192.168.1.10/donjon/` : nuage, tuile, page de
+  paramètres et panneau présents.

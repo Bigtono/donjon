@@ -1,0 +1,219 @@
+/* admin/deploiement/deploiement.css — Module de déploiement (SP-DP)
+   Chargé par le bouton du header (bouton.php), en local uniquement : le
+   panneau s'ouvre depuis n'importe quelle page. Jamais transféré. */
+
+/* ============================================================
+   BOUTON DU HEADER — discret, même famille que la déconnexion
+   ============================================================ */
+
+.site-header__deploiement {
+  color: var(--clr-text-muted) !important;
+}
+
+.site-header__deploiement:hover {
+  color: var(--clr-accent-2) !important;
+}
+
+/* ============================================================
+   PANNEAU — aperçu, confirmation, progression
+   ============================================================ */
+
+.deploiement__titre {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+}
+
+.deploiement__titre i {
+  color: var(--clr-accent-2);
+}
+
+.deploiement__cible {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  margin-bottom: var(--sp-md);
+  word-break: break-all;
+}
+
+.deploiement__bilan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+}
+
+.deploiement__chiffre {
+  padding: var(--sp-xs) var(--sp-sm);
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+
+.deploiement__liste {
+  margin-bottom: var(--sp-sm);
+  font-size: 0.85rem;
+}
+
+.deploiement__liste summary {
+  cursor: pointer;
+  color: var(--clr-text-muted);
+}
+
+.deploiement__liste ul {
+  max-height: 220px;
+  overflow-y: auto;
+  margin: var(--sp-xs) 0 0;
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--clr-surface-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  list-style: none;
+}
+
+.deploiement__liste--suppression summary {
+  color: var(--clr-warning);
+}
+
+.deploiement__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  margin: var(--sp-md) 0;
+}
+
+.deploiement__option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  cursor: pointer;
+}
+
+.deploiement__confirmation {
+  margin-top: var(--sp-md);
+  padding: var(--sp-md);
+  border: 1px solid var(--clr-danger);
+  border-radius: var(--radius-md);
+  background: var(--clr-surface-2);
+}
+
+.deploiement__question {
+  font-weight: 600;
+}
+
+.deploiement__progression {
+  width: 100%;
+  height: 10px;
+  margin: var(--sp-md) 0 var(--sp-sm);
+  accent-color: var(--clr-accent-2);
+}
+
+.deploiement__journal {
+  margin: 0;
+  padding-left: var(--sp-lg);
+  font-size: 0.85rem;
+}
+
+.deploiement__etape {
+  margin-bottom: var(--sp-xs);
+}
+
+.deploiement__etape::marker {
+  color: var(--clr-text-muted);
+}
+
+.deploiement__etape--encours .deploiement__etape-libelle::after {
+  content: ' …';
+  color: var(--clr-text-muted);
+}
+
+.deploiement__etape--ok .deploiement__etape-libelle {
+  color: var(--clr-success);
+}
+
+.deploiement__etape--echec .deploiement__etape-libelle {
+  color: var(--clr-danger);
+  font-weight: 600;
+}
+
+.deploiement__etape--fin {
+  list-style: none;
+  margin-top: var(--sp-sm);
+  color: var(--clr-success);
+  font-weight: 600;
+}
+
+.deploiement__etape-detail {
+  color: var(--clr-text-muted);
+  font-size: 0.78rem;
+  word-break: break-word;
+}
+
+/* ============================================================
+   ÉCRAN DE PARAMÉTRAGE — admin/deploiement/index.php
+   ============================================================ */
+
+.deploiement-sections {
+  display: grid;
+  gap: var(--sp-lg);
+  max-width: 900px;
+}
+
+.deploiement-section {
+  padding: var(--sp-md) var(--sp-lg);
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+}
+
+.deploiement-section h2 {
+  font-size: 1.05rem;
+  margin-bottom: var(--sp-md);
+}
+
+.deploiement-section .form-actions form {
+  display: inline;
+}
+
+.deploiement-grille {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--sp-md);
+}
+
+.deploiement-empreinte {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  margin: var(--sp-sm) 0;
+  word-break: break-all;
+}
+
+.deploiement-test {
+  margin: var(--sp-md) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deploiement-test li {
+  margin-bottom: var(--sp-xs);
+}
+
+.deploiement-ok {
+  color: var(--clr-success);
+}
+
+.deploiement-ko {
+  color: var(--clr-danger);
+}
+
+@media (max-width: 767px) {
+  .deploiement-grille {
+    grid-template-columns: 1fr;
+  }
+
+  .deploiement-section {
+    padding: var(--sp-md);
+  }
+}

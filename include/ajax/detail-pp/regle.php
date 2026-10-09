@@ -115,7 +115,7 @@ $enfants = $stmt_enfants->fetchAll();
 
   <div class="regle-detail__footer">
     <a href="<?= BASE_URL ?>/regles/regle.php?id=<?= $id ?>"
-       class="btn btn--sm btn--secondary"
+       class="btn btn-sm btn-secondary"
        onclick="fermerDetailPP()">
       <i class="fa fa-book-open"></i> Voir la page complète
     </a>

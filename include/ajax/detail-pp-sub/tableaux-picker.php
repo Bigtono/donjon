@@ -54,7 +54,7 @@ $tableaux = $stmt->fetchAll();
   <div class="tableaux-picker__recherche">
     <input type="text" class="form-control" id="tab-picker-q"
            placeholder="Filtrer…" value="<?= h($q) ?>" autocomplete="off">
-    <a class="btn btn--sm btn--secondary"
+    <a class="btn btn-sm btn-secondary"
        href="<?= BASE_URL ?>/tableaux/index.php" target="_blank" rel="noopener"
        title="Ouvrir la gestion des tableaux dans un nouvel onglet">
       <i class="fa fa-cog"></i> Gérer

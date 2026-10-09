@@ -75,7 +75,8 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
               aria-controls="site-nav" aria-expanded="false"
               onclick="toggleMenuPrincipal()">
         <span class="site-header__burger-label">
-          <i class="fa fa-bars"></i> Menu
+          <i class="fa fa-bars"></i>
+          <span class="site-header__burger-texte">Menu</span>
         </span>
         <i class="fa fa-chevron-down site-header__burger-chevron"></i>
       </button>
@@ -93,6 +94,14 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
         <? if (!empty($_SESSION['j_admin'])): ?>
           <a href="<?= BASE_URL ?>/admin/index.php">Admin</a>
         <? endif ?>
+        <?
+        // Bouton de déploiement (SP-DP) : le module n'existe qu'en local, le
+        // fichier est donc absent en production et rien ne s'affiche.
+        $deploiement_bouton = __DIR__ . '/../admin/deploiement/bouton.php';
+        if (!empty($_SESSION['j_admin']) && is_file($deploiement_bouton)):
+          include $deploiement_bouton;
+        endif;
+        ?>
         <a href="<?= BASE_URL ?>/profil/index.php" class="site-header__profil">
           <i class="fa fa-user-circle"></i> <?= h($_SESSION['j_pseudo'] ?? '') ?>
         </a>

@@ -14,7 +14,8 @@ $ok     = false;
 $stmt = $db->prepare('
   SELECT j_id, j_prenom, j_nom, j_pseudo, j_email,
          j_default_ruleset_var_id, j_mode_campagne,
-         j_affichage_ruleset, j_items_par_page, j_theme
+         j_affichage_ruleset, j_affichage_mode_jeu,
+         j_items_par_page, j_theme
   FROM   dd_joueurs
   WHERE  j_id = ?
 ');
@@ -121,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
     $ruleset_var_id    = intParam($_POST['j_default_ruleset_var_id'] ?? 0);
     $mode_campagne     = isset($_POST['j_mode_campagne'])     ? 1 : 0;
     $affichage_ruleset = isset($_POST['j_affichage_ruleset']) ? 1 : 0;
+    $affichage_mode_jeu = isset($_POST['j_affichage_mode_jeu']) ? 1 : 0;
     $items_par_page    = max(5, min(100, intParam($_POST['j_items_par_page'] ?? 20)));
     $theme_post        = $_POST['j_theme'] ?? 'dark';
     $theme             = in_array($theme_post, ['dark', 'light'], true) ? $theme_post : 'dark';
@@ -135,11 +137,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
         SET    j_default_ruleset_var_id = ?,
                j_mode_campagne          = ?,
                j_affichage_ruleset      = ?,
+               j_affichage_mode_jeu     = ?,
                j_items_par_page         = ?,
                j_theme                  = ?
         WHERE  j_id = ?
       ');
-      $upd->execute([$ruleset_var_id, $mode_campagne, $affichage_ruleset, $items_par_page, $theme, $j_id]);
+      $upd->execute([$ruleset_var_id, $mode_campagne, $affichage_ruleset,
+                     $affichage_mode_jeu, $items_par_page, $theme, $j_id]);
 
       $ruleset_change = $ruleset_var_id !== $ruleset_var_id_actif;
 
@@ -147,6 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
       $_SESSION['rulesetRep']          = getRulesetRep($ruleset_var_id);
       $_SESSION['j_mode_campagne']     = $mode_campagne;
       $_SESSION['j_affichage_ruleset'] = $affichage_ruleset;
+      $_SESSION['j_affichage_mode_jeu'] = $affichage_mode_jeu;
       $_SESSION['j_theme']             = $theme;
 
       // Le contexte de navigation mémorisé (personnage, campagne, scénario,
@@ -399,6 +404,19 @@ require_once '../include/header.php';
                    <?= $joueur['j_affichage_ruleset'] ? 'checked' : '' ?>>
             <span class="toggle-switch"></span>
           </label>
+        </div>
+
+        <div class="form-group">
+          <label class="toggle-label">
+            <span>Afficher le bloc « Mode jeu » sur la fiche de personnage</span>
+            <input type="checkbox" name="j_affichage_mode_jeu" value="1"
+                   <?= $joueur['j_affichage_mode_jeu'] ? 'checked' : '' ?>>
+            <span class="toggle-switch"></span>
+          </label>
+          <p class="form-hint">
+            Ce bloc est encore un emplacement réservé : le suivi des points de vie et des
+            variables de partie y sera ajouté plus tard. Masqué par défaut.
+          </p>
         </div>
 
         <div class="form-group">

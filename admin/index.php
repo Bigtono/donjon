@@ -22,6 +22,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['section'] ?? '') === 'debu
   exit;
 endif;
 
+// --- Déploiement (SP-DP) ----------------------------------------------------
+// Module local : son dossier n'est jamais transféré, la tuile n'apparaît donc
+// qu'en local — et encore faut-il que la requête vienne du poste lui-même.
+$deploiement_disponible = false;
+if (is_file(__DIR__ . '/deploiement/lib.php')):
+  require_once __DIR__ . '/deploiement/lib.php';
+  $deploiement_disponible = deploiementEstLocal();
+endif;
+
 $page_title = 'Administration';
 $js_module  = 'admin';
 $css_module = 'admin';
@@ -49,6 +58,18 @@ require_once '../include/header.php';
     <i class="fa fa-mobile-screen"></i>
     <span>Relevés d'affichage</span>
   </a>
+
+  <a href="<?= BASE_URL ?>/admin/migrations.php" class="dashboard-card dashboard-card--admin">
+    <i class="fa fa-database"></i>
+    <span>Migrations SQL</span>
+  </a>
+
+  <?php if ($deploiement_disponible): ?>
+    <a href="<?= BASE_URL ?>/admin/deploiement/index.php" class="dashboard-card dashboard-card--admin">
+      <i class="fa fa-cloud-arrow-up"></i>
+      <span>Déploiement</span>
+    </a>
+  <?php endif ?>
 
 </div>
 

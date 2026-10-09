@@ -32,7 +32,7 @@ Deux rulesets : **DD3.5** (id 1) et **DD2024** (id 2).
 
 | Élément | Valeur / règle |
 |---|---|
-| Préfixe tables | `dd_` (local) / `dd2_` (OVH, rename script) |
+| Préfixe tables | `dd_`, en local comme sur OVH (le renommage `dd2_` n'a jamais été appliqué) |
 | Préfixe champs | Par table (ex. `so_` pour `dd_sorts`, `mo_` pour `dd_monstres`) |
 | `_j_id` | FK → `dd_joueurs` (propriétaire) |
 | `_camp_id` | FK → `dd_campagnes` |
@@ -124,6 +124,12 @@ Tous les fichiers dans `doc/` :
 4. **Sécurité** : CSRF sur tout POST, `h()` sur toute sortie, PDO sur tout SQL.
 5. **Réutilisation maximale** : moteur `compendium-liste.php`, pattern `$listConfig`, helpers existants. Pas de nouvelle table ni nouveau module sans arbitration préalable.
 6. **Schema-first** : vérifier que les colonnes SQL référencées existent réellement en base avant d'écrire le code. En cas de doute, demander confirmation.
+7. **Migrations SQL** (SP-DP, voir `doc/ARCHITECTURE_0_REFERENCE.md` §6b) : toute évolution de
+   base passe par un fichier `sql/AAAA-MM-JJ_<sujet>_<phase>.sql`, que le déploiement fait jouer
+   en production par le moteur (`include/migrations.php`). **Ne jamais modifier une migration
+   déjà appliquée** — elle ne serait pas rejouée, seulement signalée comme retouchée : écrire une
+   nouvelle migration. Pas de `DELIMITER`. Après l'avoir jouée en local à la main, la déclarer
+   dans `admin/migrations.php` (« Marquer comme appliquée »), ou la jouer depuis cet écran.
 
 ### Mise à jour de la documentation
 
@@ -142,7 +148,7 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
    **numérotées** dès l'arbitration : `SP-TB0`, `SP-TB1`, … Codes en service : `SP-C`
    (supplément compendium), `SP-E` (équipements), `SP-T` (transfert d'opposition),
    `SP-TB` (tableaux de règles), `SP-GL` (glossaire), `SP-PE` (module Personnages),
-   `SP-IM` (import des données du compendium).
+   `SP-IM` (import des données du compendium), `SP-DP` (déploiement en production).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
    ```markdown
@@ -179,6 +185,11 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   Point de passage unique : `rendreTexteEnrichi()` — glossaire puis tableaux (voir §9d)
 - Aide à la saisie : `aideIcone()` sur les 13 champs soumis à un parser, contenu dans
   `include/aide-contextuelle.php` (une clé par jeu de parsers réellement appliqué)
+- Déploiement SP-DP0→DP6 : bouton du header (local seulement) qui envoie par SFTP les fichiers
+  modifiés vers OVH puis fait jouer les migrations par le serveur. Module local
+  `admin/deploiement/`, **jamais transféré** ; paramètres hors projet
+  (`C:/xampp/private/donjon-deploiement/`) ; exclusions = `.gitignore` + `.deployignore`.
+  Moteur de migrations `include/migrations.php` + table `dd_migrations` (voir §6b)
 
 ### À faire (priorités)
 - SP-IM6 : **seule phase du cycle d'import encore ouverte** — les descriptions des 8 classes
@@ -188,6 +199,8 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - SP-PE7→PE8 : module Personnages (`SP-PE0→PE6` livrées : socle, fiche identité, éditeur
   Classes inline, bloc Compétences, sélecteur de Dons, bloc Campagnes, NLS prestige DD3.5).
   Reste : vue Magie, mode jeu + passe responsive. Aucun patch SQL attendu
+- SP-DP7 : premier déploiement réel (activer le SFTP OVH, paramétrer, approuver l'empreinte,
+  tester la connexion, déployer — le premier envoi part en entier)
 - SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)
 - SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
 - SP-C6 : profil "Mes sources" — suppléments publics tiers
@@ -203,6 +216,7 @@ donjon/
   compendium/        sorts.php, classes.php, monstres.php, … enregistrement.php
   campagnes/         index.php, enregistrement.php, …
   personnages/       fiche.php, enregistrement.php, …
+  admin/             migrations.php, migrations-auto.php ; deploiement/ (LOCAL, jamais transféré)
   include/
     db.php           define BASE_URL, connexion PDO
     auth.php         requireAuth(), canEditCompendium()
@@ -212,6 +226,7 @@ donjon/
     monstre-parser.php     rendu stats monstre (rendreStatsMonstre())
     tableau-parser.php     tableaux dd_tableaux + tag [[tab:slug]]
     glossaire-parser.php   liaison auto des termes de glossaire (lierGlossaireAuto())
+    migrations.php         moteur de migrations SQL (SP-DP5)
     header-context.php     fragment boutons contextuels
     ajax/detail-pp/        fiches détail (sort.php, monstre.php, …)
     ajax/modifier/         formulaires d'édition (sort.php, monstre.php, …)

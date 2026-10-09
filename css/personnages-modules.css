@@ -119,117 +119,214 @@
   opacity: .85;
 }
 
-/* --- Bloc Identité (liste descriptive) --- */
+/* --- Bloc Identité (refondu SP-PE10h) ---------------------------
+   Une rangée de couples libellé/valeur — niveau, race, sexe, alignement,
+   historique en DD2024 — puis la liste des classes.
+
+   Chaque champ est un bloc insécable : il passe à la ligne entier quand la
+   largeur manque. Couper « Alignement » de sa valeur ne rendrait service à
+   personne, et c'est ce que faisait la grille de colonnes d'avant. */
 
 .per-identite {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--sp-sm) var(--sp-md);
-}
-
-.per-identite__row {
+  margin: 0 0 var(--sp-xs);
   display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--sp-lg);
+  padding-bottom: var(--sp-xs);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+/* Le corps du bloc Identité ne garde qu'un filet de marge basse : la dernière
+   ligne de classe n'a pas de bordure, l'espace sous elle se voyait d'autant
+   (SP-PE10j). */
+.per-fiche__bloc--identite .per-fiche__bloc-body {
+  padding: var(--sp-sm) var(--sp-md);
+}
+
+.per-identite__champ {
+  display: inline-flex;
   align-items: baseline;
-  gap: var(--sp-sm);
-  padding: 4px 0;
-  border-bottom: 1px dashed var(--clr-border);
+  gap: var(--sp-xs);
+  min-width: 0;
 }
 
-.per-identite__row:last-child {
-  border-bottom: none;
-}
-
+/* Règle d'interface : le LIBELLÉ est en gras, la VALEUR en graisse normale —
+   et les deux à la même taille, dans la même police. Les libellés étaient
+   rapetissés et grisés, ce qui faisait deux échelles de texte sur une ligne
+   qui n'en demandait qu'une (SP-PE10j). */
 .per-identite dt {
-  flex: 0 0 110px;
-  font-weight: 600;
-  color: var(--clr-text-muted);
-  font-size: .9em;
+  font-weight: 700;
+  color: var(--clr-text);
+  white-space: nowrap;
 }
 
 .per-identite dd {
-  flex: 1 1 auto;
   margin: 0;
+  font-weight: 400;
   color: var(--clr-text);
+  min-width: 0;
+}
+
+/* --- Bloc Identité : les classes --------------------------------
+   Le libellé « Classes » et les « niv. » de chaque ligne sont tombés : un nom
+   suivi d'un nombre, dans un bloc Identité, ne se lit pas autrement. */
+
+.per-classes-bloc {
+  /* Référence du bouton Modifier, posé en absolu sur la 1re ligne. */
+  position: relative;
 }
 
 /* --- Bloc Caractéristiques (grille de 6) --- */
 
+/* Deux lignes de trois, et chaque caractéristique sur UNE ligne : abréviation
+   sur son fond, valeur, modificateur — la forme du bloc de stats d'un monstre
+   (.mo-carac-table).
+
+   Les tuiles empilées d'avant (SP-PE10h) coûtaient trois lignes de texte par
+   caractéristique. Elles ont d'abord été resserrées sur téléphone (SP-PE10i),
+   puis partout (SP-PE10l) : rien ne justifiait qu'un poste affiche six nombres
+   sur 220px de haut quand un téléphone s'en tire avec 71. */
 .per-caracs {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: var(--sp-sm);
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-xs) var(--sp-sm);
 }
 
+/* Trois colonnes de largeur FIXE, les mêmes pour les six caractéristiques et
+   toutes alignées à gauche (SP-PE10o) : abréviation, valeur, modificateur se
+   retrouvent ainsi à l'aplomb d'une ligne à l'autre. En largeur libre, « 9 »
+   et « 11 » ou « +0 » et « -1 » décalaient tout ce qui suivait, et les deux
+   rangs de trois ne s'alignaient jamais. */
 .per-carac {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: var(--clr-surface-alt, var(--clr-surface));
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  padding: var(--sp-sm);
-  text-align: center;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: var(--sp-xs);
+  padding: 0;
+  text-align: left;
+  white-space: nowrap;
 }
 
+/* L'abréviation n'a pas de fond : la pastille découpait la ligne en deux blocs
+   et c'est la VALEUR qu'on cherche du regard, pas le nom de la
+   caractéristique. C'est donc elle, seule, qui porte la couleur (SP-PE10m). */
 .per-carac__abr {
-  font-size: .85em;
+  flex: 0 0 2.6rem;
+  min-width: 0;
   color: var(--clr-text-muted);
-  font-weight: 600;
-  letter-spacing: .05em;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .04em;
 }
 
 .per-carac__val {
-  font-size: 1.6em;
+  /* 2.8rem et min-width: 0 : la base seule ne suffit pas — `min-width: auto`,
+     valeur par défaut d'un élément flex, laisse la boîte s'élargir à son
+     contenu, et une caractéristique à trois chiffres (le champ est un tinyint,
+     elle est saisissable) décalait toute sa ligne. La largeur couvre « 100 ». */
+  flex: 0 0 2.8rem;
+  min-width: 0;
+  font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.2;
-  color: var(--clr-text);
+  color: var(--clr-accent);
+  /* Chiffres de largeur constante : sans quoi le « 1 » est plus étroit que le
+     « 8 » et la colonne du modificateur danse d'une ligne à l'autre. */
   font-variant-numeric: tabular-nums;
 }
 
 .per-carac__mod {
-  font-size: 1em;
+  /* Couvre « +10 » comme « -10 ». */
+  flex: 0 0 2.4rem;
+  min-width: 0;
+  font-size: 1rem;
   color: var(--clr-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* --- Bloc Combat --- */
+/* --- Rangée Compétences / Dons (SP-PE10m) ------------------------
+   Deux listes de même nature, qui laissaient chacune la moitié droite de
+   l'écran vide sur un poste. `min-width: 0` sur les deux : sans lui, le
+   tableau de l'éditeur de compétences impose sa largeur intrinsèque et fait
+   déborder la rangée dès l'ouverture. */
+.per-fiche__rangee--listes > .per-fiche__bloc {
+  flex: 1 1 calc(50% - var(--sp-md));
+  min-width: 0;
+}
 
-.per-combat {
+/* --- Rangée caractéristiques / CA / PV (SP-PE10h) ----------------
+   Trois blocs de même nature, tenus sur une rangée sur un poste. Les
+   caractéristiques mènent : elles portent six nombres contre un. */
+
+.per-fiche__rangee {
   display: flex;
-  gap: var(--sp-md);
   flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-md);
 }
 
-.per-combat__stat {
-  flex: 1 1 140px;
-  background: var(--clr-surface-alt, var(--clr-surface));
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  padding: var(--sp-md);
-  text-align: center;
-  min-width: 140px;
+.per-fiche__rangee .per-fiche__bloc {
+  margin-bottom: 0;
 }
 
-.per-combat__lbl {
-  font-size: .85em;
-  color: var(--clr-text-muted);
-  font-weight: 600;
-  letter-spacing: .05em;
+.per-fiche__bloc--caracs {
+  flex: 3 1 300px;
+  min-width: 0;
 }
 
-.per-combat__val {
+/* CA et PV : une tuile chacun, libellé et valeur sur la même ligne. Le bloc
+   « Combat » qui les coiffait n'apportait qu'un titre et un cadre de plus. */
+/* En DD2024 elles sont TROIS à se partager la place — maîtrise, CA, PV — là où
+   le DD3.5 n'en a que deux. D'où une base étroite et un `gap` resserré sur la
+   rangée : « Maît. +6 » doit tenir sur sa ligne (SP-PE10l). */
+.per-fiche__bloc--stat {
+  flex: 1 1 96px;
+  min-width: 0;
+  display: flex;
+}
+
+.per-fiche__bloc--stat .per-fiche__bloc-body {
+  padding: var(--sp-sm);
+}
+
+.per-fiche__bloc--stat .per-stat {
+  gap: var(--sp-xs);
+}
+
+.per-fiche__bloc--stat .per-stat__lbl,
+.per-fiche__bloc--stat .per-stat__val {
+  font-size: 1.5em;
+}
+
+.per-fiche__bloc--stat .per-fiche__bloc-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.per-stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+}
+
+/* Même règle que partout : le libellé porte le gras, la valeur non — et les
+   deux à la même taille. C'était l'inverse (SP-PE10j). */
+.per-stat__lbl {
   font-size: 2em;
   font-weight: 700;
   line-height: 1.1;
   color: var(--clr-text);
-  font-variant-numeric: tabular-nums;
 }
 
-.per-combat__hint {
-  font-size: .8em;
-  color: var(--clr-text-muted);
-  margin-top: 2px;
+.per-stat__val {
+  font-size: 2em;
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--clr-text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- Bloc Classes (liste simple) --- */
@@ -243,8 +340,9 @@
 .per-classes__item {
   display: flex;
   align-items: baseline;
-  gap: var(--sp-sm);
-  padding: var(--sp-sm) 0;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-xs);
+  padding: 2px 0;
   border-bottom: 1px dashed var(--clr-border);
 }
 
@@ -252,9 +350,34 @@
   border-bottom: none;
 }
 
+/* La première ligne réserve la place du bouton Modifier, posé en absolu à sa
+   droite : un nom de classe long passe ainsi à la ligne AVANT de l'atteindre,
+   au lieu de glisser dessous. */
+.per-classes__item:first-child {
+  padding-right: 44px;
+}
+
+/* Une classe de prestige s'écrit en italique — le badge « P » qui tenait ce
+   rôle coûtait une pastille sur chaque ligne (SP-PE10h). */
+.per-classes__nom--prestige {
+  font-style: italic;
+}
+
+/* Même règle de graisse que partout : le NOM de la classe est le libellé, le
+   niveau est la valeur (SP-PE10j). C'était l'inverse. */
+.per-classes__nom {
+  font-weight: 700;
+}
+
 .per-classes__niveau {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sous-classe DD2024, entre parenthèses derrière sa classe : « Clerc 5
+   (Domaine de la Vie) ». Ce n'est pas une classe de plus. */
+.per-classes__sous {
   color: var(--clr-text-muted);
-  font-size: .9em;
 }
 
 /* --- Bloc À venir --- */
@@ -298,7 +421,7 @@
 
 /* ============================================================
    VUE detail-pp PERSONNAGE
-   Réutilise per-identite, per-caracs, per-combat, per-classes
+   Réutilise per-identite, per-caracs, per-stat, per-classes
    définis ci-dessus.
    ============================================================ */
 
@@ -338,6 +461,12 @@
   text-transform: uppercase;
 }
 
+/* CA et PV du panneau de détail : mêmes tuiles que la fiche, côte à côte. */
+.per-detail__stats {
+  display: flex;
+  gap: var(--sp-lg);
+}
+
 .per-detail__actions {
   margin-top: var(--sp-md);
 }
@@ -360,20 +489,74 @@
     justify-content: flex-end;
   }
 
-  .per-identite {
-    grid-template-columns: 1fr;
+  /* Les caractéristiques prennent leur ligne, CA et PV se partagent la
+     suivante : trois blocs de front ne tiennent pas sur un téléphone. */
+  .per-fiche__rangee {
+    gap: var(--sp-sm);
   }
 
-  .per-identite dt {
-    flex: 0 0 90px;
+  .per-fiche__bloc--caracs {
+    flex: 0 0 100%;
   }
 
+  /* Compétences, Dons et NLS restent les uns sous les autres, en pleine
+     largeur : deux listes côte à côte sur un téléphone ne laisseraient de
+     place ni aux noms ni aux colonnes (SP-PE10m). */
+  .per-fiche__rangee--listes > .per-fiche__bloc {
+    flex: 0 0 100%;
+  }
+
+  .per-fiche__bloc--stat {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  /* Les tuiles se resserrent avec les caractéristiques : une fois celles-ci
+     ramenées à 71px, deux nombres sur 130px de haut ne passaient plus. */
+  .per-fiche__bloc--stat .per-fiche__bloc-body {
+    padding: var(--sp-sm);
+  }
+
+  /* Libellé et valeur restent à la MÊME taille : la règle mobile ne doit
+     resserrer que l'une si elle resserre l'autre. */
+  .per-stat__lbl,
+  .per-stat__val {
+    font-size: 1.7em;
+  }
+
+  /* La forme compacte des caractéristiques, posée ici en SP-PE10i, vaut
+     désormais à toutes les largeurs (SP-PE10l) : seul le padding du corps
+     reste resserré sur téléphone. */
+  .per-fiche__bloc--caracs .per-fiche__bloc-body {
+    padding: var(--sp-sm);
+  }
+
+  /* Colonnes fixes rétrécies (SP-PE10o). Les largeurs du poste — 2.6 + 2.8 +
+     2.4rem plus les gaps — demandent 125px par caractéristique ; une colonne
+     de la grille en fait 111 à 375px et 103 à 342px, et le modificateur de la
+     troisième sortait de l'écran. Les trois colonnes restent fixes, donc
+     alignées d'une ligne à l'autre : elles sont seulement plus étroites. */
   .per-caracs {
-    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-xs) 0;
+  }
+
+  .per-carac {
+    gap: 2px;
+  }
+
+  .per-carac__abr {
+    flex-basis: 2rem;
+    font-size: .9rem;
   }
 
   .per-carac__val {
-    font-size: 1.8em;     /* lisible en partie sur smartphone */
+    flex-basis: 2.4rem;
+    font-size: 1.3rem;
+  }
+
+  .per-carac__mod {
+    flex-basis: 2rem;
+    font-size: .95rem;
   }
 
   /* Formulaire modification — caracs aussi en 3x2 */
@@ -391,10 +574,14 @@
 /* < 480px : caracs en 2x3 pour très petits écrans */
 @media (max-width: 479px) {
 
-  .per-caracs,
+  /* Les caractéristiques gardent leurs 3 colonnes jusqu'en bas : c'est la
+     disposition d'un bloc de monstre, et deux colonnes donneraient trois
+     lignes pour six nombres. Seul le formulaire de modification, dont les
+     champs sont plus larges, repasse en 2 (SP-PE10h). */
   .modif-grid--carac {
     grid-template-columns: repeat(2, 1fr);
   }
+
 }
 
 /* ============================================================
@@ -404,25 +591,15 @@
 /* Header avec bouton Modifier aligné à droite */
 .per-fiche__bloc-header--flex {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: var(--sp-xs);
 }
 
-/* Badge prestige (mode lecture) */
-.per-classes__badge-prestige {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 3px;
-  background: var(--clr-accent-bg, var(--clr-surface-alt, #555));
-  color: var(--clr-text-muted);
-  font-size: .75em;
-  font-weight: 700;
-  margin-right: 4px;
-  flex-shrink: 0;
-  vertical-align: middle;
+/* Le titre pousse les boutons à droite — ils restent groupés même quand il y
+   en a deux, Modifier et le repli (SP-PE10n). `space-between` aurait planté
+   le second au milieu de la barre. */
+.per-fiche__bloc-header--flex .per-fiche__bloc-titre {
+  margin-right: auto;
 }
 
 .per-classes__domaines {
@@ -568,12 +745,6 @@
   font-weight: 400;
   color: var(--clr-text-muted);
   margin-left: 4px;
-}
-
-/* Niveau global dans le header général de la fiche */
-.per-fiche__niveau {
-  font-size: .9em;
-  color: var(--clr-text-muted);
 }
 
 /* Bloc Background — contenu HTML TinyMCE (affiché brut, pas échappé) */
@@ -742,8 +913,8 @@
 .per-dons__item {
   display: flex;
   align-items: baseline;
-  gap: var(--sp-sm);
-  padding: var(--sp-sm) 0;
+  gap: var(--sp-xs);
+  padding: 2px 0;
   border-bottom: 1px dashed var(--clr-border);
 }
 
@@ -940,10 +1111,15 @@
   align-self: flex-start;
 }
 
-/* Le bloc Classes vit dans le bloc Identité : son bouton reste une icône à
-   toutes les largeurs, contrairement aux autres boutons Modifier. */
-#btn-editer-classes .per-btn-label {
-  display: none;
+/* Le bouton Modifier des classes est posé en absolu au bout de la PREMIÈRE
+   ligne de la liste (SP-PE10h). La place lui est réservée par le padding-right
+   de cette ligne : un nom long passe à la ligne avant de l'atteindre, et le
+   bouton garde l'air qu'il faut pour être visé. */
+.per-classes-bloc #btn-editer-classes {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
 }
 
 /* Chevron du bloc repliable */
@@ -953,39 +1129,6 @@
 
 .per-fiche__replier.is-open i {
   transform: rotate(180deg);
-}
-
-/* --- Bloc Identité : ligne Classes ---------------------------------------- */
-
-/* La ligne Classes porte une liste : elle occupe toute la largeur de la
-   grille du bloc Identité au lieu d'une seule colonne. */
-.per-identite__row--large {
-  grid-column: 1 / -1;
-  align-items: flex-start;
-}
-
-.per-identite__valeur-actions {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-sm);
-}
-
-.per-identite__valeur {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.per-identite__row--classes .per-classes__item:first-child {
-  padding-top: 0;
-}
-
-/* --- Bloc Combat : CA et PV toujours côte à côte --------------------------
-   flex-basis 140px + min-width 140px faisaient passer les deux tuiles l'une
-   sous l'autre dès que la largeur utile descendait sous ~296px, ce qui est le
-   cas d'un écran à 342px CSS (Galaxy A52, cf. §10h). */
-.per-combat__stat {
-  flex: 1 1 0;
-  min-width: 0;
 }
 
 /* --- Bloc Dons : nom et type sur la même ligne ---------------------------- */
@@ -1006,18 +1149,11 @@
 
 @media (max-width: 991px) {
 
-  /* Libellés des boutons d'action masqués : l'icône suffit, le title reste */
-  .per-btn-label {
-    display: none;
-  }
-
-  .per-fiche__header {
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "nom  retour"
-      "meta modifier";
-    align-items: center;
-  }
+  /* La surcharge qui empilait Retour et Modifier l'un sous l'autre est
+     retirée (SP-PE10k) : elle existait parce que leurs libellés « Liste » et
+     « Modifier » ne tenaient pas côte à côte sur un téléphone. Depuis
+     SP-PE10h, ce sont deux icônes — la grille de base les remet sur la ligne
+     du nom, où ils ne se chevauchent plus. */
 
   /* La catégorie du don reste sur la ligne du nom (annule la mise en colonne
      posée en SP-PE4), alignée à droite et calée en haut si le nom déborde. */
@@ -1039,9 +1175,9 @@
 
 .per-comp__item {
   display: flex;
-  align-items: flex-start;
-  gap: var(--sp-sm);
-  padding: var(--sp-sm) 0;
+  align-items: baseline;
+  gap: var(--sp-xs);
+  padding: 2px 0;
   border-bottom: 1px dashed var(--clr-border);
 }
 
@@ -1061,14 +1197,24 @@
 }
 
 /* Largeur en rem, pas en em : l'en-tête et les lignes n'ont pas la même
-   taille de police, une largeur en em produirait des colonnes décalées. */
+   taille de police, une largeur en em produirait des colonnes décalées.
+
+   La colonne Carac est la plus large des trois : elle porte DEUX valeurs —
+   l'abréviation et le modificateur — qui passaient à la ligne l'une sous
+   l'autre. Maîtrise (« M. » / « E » depuis SP-PE10j) et Total tiennent en
+   beaucoup moins. */
 .per-comp__val {
   flex: 0 0 auto;
-  width: 5rem;
-  margin-left: var(--sp-sm);
+  width: 3.2rem;
+  margin-left: var(--sp-xs);
   text-align: right;
   font-size: .9em;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.per-comp__val--carac {
+  width: 4.6rem;
 }
 
 .per-comp__val--total {
@@ -1078,10 +1224,24 @@
 
 @media (max-width: 991px) {
 
-  /* Colonnes resserrées : la place utile revient au nom de la compétence */
+  /* Colonnes poussées à droite et resserrées au strict nécessaire : trois
+     colonnes de 3.9rem laissaient moins de la moitié de la ligne au nom de la
+     compétence, qui passait à la ligne dès « Connaissance (religion) »
+     (SP-PE10h). Les valeurs tiennent en 2.6rem — « +12 », « 8 », « ×2 ». */
   .per-comp__val {
-    width: 3.9rem;
-    margin-left: var(--sp-xs);
+    width: 2.4rem;
+    margin-left: 2px;
+  }
+
+  /* Sauf la colonne Carac : c'est elle qui porte deux valeurs. */
+  .per-comp__val--carac {
+    width: 4.2rem;
+  }
+
+  /* Une explication qu'on ne lit qu'une fois ne vaut pas quatre lignes sur un
+     téléphone — le bloc, lui, reste. */
+  .per-nls__aide {
+    display: none;
   }
 }
 
@@ -1092,7 +1252,14 @@
    ============================================================ */
 
 .per-nls__classe {
-  margin-top: var(--sp-md);
+  margin-top: var(--sp-sm);
+}
+
+/* Lignes resserrées comme celles des compétences et des dons (SP-PE10j) :
+   le tableau ne porte qu'un niveau, une progression et un select. */
+.per-nls-table th,
+.per-nls-table td {
+  padding: 1px 6px;
 }
 
 .per-nls__classe:first-of-type {
@@ -1121,4 +1288,283 @@
 .per-nls__a-affecter {
   color: var(--clr-danger);
   font-weight: 600;
+}
+
+/* ============================================================
+   VUE MAGIE (SP-PE7b)
+   ============================================================ */
+
+/* --- Les quatre cases de synthèse -----------------------------
+   Grille auto-ajustée : 4 de front sur un poste, 2 sur tablette,
+   1 sur téléphone, sans média-query — c'est minmax qui décide. */
+.per-magie__cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+}
+.per-magie__case {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-sm);
+  border: 1px solid var(--clr-border);
+  border-radius: 6px;
+  background: var(--clr-surface-alt);
+  text-align: center;
+}
+.per-magie__case-lbl {
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--clr-text-muted);
+}
+.per-magie__case-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--clr-accent);
+}
+.per-magie__case-val small {
+  font-size: .8rem;
+  font-weight: 500;
+  color: var(--clr-text-muted);
+}
+.per-magie__case-note {
+  font-size: .72rem;
+  color: var(--clr-text-muted);
+}
+
+
+/* --- Barre d'actions ------------------------------------------ */
+.per-magie__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+}
+
+/* --- Synthèse : emplacements à gauche, ressources à droite (SP-PE10b) ---
+   Le tableau mène la danse : il prend la place qu'il lui faut (11 colonnes
+   en DD3.5, 10 en DD2024) et le panneau occupe le reste. Sous ~760px de
+   large utile, les deux passent l'un sous l'autre. */
+.per-magie__synthese {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-lg);
+  margin-bottom: var(--sp-md);
+}
+.per-magie__colonne-empl {
+  flex: 1 1 440px;
+  min-width: 0;                  /* sans quoi le tableau force la ligne */
+}
+.per-magie__ressources {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.per-magie__ressources-titre {
+  margin: 0 0 var(--sp-xs);
+  padding-bottom: 3px;
+  border-bottom: 2px solid var(--clr-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--clr-text);
+}
+.per-magie__ressources-liste {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--sp-md);
+}
+/* Chaque paire est un div : elle doit rendre ses deux enfants à la grille. */
+.per-magie__ressource {
+  display: contents;
+}
+.per-magie__ressource dt {
+  color: var(--clr-text);
+}
+.per-magie__ressource dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--clr-text);
+}
+
+/* --- Tableau des emplacements ---------------------------------- */
+.per-magie__table .per-magie__ligne-lbl {
+  text-align: left;
+  white-space: nowrap;
+}
+.per-magie__stock td { font-weight: 600; }
+.per-magie__stock-reset { padding: 0 var(--sp-xs); }
+
+/* Le séparateur accentué de `.table-dd` ne s'applique pas ici (SP-PE10c) :
+   il sépare les colonnes de sorts du reste d'une table de progression de
+   classe, qui en aligne beaucoup d'autres. Ce tableau-ci n'a qu'une colonne de
+   libellés en regard des niveaux — le trait n'y sépare rien. */
+.per-magie__table .th-groupe-sorts,
+.per-magie__table td.col-sort:first-of-type,
+.per-magie__table th.col-sort:first-of-type {
+  border-left: none;
+}
+
+/* Sur ordinateur, le tableau se cale sur l'échelle de la page (SP-PE10c).
+   `.table-dd` est réglé pour les tables de progression du compendium, qui
+   alignent jusqu'à vingt lignes de colonnes serrées : cellules de 26px, police
+   de .82rem. Ici il n'y a que deux ou trois lignes, lues d'un coup d'œil en
+   séance — et surtout le panneau « Ressources de sorts » leur fait face. Les
+   deux colonnes de la rangée reprennent donc la même échelle :
+
+     en-tête de groupe  1.05rem  =  titre « Ressources de sorts »
+     libellé de ligne   1rem     =  libellé d'une ressource (en gras : c'est
+                                    un en-tête de ligne)
+     chiffres           1rem     =  valeur d'une ressource, gras compris
+
+   Rien ne change sous 992px, où la version compacte tient mieux dans la
+   largeur d'un téléphone. */
+@media (min-width: 992px) {
+  .per-magie__table th,
+  .per-magie__table td {
+    padding: 5px 8px;
+  }
+  .per-magie__table .thead-groupes th {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--clr-text);
+    padding: 3px 8px;
+  }
+  .per-magie__table thead tr:last-child th {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .per-magie__table .col-sort {
+    width: 34px;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .per-magie__table .per-magie__ligne-lbl {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+}
+
+
+/* --- Titre d'une liste de sorts --------------------------------
+   Jamais défini jusqu'ici : les titres tombaient sur le h3 par défaut du
+   navigateur, dont la marge haute ouvrait un trou sous le tableau. */
+.per-fiche__sous-titre {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  margin: 0 0 var(--sp-sm);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--clr-text);
+}
+
+/* --- Listes de sorts -------------------------------------------
+   SP-PE10b : les sorts se suivent sur la ligne, à espacement fixe, et la
+   liste repart à gauche à chaque retour — on lit un nom après l'autre.
+   Les colonnes `columns` d'avant répartissaient la largeur en tranches
+   égales : la deuxième colonne démarrait au milieu de la page, loin du
+   titre, et un nom court laissait un vide aussi large qu'un nom long. */
+.per-magie__liste { margin-top: var(--sp-lg); }
+
+.per-magie__sorts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  /* Écart FIXE : 24px entre deux sorts, 8px entre deux lignes. */
+  gap: var(--sp-sm) var(--sp-lg);
+}
+.per-magie__sorts li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+}
+
+.per-magie__pastille {
+  flex: 0 0 auto;
+  min-width: 1.5rem;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: var(--clr-accent-muted, var(--clr-surface-alt));
+  border: 1px solid var(--clr-border);
+  font-size: .72rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--clr-text);
+}
+
+.per-magie__badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--clr-surface-alt);
+  font-size: .7rem;
+  color: var(--clr-text-muted);
+}
+
+.per-magie__variante { margin: var(--sp-sm) 0 var(--sp-xs); }
+.per-magie__toujours { margin-top: var(--sp-lg); }
+.per-magie__pacte    { margin: 0 0 var(--sp-sm); }
+
+/* Tout ce qui est cliquable doit le dire au curseur. */
+.per-magie__sorts .mo-lien,
+.per-magie__toujours .mo-lien,
+.aide-icone,
+.per-fiche__replier { cursor: pointer; }
+
+/* --- Téléphone -------------------------------------------------
+   Les boutons d'action prennent toute la largeur : une cible de la
+   largeur de l'écran se touche sans viser. */
+@media (max-width: 767px) {
+  .per-magie__actions { flex-direction: column; }
+  .per-magie__actions .btn { width: 100%; justify-content: center; }
+  .per-magie__case-val { font-size: 1.3rem; }
+}
+
+/* ============================================================
+   SOUS-MENU DU PERSONNAGE (retour 2026-09-01)
+   ============================================================ */
+.per-nav {
+  display: flex;
+  gap: var(--sp-xs);
+  margin: 0 0 var(--sp-md);
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--clr-border);
+  overflow-x: auto;              /* défile plutôt que de se replier sur 2 lignes */
+  -webkit-overflow-scrolling: touch;
+}
+.per-nav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  flex: 0 0 auto;
+  padding: var(--sp-xs) var(--sp-md);
+  border: 1px solid var(--clr-border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: var(--clr-surface-alt);
+  color: var(--clr-text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.per-nav__item:hover { color: var(--clr-text); }
+.per-nav__item.est-actif {
+  background: var(--clr-surface);
+  color: var(--clr-accent);
+  font-weight: 600;
+  /* Prolonge l'onglet actif par-dessus la bordure du conteneur */
+  margin-bottom: -1px;
+  border-bottom: 1px solid var(--clr-surface);
+}
+
+/* Téléphone : icônes seules. Cinq libellés ne tiennent pas sur une ligne,
+   et la cible tactile reste large grâce au padding. */
+@media (max-width: 767px) {
+  .per-nav__lbl { display: none; }
+  .per-nav__item { padding: var(--sp-sm) var(--sp-md); font-size: 1.05rem; }
 }

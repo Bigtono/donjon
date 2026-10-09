@@ -58,7 +58,7 @@ $classes     = getPersonnageClasses($db, (int)$perso['pe_id']);
     <h3 class="per-detail__section-titre">Identité</h3>
     <dl class="per-identite">
 
-      <div class="per-identite__row">
+      <div class="per-identite__champ">
         <dt>Race</dt>
         <dd>
           <?php if (!empty($perso['pe_ra_id'])): ?>
@@ -80,7 +80,7 @@ $classes     = getPersonnageClasses($db, (int)$perso['pe_id']);
       </div>
 
       <?php if ($ruleset_rep === 'DD2024' && !empty($perso['pe_hi_id'])): ?>
-        <div class="per-identite__row">
+        <div class="per-identite__champ">
           <dt>Historique</dt>
           <dd>
             <a href="javascript:void(0)"
@@ -92,14 +92,14 @@ $classes     = getPersonnageClasses($db, (int)$perso['pe_id']);
       <?php endif ?>
 
       <?php if ($perso['pe_sexe']): ?>
-        <div class="per-identite__row">
+        <div class="per-identite__champ">
           <dt>Sexe</dt>
           <dd><?= h($perso['pe_sexe']) ?></dd>
         </div>
       <?php endif ?>
 
       <?php if (!empty($perso['pe_al_id'])): ?>
-        <div class="per-identite__row">
+        <div class="per-identite__champ">
           <dt>Alignement</dt>
           <dd>
             <?= h($perso['alignement_nom']) ?>
@@ -135,17 +135,17 @@ $classes     = getPersonnageClasses($db, (int)$perso['pe_id']);
     </div>
   </div>
 
-  <!-- Combat -->
+  <?php // CA et PV reprennent les tuiles de la fiche (SP-PE10h) : le titre
+        // « Combat » coiffait deux nombres qui se lisent sans chapeau. ?>
   <div class="per-detail__section">
-    <h3 class="per-detail__section-titre">Combat</h3>
-    <div class="per-combat">
-      <div class="per-combat__stat">
-        <div class="per-combat__lbl">CA</div>
-        <div class="per-combat__val"><?= (int)$perso['pe_ca'] ?></div>
+    <div class="per-detail__stats">
+      <div class="per-stat" title="Classe d'armure">
+        <span class="per-stat__lbl">CA</span>
+        <span class="per-stat__val"><?= (int)$perso['pe_ca'] ?></span>
       </div>
-      <div class="per-combat__stat">
-        <div class="per-combat__lbl">PV</div>
-        <div class="per-combat__val"><?= (int)$perso['pe_pv'] ?></div>
+      <div class="per-stat" title="Points de vie totaux">
+        <span class="per-stat__lbl">PV</span>
+        <span class="per-stat__val"><?= (int)$perso['pe_pv'] ?></span>
       </div>
     </div>
   </div>

@@ -1,0 +1,6 @@
+# admin/deploiement/.htaccess — Module de déploiement : poste local uniquement (SP-DP)
+# Quatrième verrou, au niveau d'Apache et indépendant de PHP : seule la machine
+# elle-même est servie (boucle locale, ou adresse du client identique à celle
+# du serveur — http://192.168.1.10/donjon/ depuis le poste). Ce dossier n'est jamais
+# transféré ; s'il l'était par erreur, il resterait inaccessible.
+Require local

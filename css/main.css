@@ -605,6 +605,18 @@ button {
   color: var(--clr-text);
 }
 
+/* Action discrète au rendu de lien (retour, modifier ou replier un bloc) :
+   ni fond ni bordure, couleur des liens. Sans fond explicite, un <button>
+   garderait le gris natif du navigateur, même en thème sombre. */
+.btn-link {
+  background: transparent;
+  color: var(--clr-accent-2);
+}
+
+.btn-link:hover {
+  color: var(--clr-text);
+}
+
 /* ============================================================
    FORMULAIRES
    ============================================================ */
@@ -759,27 +771,42 @@ textarea {
     min-width: 0;
   }
 
-  /* Le raccourci personnage reste sur la 1re ligne, calé à droite : la nav
-     (order 4) et le bouton Menu (order 3) occupent leurs propres lignes. */
-  .site-header__perso {
-    order: 2;
-    flex: 0 1 auto;
-    margin-left: auto;
-    min-height: 36px;
-    /* 40% : au-delà, un nom long ne tient plus à côté du logo et du badge de
-       ruleset et le raccourci bascule à la ligne suivante (mesuré à 375px). */
-    max-width: 40%;
-  }
-
-  /* Menu principal déroulant : le bouton et le panneau occupent
-     toute la largeur d'affichage, l'un sous l'autre */
+  /* SP-PE10h — trois lignes, chacune utile :
+       1. logo + badge de ruleset ....... bouton burger à l'extrême droite
+       2. raccourci personnage .......... pleine largeur, c'est une cible de doigt
+       3. menu déroulant ................ quand il est ouvert
+     Le bouton Menu occupait auparavant une ligne entière pour lui seul, et le
+     raccourci se serrait à 40 % au bout de la ligne de titre : deux fois le
+     contraire de ce qu'il fallait. */
   .site-header__burger {
     display: flex;
+    order: 2;
+    flex: 0 0 auto;
+    margin-left: auto;
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  /* Un burger, c'est l'icône : le mot et le chevron encombraient la ligne
+     de titre, où la place est comptée.
+     Le chevron est ciblé depuis son bouton : Font Awesome, chargé après
+     main.css, pose un `display` sur toute icône `.fa` et gagnerait à
+     spécificité égale. */
+  .site-header__burger-texte,
+  .site-header__burger .site-header__burger-chevron {
+    display: none;
+  }
+
+  .site-header__perso {
     order: 3;
     flex: 0 0 100%;
     width: 100%;
+    max-width: none;
+    margin: 0;
     min-height: 44px;
-    padding: var(--sp-sm) var(--sp-md);
+    justify-content: center;
   }
 
   .site-header__nav {

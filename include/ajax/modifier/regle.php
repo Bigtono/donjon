@@ -175,10 +175,10 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
     <?php // ---- Actions ---- 
     ?>
     <div class="form-actions">
-      <button type="button" class="btn btn--primary" onclick="reglesEnregistrer()">
+      <button type="button" class="btn btn-primary" onclick="reglesEnregistrer()">
         <i class="fa fa-save"></i> Enregistrer
       </button>
-      <button type="button" class="btn btn--secondary" onclick="fermerModification()">
+      <button type="button" class="btn btn-secondary" onclick="fermerModification()">
         Annuler
       </button>
     </div>

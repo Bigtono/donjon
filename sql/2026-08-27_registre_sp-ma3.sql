@@ -19,9 +19,11 @@
 --     pourtant varchar(40)) : « bien, feu, résurrect », « creation, électricit »…
 --     Le texte perdu l'est définitivement.
 --
--- La classification ne tient pas en SQL : elle vit dans sql/migrate_registre_sp-ma3.php,
--- à exécuter APRÈS ce fichier. Elle s'appuie sur deux listes fermées (18 branches et
--- disciplines, 19 registres du SRD + 3 registres de suppléments attestés).
+-- La classification ne tenait pas en SQL : elle a été faite par un script PHP dont la
+-- SORTIE FIGÉE constitue le fichier sql/2026-08-28_registre_sp-ma3_donnees.sql, à appliquer
+-- APRÈS celui-ci. Le script lui-même n'existe plus ; son résultat est reproductible et a été
+-- contrôlé par empreinte MD5. La classification s'appuyait sur deux listes fermées
+-- (18 branches et disciplines, 19 registres du SRD + 3 registres de suppléments attestés).
 --
 -- IDEMPOTENCE : la section 2 (ADD COLUMN) n'est pas ré-exécutable. Vérifier :
 --   SHOW COLUMNS FROM dd_sorts LIKE 'so_registre';
@@ -60,8 +62,8 @@ ALTER TABLE dd_sorts
 
 -- ------------------------------------------------------------
 -- 3. Migration
---    Exécuter maintenant :  php sql/migrate_registre_sp-ma3.php
---    (option --dry pour un rapport sans écriture)
+--    Appliquer maintenant : sql/2026-08-28_registre_sp-ma3_donnees.sql
+--    (680 UPDATE gardés par la valeur d'origine, rejouables sans risque)
 -- ------------------------------------------------------------
 
 -- ------------------------------------------------------------

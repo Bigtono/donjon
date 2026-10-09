@@ -226,6 +226,16 @@ function getActiveResIdsCampagne(PDO $db, int $camp_id, int $ruleset_var_id): ar
 // constantes pour ne pas répéter l'écueil des littéraux clt_id dispersés
 // dans le code (cf. ARCHITECTURE_0_REFERENCE.md, module Classes).
 
+// Types de classe (dd_classe_type). Figés ici pour la même raison que les
+// PROFINC_* ci-dessous : les littéraux clt_id se dispersaient dans le code.
+//   1 Base / 2 Prestige / 3 PNJ  → ruleset DD3.5
+//   4 Base / 5 Sous-classe       → ruleset DD2024
+define('CLT_BASE_35',     1);
+define('CLT_PRESTIGE',    2);  // DD3.5 — affichée en italique sur la fiche
+define('CLT_PNJ',         3);
+define('CLT_BASE_2024',   4);
+define('CLT_SOUS_CLASSE', 5);  // DD2024 — rattachée à sa classe par cla_cla_id
+
 define('PROFINC_LISTE',      3);  // Réservoir = liste de classe entière, le personnage prépare
 define('PROFINC_GRIMOIRE',   4);  // Réservoir = grimoire (pes_compris = 1), le personnage prépare
 define('PROFINC_REPERTOIRE', 5);  // Répertoire figé (cn_sortConnu_n*), lancement spontané — DD3.5 uniquement

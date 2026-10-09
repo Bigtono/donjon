@@ -55,19 +55,19 @@ require_once '../include/header.php';
         <input type="text" name="q" class="regles-recherche-input"
                placeholder="Rechercher une règle…"
                value="" autocomplete="off" aria-label="Terme à rechercher">
-        <button type="submit" class="btn btn--sm" title="Rechercher">
+        <button type="submit" class="btn btn-primary btn-sm" title="Rechercher">
           <i class="fa fa-search"></i>
         </button>
       </form>
 
       <?php // Gestionnaire partagé, hors module Règles depuis SP-TB10. ?>
-      <a class="btn btn--sm btn--secondary" href="<?= BASE_URL ?>/tableaux/index.php"
+      <a class="btn btn-sm btn-secondary" href="<?= BASE_URL ?>/tableaux/index.php"
          title="Tableaux de données">
         <i class="fa fa-table"></i> Tableaux
       </a>
 
       <?php if ($peut_editer): ?>
-        <button class="btn btn--sm btn--secondary"
+        <button class="btn btn-sm btn-secondary"
                 onclick="ouvrirModifier('<?= BASE_URL ?>/include/ajax/modifier/regle.php', 0)"
                 title="Ajouter un chapitre racine">
           <i class="fa fa-plus"></i> Nouveau chapitre

@@ -180,4 +180,64 @@ Deux groupes : 2-3 et 5-6
     ';
   },
 
+  // ==========================================================
+  // Vue Magie du personnage (SP-PE7b)
+  // Les libellés étaient auparavant en clair sous chaque titre de bloc :
+  // ils encombraient la lecture pour une information qu'on ne consulte
+  // qu'une fois. Passés en bulle, et reformulés pour dire le POURQUOI.
+  // ==========================================================
+
+  'magie-prepares' => function (PDO $db, int $ruleset_id): string {
+    return $ruleset_id === 1
+      ? '<p><strong>Les sorts que vous pouvez lancer aujourd\'hui.</strong></p>
+         <p>En DD3.5, préparer un sort revient à <em>réserver un emplacement pour ce
+         sort précis</em> : une fois lancé, l\'emplacement est consommé et ne peut
+         pas servir à autre chose.</p>
+         <p>Un même sort peut être préparé plusieurs fois — il occupe alors autant
+         d\'emplacements et peut être lancé autant de fois.</p>
+         <p>La liste se refait après une nuit de repos et la période de préparation
+         propre à la classe.</p>'
+      : '<p><strong>Les sorts que vous rendez disponibles pour la journée.</strong></p>
+         <p>En DD2024, préparer ne réserve rien : les emplacements sont une réserve
+         générique. Vous choisissez au moment de lancer quel sort préparé utiliser,
+         et avec quel niveau d\'emplacement.</p>
+         <p>Les sorts <em>toujours préparés</em>, accordés par votre classe ou votre
+         sous-classe, s\'ajoutent à cette liste <strong>sans compter</strong> dans
+         le plafond.</p>';
+  },
+
+  'magie-grimoire' => function (PDO $db, int $ruleset_id): string {
+    return '<p><strong>Les sorts que vous pouvez préparer.</strong></p>
+      <p>Un sort n\'est préparable qu\'une fois <em>recopié dans votre grimoire</em>.
+      C\'est le grimoire, et non la liste de la classe, qui borne ce que vous
+      pouvez mémoriser chaque jour.</p>
+      <p>Il s\'enrichit de deux sorts à chaque niveau gagné, et par la copie des
+      parchemins et grimoires trouvés en aventure.</p>';
+  },
+
+  'magie-connus' => function (PDO $db, int $ruleset_id): string {
+    return '<p><strong>Ce que vous avez sous la main, sans pouvoir encore l\'utiliser.</strong></p>
+      <p>Parchemins ramassés, grimoire d\'un adversaire, sort aperçu chez un
+      confrère : vous y avez accès, mais tant qu\'il n\'est pas recopié dans votre
+      propre grimoire, il <strong>n\'est pas préparable</strong>.</p>
+      <p>Notez-les ici pour ne pas les oublier, puis recopiez-les quand vous en
+      aurez le temps et les fonds — comptez une journée et 100 po par page.</p>';
+  },
+
+  'magie-emplacements' => function (PDO $db, int $ruleset_id): string {
+    return $ruleset_id === 1
+      ? '<p><strong>Combien de sorts de chaque niveau vous pouvez lancer par jour.</strong></p>
+         <p>Le total additionne la table de votre classe (lue à votre niveau de
+         lanceur effectif), les sorts en bonus dus à votre caractéristique, et
+         l\'emplacement de domaine si votre classe en accorde un.</p>
+         <p>Un <strong>0</strong> ne signifie pas « aucun sort » : le niveau vous
+         est accessible, mais par les seuls sorts en bonus.</p>
+         <p>Survolez un chiffre pour voir sa décomposition.</p>'
+      : '<p><strong>Votre réserve de puissance pour la journée.</strong></p>
+         <p>Un emplacement peut lancer n\'importe quel sort préparé de son niveau
+         ou d\'un niveau inférieur. Dépenser un emplacement plus élevé rend le sort
+         plus puissant lorsque sa description le prévoit.</p>
+         <p>Tous les emplacements sont restitués après un repos long.</p>';
+  },
+
 ];

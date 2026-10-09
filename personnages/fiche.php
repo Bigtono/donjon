@@ -36,8 +36,24 @@ $ruleset_rep = ($ruleset_id === 2) ? 'DD2024' : 'DD3.5';
 // Classes actuelles du personnage (avec domaines si DD3.5)
 $classes = getPersonnageClasses($db, (int)$perso['pe_id']);
 
-// Niveau global = somme des niveaux de toutes les classes
-$niveau_global = array_sum(array_column($classes, 'pc_niveau'));
+// La vue Magie n'est proposée que si le personnage a au moins une classe
+// lanceuse — cla_mag_id > 0 identifie les lanceuses dans les deux rulesets
+// (D-MAG2 : la plage de valeurs diffère, le test « > 0 » reste valable).
+$aClasseLanceuse = false;
+foreach ($classes as $c):
+  if ((int)$c['cla_mag_id'] > 0) { $aClasseLanceuse = true; break; }
+endforeach;
+
+// Niveau global = somme des niveaux des classes, SOUS-CLASSES EXCLUES.
+// Une sous-classe DD2024 (cla_clt_id = 5) est une ligne de
+// dd_personnages_classes comme une autre, mais elle n'ajoute aucun niveau : le
+// Domaine de la Vie d'Adon est une facette de son Clerc, pas une classe de
+// plus. Les compter donnait 7 à un clerc 5 / guerrier 1 — et un bonus de
+// maîtrise faux avec (SP-PE10h).
+$niveau_global = 0;
+foreach ($classes as $c):
+  if ((int)$c['cla_clt_id'] !== CLT_SOUS_CLASSE) $niveau_global += (int)$c['pc_niveau'];
+endforeach;
 
 // Toutes les classes du ruleset pour le select de l'éditeur.
 // Le ruleset passé est celui du PERSONNAGE, pas celui de la session : les deux
@@ -130,52 +146,10 @@ $dons_perso = $stmt_dons->fetchAll();
 // Le mode lecture affiche la campagne en cours puis l'historique traversé ;
 // l'éditeur propose les campagnes rattachables du propriétaire.
 // ------------------------------------------------------------
-$pe_camp_id      = (int)($perso['pe_camp_id'] ?? 0);
-$campagnes_perso = getCampagnesPersonnage($db, (int)$perso['pe_id'], $pe_camp_id);
+// Les campagnes du personnage ont leur propre sous-page (campagnes.php)
+// depuis le passage au sous-menu : les charger ici serait deux requêtes et
+// une sérialisation JSON pour un bloc qui n'y est plus.
 
-// Liste de l'éditeur = campagnes rattachables ∪ campagnes déjà liées.
-// L'union protège les liaisons qui ne satisfont plus les critères de
-// rattachement (campagne d'un autre ruleset héritée d'un import) : elles
-// restent affichées et détachables au lieu de devenir invisibles.
-$campagnes_liees = [];
-foreach ($campagnes_perso as $c):
-  $campagnes_liees[(int)$c['camp_id']] = $c;
-endforeach;
-
-$campagnes_editeur = [];
-foreach (getCampagnesRattachables($db, (int)$perso['pe_j_id'], $ruleset_id) as $c):
-  $cid = (int)$c['camp_id'];
-  $campagnes_editeur[$cid] = [
-    'id'       => $cid,
-    'nom'      => $c['camp_nom'],
-    'resume'   => $c['camp_resume'] ?? '',
-    'univers'  => $c['univers_nom'] ?? '',
-    'rattache' => isset($campagnes_liees[$cid]) && (int)$campagnes_liees[$cid]['est_liee'] === 1,
-    'actif'    => !isset($campagnes_liees[$cid]) || (int)$campagnes_liees[$cid]['cp_actif'] === 1,
-    'courante' => ($cid === $pe_camp_id),
-  ];
-endforeach;
-
-foreach ($campagnes_perso as $c):
-  $cid = (int)$c['camp_id'];
-  if (!isset($campagnes_editeur[$cid])):
-    $campagnes_editeur[$cid] = [
-      'id'       => $cid,
-      'nom'      => $c['camp_nom'],
-      'resume'   => $c['camp_resume'] ?? '',
-      'univers'  => $c['univers_nom'] ?? '',
-      'rattache' => (int)$c['est_liee'] === 1,
-      'actif'    => (int)$c['cp_actif'] === 1,
-      'courante' => ($cid === $pe_camp_id),
-    ];
-  endif;
-endforeach;
-
-// Tri alphabétique stable (les liaisons ajoutées en fin de tableau ci-dessus
-// ne doivent pas se retrouver reléguées après les campagnes rattachables)
-uasort($campagnes_editeur, function($a, $b) {
-  return strcasecmp($a['nom'], $b['nom']);
-});
 
 $page_title = $perso['pe_nom'];
 $js_module  = 'personnage';
@@ -242,9 +216,6 @@ require_once '../include/header.php';
   var perUrlDonsPicker = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/dons-picker.php') ?>;
   var perUrlDonDetail  = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/don.php') ?>;
 
-  // Campagnes (SP-PE5) — état initial de l'éditeur de rattachement
-  var perCampagnesEditeur = <?= json_encode(array_values($campagnes_editeur), JSON_UNESCAPED_UNICODE) ?>;
-  var perCampCourante     = <?= $pe_camp_id ?>;
 
   // NLS prestige (SP-PE6) — état initial de l'éditeur. null si le bloc est omis.
   var perNlsBases = <?= json_encode($nls ? $nls['bases'] : [], JSON_UNESCAPED_UNICODE) ?>;
@@ -270,12 +241,10 @@ require_once '../include/header.php';
   <div class="per-fiche__header">
     <h1 class="per-fiche__nom"><?= h($perso['pe_nom']) ?></h1>
 
+    <?php // Le niveau global a quitté cette ligne : il ouvre désormais le bloc
+          // Identité, où il se lit avec la race et les classes (SP-PE10h). ?>
     <div class="per-fiche__meta">
-      <?php if ($niveau_global > 0): ?>
-        <span class="per-fiche__niveau">Niveau <?= $niveau_global ?></span>
-      <?php endif ?>
       <?php if ($perso['campagne_courante_nom']): ?>
-        <?php if ($niveau_global > 0): ?> · <?php endif ?>
         <span class="per-fiche__campagne">
           <i class="fa fa-map"></i> <?= h($perso['campagne_courante_nom']) ?>
         </span>
@@ -285,50 +254,66 @@ require_once '../include/header.php';
     <a href="<?= BASE_URL ?>/personnages/" class="btn btn-link btn-sm per-fiche__retour"
        title="Retour à la liste">
       <i class="fa fa-arrow-left"></i>
-      <span class="per-btn-label">Liste</span>
     </a>
 
     <button class="btn btn-secondary btn-sm per-fiche__modifier"
             onclick="ouvrirModifier(perUrlModifier, <?= (int)$perso['pe_id'] ?>)"
             title="Modifier le personnage">
       <i class="fa fa-edit"></i>
-      <span class="per-btn-label">Modifier</span>
     </button>
   </div>
 
   <?php // BLOC 1 — MODE JEU (placeholder SP-PE8), repliable et replié par défaut ?>
-  <section class="per-fiche__bloc per-fiche__bloc--mode-jeu">
-    <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-dice-d20"></i> Mode jeu
-      </h2>
-      <button type="button" class="btn btn-link btn-sm per-fiche__replier"
-              id="btn-replier-mode-jeu"
-              aria-controls="bloc-mode-jeu-body" aria-expanded="false"
-              onclick="perReplierBloc('bloc-mode-jeu-body', this)"
-              title="Afficher ou masquer le bloc">
-        <i class="fa fa-chevron-down"></i>
-      </button>
-    </header>
-    <div class="per-fiche__bloc-body noDisplay" id="bloc-mode-jeu-body">
-      <p class="text-muted text-sm">
-        Emplacement réservé. Le suivi des PV, conditions et autres variables de
-        partie sera ajouté ultérieurement.
-      </p>
-    </div>
-  </section>
+  <?php $nav_courante = 'fiche'; $nav_lanceur = $aClasseLanceuse; ?>
+  <?php require __DIR__ . '/../include/personnage-nav.php'; ?>
 
-  <!-- BLOC 2 — IDENTITÉ -->
-  <section class="per-fiche__bloc">
-    <header class="per-fiche__bloc-header">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-id-card"></i> Identité
-      </h2>
-    </header>
+  <?php // Masquable depuis le profil (SP-PE10l) : le bloc n'est encore qu'un
+        // emplacement réservé — le suivi des PV et des variables de partie
+        // relève de SP-PE8 — et coûtait une barre d'en-tête pour rien. ?>
+  <?php if (!empty($_SESSION['j_affichage_mode_jeu'])): ?>
+    <section class="per-fiche__bloc per-fiche__bloc--mode-jeu">
+      <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
+        <h2 class="per-fiche__bloc-titre">
+          <i class="fa fa-dice-d20"></i> Mode jeu
+        </h2>
+        <button type="button" class="btn btn-link btn-sm per-fiche__replier"
+                id="btn-replier-mode-jeu"
+                aria-controls="bloc-mode-jeu-body" aria-expanded="false"
+                onclick="perReplierBloc('bloc-mode-jeu-body', this)"
+                title="Afficher ou masquer le bloc">
+          <i class="fa fa-chevron-down"></i>
+        </button>
+      </header>
+      <div class="per-fiche__bloc-body noDisplay" id="bloc-mode-jeu-body">
+        <p class="text-muted text-sm">
+          Emplacement réservé. Le suivi des PV, conditions et autres variables de
+          partie sera ajouté ultérieurement.
+        </p>
+      </div>
+    </section>
+  <?php endif ?>
+
+  <!-- BLOC 2 — IDENTITÉ (refondu SP-PE10h) -->
+  <?php // Sans titre, comme les blocs de stats (SP-PE10k) : « Identité » ne dit
+        // rien de plus que « Niveau 6 · Race Humain · Clerc 5 » juste en
+        // dessous, et coûtait une barre d'en-tête entière. ?>
+  <section class="per-fiche__bloc per-fiche__bloc--identite">
     <div class="per-fiche__bloc-body">
+
+      <?php // ---- Une seule rangée : niveau, race, sexe, alignement --------
+            // Chaque champ est un bloc insécable qui passe à la ligne entier
+            // quand la largeur manque — ce sont des couples libellé/valeur,
+            // les couper au milieu ne rendrait service à personne. ?>
       <dl class="per-identite">
 
-        <div class="per-identite__row">
+        <?php if ($niveau_global > 0): ?>
+          <div class="per-identite__champ">
+            <dt>Niveau</dt>
+            <dd><?= $niveau_global ?></dd>
+          </div>
+        <?php endif ?>
+
+        <div class="per-identite__champ">
           <dt>Race</dt>
           <dd>
             <?php if (!empty($perso['pe_ra_id'])): ?>
@@ -349,102 +334,12 @@ require_once '../include/header.php';
           </dd>
         </div>
 
-        <?php
-        // CLASSES (éditeur DOM inline — SP-PE2)
-        // Déplacé ici depuis son bloc propre (SP-RS6d) : lecture immédiate après
-        // la race. Les identifiants #bloc-classes, #classes-lecture,
-        // #classes-edition, #btn-editer-classes et #classes-msg sont conservés —
-        // classesEditor (js/personnage.js) s'appuie dessus.
-        ?>
-        <div class="per-identite__row per-identite__row--large" id="bloc-classes">
-          <dt>Classes<?php if ($niveau_global > 0): ?>
-            <span class="per-fiche__niveau-global">niv. <?= $niveau_global ?></span>
-          <?php endif ?></dt>
-          <dd>
-            <div class="per-identite__valeur-actions">
-
-              <div class="per-identite__valeur" id="classes-lecture">
-                <?php if (empty($classes)): ?>
-                  <span class="text-muted">Aucune classe définie.</span>
-                <?php else: ?>
-                  <ul class="per-classes">
-                    <?php foreach ($classes as $c): ?>
-                      <li class="per-classes__item">
-                        <?php if ((int)$c['cla_clt_id'] === 2): ?>
-                          <span class="per-classes__badge-prestige" title="Classe de prestige">P</span>
-                        <?php endif ?>
-                        <a href="javascript:void(0)"
-                           onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/classe.php', {id: <?= (int)$c['pc_cla_id'] ?>}, 'externe')">
-                          <?= h($c['cla_nom']) ?>
-                        </a>
-                        <span class="per-classes__niveau">niv. <?= (int)$c['pc_niveau'] ?></span>
-                        <?php if ($ruleset_rep === 'DD3.5' && ($c['pc_do_id_1'] || $c['pc_do_id_2'])): ?>
-                          <span class="per-classes__domaines text-muted">
-                            — domaines :
-                            <?= h($c['domaine1_nom'] ?? '') ?>
-                            <?php if ($c['pc_do_id_1'] && $c['pc_do_id_2']): ?>,<?php endif ?>
-                            <?= h($c['domaine2_nom'] ?? '') ?>
-                          </span>
-                        <?php endif ?>
-                      </li>
-                    <?php endforeach ?>
-                  </ul>
-                <?php endif ?>
-              </div>
-
-              <button class="btn btn-link btn-sm per-fiche__editer" id="btn-editer-classes"
-                      onclick="classesEditor.basculerEdition()"
-                      title="Modifier les classes">
-                <i class="fa fa-edit"></i><span class="per-btn-label">Modifier</span>
-              </button>
-            </div>
-
-            <?php // Mode édition (caché par défaut, activé par JS) ?>
-            <div class="noDisplay" id="classes-edition">
-              <div id="classes-editor-lignes">
-                <?php // Les lignes sont générées par classesEditor.init() en JS ?>
-              </div>
-              <div class="per-classes-actions">
-                <button class="btn btn-link btn-sm" onclick="classesEditor.ajouterLigne()">
-                  <i class="fa fa-plus"></i> Ajouter une classe
-                </button>
-              </div>
-              <div class="per-classes-commit">
-                <button class="btn btn-primary btn-sm" onclick="classesEditor.enregistrer()">
-                  <i class="fa fa-save"></i> Enregistrer
-                </button>
-                <button class="btn btn-secondary btn-sm" onclick="classesEditor.annuler()">
-                  Annuler
-                </button>
-                <span class="per-classes-commit__msg noDisplay" id="classes-msg"></span>
-              </div>
-            </div>
-          </dd>
-        </div>
-
-        <?php if ($ruleset_rep === 'DD2024'): ?>
-          <div class="per-identite__row">
-            <dt>Historique</dt>
-            <dd>
-              <?php if (!empty($perso['pe_hi_id'])): ?>
-                <a href="javascript:void(0)"
-                   onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/historique.php', {id: <?= (int)$perso['pe_hi_id'] ?>}, 'externe')"
-                   title="Disponible lors de la livraison du compendium Historiques">
-                  <?= h($perso['historique_nom'] ?? '—') ?>
-                </a>
-              <?php else: ?>
-                <span class="text-muted">—</span>
-              <?php endif ?>
-            </dd>
-          </div>
-        <?php endif ?>
-
-        <div class="per-identite__row">
+        <div class="per-identite__champ">
           <dt>Sexe</dt>
           <dd><?= $perso['pe_sexe'] ? h($perso['pe_sexe']) : '<span class="text-muted">—</span>' ?></dd>
         </div>
 
-        <div class="per-identite__row">
+        <div class="per-identite__champ">
           <dt>Alignement</dt>
           <dd>
             <?php if (!empty($perso['pe_al_id'])): ?>
@@ -456,170 +351,345 @@ require_once '../include/header.php';
           </dd>
         </div>
 
-      </dl>
-    </div>
-  </section>
-
-  <!-- BLOC 4 — CARACTÉRISTIQUES -->
-  <section class="per-fiche__bloc">
-    <header class="per-fiche__bloc-header">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-chart-bar"></i> Caractéristiques
-      </h2>
-    </header>
-    <div class="per-fiche__bloc-body">
-      <div class="per-caracs">
-        <?php
-          $caracs_def = [
-            ['abr' => 'FOR', 'lbl' => 'Force',        'val' => (int)$perso['pe_for']],
-            ['abr' => 'CON', 'lbl' => 'Constitution', 'val' => (int)$perso['pe_con']],
-            ['abr' => 'DEX', 'lbl' => 'Dextérité',    'val' => (int)$perso['pe_dex']],
-            ['abr' => 'INT', 'lbl' => 'Intelligence', 'val' => (int)$perso['pe_int']],
-            ['abr' => 'SAG', 'lbl' => 'Sagesse',      'val' => (int)$perso['pe_sag']],
-            ['abr' => 'CHA', 'lbl' => 'Charisme',     'val' => (int)$perso['pe_cha']],
-          ];
-        ?>
-        <?php foreach ($caracs_def as $c): ?>
-          <div class="per-carac">
-            <div class="per-carac__abr" title="<?= h($c['lbl']) ?>"><?= $c['abr'] ?></div>
-            <div class="per-carac__val"><?= $c['val'] ?></div>
-            <div class="per-carac__mod"><?= formatMod(modCarac($c['val'])) ?></div>
-          </div>
-        <?php endforeach ?>
-      </div>
-    </div>
-  </section>
-
-  <!-- BLOC 5 — COMBAT -->
-  <section class="per-fiche__bloc">
-    <header class="per-fiche__bloc-header">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-shield-alt"></i> Combat
-      </h2>
-    </header>
-    <div class="per-fiche__bloc-body">
-      <div class="per-combat">
-        <div class="per-combat__stat">
-          <div class="per-combat__lbl">CA</div>
-          <div class="per-combat__val"><?= (int)$perso['pe_ca'] ?></div>
-          <div class="per-combat__hint">Classe d'armure</div>
-        </div>
-        <div class="per-combat__stat">
-          <div class="per-combat__lbl">PV</div>
-          <div class="per-combat__val"><?= (int)$perso['pe_pv'] ?></div>
-          <div class="per-combat__hint">Points de vie totaux</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       BLOC 6 — COMPÉTENCES (éditeur DOM inline — SP-PE3)
-       Lecture : compétences maîtrisées uniquement (archi §7.3).
-       Édition : tableau complet du ruleset, filtrable.
-       ============================================================ -->
-  <section class="per-fiche__bloc" id="bloc-competences">
-    <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-list-check"></i> Compétences
-      </h2>
-      <button class="btn btn-link btn-sm" id="btn-editer-competences"
-              onclick="competencesEditor.basculerEdition()">
-        <i class="fa fa-edit"></i> Modifier
-      </button>
-    </header>
-
-    <!-- Mode lecture -->
-    <div class="per-fiche__bloc-body" id="competences-lecture">
-      <?php if (empty($competences)): ?>
-        <p class="text-muted">
-          Aucune compétence disponible pour ce ruleset avec les sources actives.
-          <a href="<?= BASE_URL ?>/profil/">Configurer mes sources</a>
-        </p>
-      <?php elseif (empty($competences_maitrisees)): ?>
-        <p class="text-muted">Aucune compétence maîtrisée. Utilisez « Modifier » pour les saisir.</p>
-      <?php else: ?>
-        <?php
-        // Rendu aligné sur le bloc Dons (SP-RS6e) : liste flex, nom à gauche,
-        // valeurs calées à droite et alignées en haut si le nom passe à la
-        // ligne. Seule différence avec les dons : une ligne d'en-tête, en gras.
-        ?>
-        <ul class="per-comp">
-          <li class="per-comp__item per-comp__item--entete">
-            <span class="per-comp__nom">Compétence</span>
-            <span class="per-comp__val">Carac</span>
-            <span class="per-comp__val"><?= $ruleset_rep === 'DD2024' ? 'Maîtrise' : 'Rangs' ?></span>
-            <span class="per-comp__val">Total</span>
-          </li>
-
-          <?php foreach ($competences_maitrisees as $c): ?>
-            <?php
-              $maitrise = (int)$c['pec_maitrise'];
-              $mod      = (int)($mod_par_carac[(int)$c['comp_car_id']] ?? 0);
-              $total    = bonusCompetence($maitrise, $mod, $ruleset_rep, $bonus_maitrise);
-            ?>
-            <li class="per-comp__item">
-              <span class="per-comp__nom">
+        <?php if ($ruleset_rep === 'DD2024'): ?>
+          <div class="per-identite__champ">
+            <dt>Historique</dt>
+            <dd>
+              <?php if (!empty($perso['pe_hi_id'])): ?>
                 <a href="javascript:void(0)"
-                   onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/competence.php', {id: <?= (int)$c['comp_id'] ?>}, 'externe')">
-                  <?= h($c['comp_nom']) ?>
+                   onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/historique.php', {id: <?= (int)$perso['pe_hi_id'] ?>}, 'externe')">
+                  <?= h($perso['historique_nom'] ?? '—') ?>
                 </a>
-                <?php if ((int)$c['comp_formation'] === 1): ?>
-                  <span class="per-comp__flag" title="Formation requise">F</span>
-                <?php endif ?>
-                <?php if ((int)$c['comp_malusArmure'] === 1): ?>
-                  <span class="per-comp__flag" title="Soumise au malus d'armure">A</span>
-                <?php endif ?>
-              </span>
-              <span class="per-comp__val">
-                <?php if (!empty($c['car_diminutif'])): ?>
-                  <?= h(strtoupper($c['car_diminutif'])) ?>
-                  <span class="text-muted"><?= formatMod($mod) ?></span>
-                <?php else: ?>
-                  <span class="text-muted" title="Aucune caractéristique associée">—</span>
-                <?php endif ?>
-              </span>
-              <span class="per-comp__val">
-                <?php if ($ruleset_rep === 'DD2024'): ?>
-                  <?= $maitrise >= 2 ? 'Expertise' : 'Maîtrise' ?>
-                <?php else: ?>
-                  <?= $maitrise ?>
-                <?php endif ?>
-              </span>
-              <span class="per-comp__val per-comp__val--total"><?= formatMod($total) ?></span>
-            </li>
-          <?php endforeach ?>
-        </ul>
-      <?php endif ?>
-    </div>
+              <?php else: ?>
+                <span class="text-muted">—</span>
+              <?php endif ?>
+            </dd>
+          </div>
+        <?php endif ?>
 
-    <!-- Mode édition (caché par défaut, activé par JS) -->
-    <div class="per-fiche__bloc-body noDisplay" id="competences-edition">
-      <div class="per-comp-editor__filtre">
-        <input type="search" id="competences-filtre" class="per-comp-editor__recherche"
-               placeholder="Filtrer les compétences…" autocomplete="off"
-               oninput="competencesEditor.filtrer(this.value)">
-        <span class="text-muted text-sm">
-          <?= $ruleset_rep === 'DD2024'
-            ? 'Aucune / Maîtrise / Expertise'
-            : 'Nombre de rangs (0 = non maîtrisée)' ?>
-        </span>
-      </div>
-      <div id="competences-editor-lignes">
-        <!-- Le tableau est généré par competencesEditor.init() en JS -->
-      </div>
-      <div class="per-classes-commit">
-        <button class="btn btn-primary btn-sm" onclick="competencesEditor.enregistrer()">
-          <i class="fa fa-save"></i> Enregistrer
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick="competencesEditor.annuler()">
-          Annuler
-        </button>
-        <span class="per-classes-commit__msg noDisplay" id="competences-msg"></span>
-      </div>
-    </div>
+      </dl>
 
+      <?php
+        // ---- Classes : une par ligne, sans libellé ni « niv. » -----------
+        // Les SOUS-CLASSES DD2024 ne sont pas des classes de plus : le Domaine
+        // de la Vie est une facette du Clerc. Elles rejoignent donc leur classe
+        // parente, entre parenthèses — « Clerc 5 (Domaine de la Vie) ».
+        $lignes_classes = [];
+        $index_par_cla  = [];
+        foreach ($classes as $c):
+          if ((int)$c['cla_clt_id'] === CLT_SOUS_CLASSE) continue;
+          $index_par_cla[(int)$c['pc_cla_id']] = count($lignes_classes);
+          $lignes_classes[] = ['c' => $c, 'sous' => []];
+        endforeach;
+        foreach ($classes as $c):
+          if ((int)$c['cla_clt_id'] !== CLT_SOUS_CLASSE) continue;
+          $parent = (int)($c['cla_cla_id'] ?? 0);
+          if (isset($index_par_cla[$parent])):
+            $lignes_classes[$index_par_cla[$parent]]['sous'][] = $c;
+          else:
+            // Sous-classe orpheline (classe parente retirée) : plutôt que de la
+            // perdre en silence, elle tient sa propre ligne.
+            $lignes_classes[] = ['c' => $c, 'sous' => []];
+          endif;
+        endforeach;
+      ?>
+      <div class="per-classes-bloc" id="bloc-classes">
+
+        <div id="classes-lecture">
+          <?php if (empty($lignes_classes)): ?>
+            <p class="text-muted">Aucune classe définie.</p>
+          <?php else: ?>
+            <ul class="per-classes">
+              <?php foreach ($lignes_classes as $l): ?>
+                <?php $c = $l['c']; $prestige = ((int)$c['cla_clt_id'] === CLT_PRESTIGE); ?>
+                <li class="per-classes__item">
+                  <?php // L'italique remplace le badge « P » : il dit la même
+                        // chose sans occuper de place. ?>
+                  <a href="javascript:void(0)"
+                     class="per-classes__nom<?= $prestige ? ' per-classes__nom--prestige' : '' ?>"
+                     <?= $prestige ? 'title="Classe de prestige"' : '' ?>
+                     onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/classe.php', {id: <?= (int)$c['pc_cla_id'] ?>}, 'externe')">
+                    <?= h($c['cla_nom']) ?>
+                  </a>
+                  <span class="per-classes__niveau"><?= (int)$c['pc_niveau'] ?></span>
+                  <?php foreach ($l['sous'] as $sc): ?>
+                    <span class="per-classes__sous">(<a href="javascript:void(0)"
+                       onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/classe.php', {id: <?= (int)$sc['pc_cla_id'] ?>}, 'externe')"><?= h($sc['cla_nom']) ?></a>)</span>
+                  <?php endforeach ?>
+                  <?php if ($ruleset_rep === 'DD3.5' && ($c['pc_do_id_1'] || $c['pc_do_id_2'])): ?>
+                    <span class="per-classes__domaines text-muted">
+                      — domaines :
+                      <?= h($c['domaine1_nom'] ?? '') ?>
+                      <?php if ($c['pc_do_id_1'] && $c['pc_do_id_2']): ?>,<?php endif ?>
+                      <?= h($c['domaine2_nom'] ?? '') ?>
+                    </span>
+                  <?php endif ?>
+                </li>
+              <?php endforeach ?>
+            </ul>
+          <?php endif ?>
+        </div>
+
+        <?php // Posé en absolu au bout de la PREMIÈRE ligne : les noms de
+              // classe lui réservent sa place (padding-right), ils passent donc
+              // à la ligne avant de l'atteindre. ?>
+        <button class="btn btn-link btn-sm per-fiche__editer" id="btn-editer-classes"
+                onclick="classesEditor.basculerEdition()"
+                title="Modifier les classes">
+          <i class="fa fa-edit"></i>
+        </button>
+
+        <div class="noDisplay" id="classes-edition">
+          <div id="classes-editor-lignes">
+            <?php // Les lignes sont générées par classesEditor.init() en JS ?>
+          </div>
+          <div class="per-classes-actions">
+            <button class="btn btn-link btn-sm" onclick="classesEditor.ajouterLigne()">
+              <i class="fa fa-plus"></i> Ajouter une classe
+            </button>
+          </div>
+          <div class="per-classes-commit">
+            <button class="btn btn-primary btn-sm" onclick="classesEditor.enregistrer()">
+              <i class="fa fa-save"></i> Enregistrer
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="classesEditor.annuler()">
+              Annuler
+            </button>
+            <span class="per-classes-commit__msg noDisplay" id="classes-msg"></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </section>
+
+  <?php // ---- BLOCS 3 à 5 : caractéristiques, CA, PV (refondus SP-PE10h) ---
+        // Trois blocs de même nature — des chiffres qu'on relit sans arrêt en
+        // séance — tenus sur une rangée sur un poste, et repliés en deux lignes
+        // sur téléphone : les six caractéristiques d'abord, CA et PV ensuite.
+        //
+        // Les titres sont tombés : « Caractéristiques » au-dessus de FOR CON
+        // DEX ne dit rien que la grille ne dise déjà, et « Combat » coiffait
+        // deux tuiles qui se passent de chapeau. Le contour des blocs reste —
+        // c'est lui qui les sépare. ?>
+  <div class="per-fiche__rangee">
+
+    <section class="per-fiche__bloc per-fiche__bloc--caracs">
+      <div class="per-fiche__bloc-body">
+        <div class="per-caracs">
+          <?php
+            $caracs_def = [
+              ['abr' => 'FOR', 'lbl' => 'Force',        'val' => (int)$perso['pe_for']],
+              ['abr' => 'CON', 'lbl' => 'Constitution', 'val' => (int)$perso['pe_con']],
+              ['abr' => 'DEX', 'lbl' => 'Dextérité',    'val' => (int)$perso['pe_dex']],
+              ['abr' => 'INT', 'lbl' => 'Intelligence', 'val' => (int)$perso['pe_int']],
+              ['abr' => 'SAG', 'lbl' => 'Sagesse',      'val' => (int)$perso['pe_sag']],
+              ['abr' => 'CHA', 'lbl' => 'Charisme',     'val' => (int)$perso['pe_cha']],
+            ];
+          ?>
+          <?php foreach ($caracs_def as $c): ?>
+            <div class="per-carac">
+              <div class="per-carac__abr" title="<?= h($c['lbl']) ?>"><?= $c['abr'] ?></div>
+              <div class="per-carac__val"><?= $c['val'] ?></div>
+              <div class="per-carac__mod"><?= formatMod(modCarac($c['val'])) ?></div>
+            </div>
+          <?php endforeach ?>
+        </div>
+      </div>
+    </section>
+
+    <?php // Le bonus de maîtrise est une valeur DD2024 qu'on relit sans arrêt —
+          // tous les jets de compétence et d'attaque en dépendent. Il n'existe
+          // pas en DD3.5 (SP-PE10l). ?>
+    <?php if ($ruleset_rep === 'DD2024'): ?>
+      <section class="per-fiche__bloc per-fiche__bloc--stat">
+        <div class="per-fiche__bloc-body">
+          <div class="per-stat" title="Bonus de maîtrise">
+            <span class="per-stat__lbl">BM</span>
+            <span class="per-stat__val"><?= formatMod($bonus_maitrise) ?></span>
+          </div>
+        </div>
+      </section>
+    <?php endif ?>
+
+    <section class="per-fiche__bloc per-fiche__bloc--stat">
+      <div class="per-fiche__bloc-body">
+        <div class="per-stat" title="Classe d'armure">
+          <span class="per-stat__lbl">CA</span>
+          <span class="per-stat__val"><?= (int)$perso['pe_ca'] ?></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="per-fiche__bloc per-fiche__bloc--stat">
+      <div class="per-fiche__bloc-body">
+        <div class="per-stat" title="Points de vie totaux">
+          <span class="per-stat__lbl">PV</span>
+          <span class="per-stat__val"><?= (int)$perso['pe_pv'] ?></span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <?php // ---- Compétences et Dons côte à côte (SP-PE10m) ------------------
+        // Deux listes de même nature, lues de la même façon, qui laissaient
+        // chacune la moitié droite de l'écran vide sur un poste. Elles se
+        // partagent la rangée au-dessus de 992px et s'empilent en dessous.
+        // Le bloc NLS, lui, porte un tableau par classe de prestige : il
+        // garde sa pleine largeur, sous la rangée. ?>
+  <div class="per-fiche__rangee per-fiche__rangee--listes">
+
+    <!-- ============================================================
+         BLOC 6 — COMPÉTENCES (éditeur DOM inline — SP-PE3)
+         Lecture : compétences maîtrisées uniquement (archi §7.3).
+         Édition : tableau complet du ruleset, filtrable.
+         ============================================================ -->
+    <section class="per-fiche__bloc" id="bloc-competences">
+      <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
+        <h2 class="per-fiche__bloc-titre">
+          <i class="fa fa-list-check"></i> Compétences
+        </h2>
+        <button class="btn btn-link btn-sm" id="btn-editer-competences"
+                title="Modifier les compétences"
+                onclick="competencesEditor.basculerEdition()">
+          <i class="fa fa-edit"></i>
+        </button>
+      </header>
+
+      <!-- Mode lecture -->
+      <div class="per-fiche__bloc-body" id="competences-lecture">
+        <?php if (empty($competences)): ?>
+          <p class="text-muted">
+            Aucune compétence disponible pour ce ruleset avec les sources actives.
+            <a href="<?= BASE_URL ?>/profil/">Configurer mes sources</a>
+          </p>
+        <?php elseif (empty($competences_maitrisees)): ?>
+          <p class="text-muted">Aucune compétence maîtrisée. Utilisez « Modifier » pour les saisir.</p>
+        <?php else: ?>
+          <?php
+          // Rendu aligné sur le bloc Dons (SP-RS6e) : liste flex, nom à gauche,
+          // valeurs calées à droite et alignées en haut si le nom passe à la
+          // ligne. Seule différence avec les dons : une ligne d'en-tête, en gras.
+          ?>
+          <ul class="per-comp">
+            <li class="per-comp__item per-comp__item--entete">
+              <span class="per-comp__nom">Compétence</span>
+              <span class="per-comp__val per-comp__val--carac">Carac</span>
+              <span class="per-comp__val"><?= $ruleset_rep === 'DD2024' ? 'Maîtrise' : 'Rangs' ?></span>
+              <span class="per-comp__val">Total</span>
+            </li>
+
+            <?php foreach ($competences_maitrisees as $c): ?>
+              <?php
+                $maitrise = (int)$c['pec_maitrise'];
+                $mod      = (int)($mod_par_carac[(int)$c['comp_car_id']] ?? 0);
+                $total    = bonusCompetence($maitrise, $mod, $ruleset_rep, $bonus_maitrise);
+              ?>
+              <li class="per-comp__item">
+                <span class="per-comp__nom">
+                  <a href="javascript:void(0)"
+                     onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/competence.php', {id: <?= (int)$c['comp_id'] ?>}, 'externe')">
+                    <?= h($c['comp_nom']) ?>
+                  </a>
+                  <?php if ((int)$c['comp_formation'] === 1): ?>
+                    <span class="per-comp__flag" title="Formation requise">F</span>
+                  <?php endif ?>
+                  <?php if ((int)$c['comp_malusArmure'] === 1): ?>
+                    <span class="per-comp__flag" title="Soumise au malus d'armure">A</span>
+                  <?php endif ?>
+                </span>
+                <span class="per-comp__val per-comp__val--carac">
+                  <?php if (!empty($c['car_diminutif'])): ?>
+                    <?= h(strtoupper($c['car_diminutif'])) ?>
+                    <span class="text-muted"><?= formatMod($mod) ?></span>
+                  <?php else: ?>
+                    <span class="text-muted" title="Aucune caractéristique associée">—</span>
+                  <?php endif ?>
+                </span>
+                <?php // Abrégé (SP-PE10j) : « Maîtrise » et « Expertise » en toutes
+                      // lettres imposaient à la colonne une largeur que la ligne
+                      // n'avait pas. Le title garde le mot. ?>
+                <span class="per-comp__val">
+                  <?php if ($ruleset_rep === 'DD2024'): ?>
+                    <span title="<?= $maitrise >= 2 ? 'Expertise' : 'Maîtrise' ?>"><?= $maitrise >= 2 ? 'E' : 'M.' ?></span>
+                  <?php else: ?>
+                    <?= $maitrise ?>
+                  <?php endif ?>
+                </span>
+                <span class="per-comp__val per-comp__val--total"><?= formatMod($total) ?></span>
+              </li>
+            <?php endforeach ?>
+          </ul>
+        <?php endif ?>
+      </div>
+
+      <!-- Mode édition (caché par défaut, activé par JS) -->
+      <div class="per-fiche__bloc-body noDisplay" id="competences-edition">
+        <div class="per-comp-editor__filtre">
+          <input type="search" id="competences-filtre" class="per-comp-editor__recherche"
+                 placeholder="Filtrer les compétences…" autocomplete="off"
+                 oninput="competencesEditor.filtrer(this.value)">
+          <span class="text-muted text-sm">
+            <?= $ruleset_rep === 'DD2024'
+              ? 'Aucune / Maîtrise / Expertise'
+              : 'Nombre de rangs (0 = non maîtrisée)' ?>
+          </span>
+        </div>
+        <div id="competences-editor-lignes">
+          <!-- Le tableau est généré par competencesEditor.init() en JS -->
+        </div>
+        <div class="per-classes-commit">
+          <button class="btn btn-primary btn-sm" onclick="competencesEditor.enregistrer()">
+            <i class="fa fa-save"></i> Enregistrer
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="competencesEditor.annuler()">
+            Annuler
+          </button>
+          <span class="per-classes-commit__msg noDisplay" id="competences-msg"></span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================================
+         BLOC 8 — DONS (SP-PE4)
+         Lecture seule ici ; l'ajout et le retrait passent par le
+         sélecteur deux volets ouvert dans #detail-pp.
+         ============================================================ -->
+    <section class="per-fiche__bloc" id="bloc-dons">
+      <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
+        <h2 class="per-fiche__bloc-titre">
+          <i class="fa fa-star"></i> Dons
+          <?php if (!empty($dons_perso)): ?>
+            <span class="per-fiche__niveau-global">— <?= count($dons_perso) ?></span>
+          <?php endif ?>
+        </h2>
+        <button class="btn btn-link btn-sm" onclick="donsPicker.ouvrir()">
+          <i class="fa fa-plus"></i> Choisir des dons
+        </button>
+      </header>
+      <div class="per-fiche__bloc-body">
+        <?php if (empty($dons_perso)): ?>
+          <p class="text-muted">Aucun don choisi. Utilisez « Choisir des dons » pour les saisir.</p>
+        <?php else: ?>
+          <ul class="per-dons">
+            <?php foreach ($dons_perso as $d): ?>
+              <li class="per-dons__item">
+                <span class="per-dons__nom">
+                  <a href="javascript:void(0)"
+                     onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/don.php', {id: <?= (int)$d['ped_do_id'] ?>}, 'externe')">
+                    <?= h($d['do_nom']) ?>
+                  </a>
+                </span>
+                <span class="per-dons__cat text-muted"><?= h($d['dado_nom'] ?? '—') ?></span>
+              </li>
+            <?php endforeach ?>
+          </ul>
+        <?php endif ?>
+      </div>
+    </section>
+  </div>
 
   <?php if ($nls): ?>
   <!-- ============================================================
@@ -637,14 +707,29 @@ require_once '../include/header.php';
         <i class="fa fa-hat-wizard"></i> NLS prestige
       </h2>
       <button class="btn btn-link btn-sm" id="btn-editer-nls"
+              title="Modifier les affectations de NLS"
               onclick="nlsEditor.basculerEdition()">
-        <i class="fa fa-edit"></i> Modifier
+        <i class="fa fa-edit"></i>
+      </button>
+      <?php // Replié par défaut (SP-PE10n) : l'affectation des niveaux de
+            // prestige se règle une fois pour toutes, à la montée de niveau.
+            // Elle n'a pas à occuper la fiche entre deux. ?>
+      <button type="button" class="btn btn-link btn-sm per-fiche__replier"
+              id="btn-replier-nls"
+              aria-controls="bloc-nls-body" aria-expanded="false"
+              onclick="perReplierBloc('bloc-nls-body', this)"
+              title="Afficher ou masquer le bloc">
+        <i class="fa fa-chevron-down"></i>
       </button>
     </header>
 
+    <div class="noDisplay" id="bloc-nls-body">
+
     <!-- Mode lecture -->
     <div class="per-fiche__bloc-body" id="nls-lecture">
-      <p class="text-muted text-sm">
+      <?php // Masqué sous 992px (SP-PE10h) : une explication qu'on ne lit
+            // qu'une fois ne vaut pas quatre lignes sur un téléphone. ?>
+      <p class="text-muted text-sm per-nls__aide">
         Affectation des niveaux de classe de prestige aux classes de base
         lanceuses de sorts. Le niveau de lanceur de sorts effectif est calculé
         dans la vue Magie.
@@ -723,158 +808,10 @@ require_once '../include/header.php';
         <span class="per-classes-commit__msg noDisplay" id="nls-msg"></span>
       </div>
     </div>
+    </div><!-- #bloc-nls-body -->
+
   </section>
   <?php endif ?>
-
-  <!-- ============================================================
-       BLOC 8 — DONS (SP-PE4)
-       Lecture seule ici ; l'ajout et le retrait passent par le
-       sélecteur deux volets ouvert dans #detail-pp.
-       ============================================================ -->
-  <section class="per-fiche__bloc" id="bloc-dons">
-    <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-star"></i> Dons
-        <?php if (!empty($dons_perso)): ?>
-          <span class="per-fiche__niveau-global">— <?= count($dons_perso) ?></span>
-        <?php endif ?>
-      </h2>
-      <button class="btn btn-link btn-sm" onclick="donsPicker.ouvrir()">
-        <i class="fa fa-plus"></i> Choisir des dons
-      </button>
-    </header>
-    <div class="per-fiche__bloc-body">
-      <?php if (empty($dons_perso)): ?>
-        <p class="text-muted">Aucun don choisi. Utilisez « Choisir des dons » pour les saisir.</p>
-      <?php else: ?>
-        <ul class="per-dons">
-          <?php foreach ($dons_perso as $d): ?>
-            <li class="per-dons__item">
-              <span class="per-dons__nom">
-                <a href="javascript:void(0)"
-                   onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/don.php', {id: <?= (int)$d['ped_do_id'] ?>}, 'externe')">
-                  <?= h($d['do_nom']) ?>
-                </a>
-              </span>
-              <span class="per-dons__cat text-muted"><?= h($d['dado_nom'] ?? '—') ?></span>
-            </li>
-          <?php endforeach ?>
-        </ul>
-      <?php endif ?>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       BLOC 9 — CAMPAGNES (SP-PE5)
-       Lecture : campagne en cours en tête, puis historique traversé.
-       Édition : rattachement à écriture immédiate (aucun bouton
-       « Enregistrer » — cf. archi §7.5c).
-       ============================================================ -->
-  <section class="per-fiche__bloc" id="bloc-campagnes">
-    <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-map"></i> Campagnes
-        <?php if (!empty($campagnes_perso)): ?>
-          <span class="per-fiche__niveau-global">— <?= count($campagnes_perso) ?></span>
-        <?php endif ?>
-      </h2>
-      <button class="btn btn-link btn-sm" id="btn-editer-campagnes"
-              onclick="campagnesEditor.basculerEdition()">
-        <i class="fa fa-edit"></i> Modifier
-      </button>
-    </header>
-
-    <!-- Mode lecture -->
-    <div class="per-fiche__bloc-body" id="campagnes-lecture">
-      <?php if (empty($campagnes_perso)): ?>
-        <p class="text-muted">
-          Ce personnage n'est rattaché à aucune campagne. Utilisez « Modifier » pour l'y inscrire.
-        </p>
-      <?php else: ?>
-        <ul class="per-camp">
-          <?php foreach ($campagnes_perso as $c): ?>
-            <?php $est_courante = (int)$c['est_courante'] === 1 ?>
-            <li class="per-camp__item<?= $est_courante ? ' is-courante' : '' ?>">
-              <div class="per-camp__ligne">
-                <?php // SP-CP : la campagne est une page, plus un panneau detail-pp. ?>
-                <a href="<?= BASE_URL ?>/campagnes/campagne.php?id=<?= (int)$c['camp_id'] ?>">
-                  <?= h($c['camp_nom']) ?>
-                </a>
-                <?php if ($est_courante): ?>
-                  <span class="per-camp__badge per-camp__badge--courante">En cours</span>
-                <?php elseif ((int)$c['cp_actif'] !== 1): ?>
-                  <span class="per-camp__badge">Participation terminée</span>
-                <?php endif ?>
-                <?php if (!empty($c['univers_nom'])): ?>
-                  <span class="per-camp__univers text-muted">
-                    <i class="fa fa-globe"></i> <?= h($c['univers_nom']) ?>
-                  </span>
-                <?php endif ?>
-              </div>
-              <?php if (!empty($c['camp_resume'])): ?>
-                <p class="per-camp__resume text-muted text-sm"><?= h($c['camp_resume']) ?></p>
-              <?php endif ?>
-            </li>
-          <?php endforeach ?>
-        </ul>
-      <?php endif ?>
-    </div>
-
-    <!-- Mode édition (caché par défaut, activé par JS) -->
-    <div class="per-fiche__bloc-body noDisplay" id="campagnes-edition">
-      <?php if (empty($campagnes_editeur)): ?>
-        <p class="text-muted">
-          Aucune campagne en <?= h($ruleset_rep) ?> sur ce compte.
-          <a href="<?= BASE_URL ?>/campagnes/">Créer une campagne</a> pour pouvoir y rattacher ce personnage.
-        </p>
-      <?php else: ?>
-        <p class="text-muted text-sm">
-          Chaque clic est enregistré immédiatement. Seules vos campagnes en
-          <?= h($ruleset_rep) ?> sont proposées.
-        </p>
-        <div id="campagnes-editor-lignes">
-          <!-- Les lignes sont générées par campagnesEditor.init() en JS -->
-        </div>
-      <?php endif ?>
-      <div class="per-classes-commit">
-        <button class="btn btn-secondary btn-sm" onclick="campagnesEditor.fermer()">
-          Fermer
-        </button>
-        <span class="per-classes-commit__msg noDisplay" id="campagnes-msg"></span>
-      </div>
-    </div>
-  </section>
-
-  <!-- BLOC 10 — BACKGROUND -->
-  <?php if (!empty($perso['pe_background'])): ?>
-  <section class="per-fiche__bloc">
-    <header class="per-fiche__bloc-header">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-book-open"></i> Background
-      </h2>
-    </header>
-    <div class="per-fiche__bloc-body per-fiche__bloc-body--html">
-      <?= $perso['pe_background'] ?>
-    </div>
-  </section>
-  <?php endif ?>
-
-  <!-- BLOCS À VENIR -->
-  <section class="per-fiche__bloc per-fiche__bloc--avenir">
-    <header class="per-fiche__bloc-header">
-      <h2 class="per-fiche__bloc-titre">
-        <i class="fa fa-hourglass-half"></i> À venir
-      </h2>
-    </header>
-    <div class="per-fiche__bloc-body">
-      <ul class="per-avenir-liste">
-        <li>
-          Vue Magie dédiée —
-          <a href="<?= BASE_URL ?>/personnages/magie.php?id=<?= (int)$perso['pe_id'] ?>">accéder</a>
-        </li>
-      </ul>
-    </div>
-  </section>
 
 </div><!-- .per-fiche -->
 

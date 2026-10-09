@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-09-01 -->
+<!-- Mis à jour : 2026-10-09 17:48 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -161,6 +161,75 @@
 > `enregistrement.php` — seule la liste restait fermée. Aucun patch SQL. Voir §0, §7.4 et
 > `DECISIONS_LOG.md` [2026-08-28] D-RS44.
 
+> 2026-09-19 : ouverture de **`SP-PE10`** — passe de compaction de l'interface du module
+> Personnages, une sous-phase par écran, distincte de `SP-PE8` qui reste ouverte.
+> **`SP-PE10a` livrée** : dans le bloc Identité de la fiche, race / historique (DD2024) / sexe /
+> alignement tiennent sur une seule rangée et la ligne Classes, pleine largeur, ferme le bloc.
+> `.per-identite` passe de `grid` à `flex` — la rangée occupe toute la largeur quel que soit le
+> nombre d'entrées, trois en DD3.5 comme quatre en DD2024. Le bloc perd 54px sur un poste et 40px
+> sur téléphone. Aucun patch SQL. Voir §0, §7.3 et `DECISIONS_LOG.md` [2026-09-19] D-RS45.
+
+> 2026-09-19 (suite) : **`SP-PE10b` livrée** — la vue Magie se lit en trois temps. Le tableau des
+> emplacements et un panneau **« Ressources de sorts »** occupent une rangée à deux colonnes, et
+> ce panneau reprend tout ce qui se comptait ailleurs : plafonds, taille des listes, cadence,
+> domaines. Une ligne n'y figure que si le profil d'incantation la porte. Les listes de sorts
+> passent de `columns` à un flux à écart fixe, aligné sur le titre. Deux classes citées par la
+> page n'avaient **aucun style dans le projet** — `.per-liste-inline` et `.per-fiche__sous-titre`.
+> Aucun patch SQL. Voir §0, §7.6b et `DECISIONS_LOG.md` [2026-09-19] D-RS46.
+
+> 2026-09-19 (suite) : **`SP-PE10c` et `SP-PE10d` livrées.** Le tableau des emplacements prend
+> l'échelle du panneau qui lui fait face au-dessus de 992px. Le **sélecteur de sorts** reçoit les
+> styles qui lui manquaient — aucun de ses éléments propres n'en avait, pas même son `<ul>` :
+> ligne retenue teintée (`color-mix` sur `--clr-accent`), compteurs et jetons habillés. Sous
+> 992px son volet de description s'efface et la fiche du sort passe dans `#detail-pp-sub`, au
+> dessus du sélecteur resté ouvert. Filtre « Les préparés seulement » ajouté au mode préparation,
+> et le bouton « recopier dans le grimoire » est désormais posé et retiré au fil des bascules.
+> Aucun patch SQL. Voir §0, §7.6b, §7.6c et `DECISIONS_LOG.md` [2026-09-19] D-RS47, D-RS48.
+
+> 2026-09-19 (suite) : **`SP-PE10e` livrée** — correction de fond sur le DD3.5. Un sort s'y
+> prépare **plusieurs fois**, chaque exemplaire occupant un emplacement : le sélecteur n'offrait
+> qu'une bascule et l'écriture écrasait toujours `pesp_nb` à 1, si bien que la quantité, pourtant
+> portée par le schéma et déjà affichée par la vue Magie, était inatteignable depuis l'écran. La
+> ligne porte maintenant un compteur, et les jetons de niveau somment les exemplaires. Le DD2024
+> garde sa bascule : sa liste préparée est un ensemble de sorts distincts. Aucun patch SQL — la
+> colonne existait. Voir §0, §7.6c et `DECISIONS_LOG.md` [2026-09-19] D-RS49.
+
+> 2026-09-19 (suite) : **`SP-PE10f` livrée** — compacité du sélecteur. Le niveau d'un sort passe
+> de la pastille de chaque ligne à un **en-tête `sticky` par groupe**, qui se masque avec son
+> groupe au filtrage ; le cadre du compteur posé la veille est retiré, et le compteur DD3.5 se
+> resserre sur téléphone. Le nom du sort y gagne de 193 à 285px en répertoire, 234px en
+> préparation. Aucun patch SQL. Voir §0, §7.6c et `DECISIONS_LOG.md` [2026-09-19] D-RS50.
+
+> 2026-09-19 (suite) : **`SP-PE10g` livrée** — sur téléphone, la liste du sélecteur perd son
+> cadre, qui redoublait celui de l'overlay, et déborde du padding du panneau de `--sp-sm` de
+> chaque côté. Le nom du sort atteint **303px sur 375px de viewport**, contre 193px avant la
+> passe. Rien ne change sur ordinateur ni sur le sélecteur de dons. Aucun patch SQL. Voir §0,
+> §7.6c et `DECISIONS_LOG.md` [2026-09-19] D-RS51.
+
+> 2026-10-07 : **`SP-PE10h` livrée** — passe de compactage sur la fiche elle-même. Sur téléphone,
+> le bouton Menu rend sa ligne entière (burger en icône au bout de la ligne de titre) et le
+> raccourci personnage prend toute la largeur. Le **bloc Identité** est refondu : une rangée de
+> champs insécables ouverte par le niveau total, puis les classes une par ligne, sans libellé ni
+> « niv. », avec les **sous-classes DD2024 entre parenthèses** derrière leur classe et les
+> **prestiges en italique** à la place du badge « P ». Les caractéristiques passent en 2×3 comme
+> un bloc de monstre, le bloc Combat laisse place à deux tuiles CA / PV, et les trois tiennent
+> une rangée sur un poste. **Défaut corrigé au passage** : `$niveau_global` comptait les
+> sous-classes — un clerc 5 / guerrier 1 affichait 7, et son bonus de maîtrise suivait. Les
+> `clt_id` reçoivent leurs constantes `CLT_*`. Aucun patch SQL. Voir §0, §7.3, §7.3b et
+> `DECISIONS_LOG.md` [2026-10-07] D-RS52.
+
+> 2026-10-07 (suite) : nouveau projet **SP-DP — Déploiement en production**, livré le jour même
+> (`SP-DP0→DP6`). Un bouton discret du header, visible en local seulement, envoie par **SFTP**
+> les fichiers nouveaux ou modifiés vers OVH, après aperçu et confirmation explicite, puis fait
+> **appliquer les migrations SQL par le serveur lui-même** — la base mutualisée OVH refuse toute
+> connexion extérieure. Le périmètre est calculé par **git** (`.gitignore`) complété d'un
+> `.deployignore` ; un manifeste distant mémorise ce qui a réellement été envoyé. Nouvelle table
+> **`dd_migrations`**, créée par le moteur à son premier appel, avec les 37 migrations
+> antérieures inscrites comme référence sans être rejouées. Le module de déploiement lui-même
+> (`admin/deploiement/`) ne quitte jamais le poste. Voir §0, §6b et `DECISIONS_LOG.md`
+> [2026-10-07] D-DP1 à D-DP9.
+
+
 ---
 
 ## 0. Suivi des phases de développement
@@ -269,7 +338,7 @@
 - [x] SP-MA0 — Référentiel des classes lanceuses : champ `cla_profil_incantation` (4 profils, `dd_variables` cat. `profinc`, constantes `PROFINC_*`) remplaçant les 3 drapeaux `cla_sort_*` dépréciés ; `cla_mag_id` recadré par ruleset (DD3.5 `0/1/2`, DD2024 `0/1`) ; `cla_car_id` des 4 classes DD2024 ; `cla_domaine_divin` du Prêtre ; libellé `dd_typemagie` et filtre de liste conditionnés au ruleset. **Patch SQL à appliquer en prod** : `sql/2026-08-27_profil_incantation_sp-ma0.sql`
 - [x] SP-MA1 — Sorts bonus de caractéristique : `bonusSortsCarac()` et `peutLancerNiveau()` dans `helpers.php`, **par formule et non par table** (arbitrage : une table plafonnée rend 0 en silence hors plage). `modCarac()` / `formatMod()` déplacés depuis `personnage_helpers.php`. `dd_modificateurs` devient morte. Aucun patch SQL
 - [x] SP-MA2 — `dd_classe_niveau` DD2024 : les 12 classes ont désormais leurs 20 niveaux complets, emplacements de sort compris. **Livré par `SP-IM2`** le 2026-08-28 (le Moine manquait aussi, en plus de l'Occultiste et du Rôdeur)
-- [x] SP-MA3 — Registre DD3.5 : champ `so_registre`, classifieur à deux listes fermées (18 branches et disciplines, 22 registres), migration rejouable adossée à une table de sauvegarde — 673 sorts nets, 7 partiels, 10 laissés intacts (données de domaine égarées → `SP-MA5`). Fiche, formulaire et **filtre Registre** de la liste. **À passer en prod** : `sql/2026-08-27_registre_sp-ma3.sql`, puis **au choix** `php sql/migrate_registre_sp-ma3.php` (CLI) **ou** `sql/2026-08-28_registre_sp-ma3_donnees.sql` (SQL pur, phpMyAdmin) — empreinte de base identique par les deux voies
+- [x] SP-MA3 — Registre DD3.5 : champ `so_registre`, classifieur à deux listes fermées (18 branches et disciplines, 22 registres), migration rejouable adossée à une table de sauvegarde — 673 sorts nets, 7 partiels, 10 laissés intacts (données de domaine égarées → `SP-MA5`). Fiche, formulaire et **filtre Registre** de la liste. **À passer en prod** : `sql/2026-08-27_registre_sp-ma3.sql` puis `sql/2026-08-28_registre_sp-ma3_donnees.sql` (SQL pur, applicable depuis phpMyAdmin). Le script PHP `migrate_registre_sp-ma3.php` qui avait produit ces UPDATE **n'existe plus** — sans conséquence, la sortie figée en SQL lui est équivalente (empreinte MD5 contrôlée le 2026-08-28)
 - [x] SP-MA4a — **Sorts toujours préparés DD2024** : table `dd_classe_sort` (+ `cs_variante` pour les 4 terrains du Cercle de la Terre) et **67 lignes du SRD** sur 9 porteurs — 3 sorts de classe et 6 sous-classes. Colonne `pesp_origine` sur `dd_personnages_sorts_prepares` pour les sorts toujours préparés **choisis** (Secrets magiques du Barde niv. 10, Sorts de prédilection du Magicien niv. 20, Arcanum de l'Occultiste). 67 noms résolus en `so_id` sans ambiguïté. **Patch SQL à passer en prod** : `sql/2026-09-01_sorts_toujours_prepares_sp-ma4a.sql`
 - [x] SP-MA4b — **Cadence de renouvellement** *(Q3 tranchée le 2026-09-01, option a)* : colonne `cla_renouvellement` -> `dd_variables` cat. `cadence` (3 valeurs, constantes `CADENCE_*`), 19 classes lanceuses renseignées — dérivées du profil en DD3.5, table du SRD en DD2024. Select au formulaire, ligne à la fiche. **Patch SQL à passer en prod** : `sql/2026-09-01_cadence_renouvellement_sp-ma4b.sql`
 - [ ] SP-MA4c — Reliquat non bloquant : **école de prédilection et écoles interdites du magicien DD3.5** (+1 sort préparé par niveau de sort, 2 écoles interdites — filtre le compendium à la source). Seul élément de `SP-MA4` encore ouvert
@@ -288,9 +357,26 @@
 - [x] SP-PE4 — Dons : sélecteur deux volets dans `#detail-pp` (liste filtrable + fiche du don), écriture immédiate par clic, compteur serveur *(ex-3.4)*
 - [x] SP-PE5 — Bloc Campagnes de la fiche : campagne en cours + historique traversé, éditeur inline de rattachement à écriture immédiate, section Personnages du panneau de campagne, correctif `getActiveResIds()` priorité 1
 - [x] SP-PE6 — NLS prestige (DD3.5) : un tableau par classe de prestige, affectation par niveau vers les classes de base lanceuses compatibles, commit global du bloc (action `enregistrerNls`), affectation partielle autorisée *(ex-3.5)*
-- [ ] SP-PE7 — Vue Magie `magie.php` : helpers de calcul (NLS effectif, emplacements, plafonds), page en lecture par classe lanceuse, sélecteurs d'écriture grimoire / connus / préparés *(ex-3.6)* — **bloquée par `SP-MA0`, `SP-MA1` et `SP-MA2`** : sans référentiel assaini, aucun emplacement n'est calculable. Périmètre recadré le 2026-08-27 : l'assainissement du référentiel et les extensions de schéma sont sortis vers `SP-MA` ; l'écriture reste dans la phase (les deux tables de sorts personnage sont vides, une vue en lecture seule serait structurellement vide — leçon SP-PE5). Modèle d'écriture à arbitrer *(Q8)*
+- [x] SP-PE7a — **Helpers de calcul de la magie** : `getMagieContexte()` rend une entrée par classe lanceuse (profil, cadence, caractéristique, DD, NLS effectif, emplacements décomposés, plafonds, sorts toujours préparés, avertissements), plus 5 auxiliaires — `progressionLanceurComplet()`, `ligneNiveauClasse()`, `sortsToujoursPrepares()`, `nlsEffectif35()`, `niveauIncantateur2024()`. Validé par banc d'essai sur 4 cas dont l'**ensorceleur 8 / prêtre 6 DD3.5** et un **paladin 6 / occultiste 5 DD2024**, personnages synthétiques créés en transaction annulée. **Deux patchs SQL** : `sql/2026-09-01_cn_sort_null_vs_zero_sp-pe7a.sql` (distinction NULL / 0 rétablie chez le Prêtre et l'Élu divin) et `sql/2026-09-01_decalage_paladin_rodeur_sp-pe7a.sql` (tables du Paladin et du Rôdeur décalées d'une colonne)
+- [x] SP-PE7b — **Vue Magie** : `personnages/magie.php` (une section par classe lanceuse — synthèse, tableau d'emplacements décomposé au survol, sorts toujours préparés non décomptés, listes du personnage), sélecteur deux volets `detail-pp/sorts-picker.php` **porté par classe** et à deux modes (réservoir / préparation), module JS `sortsPicker`, et 6 actions d'écriture immédiate dans `personnages/enregistrement.php` — dont « Recopier dans le grimoire » et « Réinitialiser la liste préparée », qui préserve les sorts toujours préparés
 - [ ] SP-PE8 — Emplacement Mode jeu (suivi PV et variables par ruleset) + passe responsive < 992px sur les blocs livrés en SP-PE3→PE7 *(ex-3.7)*
 - [x] SP-PE9 — Visibilité admin de la liste : `personnages/index.php` lève le scope propriétaire pour un administrateur (colonne + filtre « Joueur », filtre Campagne étendu à tout le ruleset). Aucun droit nouveau — les accès unitaires reposaient déjà sur `canAccess()`
+- [ ] SP-PE10 — **Compaction de l'interface personnage** — passe de resserrement des écrans du module, sous-phase par écran (voir `DECISIONS_LOG.md` [2026-09-19] D-RS45)
+  - [x] SP-PE10a — Fiche, bloc Identité : race / historique / sexe / alignement sur une seule rangée, ligne Classes en pleine largeur et en fin de bloc, `.per-identite` en flex
+  - [x] SP-PE10b — Vue Magie : corps en trois temps (cases + actions, puis tableau des emplacements et panneau « Ressources de sorts » côte à côte, puis les listes), compteurs regroupés dans le panneau selon le profil d'incantation, listes de sorts en flux à écart fixe
+  - [x] SP-PE10c — Vue Magie, tableau des emplacements : au-dessus de 992px, `.table-dd` est surchargé pour prendre l'échelle typographique du panneau « Ressources de sorts » qui lui fait face ; séparateur accentué neutralisé sur cette table
+  - [x] SP-PE10d — Sélecteur de sorts : styles du composant (aucun n'existait), ligne retenue teintée, volet de description masqué sous 992px au profit de `#detail-pp-sub`, filtre « Les préparés seulement », bouton « grimoire » posé et retiré au fil des bascules
+  - [x] SP-PE10e — Préparation DD3.5 : un sort se prépare **plusieurs fois**, la ligne porte un compteur `[−] N [+]` et `pesp_nb` est incrémenté / décrémenté ; les jetons de niveau somment les exemplaires. DD2024 inchangé (ensemble de sorts distincts)
+  - [x] SP-PE10f — Sélecteur de sorts, compacité : le niveau passe de la pastille de chaque ligne à un en-tête `sticky` par groupe (masqué avec son groupe au filtrage), cadre du compteur retiré, compteur resserré sur téléphone
+  - [x] SP-PE10g — Sélecteur de sorts sur téléphone : la liste perd son cadre et déborde du padding du panneau (nom du sort à 303px sur 375px de viewport)
+  - [x] SP-PE10h — Compactage de la fiche : en-tête du site sur téléphone (burger en icône, raccourci personnage pleine largeur), bloc Identité refondu (rangée de champs, classes sans libellé, sous-classes entre parenthèses, prestige en italique), caractéristiques en 2×3 et tuiles CA / PV sur une rangée, boutons réduits à leur icône. **Défaut corrigé** : le niveau total comptait les sous-classes
+  - [x] SP-PE10i — Caractéristiques sur téléphone : une ligne chacune (abréviation / valeur / modificateur), à la façon du bloc de stats d'un monstre ; tuiles CA / PV resserrées en conséquence ; derniers libellés de boutons retirés, avec un `title` qui suit la bascule
+  - [x] SP-PE10j — Règle de graisse (libellé gras / valeur normale, même taille) appliquée à l'identité, aux classes et aux tuiles CA / PV ; lignes resserrées sur compétences, dons et NLS ; colonne Carac élargie, maîtrise abrégée « M. » / « E ». **Défaut corrigé** : le bonus de maîtrise tombait à zéro au-delà du niveau 20
+  - [x] SP-PE10k — Titre du bloc Identité retiré ; sur téléphone, Retour et Modifier reviennent côte à côte sur la ligne du nom (la surcharge qui les empilait datait de leurs libellés)
+  - [x] SP-PE10l — Bloc « Mode jeu » optionnel (préférence `j_affichage_mode_jeu`, **patch SQL**, masqué par défaut) ; tuile **bonus de maîtrise** dans la rangée de stats en DD2024 ; forme compacte des caractéristiques étendue à l'ordinateur (220 → 87px)
+  - [x] SP-PE10m — Caractéristiques agrandies (valeur en couleur, abréviation sans fond), « BM » sur la tuile de maîtrise, et **Compétences / Dons côte à côte** au-dessus de 992px — le NLS passe sous la rangée
+  - [x] SP-PE10n — Bloc NLS prestige repliable, **fermé par défaut** ; `perDeplierBloc()` ouvre le bloc quand on lance son éditeur depuis l'état replié
+  - [x] SP-PE10o — Caractéristiques en colonnes de largeur fixe (`min-width: 0` compris), alignées verticalement d'un rang à l'autre ; largeurs recalculées sous 992px
 
 > Hors périmètre SP-PE : les **objets magiques du personnage** (`personnages/objets.php` reste un
 > placeholder, aucune table) — analyse métier non fiabilisée, cf. `DECISIONS_LOG.md` [2026-06-12] [D].
@@ -343,6 +429,21 @@
 > sous SP-RS6c.
 
 - [x] SP-AD0 — Changement du mot de passe d'un utilisateur par l'administrateur : section facultative du formulaire d'édition (nouveau + confirmation), validation serveur, invalidation du lien de réinitialisation en attente
+
+### SP-DP — Déploiement en production et migrations SQL
+
+> Transfert SFTP du poste local vers OVH et application des migrations par le serveur. Module
+> local `admin/deploiement/`, jamais transféré ; moteur de migrations déployé. Voir §6b.
+
+- [x] SP-DP0 — Hygiène du périmètre : `.deployignore` (doc, scss, dumps SQL, phpinfo…), `.htaccess` refusant tout accès web à `sql/` et `config/`
+- [x] SP-DP1 — Paramétrage (`admin/deploiement/index.php`) : fichier privé hors projet, lecture et épinglage de l'empreinte SSH du serveur, test de connexion de bout en bout
+- [x] SP-DP2 — Périmètre calculé par git (`.gitignore` + `.deployignore` + exclusions fixes), aperçu des exclusions et de leur règle
+- [x] SP-DP3 — Manifeste distant (hors `www/`), aperçu à blanc : nouveaux, modifiés, retirés en local
+- [x] SP-DP4 — Bouton du header, panneau de confirmation, transfert par lots, mode maintenance, verrou, reprise / abandon, journal
+- [x] SP-DP4b — Correctif : module visible par l'adresse réseau du poste (`http://192.168.1.10/donjon/`), pas seulement par `localhost`
+- [x] SP-DP5 — Moteur de migrations (`include/migrations.php`, table `dd_migrations`, référence initiale des 37 migrations antérieures, écran `admin/migrations.php`)
+- [x] SP-DP6 — Application automatique en production : jeton à usage unique déposé par SFTP, point d'entrée `admin/migrations-auto.php`
+- [ ] SP-DP7 — Premier déploiement réel : activer le SFTP du compte OVH, renseigner les paramètres, approuver l'empreinte, « Tester la connexion », puis déployer (le premier envoi part en entier, ~180 fichiers)
 
 ---
 
@@ -432,8 +533,9 @@ Jean-Michel.
 
 ### Conventions base de données
 
-- Tables préfixées dd_ (en local)
-- Au déploiement OVH : renommage en dd2_ via script RENAME TABLE
+- Tables préfixées dd_, en local comme en production (base OVH distincte). Le renommage en
+  dd2_ envisagé à l'origine n'a jamais été appliqué : le code porte `dd_` en dur (confirmé le
+  2026-10-07, cf. D-DP7)
 - Champs préfixés par table (ex : pe_ pour dd_personnages)
 - Premier champ = id index de la table
 - _j_id = propriétaire → dd_joueurs
@@ -787,7 +889,8 @@ générique `filtres[]` à checkbox — gérée directement par le moteur, pas p
   (voir bug corrigé ci-dessous et § Oppositions, Usage Oppositions — 2026-06-20).
 - La priorité 3 de `getActiveResIds()` (défaut absolu) reste limitée aux ressources officielles (`res_j_id IS NULL`).
 
-> ✅ **Bug corrigé le 2026-07-02 — supplément personnel absent de la priorité 1 de `getActiveResIds()`
+> �
+ **Bug corrigé le 2026-07-02 — supplément personnel absent de la priorité 1 de `getActiveResIds()`
 > (régression, listes du compendium dont Monstres).** `getActiveResIds()` possède sa propre branche
 > priorité 1 (personnage actif en session via `last_pe_id`, rattaché à une campagne à sources
 > explicites), distincte de `getActiveResIdsCampagne()` : elle retournait directement les
@@ -865,7 +968,8 @@ Table principale `dd_monstres` (colonnes référencées par le code) :
 > `mo_res_id` (supplément) et `mo_camp_id` (homebrew campagne), alignées sur le mécanisme commun
 > à toutes les entités du compendium. Migration via `patch_004_supplements.sql`.
 
-> ✅ **Régularisé le 2026-06-20.** `enregistrerMonstre()` (`compendium/enregistrement.php`) et le
+> �
+ **Régularisé le 2026-06-20.** `enregistrerMonstre()` (`compendium/enregistrement.php`) et le
 > formulaire (`include/ajax/modifier/monstre.php`) référençaient encore `mo_j_id`, provoquant une
 > erreur SQL (`Unknown column 'mo_j_id'`) à chaque save. Code aligné sur le schéma réel — voir
 > `DECISIONS_LOG.md` [2026-06-20]. Reste un écart documentaire mineur : `sql/schema.sql` et le dump
@@ -947,7 +1051,8 @@ Modifier à `canEditCompendiumEntry($db, $res_j_id)` au lieu de `canEditCompendi
 | `@id@` | `dd_regles` (tout type) | par **id** |
 | `%id%` | `dd_regles` `reg_type='glossaire'` | par **id** |
 
-> ✅ **2026-06-25.** Tag `&Nom de l'objet&` ajouté pour forcer la liaison vers un objet magique
+> �
+ **2026-06-25.** Tag `&Nom de l'objet&` ajouté pour forcer la liaison vers un objet magique
 > par nom (jusqu'alors seul type liable sans tag explicite dédié).
 
 **2. Liaison automatique (`lierAuto()`) — objets magiques/équipement + sorts + glossaire.** Sur le
@@ -956,7 +1061,8 @@ les **termes de glossaire** via un index fusionné (`construireIndexAuto()`, pri
 objet > sort > glossaire). Garde-fous : normalisation casse/accents, plus longue correspondance
 d'abord, longueur minimale `MO_LONGUEUR_MIN = 4`.
 
-> ✅ **2026-06-25.** Priorité inversée (`objet > sort > glossaire`, auparavant `sort > objet >
+> �
+ **2026-06-25.** Priorité inversée (`objet > sort > glossaire`, auparavant `sort > objet >
 > glossaire`) : sur la ligne **Equipement**, un nom ambigu pouvant correspondre à la fois à un
 > objet magique et à un sort doit se lier en priorité vers l'objet magique.
 
@@ -970,7 +1076,8 @@ d'abord, longueur minimale `MO_LONGUEUR_MIN = 4`.
 > `<span class="mo-lien">...</span>` déjà présents) + `lierSegmentBrut()` (ex-corps de la
 > fonction, appliqué uniquement aux segments de texte brut entre ces blocs).
 
-> ✅ **2026-06-20.** Type `objet` (`dd_objets_magiques`) ajouté à `typesLiablesMonstre()` et à
+> �
+ **2026-06-20.** Type `objet` (`dd_objets_magiques`) ajouté à `typesLiablesMonstre()` et à
 > `construireIndexAuto()`. Effet immédiat sans changement structurel supplémentaire : la ligne
 > **Equipement** (label_gras DD2024, déjà passée par `lierAuto()`) et le texte des **Actions**
 > (description des `pouvoir`, déjà passé par `lierAuto()`) deviennent automatiquement cliquables —
@@ -1008,7 +1115,8 @@ Séparateur de blocs commun : une ligne `***` → `<hr class="mo-stat-hr">`.
 | `glossaire` | `actualiserPageSub()` → `detail-pp-sub/glossaire.php` (sous-panneau) |
 | `don` / `sort` / `objet` | `actualiserPageSub()` → endpoint `detail-pp` du type |
 
-> ✅ **2026-06-20.** Le handler de clic `.mo-lien` (`MO_LIEN_FICHIERS` + délégation
+> �
+ **2026-06-20.** Le handler de clic `.mo-lien` (`MO_LIEN_FICHIERS` + délégation
 > `document.addEventListener('click', …)`) a été **déplacé de `js/compendium.js` vers `js/main.js`**
 > (chargé sans condition sur toutes les pages, cf. `include/footer.php`). Raison : le bloc de stats
 > est désormais aussi rendu sur la fiche **Opposition** du module Campagnes (`$js_module =
@@ -1023,7 +1131,8 @@ tags `@` (règle) et `%` (glossaire), alimentée par `include/ajax/autocomplete-
 Champs : `mo_nom`, `mo_mocat_id`, `mo_mogr_id`, `mo_fp_id`, `mo_res_id`, `mo_camp_id`,
 `mo_public`, `mo_visible`, `mo_stats`.
 
-> ✅ **SP-C7 (2026-06-20).** `include/ajax/modifier/monstre-old.php` (ancienne version pré-migration
+> �
+ **SP-C7 (2026-06-20).** `include/ajax/modifier/monstre-old.php` (ancienne version pré-migration
 > supplément, référençait encore `mo_j_id`/`mo_prive`) supprimé du dépôt — aucune référence ailleurs
 > dans le code (vérifié). `include/monstre-parser.php` relu : aucune trace résiduelle de `mo_j_id`.
 
@@ -1052,7 +1161,8 @@ sélection du monstre (cf. § `dd_oppositions` — formulaire `modifier/oppositi
 campagne, le ruleset et les sources viennent de `camp_ruleset_var_id` remonté par jointure
 (`dd_oppositions → dd_rencontres → dd_scenarios_chapitres → dd_scenarios → dd_campagnes`).
 
-> ✅ **Bug corrigé le 2026-06-20 — supplément personnel absent de `getActiveResIdsCampagne()`.**
+> �
+ **Bug corrigé le 2026-06-20 — supplément personnel absent de `getActiveResIdsCampagne()`.**
 > Avant correctif, cette fonction (`include/helpers.php`) ne retournait **jamais** le supplément
 > personnel du MJ : le repli (pas de `dd_campagnes_sources` configurées) filtrait explicitement
 > `res_j_id IS NULL`, et le formulaire de sélection des sources de campagne
@@ -1074,7 +1184,8 @@ campagne, le ruleset et les sources viennent de `camp_ruleset_var_id` remonté p
 > non priorisé) nécessiterait de faire évoluer `actualiserPageSub()`/`fermerSubPanel()` pour empiler
 > plusieurs niveaux au lieu d'un panneau unique — hors périmètre de ce correctif urgent.
 
-> ✅ **Bug corrigé le 2026-06-20 — formulaire Modifier ouvert sous la vue Opposition.** `#modification`
+> �
+ **Bug corrigé le 2026-06-20 — formulaire Modifier ouvert sous la vue Opposition.** `#modification`
 > (`.overlay-panel--edit`, z-index 250) est par design **sous** `#detail-pp-sub` (`.overlay-panel--sub`,
 > z-index 300) — cf. commentaire `css/main.css`. Le bouton Modifier de la vue Opposition est le
 > **seul endroit du code** où `actualiserPageModif()` est appelé alors qu'un `#detail-pp-sub` est
@@ -1086,7 +1197,8 @@ campagne, le ruleset et les sources viennent de `camp_ruleset_var_id` remonté p
 > globaux (`actualiserPageModif()` est appelée dans tout le reste de l'app sans ce problème — un
 > changement de z-index global aurait été un risque non nécessaire pour un cas isolé).
 
-> ✅ **Bug corrigé le 2026-06-21 — la liste des oppositions de la rencontre ne se rafraîchissait pas
+> �
+ **Bug corrigé le 2026-06-21 — la liste des oppositions de la rencontre ne se rafraîchissait pas
 > après modification.** Après édition d'une opposition existante, le formulaire ne faisait que
 > rouvrir la vue Opposition (`actualiserPageSub(URL_OPP_DETAIL, …)`) sans jamais recharger
 > `#detail-pp` (la fiche Rencontre, qui contient la liste affichée en dessous) — celle-ci gardait
@@ -1106,7 +1218,8 @@ campagne, le ruleset et les sources viennent de `camp_ruleset_var_id` remonté p
 > aucune erreur visible). Fonctionne correctement depuis la liste dans `rencontre.php` (le bouton
 > ⋮ → Supprimer per-row). À corriger si signalé séparément — cf. `DECISIONS_LOG.md` [2026-06-21].
 
-> ✅ **Bug corrigé le 2026-06-21.** Le bouton Supprimer de la vue Opposition utilise désormais une
+> �
+ **Bug corrigé le 2026-06-21.** Le bouton Supprimer de la vue Opposition utilise désormais une
 > fonction autonome (`oppDetailSupprimer()`, définie inline dans `detail-pp-sub/opposition.php`) avec
 > `confirm()` natif au lieu de `campOppDemanderSuppression()` — ne dépend plus du DOM de la liste
 > rencontre. Après succès : `fermerSubPanel()` + `rafraichirDetailPPCourant()`.
@@ -1122,7 +1235,8 @@ scénario › chapitre, endpoint JSON `include/ajax/liste-rencontres-campagne.ph
 
 | Phase | Contenu | Avancement |
 |---|---|---|
-| **SP-T0** | Transférer/Dupliquer une opposition vers une rencontre de la **même campagne** | ✅ livré (2026-06-21) |
+| **SP-T0** | Transférer/Dupliquer une opposition vers une rencontre de la **même campagne** | �
+ livré (2026-06-21) |
 | **SP-T1** *(planifié, non codé)* | Étendre Transférer/Dupliquer vers une rencontre d'une **autre campagne** du MJ (sélecteur de campagne en amont de celui de rencontre dans le popup) | ⏳ à faire |
 
 **Transférer** : `UPDATE dd_oppositions SET opp_re_id = ?`. Rencontre d'origine exclue de la liste
@@ -1173,10 +1287,14 @@ volontairement séquencé en étapes sur le modèle du plan SP-C (Supplément ut
 
 | Phase | Contenu | Complexité | Avancement |
 |---|---|---|---|
-| **SP-E0** | SQL : `CREATE TABLE dd_equipements` | Faible | ✅ livré (2026-06-20, `sql/2026-06-20_equipements_sp-e0.sql`) |
-| **SP-E1** | Contrôleur liste `compendium/equipements.php` (`$listConfig` — moteur générique déjà prêt, cf. SP-C2) | Modérée | ✅ livré (2026-06-26) |
-| **SP-E2** | Formulaire `modifier/equipement.php` + `enregistrement.php` (`case 'equipement'` / `enregistrerEquipement()`) | Modérée | ✅ livré (2026-06-26) |
-| **SP-E3** | Fiche détail `detail-pp/equipement.php` | Faible | ✅ livré (2026-06-26) |
+| **SP-E0** | SQL : `CREATE TABLE dd_equipements` | Faible | �
+ livré (2026-06-20, `sql/2026-06-20_equipements_sp-e0.sql`) |
+| **SP-E1** | Contrôleur liste `compendium/equipements.php` (`$listConfig` — moteur générique déjà prêt, cf. SP-C2) | Modérée | �
+ livré (2026-06-26) |
+| **SP-E2** | Formulaire `modifier/equipement.php` + `enregistrement.php` (`case 'equipement'` / `enregistrerEquipement()`) | Modérée | �
+ livré (2026-06-26) |
+| **SP-E3** | Fiche détail `detail-pp/equipement.php` | Faible | �
+ livré (2026-06-26) |
 | **SP-E4** | `monstre-parser.php` : type `equipement` (`typesLiablesMonstre()` + `construireIndexAuto()`, priorité à arbitrer vs `objet`/`sort`/`glossaire`) + entrée `equipement: 'equipement.php'` dans `MO_LIEN_FICHIERS` (`js/main.js`) | Faible | ⏳ à faire — débloquée (SP-E3 livré, endpoint de détail existe) |
 | **SP-E5** *(à arbitrer)* | Rejoindre le mécanisme Supplément utilisateur (SP-C) : ajout `eqt_public`, alignement sur `champ_public`/`champ_visible`/`champ_res_owner` | Faible | ⏳ à arbitrer — non prioritaire |
 
@@ -1187,7 +1305,8 @@ volontairement séquencé en étapes sur le modèle du plan SP-C (Supplément ut
 > endpoint inexistant produirait une 404 au clic — erreur identifiée et évitée le 2026-06-20, cf.
 > `DECISIONS_LOG.md`).
 
-> ✅ **2026-06-26 — SP-E1/E2/E3 livrés.** `compendium/equipements.php` (liste, sans filtre
+> �
+ **2026-06-26 — SP-E1/E2/E3 livrés.** `compendium/equipements.php` (liste, sans filtre
 > spécifique — `dd_equipements` n'a pas de catégorie comme `dd_dons`), `include/ajax/modifier/
 > equipement.php` + `enregistrerEquipement()` dans `compendium/enregistrement.php`, `include/ajax/
 > detail-pp/equipement.php`. Carte ajoutée dans `compendium/index.php`. Modèle suivi : module Dons
@@ -1476,6 +1595,150 @@ js/
 
 ---
 
+## 6b. Déploiement en production et migrations SQL — SP-DP
+
+Deux briques distinctes :
+
+| Brique | Où elle vit | Rôle |
+|---|---|---|
+| Module de déploiement `admin/deploiement/` | **Poste local uniquement** — jamais transféré | Calcule ce qui change, l'envoie par SFTP, pilote les étapes |
+| Moteur de migrations `include/migrations.php` | Local **et** production | Joue les migrations SQL en attente de la base de l'environnement où il tourne |
+
+### Le module ne fonctionne qu'en local — quatre verrous indépendants
+
+1. **Auto-exclusion** : `admin/deploiement/` figure dans `DEPLOIEMENT_EXCLUSIONS_FIXES`, en dur ;
+   `.deployignore` ne peut pas le réintégrer.
+2. **Paramètres hors projet** : `C:/xampp/private/donjon-deploiement/` (`config.json`,
+   `journal.jsonl`, `verrou.json`), à côté de htdocs : hors webroot, hors git, **hors OneDrive**,
+   hors de portée du déployeur. Jamais en base : la base locale part régulièrement en dump dans
+   `sql/`. Le mot de passe SFTP y est en clair (D-DP3).
+3. **Requête venue du poste lui-même** : `deploiementEstLocal()` exige `REMOTE_ADDR`
+   **identique** à `SERVER_ADDR`, et une adresse non publique. Couvre `localhost` comme
+   l'adresse réseau du poste (`http://192.168.1.10/donjon/`, l'accès habituel) ; refuse un autre
+   appareil du réseau (adresse différente) et tout serveur public (D-DP10). Jamais `HTTP_HOST`
+   ni `DEV_MODE` : le client choisit l'en-tête Host, et `DEV_MODE` en dérive avec un repli
+   permissif (D-CFG1).
+4. **Apache** : `admin/deploiement/.htaccess` en `Require local`.
+
+`include/header.php` et `admin/index.php` testent l'existence du fichier (`is_file()`) avant de
+l'inclure : en production, il est absent, rien ne s'affiche et aucune erreur n'est levée.
+
+### Périmètre — git fait foi
+
+| Étape | Source |
+|---|---|
+| Candidats | `git ls-files -c -o --exclude-standard` : suivis + nouveaux non ignorés = l'arbre de travail tel qu'il est testé, commité ou non |
+| − suivis mais ignorés | `git ls-files -c -i --exclude-standard` (`export/`, `tools/` commités avant d'être ignorés) |
+| − `.deployignore` | `git ls-files -c -o -i --exclude-from=.deployignore` — même syntaxe que `.gitignore`, interprétée par git |
+| − exclusions fixes | `admin/deploiement/`, `config/db.config.php`, `config/.migrations-jeton`, `.maintenance`, `.git/` |
+
+git est lancé sans shell (`proc_open` en tableau), avec `-c safe.directory=<racine>` (dépôt sur
+OneDrive). git introuvable ou en échec → **refus** ; aucun repli sur « tout le dossier ».
+Côté `sql/`, seules les migrations datées et le `.htaccess` partent.
+
+### Transport — SFTP par l'extension curl
+
+Classe `DeploiementSftp` (interface `DeploiementTransport`), sans dépendance : le curl de PHP est
+compilé avec libssh2. **Empreinte de la clé du serveur épinglée**
+(`CURLOPT_SSH_HOST_PUBLIC_KEY_SHA256`) ; sans empreinte approuvée, toute connexion est refusée.
+La lecture de l'empreinte se fait **sans s'authentifier** : épinglage volontairement faux, la
+poignée de main échoue avant l'envoi de tout identifiant et libcurl cite l'empreinte réelle.
+Une poignée curl par objet, `curl_reset()` entre deux opérations : la connexion SSH est
+réutilisée d'un fichier à l'autre. Chemins distants relatifs au dossier d'accueil (`/~/` dans
+l'URL et dans les commandes SFTP) ou absolus.
+
+### Manifeste et plan
+
+`<dossier privé distant>/manifeste.json` (hors `www/`) : chemin → SHA-256 de chaque fichier
+**réellement envoyé**. L'aperçu compare l'arbre local au manifeste : nouveaux, modifiés, retirés
+en local. **Suppressions** décochées par défaut et limitées aux fichiers du manifeste : l'outil
+ne touche jamais à ce qu'il ne connaît pas (`img/uploads/`, logs OVH, `config/`). Pas de
+manifeste = premier déploiement, tout part. « Tout renvoyer » ignore le manifeste.
+
+Le plan vit en **session** : le navigateur ne transmet que son identifiant et l'index d'étape
+attendu (vérifié). Ordre des étapes (`deploiementEtapes()`) :
+
+```
+maintenance → moteur + migrations (DEPLOIEMENT_PRIORITAIRES + sql/AAAA-MM-JJ_*.sql)
+            → application des migrations → reste du code → suppressions → fin de maintenance
+```
+
+Le schéma évolue **avant** le code : les migrations ajoutent, l'ancien code supporte le nouveau
+schéma, l'inverse plante. Sans fichier à envoyer, ni maintenance : seulement les migrations.
+Lots de 20 fichiers ou 4 Mo par appel AJAX ; le manifeste est réécrit après chaque lot, même
+interrompu. Les étapes sont **rejouables** : « Reprendre » relance la même ; « Abandonner » retire
+la maintenance et le verrou. La session est relâchée pendant chaque étape
+(`session_write_close()`) pour ne pas bloquer les autres onglets.
+
+### Mode maintenance
+
+Fichier `.maintenance` à la racine du site, posé et retiré par SFTP. `include/db.php` sert alors
+`include/maintenance.php` (503, `Retry-After: 60`, autonome : ni session ni base). Seul
+`admin/migrations-auto.php` passe outre (`define('MAINTENANCE_IGNOREE', true)`).
+
+### Moteur de migrations — `include/migrations.php`
+
+- Migration = `sql/AAAA-MM-JJ_*.sql`, jouée **une fois**, dans l'ordre alphabétique du nom.
+  Les autres fichiers de `sql/` (dumps, seeds, imports) sont ignorés.
+- Table `dd_migrations`, créée par `migrationsAssurerTable()` au premier appel. Si elle est vide,
+  la **référence initiale** (`include/migrations-reference.php`, liste figée : 37 fichiers et
+  leur SHA-256 au 2026-10-07) y est inscrite au statut `reference`, sans rien exécuter.
+- Statuts : `executee` (par le moteur), `reference`, `marquee` (jouée à la main, déclarée depuis
+  `admin/migrations.php`). « En attente » = fichier sans ligne.
+- **Découpage** : `migrationsInstructions()` sépare les instructions et retire les commentaires
+  (chaînes, échappements, `--␣`, `#`, `/* */` ; `/*! */` conservé). Chaque instruction passe par
+  `query()` + `closeCursor()`. **Jamais `PDO::exec()` sur un script** : dès qu'une instruction
+  renvoie un résultat (`SELECT`, `SHOW`, `OPTIMIZE`…), `exec()` rend la main sans lire la suite,
+  ignore les erreurs suivantes et bloque la connexion (erreur 2014) — D-DP6.
+- Arrêt à la **première erreur**, avec le rang et un extrait de l'instruction fautive. MySQL
+  n'annule pas un `ALTER TABLE` : une migration en échec peut rester partiellement appliquée.
+- Un fichier modifié après application est **signalé** (empreinte), jamais rejoué. Pour corriger
+  une migration passée, en écrire une nouvelle.
+- Un script contenant `DELIMITER` est refusé : à passer par phpMyAdmin, puis « Marquer comme
+  appliquée ».
+
+### Déclenchement en production — jeton à usage unique
+
+La base mutualisée OVH refuse toute connexion extérieure : le SQL ne peut partir que du serveur.
+
+1. Le déployeur dépose par SFTP `config/.migrations-jeton` : l'**empreinte** SHA-256 d'un jeton
+   aléatoire de 256 bits, jamais le jeton.
+2. Il poste le jeton à `admin/migrations-auto.php` (redirection http → https suivie sans perdre
+   le POST).
+3. Le serveur compare (`hash_equals`), supprime le fichier (usage unique), refuse un fichier de
+   plus de 5 min (horloge du serveur), puis applique les migrations en attente et répond en JSON.
+
+Aucun secret stocké en production. Un jeton erroné ne détruit pas le fichier (pas de sabotage
+possible). Le point d'entrée n'exécute que des fichiers **déjà sur le disque**, jamais du SQL
+reçu : au pire, un tiers appliquerait en avance une migration légitime. Il ne dépend que de
+`include/db.php` et `include/migrations.php`, envoyés avant lui.
+
+`config/.htaccess` et `sql/.htaccess` refusent tout accès web (syntaxe `Order` / `Deny` du
+`.htaccess` racine, éprouvée sur OVH).
+
+### Fichiers
+
+```
+admin/deploiement/          ← LOCAL UNIQUEMENT (exclusion fixe)
+  .htaccess                 Require local
+  lib.php                   garde, paramètres, périmètre git, DeploiementSftp, manifeste,
+                            plan, étapes, migrations distantes, test, verrou, journal
+  garde.php                 requireAdmin() + requête venue du poste, sinon 404
+  index.php                 paramètres, empreinte, test, périmètre, journal
+  panneau.php               aperçu chargé dans #modification
+  ajax.php                  demarrer / etape / abandonner (POST + CSRF)
+  bouton.php                bouton du header + chargement CSS/JS du module
+  deploiement.js / .css
+admin/migrations.php        état des migrations de la base courante (local ET prod)
+admin/migrations-auto.php   point d'entrée du déployeur (jeton)
+include/migrations.php      moteur
+include/migrations-reference.php   référence initiale figée
+include/maintenance.php     page 503
+.deployignore               exclusions versionnées
+```
+
+---
+
 ## 7. Module Personnages
 
 ### 7.1 Finalité — aide de jeu, pas moteur de règles
@@ -1510,19 +1773,83 @@ en blocs repliables (`togglePlus`). La **Magie** reste une **vue dédiée** (`pe
 
 | Ordre | Bloc | Données | Cliquable → detail-pp |
 |---|---|---|---|
-| 1 | Mode jeu *(emplacement réservé)* | Suivi PV et autres variables selon ruleset — **contenu différé** | — |
-| 2 | Identité | Nom, Race (+ archétype DD3.5), Historique (DD2024), Sexe, Alignement | Race, Historique |
-| 3 | Classes | Classes + niveaux (+ domaines divins DD3.5) | Classe |
-| 4 | Caractéristiques | 6 caracs + modificateurs | — |
-| 5 | Combat | CA, PV | — |
-| 6 | Compétences | Compétences **maîtrisées** uniquement (maîtrise > 0) + total | Compétence |
-| 7 | NLS prestige *(DD3.5)* | Affectation niveaux de prestige → classes de base lanceuses | — |
-| 8 | Dons | Dons saisis (liste déclarative) | Don |
-| 9 | Campagnes | Campagne en cours + historique traversé ; rattachement par éditeur inline | Campagne |
-| 10 | Background | Contenu HTML TinyMCE, masqué si vide | — |
+| 1 | Mode jeu *(emplacement réservé)* | Suivi PV et autres variables selon ruleset — **contenu différé**. **Masqué** sauf si `j_affichage_mode_jeu` est actif (profil) | — |
+| 2 | Identité *(sans titre)* | Rangée : **Niveau**, Race (+ archétype DD3.5), Sexe, Alignement, Historique (DD2024) — puis les **classes**, une par ligne | Race, Historique, Classe |
+| 3 | Caractéristiques + CA + PV | Une rangée de trois blocs, sans titres | — |
+| 4 | Compétences + Dons | Une **rangée de deux blocs** au-dessus de 992px, empilés en dessous (SP-PE10m) | Compétence, Don |
+| 5 | NLS prestige *(DD3.5)* | Affectation niveaux de prestige → classes de base lanceuses. **Sous** la rangée, pleine largeur, **replié par défaut** (SP-PE10n) | — |
 
-> Les Classes sont remontées en position 3 depuis SP-PE2 (lecture rapide en partie) ; le tableau
-> ci-dessus reflète l'ordre réellement rendu par `fiche.php`, pas l'ordre projeté à l'arbitration.
+### 7.3b Bloc Identité et rangée de stats (SP-PE10h)
+
+**Rangée d'identité** — des couples libellé/valeur en `flex-wrap`, chacun **insécable** : il
+passe à la ligne entier quand la largeur manque. Le **niveau total** l'ouvre ; il a quitté la
+ligne sous le nom du personnage.
+
+> `$niveau_global` **exclut les sous-classes** (`cla_clt_id = CLT_SOUS_CLASSE`). Une sous-classe
+> DD2024 est une ligne de `dd_personnages_classes` comme une autre mais n'ajoute aucun niveau —
+> les compter donnait 7 à un clerc 5 / guerrier 1, et un bonus de maîtrise faux avec.
+
+**Classes** — une par ligne, séparées d'un liseré pointillé, **sans libellé « Classes » ni
+« niv. »** : nom puis nombre. Le bouton Modifier est posé en **absolu** au bout de la première
+ligne, dont le `padding-right` lui réserve sa place : un nom long passe à la ligne avant de
+l'atteindre. Une **classe de prestige** (DD3.5) s'écrit en italique — le badge « P » est retiré.
+Une **sous-classe DD2024** rejoint sa classe parente (`cla_cla_id`) entre parenthèses :
+« Clerc 5 (Domaine de la Vie) ».
+
+**Rangée caractéristiques / (maîtrise) / CA / PV** — trois blocs sans titre sur une rangée,
+**quatre en DD2024** : le **bonus de maîtrise** y prend une tuile « Maît. », avant CA (SP-PE10l).
+Il n'existe pas en DD3.5. Tuiles à base 96px pour que les trois tiennent jusqu'à 342px.
+
+**Rangée caractéristiques / CA / PV** — trois blocs sans titre sur une rangée
+(`.per-fiche__rangee`). Les six caractéristiques tiennent en **2 lignes de 3**, comme le bloc de
+stats d'un monstre ; CA et PV sont deux tuiles `.per-stat`, libellé et valeur sur la même ligne.
+Sous 992px, les caractéristiques prennent leur ligne et CA / PV se partagent la suivante.
+
+**Blocs repliables** — `perReplierBloc(idCorps, btn)` bascule, `perDeplierBloc(idCorps, idBtn)`
+ouvre sans refermer. Le second sert aux blocs **repliés par défaut** dont l'en-tête garde un
+bouton Modifier : `nlsEditor` l'appelle avant d'ouvrir son éditeur, sans quoi celui-ci se
+chargerait dans un corps masqué. Les deux corps d'un tel bloc (lecture et édition) sont
+enveloppés dans un conteneur unique, que le chevron replie.
+
+**Rangée Compétences / Dons (SP-PE10m)** — `.per-fiche__rangee--listes`, deux blocs à 50 % au-dessus
+de 992px, empilés en dessous. `min-width: 0` sur les deux : sans lui, le tableau de l'éditeur de
+compétences impose sa largeur intrinsèque et fait déborder la rangée dès l'ouverture.
+
+> Ses trois éléments ont une **largeur fixe**, la même pour les six, calés à gauche : les deux
+> rangs de trois sont à l'aplomb l'un de l'autre (SP-PE10o). `min-width: 0` est indispensable —
+> sans lui, `min-width: auto` laisse une valeur à trois chiffres élargir sa boîte et décaler sa
+> ligne. Les largeurs sont plus étroites sous 992px : celles du poste ne tiennent pas dans les
+> 103px qu'une colonne de la grille mesure à 342px.
+
+> **Chaque caractéristique tient sur UNE ligne, à toutes les largeurs** : abréviation sur son
+> fond, valeur, modificateur — la forme de `.mo-carac-table`. Posée sur téléphone en SP-PE10i
+> (236 → 71px), étendue à l'ordinateur en SP-PE10l (220 → 87px). Les tuiles CA / PV se resserrent
+> d'autant.
+
+
+> Les **constantes de type de classe** (`CLT_BASE_35`, `CLT_PRESTIGE`, `CLT_PNJ`,
+> `CLT_BASE_2024`, `CLT_SOUS_CLASSE`) vivent dans `include/helpers.php`, à côté des `PROFINC_*` :
+> les `clt_id` littéraux se dispersaient dans le code.
+
+**Graisse et taille (SP-PE10j)** — règle d'interface du module : le **libellé porte le gras**, la
+**valeur reste en graisse normale**, et les deux ont la même taille dans la même police. Elle vaut
+pour les champs d'identité (`dt` / `dd`), les classes (nom / niveau) et les tuiles CA / PV.
+
+**Compétences** — la colonne **Carac porte deux valeurs** (abréviation et modificateur) et reçoit
+donc 4.6rem, contre 3.2 pour Maîtrise/Rangs et Total ; sur téléphone, 4.2 contre 2.4. La colonne
+de maîtrise DD2024 est **abrégée « M. » et « E »**, en lecture comme dans le select de l'éditeur,
+le mot entier restant dans le `title`.
+
+> **`getBonusMaitrise()` prend le palier, pas le niveau exact** : `dd_bonus_maitrise` s'arrête au
+> niveau 20, et un personnage multiclassé totalisant davantage repartait avec un bonus de zéro —
+> toutes ses compétences perdaient maîtrise et expertise à l'affichage.
+
+> **Les boutons de la fiche n'ont que leur icône** — le `title` porte le sens. `js/personnage.js`
+> réinjectait des libellés à chaque bascule d'éditeur : les masquer en CSS ne suffisait pas.
+> Le title suivant la bascule (« Modifier les compétences » ⇄ « Annuler la modification »), les
+> quatre éditeurs inline passent par `perBasculerBoutonEditer()`, qui relève le title d'origine
+> au premier passage. Les boutons d'un éditeur **ouvert** — Enregistrer, Annuler, Ajouter une
+> classe, Choisir des dons — gardent leur libellé : une icône seule y serait ambiguë.
 
 ### 7.4 Liste des personnages — `personnages/index.php`
 
@@ -1717,6 +2044,94 @@ Ruleset verrouillé : l'action refuse tout personnage non DD3.5.
 - les listes de sorts **connus / compris / préparés**, cliquables → `detail-pp/sort.php` (contexte `externe`).
 
 La liste de sorts proposée est bornée par `getActiveResIds()` (chaîne campagne → perso → défaut, §5).
+
+### 7.6b Disposition d'un bloc de classe (SP-PE10b)
+
+Le corps d'un bloc — un par classe lanceuse — se lit **en trois temps** :
+
+| Temps | Contenu | Classe CSS |
+|---|---|---|
+| 1 | Quatre cases de synthèse (caractéristique, NLS effectif, DD, attaque), puis la barre d'actions | `.per-magie__cases`, `.per-magie__actions` |
+| 2 | Rangée à deux colonnes : tableau des emplacements à gauche, panneau « Ressources de sorts » à droite | `.per-magie__synthese` > `.per-magie__colonne-empl` + `.per-magie__ressources` |
+| 3 | Sorts toujours préparés, puis les listes du personnage | `.per-magie__toujours`, `.per-magie__liste` |
+
+**Panneau « Ressources de sorts »** — paires libellé / valeur, dans cet ordre : sorts mineurs
+connus, sorts préparés, sorts en grimoire, sorts connus (ou « au répertoire »), renouvellement,
+domaines. Une ligne n'est produite **que si le profil d'incantation la porte** : pas de grimoire
+ni de sorts connus pour un `PROFINC_LISTE`, où le compteur afficherait un 0 trompeur. Les
+plafonds suivent le ruleset — « Sorts mineurs connus » n'existe qu'en DD2024 (`cn_sort_n0` y
+compte les mineurs, ailleurs il porte les emplacements de niveau 0), et le plafond de préparation
+n'existe qu'en DD2024 (`cn_sortPrepare`) ; en DD3.5 la ligne n'affiche que le nombre préparé.
+
+**Listes de sorts** — flux horizontal (`flex-wrap`) à **écart fixe** de 24px entre deux sorts et
+8px entre deux lignes, chaque liste repartant à gauche, à l'aplomb de son titre. Les `columns`
+d'avant découpaient la largeur en tranches égales, ce qui éloignait la deuxième colonne de son
+titre. La même classe `.per-magie__sorts` sert aux quatre listes, sorts toujours préparés compris.
+
+> Les compteurs **ne figurent plus dans les titres** de liste : le panneau les porte tous.
+
+**Tableau des emplacements (SP-PE10c)** — `.per-magie__table` surcharge `.table-dd`
+**au-dessus de 992px seulement**, en reprenant l'échelle du panneau qui lui fait face :
+
+| Tableau | Taille | Panneau « Ressources de sorts » |
+|---|---|---|
+| En-tête « Niveaux de sort » | 1.05rem | Titre « Ressources de sorts » |
+| Libellé de ligne (« Par jour ») | 1rem gras | Libellé d'une ressource |
+| Chiffres | 1rem gras | Valeur d'une ressource |
+
+Colonnes à 34px, padding 5px/8px. Le réglage d'origine de `.table-dd` vise les tables de
+progression du compendium, bien plus denses (26px, .82rem). Le séparateur accentué
+(`border-left` sur la première colonne de sorts) est neutralisé sur cette table : elle n'a
+qu'une colonne de libellés en regard des niveaux.
+
+### 7.6c Sélecteur de sorts — deux volets, écriture immédiate (SP-PE7b, SP-PE10d)
+
+`include/ajax/detail-pp/sorts-picker.php`, injecté dans `#detail-pp`. Deux modes portés par la
+même page : `repertoire` (alimente `dd_personnages_sorts`) et `prepare` (alimente
+`dd_personnages_sorts_prepares`). Toujours **porté par classe** : une écriture ne touche jamais
+la liste d'une autre classe du personnage.
+
+**Styles (SP-PE10d)** — le composant emprunte la coque `.dons-picker` (§7.5b) mais ses éléments
+propres vivent dans `css/modules.css`, section « Sélecteur de SORTS » : `.dons-picker__items`,
+`.dons-picker__toggle`, `.dons-picker__decompte`, `.dons-picker__grimoire`, `.est-choisi`,
+`.sorts-picker__compteur(s)`, `.sorts-picker__jeton`, `.est-plein`. Un **sort retenu** porte un
+fond `color-mix` dérivé de `--clr-accent` et un filet d'accent à gauche.
+
+**Téléphone (< 992px)** — le volet de description est masqué et la liste prend toute la largeur ;
+la fiche du sort s'ouvre dans **`#detail-pp-sub`**, par-dessus le sélecteur, qui reste ouvert.
+Le seuil est porté des deux côtés : média-query CSS et `matchMedia` dans `sortsPicker.voir()`.
+Lignes resserrées, bouton de 44px — c'est lui qui fixe la hauteur de ligne.
+La liste y perd aussi **bordure et arrondi** et déborde du padding du panneau de `--sp-sm` de
+chaque côté (SP-PE10g) : son cadre redoublait celui de l'overlay à quelques pixels près. Le
+compteur DD3.5 descend à 40px par bouton (SP-PE10f) — il en demande deux là où les autres modes
+n'en ont qu'un.
+
+**Filtre « les siens »** — une seule case pour les deux modes, libellée « Les siens seulement »
+en répertoire et « Les préparés seulement » en préparation ; `est-choisi` porte les deux sens.
+
+**Groupement par niveau (SP-PE10f)** — la liste arrive triée par niveau puis par nom ; un
+`<li class="sorts-picker__entete">` marque chaque rupture et remplace la pastille que portait
+chaque ligne. L'en-tête est `sticky` en haut de la liste et **se masque avec son groupe** :
+`filtrer()` relève les niveaux encore représentés avant d'effacer les en-têtes orphelins.
+
+**Quantité préparée (SP-PE10e, DD3.5 seulement)** — un magicien DD3.5 mémorise plusieurs fois le
+même sort, chaque exemplaire occupant un emplacement de son niveau. En préparation DD3.5, la
+ligne porte donc un compteur `[−] N [+]` (encadré, pour ne pas se confondre avec la pastille de
+niveau qui le suit) et chaque clic vaut un exemplaire : `preparerSort` incrémente `pesp_nb`,
+`retirerPrepare` le décrémente et supprime la ligne au dernier retrait. Les jetons de compteur
+par niveau somment les `data-nb`, pas les lignes.
+
+> **En DD2024 la bascule est conservée** : la liste préparée y est un ensemble de sorts
+> distincts — on lance n'importe lequel avec l'emplacement de son choix — et `cn_sortPrepare`
+> plafonne des sorts distincts. `gardeSortPersonnage()` rend le ruleset pour trancher côté
+> écriture.
+
+> `pesp_nb` vaut 0 par défaut en base alors qu'un exemplaire compte pour 1 : toute lecture passe
+> par `GREATEST(pesp_nb, 1)`.
+
+**Bouton « recopier dans le grimoire »** — n'a de sens que sur un sort retenu. Rendu par le
+serveur sur les sorts déjà connus, **posé et retiré en JS** (`_majBoutonGrimoire()`) au fil des
+bascules. Le profil descend dans le DOM par `data-grimoire`.
 
 ### 7.7 Calcul NLS et sorts par jour (conservé)
 
@@ -2476,7 +2891,8 @@ le gain direct du refactor : « Bonus de maîtrise » était dupliqué dans deux
 Un tableau portant `colspan`/`rowspan` est **signalé et laissé intact** : les fusions ne sont
 pas devinables de façon fiable, l'auteur les reprend à la main.
 
-> ✅ **Migration exécutée le 2026-08-10 sur la base locale `maikasteiymaika` (ruleset DD2024).**
+> �
+ **Migration exécutée le 2026-08-10 sur la base locale `maikasteiymaika` (ruleset DD2024).**
 > **14 blocs répartis dans 8 règles → 13 tableaux distincts** (`dd_tableaux`), 1 réutilisation
 > (« Bonus de maîtrise », présent à l'identique dans `tests-d20` et `maitrise`), **0 ignoré**.
 > Vérification post-migration : 0 `<table>` restant dans `reg_texte`, 0 tag non résolu,
@@ -2783,13 +3199,15 @@ L'utilisateur peut choisir, pour le ruleset actif, quelles ressources alimentent
 Cette sélection correspond à la priorité 2 de getActiveResIds().
 
 **Périmètre affiché (cible SP-C6, partiellement implémenté) :**
-- Ressources globales officielles du ruleset actif (`res_j_id IS NULL`) — ✅ implémenté
+- Ressources globales officielles du ruleset actif (`res_j_id IS NULL`) — �
+ implémenté
 - Suppléments publics d'autres utilisateurs (section distincte) — visibles uniquement si ≥1 entrée est `_public=1 AND _visible=1` — ⏳ **non implémenté**, `profil/index.php` ne requête à ce jour que les ressources officielles
 
 Le supplément de l'utilisateur lui-même **n'apparaît pas** comme case à cocher dans cette section
 (il est auto-sélectionné via `dd_joueurs_sources`, sans UI dédiée).
 
-> ✅ **Bug corrigé le 2026-07-02** — le supplément personnel n'étant jamais dans les cases cochées
+> �
+ **Bug corrigé le 2026-07-02** — le supplément personnel n'étant jamais dans les cases cochées
 > (aucune case ne le représente), le `DELETE` + `INSERT` en bloc de la sauvegarde l'effaçait de
 > `dd_joueurs_sources` à chaque enregistrement de "Mes sources", faisant disparaître tout le contenu
 > homebrew de l'utilisateur des listes du compendium jusqu'à ce qu'il resélectionne son supplément —
@@ -3333,6 +3751,9 @@ donjon/
     utilisateurs.php
     ressources.php
     enregistrement.php
+    migrations.php        état et application des migrations SQL (SP-DP5, §6b)
+    migrations-auto.php   point d'entrée du déployeur, jeton à usage unique (SP-DP6)
+    deploiement/          module de déploiement SFTP — LOCAL UNIQUEMENT, jamais transféré (§6b)
   js/
     main.js          togglePlus, actualiserPage, _detailPpContext,
                      apresModification, rafraichirListe, CSRF
@@ -3366,6 +3787,9 @@ donjon/
     regles-arbre.php
     monstre-parser.php      moteur d'analyse + rendu du bloc de stats monstre (v3)
     personnage_helpers.php
+    migrations.php          moteur de migrations SQL (SP-DP5, §6b)
+    migrations-reference.php  référence initiale figée des migrations antérieures
+    maintenance.php         page 503 servie par db.php pendant un déploiement
     ajax/
       detail-pp/     sort.php, classe.php, don.php, race.php, historique.php,
                      objet.php, monstre.php, ..., equipement.php
@@ -3375,9 +3799,15 @@ donjon/
       export/        monstre-roll20.php   export JSON Roll20 NPC (GET ?id=mo_id)
       autocomplete-tags-monstre.php
   sql/
+    .htaccess                   ← aucun accès web
+    AAAA-MM-JJ_*.sql            ← migrations, jouées par le moteur (§6b) ; seules à partir en prod
     schema.sql
     patch_001_reset_password.sql
     patch_004_supplements.sql   ← 8 ALTER TABLE (_public/_visible) + migration mo_j_id
+  config/
+    .htaccess                   ← aucun accès web
+    db.config.php               ← jamais transféré par le déployeur
+  .deployignore                 ← fichiers versionnés qui ne partent pas en production (§6b)
   uploads/
   img/
     uploads/
@@ -3420,7 +3850,8 @@ rattachées à une source "Supplément de {pseudo}" (1 par ruleset par utilisate
 | **SP-C5** | `enregistrement.php` : ownership + save `_public`/`_visible` + auto-create supplément | Modérée |
 | **SP-C6** | `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers | Faible |
 
-> ✅ **Blocage levé le 2026-07-01.** `SHOW CREATE TABLE` exécuté sur les 7 tables restantes (base de
+> �
+ **Blocage levé le 2026-07-01.** `SHOW CREATE TABLE` exécuté sur les 7 tables restantes (base de
 > dev locale) : `_public`/`_visible` **existent déjà en base** (migration SP-C0 appliquée en base sans
 > que `SCHEMA_SQL.md` ni `patch_004_supplements.sql` committé n'aient suivi — même écart doc/base que
 > l'incident `mo_j_id`, cf. `DECISIONS_LOG.md` [2026-06-20] et [2026-07-01]). `SCHEMA_SQL.md` mis à
@@ -3434,14 +3865,47 @@ SP-C2 à SP-C7 s'implémentent entité par entité. État au 2026-07-01 :
 
 | Entité | SP-C2 (moteur liste) | SP-C3 (detail-pp) | SP-C4 (formulaire) | SP-C5 (enregistrement) | SP-C6 | SP-C7 |
 |---|---|---|---|---|---|---|
-| **Monstres** | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | ✅ fait (2026-06-20) | — (transverse) | ✅ fait (2026-06-20) |
-| **Dons** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
-| **Sorts** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
-| **Compétences** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
-| **Races** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
-| **Classes** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
-| **Objets magiques** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01)* | ✅ fait (2026-07-01)* | — (transverse) | n/a |
-| **Historiques** | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | ✅ fait (2026-07-01) | — (transverse) | n/a |
+| **Monstres** | �
+ fait (2026-06-20) | �
+ fait (2026-06-20) | �
+ fait (2026-06-20) | �
+ fait (2026-06-20) | — (transverse) | �
+ fait (2026-06-20) |
+| **Dons** | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | — (transverse) | n/a |
+| **Sorts** | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | — (transverse) | n/a |
+| **Compétences** | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | — (transverse) | n/a |
+| **Races** | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | — (transverse) | n/a |
+| **Classes** | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | — (transverse) | n/a |
+| **Objets magiques** | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01)* | �
+ fait (2026-07-01)* | — (transverse) | n/a |
+| **Historiques** | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | �
+ fait (2026-07-01) | — (transverse) | n/a |
 
 > \* Objets magiques : `om_visible` préexistait à SP-C avec une sémantique propre (« visible par les
 > joueurs », toujours modifiable, y compris sur une entrée officielle) — **conservée telle quelle**,
@@ -3485,6 +3949,11 @@ recherche FULLTEXT, glossaire DD2024 (nœuds reg_type='glossaire' + ancres .glos
 | dd_ressources | res | Livres/suppléments — res_j_id = null (officiel) ou j_id (supplément) |
 | dd_caracteristiques | car | 6 caractéristiques DD |
 | dd_modificateurs | mod | Modificateurs de caractéristiques |
+
+### Technique
+| Table | Préfixe | Rôle |
+|---|---|---|
+| dd_migrations | mig | Migrations SQL appliquées à la base de l'environnement (SP-DP5, §6b) — créée par le moteur |
 
 ### Utilisateurs
 | Table | Préfixe | Rôle |
@@ -3749,14 +4218,21 @@ document.querySelectorAll('.tinymce-basic').forEach(function(el) {
 - [ ] Compendium : _detailPpContext correctement passé à actualiserPage()
 - [ ] Compendium : enregistrement.php?ajax=1 retourne JSON, mode normal retourne redirect
 - [ ] Compendium : historiques.php et ses endpoints conditionnés au ruleset DD2024
-- [x] **Supplément : `champ_public`, `champ_visible` et `champ_res_owner` déclarés dans `$listConfig` pour les 8 pages contrôleurs** → ✅ 8/8 (2026-07-01)
-- [x] **Supplément : filtre visibilité moteur — implémenté dans `compendium-liste.php` (générique, actif dès que les 3 clés sont déclarées)** → ✅ actif sur 8/8 entités (2026-07-01)
-- [x] **Supplément : menu ⋮ (liste) et bouton Modifier (`detail-pp`) conditionnés par `canEditCompendiumEntry($db, $_res_j_id)` (per-entry)** → ✅ 8/8 (2026-07-01)
-- [x] **Supplément : formulaire `modifier/*.php` — source dropdown 2 groupes (officiel + supplément) ; `_public`/`_visible` masqués pour sources officielles** → ✅ 8/8 (2026-07-01) ; Objets magiques : cas particulier `om_visible` conservé (cf. § Avancement par entité)
-- [x] **Supplément : contrainte serveur — si `_public = 1` alors `_visible` forcé à 1 au save** → ✅ répliqué dans les 8 `enregistrer*()` (2026-07-01)
+- [x] **Supplément : `champ_public`, `champ_visible` et `champ_res_owner` déclarés dans `$listConfig` pour les 8 pages contrôleurs** → �
+ 8/8 (2026-07-01)
+- [x] **Supplément : filtre visibilité moteur — implémenté dans `compendium-liste.php` (générique, actif dès que les 3 clés sont déclarées)** → �
+ actif sur 8/8 entités (2026-07-01)
+- [x] **Supplément : menu ⋮ (liste) et bouton Modifier (`detail-pp`) conditionnés par `canEditCompendiumEntry($db, $_res_j_id)` (per-entry)** → �
+ 8/8 (2026-07-01)
+- [x] **Supplément : formulaire `modifier/*.php` — source dropdown 2 groupes (officiel + supplément) ; `_public`/`_visible` masqués pour sources officielles** → �
+ 8/8 (2026-07-01) ; Objets magiques : cas particulier `om_visible` conservé (cf. § Avancement par entité)
+- [x] **Supplément : contrainte serveur — si `_public = 1` alors `_visible` forcé à 1 au save** → �
+ répliqué dans les 8 `enregistrer*()` (2026-07-01)
 - [x] **Supplément : auto-création ressource supplément + auto-add `dd_joueurs_sources` sur premier save** → mécanisme transverse (`getOrCreateUserSupplement()`), utilisé par les 8 entités
-- [x] **Supplément : badge `.comp-ligne--homebrew` sur toutes les lignes de supplément dans les listes** → ✅ actif sur 8/8 (moteur générique, styles `compendium-modules.css`)
-- [x] **Supplément : suppression per-entry — fonction dédiée avec garde `canEditCompendiumEntry()` requise pour chaque entité du compendium** → ✅ 8/8 (2026-07-01) : `supprimerMonstre()`, `supprimerDon()`, `supprimerSort()`, `supprimerCompetence()`, `supprimerRace()`, `supprimerClasse()`, `supprimerObjet()`, `supprimerHistorique()` — `supprimerEntite()` générique n'est plus utilisée que par Équipements (hors périmètre SP-C)
+- [x] **Supplément : badge `.comp-ligne--homebrew` sur toutes les lignes de supplément dans les listes** → �
+ actif sur 8/8 (moteur générique, styles `compendium-modules.css`)
+- [x] **Supplément : suppression per-entry — fonction dédiée avec garde `canEditCompendiumEntry()` requise pour chaque entité du compendium** → �
+ 8/8 (2026-07-01) : `supprimerMonstre()`, `supprimerDon()`, `supprimerSort()`, `supprimerCompetence()`, `supprimerRace()`, `supprimerClasse()`, `supprimerObjet()`, `supprimerHistorique()` — `supprimerEntite()` générique n'est plus utilisée que par Équipements (hors périmètre SP-C)
 - [ ] **Monstres : `mo_j_id` absent de toutes les requêtes (colonne supprimée via `patch_004_supplements.sql`)**
 - [ ] **Campagnes : tout nouveau niveau hiérarchique (ou handler `detail-pp/*.php` modifié) vérifie
       les 4 points d'intégration du contexte de navigation — `setLast*()` dans `helpers.php`, appel

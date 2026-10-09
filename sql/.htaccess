@@ -1,2 +1,6 @@
+# sql/.htaccess — Aucun accès web au dossier
+# Les migrations sont lues sur le disque par include/migrations.php (SP-DP5),
+# jamais servies. Couvre aussi les scripts PHP rangés ici (migrate_*.php).
+# Même syntaxe que le .htaccess racine, éprouvée sur OVH.
 Order Allow,Deny
 Deny from all
