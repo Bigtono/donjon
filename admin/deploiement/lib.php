@@ -443,13 +443,17 @@ class DeploiementSftp implements DeploiementTransport
 
   public function supprimer(string $distant): void
   {
-    // « * » : libcurl poursuit si la commande échoue (fichier déjà absent).
+    // Pas de « * » (qui ferait ignorer tout échec) : seule l'absence du fichier
+    // est tolérée. Une suppression ratée en silence avait laissé la production
+    // en maintenance après un déploiement « réussi » (D-DP11).
     $this->preparer([
       CURLOPT_URL    => $this->urlAccueil(),
       CURLOPT_NOBODY => true,
-      CURLOPT_QUOTE  => ['*rm ' . $this->argument($distant)],
+      CURLOPT_QUOTE  => ['rm ' . $this->argument($distant)],
     ]);
-    $this->executer('Suppression de ' . $distant);
+    if (curl_exec($this->ch) === false && !str_contains(curl_error($this->ch), 'No such file')) {
+      throw new RuntimeException('Suppression de ' . $distant . ' : ' . curl_error($this->ch));
+    }
   }
 
   public function lister(string $dossier): array
@@ -525,11 +529,13 @@ class DeploiementSftp implements DeploiementTransport
     return $this->base() . (str_starts_with($chemin, '/') ? '' : '/~') . '/' . implode('/', $segments);
   }
 
-  // Argument d'une commande SFTP (CURLOPT_QUOTE) : « /~/ » y désigne aussi le
-  // dossier d'accueil. Les noms ont été filtrés (deploiementNomAcceptable).
+  // Argument d'une commande SFTP (CURLOPT_QUOTE). Contrairement à l'URL, « ~ »
+  // n'y est PAS traduit : un chemin relatif l'est au dossier d'ouverture de la
+  // session, le dossier d'accueil. Les noms ont été filtrés
+  // (deploiementNomAcceptable).
   private function argument(string $chemin): string
   {
-    return '"' . (str_starts_with($chemin, '/') ? $chemin : '/~/' . $chemin) . '"';
+    return '"' . $chemin . '"';
   }
 }
 

@@ -254,6 +254,20 @@ function migrationsAppliquerEnAttente(PDO $db): array {
   return ['ok' => true, 'appliquees' => $appliquees, 'echec' => null, 'modifiees' => $modifiees];
 }
 
+// Retire une migration de la référence (ou d'une déclaration manuelle) pour que
+// le moteur la joue au prochain passage. Sert quand la référence initiale s'est
+// révélée fausse : une migration inscrite « déjà jouée » qui ne l'avait pas été
+// sur cette base (D-DP12). Une migration exécutée par le moteur n'est jamais
+// remise en attente : son passage est prouvé.
+function migrationsRemettreEnAttente(PDO $db, string $nom): bool {
+  $stmt = $db->prepare('
+    DELETE FROM dd_migrations
+    WHERE  mig_fichier = :fichier AND mig_statut IN (:reference, :marquee)
+  ');
+  $stmt->execute([':fichier' => $nom, ':reference' => MIGRATION_REFERENCE, ':marquee' => MIGRATION_MARQUEE]);
+  return $stmt->rowCount() === 1;
+}
+
 // Déclare appliquée une migration jouée à la main (phpMyAdmin), sans l'exécuter.
 function migrationsMarquer(PDO $db, string $nom): bool {
   $chemin = migrationsDossier() . '/' . $nom;

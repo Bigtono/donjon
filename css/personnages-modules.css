@@ -167,6 +167,15 @@
   min-width: 0;
 }
 
+/* Appoint d'un champ d'identité — le bonus de maîtrise derrière le niveau
+   global (SP-PE11). En retrait : c'est une conséquence du niveau, pas une
+   donnée de même rang. */
+.per-identite__appoint {
+  color: var(--clr-text-muted);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
 /* --- Bloc Identité : les classes --------------------------------
    Le libellé « Classes » et les « niv. » de chaque ligne sont tombés : un nom
    suivi d'un nombre, dans un bloc Identité, ne se lit pas autrement. */
@@ -242,6 +251,151 @@
   font-size: 1rem;
   color: var(--clr-text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* Quatrième colonne, DD2024 seulement : le modificateur de sauvegarde, à la
+   suite de celui de caractéristique — comme MOD et JS dans le bloc de stats
+   d'un monstre (SP-PE11). Même largeur fixe que les autres, pour que les deux
+   rangs restent à l'aplomb. */
+.per-carac__save {
+  flex: 0 0 2.4rem;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 400;
+  /* Pas de gras non plus ici (SP-PE12) : c'est une valeur. Elle reste
+     distincte du modificateur, qui la précède en gris. */
+  color: var(--clr-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* En-tête des deux colonnes de modificateurs : sans lui, « +2 +5 » ne dit pas
+   lequel est le jet de sauvegarde. */
+.per-caracs__entete {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+  margin: 0;
+  font-size: .7rem;
+  letter-spacing: .04em;
+  color: var(--clr-text-muted);
+}
+.per-caracs__entete .per-carac__abr,
+.per-caracs__entete .per-carac__val,
+.per-caracs__entete .per-carac__mod,
+.per-caracs__entete .per-carac__save {
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+}
+
+/* Sur un poste, les quatre colonnes tiennent encore à trois caractéristiques
+   de front : 10.2rem de colonnes plus les gaps, soit 165px pour les 177 que
+   mesure un tiers du bloc. C'est sous 992px que la grille passe à deux. */
+
+/* --- Jets de sauvegarde, DD3.5 (SP-PE11) -------------------------
+   Trois jets nommés — Réflexes, Vigueur, Volonté — sur une ligne. Titre
+   discret : le bloc se repère à ses trois libellés, pas à son chapeau. */
+.per-fiche__bloc--saves .per-fiche__bloc-body {
+  padding: var(--sp-sm) var(--sp-md);
+}
+
+.per-saves__titre {
+  margin: 0 0 var(--sp-xs);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--clr-text-muted);
+}
+
+.per-saves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-xs) var(--sp-lg);
+}
+
+.per-save {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+  min-width: 0;
+}
+
+/* Règle commune du module : le gras au libellé, la valeur en graisse normale
+   (SP-PE12 — les deux écarts concédés en SP-PE11 sont rentrés dans le rang). */
+.per-save__lbl {
+  font-weight: 700;
+  color: var(--clr-text);
+}
+
+.per-save__val {
+  font-weight: 400;
+  color: var(--clr-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Capacités spéciales (SP-PE11) -------------------------------
+   Deux listes déduites de la race et des classes, sur la rangée des listes. */
+.per-caps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.per-caps__item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-xs);
+  padding: 2px 0;
+  border-bottom: 1px dashed var(--clr-border);
+}
+
+.per-caps__item:last-child {
+  border-bottom: none;
+}
+
+.per-caps__nom {
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+}
+
+/* Niveau d'obtention, type de capacité : calés à droite, en retrait. */
+.per-caps__meta {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: .8em;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+
+.per-caps__precision {
+  flex: 0 0 auto;
+  font-size: .85em;
+  color: var(--clr-text-muted);
+}
+
+/* Intertitre d'une classe — seulement quand le personnage en a plusieurs. */
+.per-caps__groupe {
+  margin: var(--sp-sm) 0 2px;
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--clr-text-muted);
+}
+
+.per-caps__groupe:first-child {
+  margin-top: 0;
+}
+
+/* Compte d'éléments dans un titre de bloc. */
+.per-fiche__compte {
+  margin-left: var(--sp-xs);
+  font-size: .85em;
+  font-weight: 400;
+  color: var(--clr-text-muted);
 }
 
 /* --- Rangée Compétences / Dons (SP-PE10m) ------------------------
@@ -329,6 +483,7 @@
   font-variant-numeric: tabular-nums;
 }
 
+
 /* --- Bloc Classes (liste simple) --- */
 
 .per-classes {
@@ -397,9 +552,36 @@
    (s'ajoute aux classes .modif-grid déjà existantes)
    ============================================================ */
 
+/* `.modif-grid` pose le `display: grid` — et n'était défini que dans
+   compendium-modules.css et admin-modules.css, deux feuilles que la fiche
+   personnage ne charge pas. Son formulaire de modification empilait donc ses
+   champs en une colonne, la grille à six colonnes ci-dessous n'ayant aucun
+   conteneur pour s'appliquer (défaut trouvé en SP-PE11). Mêmes valeurs que
+   dans les deux autres feuilles. */
+.modif-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-md) var(--sp-lg);
+}
+
+.modif-grid__full {
+  grid-column: 1 / -1;
+}
+
 .modif-grid--carac {
   grid-template-columns: repeat(6, 1fr);
   gap: var(--sp-sm);
+}
+
+/* Caractéristique et sauvegarde dans la même cellule : le score au-dessus, son
+   modificateur de sauvegarde en dessous, sous un libellé plus discret. */
+.form-group--carac__sous-label {
+  display: block;
+  margin-top: 2px;
+  font-size: .7rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--clr-text-muted);
 }
 
 .form-group--carac {
@@ -531,7 +713,20 @@
     padding: var(--sp-sm);
   }
 
-  /* Colonnes fixes rétrécies (SP-PE10o). Les largeurs du poste — 2.6 + 2.8 +
+  /* Quatre colonnes par caractéristique (DD2024, SP-PE11) : trois de front ne
+     tiennent plus sous 992px, la grille passe à deux — trois rangs de deux. */
+  .per-caracs--saves {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Deux colonnes, donc deux en-têtes : le troisième tomberait sur la rangée
+     des caractéristiques et décalerait les six d'un cran (SP-PE13). */
+  .per-caracs--saves > .per-caracs__entete:nth-child(3) {
+    display: none;
+  }
+
+  /* Colonnes fixes rétrécies (SP-PE10o). Les largeurs du poste
+ — 2.6 + 2.8 +
      2.4rem plus les gaps — demandent 125px par caractéristique ; une colonne
      de la grille en fait 111 à 375px et 103 à 342px, et le modificateur de la
      troisième sortait de l'écran. Les trois colonnes restent fixes, donc
@@ -540,7 +735,10 @@
     gap: var(--sp-xs) 0;
   }
 
-  .per-carac {
+  /* L'en-tête MOD / SAUV suit le même écart que les lignes : avec 4px contre 2,
+     ses libellés glissaient de 4 et 6px à droite de leur colonne (SP-PE13). */
+  .per-carac,
+  .per-caracs__entete {
     gap: 2px;
   }
 

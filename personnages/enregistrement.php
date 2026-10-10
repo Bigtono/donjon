@@ -206,8 +206,16 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
     $caracs[$c] = max(0, min(99, intParam($_POST[$c] ?? 10)));
   endforeach;
 
-  $ca = max(0, min(99,   intParam($_POST['pe_ca'] ?? 10)));
-  $pv = max(0, min(9999, intParam($_POST['pe_pv'] ?? 0)));
+  // Modificateurs de sauvegarde, un par caractéristique (SP-PE11). Bornés
+  // comme l'initiative : ce sont des modificateurs, pas des scores.
+  $saves = [];
+  foreach (['pe_for','pe_con','pe_dex','pe_int','pe_sag','pe_cha'] as $c):
+    $saves[$c . '_save'] = max(-20, min(40, intParam($_POST[$c . '_save'] ?? 0)));
+  endforeach;
+
+  $init = max(-20, min(40, intParam($_POST['pe_init'] ?? 0)));
+  $ca   = max(0, min(99,   intParam($_POST['pe_ca'] ?? 10)));
+  $pv   = max(0, min(9999, intParam($_POST['pe_pv'] ?? 0)));
 
   $background = $_POST['pe_background'] ?? '';
 
@@ -262,19 +270,25 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
         INSERT INTO dd_personnages
           (pe_nom, pe_sexe, pe_j_id, pe_ra_id, pe_arc_id, pe_hi_id, pe_al_id,
            pe_for, pe_con, pe_dex, pe_int, pe_sag, pe_cha,
-           pe_ca, pe_pv, pe_background,
+           pe_for_save, pe_con_save, pe_dex_save,
+           pe_int_save, pe_sag_save, pe_cha_save,
+           pe_init, pe_ca, pe_pv, pe_background,
            pe_ruleset_var_id, pe_date_creation, pe_date_modif)
         VALUES
           (?, ?, ?, ?, ?, ?, ?,
            ?, ?, ?, ?, ?, ?,
            ?, ?, ?,
+           ?, ?, ?,
+           ?, ?, ?, ?,
            ?, NOW(), NOW())
       ';
       $params = [
         $nom, $sexe, $j_id, $ra_id, $arc_id, $hi_id_db, $al_id_db,
         $caracs['pe_for'], $caracs['pe_con'], $caracs['pe_dex'],
         $caracs['pe_int'], $caracs['pe_sag'], $caracs['pe_cha'],
-        $ca, $pv, $background,
+        $saves['pe_for_save'], $saves['pe_con_save'], $saves['pe_dex_save'],
+        $saves['pe_int_save'], $saves['pe_sag_save'], $saves['pe_cha_save'],
+        $init, $ca, $pv, $background,
         $ruleset_id,
       ];
       $db->prepare($sql)->execute($params);
@@ -303,6 +317,13 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
                pe_int        = ?,
                pe_sag        = ?,
                pe_cha        = ?,
+               pe_for_save   = ?,
+               pe_con_save   = ?,
+               pe_dex_save   = ?,
+               pe_int_save   = ?,
+               pe_sag_save   = ?,
+               pe_cha_save   = ?,
+               pe_init       = ?,
                pe_ca         = ?,
                pe_pv         = ?,
                pe_background = ?,
@@ -313,7 +334,9 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
         $nom, $sexe, $ra_id, $arc_id, $hi_id_db, $al_id_db,
         $caracs['pe_for'], $caracs['pe_con'], $caracs['pe_dex'],
         $caracs['pe_int'], $caracs['pe_sag'], $caracs['pe_cha'],
-        $ca, $pv, $background,
+        $saves['pe_for_save'], $saves['pe_con_save'], $saves['pe_dex_save'],
+        $saves['pe_int_save'], $saves['pe_sag_save'], $saves['pe_cha_save'],
+        $init, $ca, $pv, $background,
         $pe_id,
       ];
       $db->prepare($sql)->execute($params);

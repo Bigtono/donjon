@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-09 17:48 -->
+<!-- Mis à jour : 2026-10-10 12:21 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -6050,3 +6050,225 @@ Code : `deploiementEstLocal()` (`admin/deploiement/lib.php`) ; commentaires de `
 → Vérifié : 7 cas unitaires (localhost IPv4/IPv6, adresse réseau du poste, téléphone, serveur
   public, visiteur, CLI) ; navigateur par `http://192.168.1.10/donjon/` : nuage, tuile, page de
   paramètres et panneau présents.
+
+---
+
+## SP-PE11 — Initiative, sauvegardes et capacités sur la fiche
+
+**[2026-10-09] D-RS60 — SP-PE11 : la fiche gagne l'initiative, les sauvegardes et les capacités**
+Code : `sql/2026-10-09_init_et_sauvegardes_sp-pe11.sql`, `include/ajax/modifier/personnage.php`,
+`personnages/enregistrement.php`, `personnages/fiche.php`, `css/personnages-modules.css`.
+**Un patch SQL**, joué en local et déclaré dans `dd_migrations` — à passer en prod.
+
+**1. Initiative et bonus de maîtrise échangent leurs places.**
+→ `pe_init` est **saisi, pas calculé** : l'initiative dépend de dons, d'objets et de capacités
+  de classe que la base ne modélise pas (§7.1). Il ouvre la section 3 du formulaire, avant la CA.
+→ La tuile de la rangée de stats passe du bonus de maîtrise à l'initiative, et vaut **pour les
+  deux rulesets** — le BM n'existait qu'en DD2024, la tuile manquait donc au DD3.5.
+→ Le **bonus de maîtrise rejoint le niveau global** : « Niveau 6 (BM +3) ». Il s'en déduit, il se
+  lit avec lui. En retrait et sans gras : c'est une conséquence, pas une donnée de même rang.
+→ La valeur de l'initiative avait d'abord reçu le gras ; elle est revenue à la règle commune du
+  module en **SP-PE12**, comme les valeurs de sauvegarde.
+
+**2. Six modificateurs de sauvegarde.**
+→ `pe_for_save` … `pe_cha_save`, `SMALLINT` signé — ce sont des modificateurs, négatifs
+  possibles. **Les six colonnes existent dans les deux rulesets** ; c'est l'affichage qui diffère.
+  La demande parlait de « quatre champs » à saisir pour le DD2024 : six ont été faits, comme les
+  six nommés juste avant et comme le bloc de stats d'un monstre, qui en montre six.
+→ **Saisie** : sous sa caractéristique, dans la même cellule de la grille. Les libellés suivent
+  le ruleset — `SAUV` partout en DD2024, `RÉF` / `VIG` / `VOL` sur DEX, CON et SAG en DD3.5.
+  Les trois autres restent saisissables en DD3.5 plutôt que de faire changer le formulaire de
+  forme selon le ruleset.
+→ **Affichage DD2024** : une quatrième colonne dans le bloc des caractéristiques, derrière le
+  modificateur, avec un en-tête `MOD / SAUV`. Les quatre colonnes tiennent encore à trois
+  caractéristiques de front sur un poste (165px pour 177 disponibles) ; sous 992px la grille
+  passe à **deux**, soit trois rangs de deux.
+→ **Affichage DD3.5** : un bloc à part, sous la rangée de stats — le ruleset n'a que trois jets
+  et ils portent leurs propres noms : **Réflexes** (DEX), **Vigueur** (CON), **Volonté** (SAG),
+  dans cet ordre. Titre discret, libellés en gras — les valeurs sont revenues à la graisse
+  normale en **SP-PE12**.
+
+**3. Capacités spéciales — première proposition.**
+→ Une rangée de deux blocs après Compétences / Dons : **race** d'un côté, **classes** de l'autre.
+  Rien ne s'y saisit, tout vient de `dd_race_capacite` et `dd_classe_capacite`.
+→ Les capacités de classe sont **filtrées sur le niveau atteint** (`cc_niveau <= pc_niveau`) et
+  groupées par classe, l'intertitre n'apparaissant qu'à partir de deux classes. Le niveau
+  d'obtention est rappelé à droite de chaque ligne.
+→ Deux pièges traités : une **sous-classe DD2024** n'a pas de niveau propre et suit celui de sa
+  classe porteuse, sans quoi ses capacités resteraient invisibles ; un **archétype DD3.5**
+  (`pe_arc_id`) ajoute ses capacités à celles de la race de base.
+→ Chaque titre ouvre `detail-pp/capacite.php`, qui existait déjà. Un bloc vide n'est pas rendu.
+→ Relevé : 3 capacités de race et 12 de classe pour *Adon* (clerc 5 / domaine / guerrier 1),
+  5 et 12 pour *Elminster* (magicien 20 / archimage 5).
+
+**4. Défaut trouvé en chemin : le formulaire de modification n'avait pas de grille.**
+→ `.modif-grid`, qui porte le `display: grid`, n'est défini que dans `compendium-modules.css` et
+  `admin-modules.css` — deux feuilles que la fiche personnage ne charge pas. Son formulaire
+  empilait donc tous ses champs en **une seule colonne**, et la grille à six colonnes des
+  caractéristiques n'avait aucun conteneur où s'appliquer. La règle est reprise à l'identique
+  dans `personnages-modules.css`.
+
+→ Contrôlé à 1280 et 375px sur *Adon* (DD2024) et *Elminster* (DD3.5) : rangée de stats sur une
+  ligne, colonnes de caractéristiques alignées d'un rang à l'autre dans les deux dispositions,
+  bloc de sauvegardes DD3.5 dans le bon ordre, capacités groupées et cliquables, aucun
+  débordement. Les requêtes d'écriture ont été rejouées telles quelles en transaction annulée,
+  INSERT et UPDATE, pour vérifier que chaque valeur atterrit dans sa colonne.
+
+**[2026-10-09] D-RS61 — SP-PE12 : la règle de graisse ne souffre plus d'exception**
+Code : `personnages/fiche.php`, `css/personnages-modules.css`. Aucun patch SQL.
+→ Les deux écarts concédés la veille en SP-PE11 — valeur de l'initiative en gras, valeurs des
+  jets de sauvegarde DD3.5 en gras — **reviennent à la règle du module** : le gras au libellé,
+  la valeur en graisse normale. L'initiative se lisait plus lourd que CA et PV dans la même
+  rangée, et les trois jets DD3.5 n'avaient aucune raison de se distinguer du reste.
+→ La **colonne SAUV** des caractéristiques (DD2024) suit : c'est une valeur elle aussi. Elle
+  reste lisible face au modificateur qui la précède, celui-ci étant en gris.
+→ `per-stat--init`, qui ne portait que le gras, est retirée du HTML avec sa règle.
+→ Relevé après coup : libellés à 700, valeurs à 400, dans les trois endroits et les deux
+  rulesets.
+
+**[2026-10-10] D-RS62 — SP-PE13 : un en-tête par colonne, et le panneau de détail chargé partout**
+Code : `personnages/fiche.php`, `css/personnages-modules.css`, `css/modules.css`,
+`css/compendium-modules.css`. Aucun patch SQL.
+
+**1. En-têtes MOD / SAUV (DD2024).**
+→ L'en-tête unique, sorti de la grille en SP-PE11, ne coiffait que la **première** colonne de
+  caractéristiques : les deux autres lisaient leurs modificateurs sans libellé.
+→ Il revient **dans** la grille, une cellule par colonne, en première rangée : trois sur un
+  poste, deux sous 992px — la troisième y est masquée, sans quoi elle tomberait sur la rangée
+  des caractéristiques et les décalerait d'un cran.
+→ Sur téléphone, ses libellés glissaient de **4 et 6px** à droite de leur colonne : l'en-tête
+  gardait un écart de 4px quand les lignes étaient passées à 2. Les deux partagent désormais la
+  même règle. Mesuré après coup : décalage nul, sur un poste comme sur un téléphone.
+
+**2. Le panneau de détail perdait ses styles hors du compendium.**
+→ Symptôme signalé : dans le panneau d'une capacité ouvert depuis la fiche, les listes à puces
+  sortaient par la gauche. Cause : `.sort-detail__description ul { padding-left }` vivait dans
+  `compendium-modules.css`, que la fiche ne charge pas — et avec lui **tout le composant
+  `.sort-detail`** : en-tête, lignes, libellés, description et tableaux.
+→ Or seize fragments de `include/ajax/detail-pp/` l'emploient (sort, classe, race, capacité,
+  don, compétence, objet, monstre, règle…), ouverts aussi depuis la fiche personnage, la vue
+  Magie, les campagnes et les règles. **Le composant migre vers `modules.css`** (29 règles), en
+  application de la règle permanente du 2026-06-14 : un fragment injecté par AJAX dans
+  `#detail-pp` a ses styles dans la seule feuille chargée partout.
+→ **Pas de régression possible dans le compendium** : `modules.css` y est chargé avant
+  `compendium-modules.css`, et les règles déplacées n'y ont plus d'homologue. Vérifié qu'aucune
+  autre feuille ne redéfinit ces sélecteurs — seul `.sort-detail__edit-btn`, déjà dans
+  `modules.css`, figure ailleurs.
+→ Même famille de défaut que `.modif-grid` en SP-PE11 : un composant partagé déclaré dans la
+  feuille d'un seul module.
+→ **Troisième cas de tableau couvert** : `<thead>` contenant des `<td>` plutôt que des `<th>`.
+  Le composant ne connaissait que l'en-tête en `<th>`, avec ou sans `<thead>` ; la table de
+  « Particularités célestes » n'avait donc pas d'en-tête visible.
+→ Contrôlé sur « Particularités célestes » injectée dans `#detail-pp` de la fiche, où
+  `compendium-modules.css` n'est pas chargée : liste à 24px de retrait, puces à l'intérieur du
+  panneau, en-tête de tableau en gras sur fond, alternance des lignes rétablie.
+
+---
+
+## SP-RB — Bascule de ruleset depuis le header
+
+**[2026-10-10] D-RB0 — Le badge du ruleset devient un switch ; un contexte de navigation par ruleset**
+Demande : basculer d'un clic entre DD3.5 et DD2024 pour tester, en retrouvant le dernier
+personnage de chaque ruleset, et recharger si possible la page équivalente.
+→ **Switch = formulaire POST** (`profil/ruleset.php`, CSRF), pas d'AJAX : la page doit de toute
+  façon être rechargée dans le nouveau contexte, et le header fonctionne ainsi sans JS. Affiché
+  aux mêmes conditions que l'ancien badge (`j_affichage_ruleset`).
+→ **Session seulement** : `j_default_ruleset_var_id` n'est pas modifié. Le switch sert à
+  naviguer et à tester ; le ruleset de connexion reste un réglage du profil.
+→ **Mémoire par ruleset en session** (`$_SESSION['contexte_ruleset'][id]`), pas en base : le
+  contexte de navigation (`last_pe_id`, chaîne campagne) a toujours vécu en session, aucune
+  migration n'est nécessaire. Elle couvre aussi la campagne, pas seulement le personnage : même
+  coût, et la purge de 2026-08-13 cesse d'effacer le contexte de l'autre ruleset.
+→ `basculerRuleset()` devient le **seul** point de changement du ruleset de session ; le profil
+  l'appelle à la place de `resetContexteRuleset()`. Restauration contrôlée en base (personnage
+  supprimé, campagne supprimée ou d'un autre ruleset → niveau abandonné).
+→ Un personnage consulté hors de son ruleset (fiche ouverte par lien) est rangé dans **son**
+  ruleset : `setLastPersonnage()` reçoit le ruleset du personnage.
+→ **Page équivalente** : faisable sans complication, la règle tient en une table (§3) — listes
+  rechargées sans leurs filtres, pages d'entité repliées sur l'entité mémorisée du ruleset rejoint
+  ou sur l'index du module, Historiques (DD2024 seul) → index du compendium, tout cas imprévu →
+  accueil. La cible est reconstruite depuis `BASE_URL`, jamais reprise de l'URI postée.
+→ Vérifié dans le navigateur : Elminster (DD3.5) → bascule → liste DD2024 vide de mémoire ;
+  Adon ouvert sur Magie → bascule → Magie d'Elminster ; retour → Adon, avec Trilogie des Avatars
+  › Valombre dans le fil d'Ariane ; Historiques → compendium DD3.5 ; sorts filtrés → sorts sans
+  filtre. Header sans débordement à 375px.
+
+**[2026-10-10] D-RB1 — Le switch à deux libellés redevient un badge cliquable**
+Retour utilisateur : le switch `DD3.5 | DD2024` prenait trop de place sur téléphone (117px).
+→ Le bouton n'affiche plus que le **ruleset actif**, suivi d'une icône ⇄ (`fa-right-left`,
+  0.6rem, couleur `--clr-accent-2`) ; bordure et icône s'accentuent au survol. Le clic bascule
+  comme avant, la page rechargée porte le libellé du nouveau ruleset.
+→ Largeur mesurée à 375px : 75px en DD2024, 64px en DD3.5 — l'icône ajoute ~10px à l'ancien
+  badge. Le libellé complet (« Ruleset actif : … — cliquer pour basculer en … ») passe dans
+  `title` et `aria-label`.
+
+**[2026-10-10] D-DP11 — Premier déploiement réel ; la production restait en maintenance**
+Code : `DeploiementSftp::supprimer()` et `argument()` (`admin/deploiement/lib.php`).
+→ Premier déploiement (SP-DP7) : 181 fichiers envoyés, migration
+  `2026-10-09_init_et_sauvegardes_sp-pe11.sql` appliquée par la production. Mais le site est resté
+  sur la page de maintenance : le fichier `.maintenance` n'avait jamais été supprimé, alors que le
+  journal affichait « Site rouvert ».
+→ **Cause** : dans une commande SFTP (`CURLOPT_QUOTE`), libcurl ne traduit pas le préfixe `/~/`
+  — seule l'URL le fait. Le serveur cherchait `/~/www/donjon/.maintenance`, introuvable. Et le
+  préfixe `*` (« continuer si la commande échoue »), choisi pour tolérer un fichier déjà absent,
+  masquait **tout** échec. Le test de connexion l'aurait signalé (la suppression du témoin était
+  vérifiée par listage) : un témoin résiduel a d'ailleurs été retrouvé dans le dossier privé.
+→ **Correctif** : chemins relatifs dans les commandes SFTP (relatifs au dossier d'ouverture de
+  session, le dossier d'accueil sur OVH) ; plus de `*` — seule l'erreur « No such file » est
+  tolérée, tout autre échec interrompt l'étape et propose Reprendre / Abandonner.
+→ Production rouverte le 2026-10-10 en supprimant `.maintenance` à la main (chemin relatif).
+  Vérifié sur le serveur réel : création puis suppression effective d'un fichier témoin,
+  suppression d'un fichier absent tolérée, test de connexion entièrement vert.
+
+**[2026-10-10] D-DP12 — La référence initiale était fausse pour la production**
+Code : `migrationsRemettreEnAttente()` (`include/migrations.php`), action « Remettre en attente »
+de `admin/migrations.php` ; requête `sql/diagnostic_reference_sp-dp.sql`.
+→ **Constat** : la page Magie plante en production — `Unknown column 'cla.cla_renouvellement'`.
+  La migration `2026-09-01_cadence_renouvellement_sp-ma4b.sql` n'y avait jamais été jouée, mais
+  la référence initiale (D-DP8, « toutes jouées en prod ») l'a inscrite comme passée : le moteur
+  ne pouvait pas la rattraper.
+→ **Correctif** : une migration `reference` ou `marquee` peut être **remise en attente** depuis
+  l'écran Migrations SQL ; le moteur la joue au passage suivant, dans l'ordre. Une migration
+  `executee` ne l'est jamais (son passage est prouvé).
+→ **Diagnostic** : une requête en lecture seule relève, pour chaque migration de la référence, la
+  trace qu'elle laisse en base (colonne, table, ligne ou compte). On la passe en local puis en
+  production dans phpMyAdmin ; chaque écart désigne une migration à remettre en attente.
+→ Leçon : une référence déclarée de mémoire n'est pas une preuve. Le diagnostic aurait dû
+  précéder l'inscription.
+
+**[2026-10-10] D-DP13 — Resynchronisation unique : copie manuelle de la base locale vers la production**
+→ Le diagnostic (`sql/diagnostic_reference_sp-dp.sql`) a montré 23 migrations jamais jouées en
+  production (2026-08-25 → 2026-09-01), dont un ordre à respecter (`regles_dd35_socle` avant les
+  fichiers `drs*`).
+→ **Décision de Jean-Michel** : la production n'est pas encore utilisée ; plutôt que de rejouer
+  les migrations, il importe lui-même un export de la base locale dans la base OVH. Opération
+  unique : aucun outillage supplémentaire. La phase SP-DP9 (rattrapage par le moteur) est retirée.
+→ Conséquence voulue : `dd_migrations` part avec l'export, la production hérite exactement de
+  l'état du local et les déploiements suivants reprennent normalement.
+→ L'action « Remettre en attente » et la requête de diagnostic restent disponibles (SP-DP8).
+→ Défaut préexistant relevé au passage, non corrigé : `requireAdmin()` / `requireAuth()`
+  redirigent vers `/index.php` sans `BASE_URL` ; hors connexion, une page protégée de la prod
+  renvoie à la racine de maikastel.fr, ce qui fait croire que la page n'existe pas.
+
+---
+
+## SP-SY — Synchronisation du contenu local → production
+
+**[2026-10-10] D-SY1 — Projet instruit puis mis de côté, non prioritaire**
+→ **Besoin** : le contenu saisi en local au fil du développement manque en production, le
+  déploiement (SP-DP) ne transférant que les fichiers et la structure. Règle posée par
+  Jean-Michel : **le contenu de la prod n'est jamais écrasé ni effacé ; seul le contenu local
+  absent y est ajouté.**
+→ **Projet distinct de SP-DP** : SP-DP transporte du code et des changements de structure,
+  SP-SY transporterait des données. Les deux s'enchaînent (synchronisation toujours après les
+  migrations), mais ils n'ont ni les mêmes risques ni le même calendrier.
+→ **Principe retenu à ce stade** : `INSERT IGNORE` de tout le contenu local, qui n'ajoute que les
+  clés primaires absentes, sans comparaison ligne à ligne et en conservant les identifiants (les
+  liens entre tables restent justes). **Condition indispensable** : des plages d'identifiants
+  séparées (compteurs de la prod à 1 000 000), sans quoi une ligne locale portant le même numéro
+  qu'une ligne créée en prod serait perdue sans bruit.
+→ **Écartés pour la règle posée** : la copie de tables entières (`DROP` + `CREATE`), qui écrase
+  les créations de la prod ; et la comparaison champ à champ, inutile tant que seules les lignes
+  absentes comptent.
+→ Cinq questions laissées ouvertes (plages, périmètre, modifications locales, suppressions faites
+  en prod, forme de l'outil) : `ARCHITECTURE_0_REFERENCE.md` §6c, phase `SP-SY0`.

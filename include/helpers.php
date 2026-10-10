@@ -431,9 +431,15 @@ function rulesetEnregistrement(PDO $db, string $table, string $champ_id,
 // CONTEXTE PERSONNAGE (last_pe_id)
 // ============================================================
 
-// Mémorise le dernier personnage consulté en session
-function setLastPersonnage(int $pe_id) {
+// Mémorise le dernier personnage consulté en session. $ruleset_var_id (ruleset
+// du personnage) : s'il diffère de celui de la session, le personnage est aussi
+// rangé comme dernier consulté de SON ruleset, que la bascule du header
+// retrouvera (SP-RB).
+function setLastPersonnage(int $pe_id, ?int $ruleset_var_id = null) {
   $_SESSION['last_pe_id'] = $pe_id;
+  if ($ruleset_var_id !== null && $ruleset_var_id !== (int)($_SESSION['ruleset_var_id'] ?? 1)):
+    memoriserPersonnageRuleset($pe_id, $ruleset_var_id);
+  endif;
 }
 
 // Retourne le dernier pe_id consulté ou 0
@@ -599,6 +605,158 @@ function resetContexteRuleset(): void {
   unset($_SESSION['last_sce_id'],  $_SESSION['last_sce_nom']);
   unset($_SESSION['last_scc_id'],  $_SESSION['last_scc_nom']);
   unset($_SESSION['last_re_id'],   $_SESSION['last_re_nom']);
+}
+
+// ============================================================
+// BASCULE DE RULESET (SP-RB)
+// ============================================================
+// Chaque ruleset garde son propre contexte de navigation (dernier personnage,
+// chaîne campagne/scénario/chapitre/rencontre), mémorisé en session sous
+// $_SESSION['contexte_ruleset'][ruleset_id]. Basculer met de côté le contexte
+// du ruleset quitté et restaure celui du ruleset rejoint : l'aller-retour
+// DD3.5 ⇄ DD2024 retrouve le personnage et la campagne laissés.
+
+// Clés de session composant le contexte de navigation d'un ruleset.
+const CONTEXTE_RULESET_CLES = [
+  'last_pe_id',
+  'last_camp_id', 'last_camp_nom',
+  'last_sce_id',  'last_sce_nom',
+  'last_scc_id',  'last_scc_nom',
+  'last_re_id',   'last_re_nom',
+];
+
+// Mémorise un personnage comme dernier consulté de SON ruleset, sans toucher
+// au contexte courant — appelée par setLastPersonnage() quand la fiche
+// consultée appartient à un ruleset différent de celui de la session.
+function memoriserPersonnageRuleset(int $pe_id, int $ruleset_var_id): void {
+  $_SESSION['contexte_ruleset'][$ruleset_var_id]['last_pe_id'] = $pe_id;
+}
+
+// Bascule la session sur $nouveau ruleset : sauvegarde le contexte du ruleset
+// quitté, purge, puis restaure le contexte mémorisé du ruleset rejoint après
+// avoir vérifié que ses entités existent toujours (personnage supprimé,
+// campagne supprimée entre-temps → niveau abandonné). Ne touche pas au
+// ruleset par défaut du profil (dd_joueurs.j_default_ruleset_var_id).
+function basculerRuleset(PDO $db, int $nouveau): void {
+  $ancien = (int)($_SESSION['ruleset_var_id'] ?? 1);
+
+  if ($ancien !== $nouveau):
+    $sauvegarde = [];
+    foreach (CONTEXTE_RULESET_CLES as $cle):
+      if (isset($_SESSION[$cle])):
+        $sauvegarde[$cle] = $_SESSION[$cle];
+      endif;
+    endforeach;
+
+    // Un personnage d'un autre ruleset consulté pendant la session (fiche
+    // ouverte depuis un lien) a déjà été rangé dans son propre ruleset par
+    // setLastPersonnage() : il ne doit pas devenir le « dernier » du ruleset quitté.
+    if (!empty($sauvegarde['last_pe_id'])):
+      $stmt = $db->prepare('SELECT pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+      $stmt->execute([(int)$sauvegarde['last_pe_id']]);
+      if ((int)$stmt->fetchColumn() !== $ancien):
+        unset($sauvegarde['last_pe_id']);
+        $pe_precedent = $_SESSION['contexte_ruleset'][$ancien]['last_pe_id'] ?? null;
+        if ($pe_precedent):
+          $sauvegarde['last_pe_id'] = $pe_precedent;
+        endif;
+      endif;
+    endif;
+
+    $_SESSION['contexte_ruleset'][$ancien] = $sauvegarde;
+    resetContexteRuleset();
+
+    $restaure = $_SESSION['contexte_ruleset'][$nouveau] ?? [];
+
+    if (!empty($restaure['last_pe_id'])):
+      $stmt = $db->prepare('SELECT 1 FROM dd_personnages WHERE pe_id = ? AND pe_ruleset_var_id = ?');
+      $stmt->execute([(int)$restaure['last_pe_id'], $nouveau]);
+      if ($stmt->fetchColumn()):
+        $_SESSION['last_pe_id'] = (int)$restaure['last_pe_id'];
+      endif;
+    endif;
+
+    if (!empty($restaure['last_camp_id'])):
+      $stmt = $db->prepare('
+        SELECT 1 FROM dd_campagnes
+        WHERE  camp_id = ? AND camp_ruleset_var_id = ? AND camp_supprime = 0
+      ');
+      $stmt->execute([(int)$restaure['last_camp_id'], $nouveau]);
+      if ($stmt->fetchColumn()):
+        foreach (CONTEXTE_RULESET_CLES as $cle):
+          if ($cle !== 'last_pe_id' && isset($restaure[$cle])):
+            $_SESSION[$cle] = $restaure[$cle];
+          endif;
+        endforeach;
+      endif;
+    endif;
+  endif;
+
+  $_SESSION['ruleset_var_id'] = $nouveau;
+  $_SESSION['rulesetRep']     = getRulesetRep($nouveau);
+}
+
+// Page équivalente à $retour (URI de la page courante) dans le ruleset qui
+// vient d'être activé. Les pages de liste sont indépendantes du ruleset et sont
+// rechargées telles quelles (sans leurs filtres, qui pointent souvent vers des
+// entités du ruleset quitté). Les pages d'une entité rattachée à un ruleset
+// (personnage, campagne, règle) se replient sur l'entité mémorisée du ruleset
+// rejoint, ou à défaut sur l'index du module. Toute URI inattendue renvoie à
+// l'accueil — la cible est reconstruite depuis BASE_URL, jamais reprise brute.
+function pageEquivalenteRuleset(string $retour, int $ruleset_var_id): string {
+  $accueil = BASE_URL . '/index.php';
+  $chemin  = (string)parse_url($retour, PHP_URL_PATH);
+  $prefixe = BASE_URL . '/';
+  if (strpos($chemin, $prefixe) !== 0) return $accueil;
+
+  $rel = substr($chemin, strlen($prefixe));
+  if ($rel === '' || substr($rel, -1) === '/') $rel .= 'index.php';
+  if (!preg_match('#^[a-z0-9_-]+(/[a-z0-9_-]+)*\.php$#', $rel)) return $accueil;
+  if (strpos($rel, 'include/') === 0 || basename($rel) === 'enregistrement.php') return $accueil;
+  if (!is_file(__DIR__ . '/../' . $rel)) return $accueil;
+
+  $module = dirname($rel);
+  $page   = basename($rel);
+
+  // Personnage : sous-pages de la fiche → personnage mémorisé du ruleset.
+  if ($module === 'personnages' && $page !== 'index.php'):
+    $pe_id = getLastPersonnage();
+    if ($page === 'objets.php') $page = 'possessions.php';
+    return $pe_id > 0
+      ? BASE_URL . '/personnages/' . $page . '?id=' . $pe_id
+      : BASE_URL . '/personnages/index.php';
+  endif;
+
+  // Campagne : même niveau dans la chaîne mémorisée, ou le plus profond des
+  // ancêtres disponibles, ou la liste.
+  if ($module === 'campagnes' && $page !== 'index.php'):
+    $niveaux = ['rencontre.php' => 're', 'chapitre.php' => 'scc', 'scenario.php' => 'sce', 'campagne.php' => 'camp'];
+    $depart  = array_search($page, array_keys($niveaux), true);
+    if ($depart !== false):
+      foreach (array_slice($niveaux, $depart, null, true) as $fichier => $prefixe_niv):
+        $id = (int)($_SESSION['last_' . $prefixe_niv . '_id'] ?? 0);
+        if ($id > 0) return BASE_URL . '/campagnes/' . $fichier . '?id=' . $id;
+      endforeach;
+    endif;
+    return BASE_URL . '/campagnes/index.php';
+  endif;
+
+  // Règle : chaque règle appartient à un ruleset.
+  if ($rel === 'regles/regle.php') return BASE_URL . '/regles/index.php';
+
+  // Recherche dans les règles : le terme cherché vaut pour les deux rulesets.
+  if ($rel === 'regles/recherche.php'):
+    parse_str((string)parse_url($retour, PHP_URL_QUERY), $query);
+    $q = trim((string)($query['q'] ?? ''));
+    return BASE_URL . '/regles/recherche.php' . ($q !== '' ? '?q=' . rawurlencode($q) : '');
+  endif;
+
+  // Historiques : DD2024 uniquement.
+  if ($rel === 'compendium/historiques.php' && $ruleset_var_id !== 2):
+    return BASE_URL . '/compendium/index.php';
+  endif;
+
+  return BASE_URL . '/' . $rel;
 }
 
 // ============================================================

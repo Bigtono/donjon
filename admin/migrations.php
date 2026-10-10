@@ -41,6 +41,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
     $_SESSION['flash_message'] = migrationsMarquer($db, $fichier)
       ? ['type' => 'success', 'text' => $fichier . ' marquée comme appliquée.']
       : ['type' => 'error', 'text' => 'Impossible de marquer ' . $fichier . '.'];
+
+  elseif ($action === 'remettre'):
+    $fichier = strParam($_POST['fichier'] ?? '');
+    $_SESSION['flash_message'] = migrationsRemettreEnAttente($db, $fichier)
+      ? ['type' => 'success', 'text' => $fichier . ' remise en attente : elle sera jouée au prochain passage.']
+      : ['type' => 'error', 'text' => 'Impossible de remettre ' . $fichier . ' en attente.'];
   endif;
 
   header('Location: ' . BASE_URL . '/admin/migrations.php');
@@ -139,6 +145,16 @@ require_once '../include/header.php';
                 <input type="hidden" name="fichier" value="<?= h($m['fichier']) ?>">
                 <button type="submit" class="btn btn-secondary btn-sm" title="Jouée à la main (phpMyAdmin) : l'inscrire sans l'exécuter">
                   Marquer comme appliquée
+                </button>
+              </form>
+            <?php elseif (in_array($m['statut'], [MIGRATION_REFERENCE, MIGRATION_MARQUEE], true)): ?>
+              <form method="POST" action="<?= BASE_URL ?>/admin/migrations.php"
+                    onsubmit="return confirm('Remettre <?= h($m['fichier']) ?> en attente ? Elle sera EXÉCUTÉE au prochain passage du moteur. À réserver à une migration qui n\'a en réalité jamais été jouée sur cette base.');">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="remettre">
+                <input type="hidden" name="fichier" value="<?= h($m['fichier']) ?>">
+                <button type="submit" class="btn btn-secondary btn-sm" title="Inscrite « déjà jouée » à tort : la faire jouer par le moteur">
+                  Remettre en attente
                 </button>
               </form>
             <?php endif ?>

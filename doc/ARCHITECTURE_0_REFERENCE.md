@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-09 17:48 -->
+<!-- Mis à jour : 2026-10-10 12:21 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -377,6 +377,9 @@
   - [x] SP-PE10m — Caractéristiques agrandies (valeur en couleur, abréviation sans fond), « BM » sur la tuile de maîtrise, et **Compétences / Dons côte à côte** au-dessus de 992px — le NLS passe sous la rangée
   - [x] SP-PE10n — Bloc NLS prestige repliable, **fermé par défaut** ; `perDeplierBloc()` ouvre le bloc quand on lance son éditeur depuis l'état replié
   - [x] SP-PE10o — Caractéristiques en colonnes de largeur fixe (`min-width: 0` compris), alignées verticalement d'un rang à l'autre ; largeurs recalculées sous 992px
+- [x] SP-PE11 — Initiative (`pe_init`) et six modificateurs de sauvegarde (`pe_*_save`) — **patch SQL** ; bonus de maîtrise accolé au niveau global en DD2024 ; jets de sauvegarde en 4e colonne (DD2024) ou en bloc Réflexes / Vigueur / Volonté (DD3.5) ; rangée **Capacités de race / de classe**. **Défaut corrigé** : `.modif-grid` n'était pas chargée sur la fiche personnage
+- [x] SP-PE12 — Graisse : les valeurs d'initiative et de sauvegarde reviennent à la règle du module (gras au libellé seul)
+- [x] SP-PE13 — En-têtes MOD / SAUV un par colonne (DD2024) ; composant `.sort-detail` déplacé de `compendium-modules.css` vers `modules.css` — les panneaux de détail ouverts hors du compendium perdaient leurs styles
 
 > Hors périmètre SP-PE : les **objets magiques du personnage** (`personnages/objets.php` reste un
 > placeholder, aucune table) — analyse métier non fiabilisée, cf. `DECISIONS_LOG.md` [2026-06-12] [D].
@@ -430,6 +433,13 @@
 
 - [x] SP-AD0 — Changement du mot de passe d'un utilisateur par l'administrateur : section facultative du formulaire d'édition (nouveau + confirmation), validation serveur, invalidation du lien de réinitialisation en attente
 
+### SP-RB — Bascule de ruleset depuis le header
+
+> Le badge du ruleset actif devient un switch DD3.5 / DD2024 ; chaque ruleset garde son propre
+> contexte de navigation en session. Voir §3 « Bascule depuis le header ».
+
+- [x] SP-RB0 — Bouton de bascule dans le header (ruleset actif + icône ⇄) (`profil/ruleset.php`, POST + CSRF), contexte de navigation mémorisé par ruleset (`basculerRuleset()`), rechargement de la page équivalente (`pageEquivalenteRuleset()`), profil aligné sur le même mécanisme
+
 ### SP-DP — Déploiement en production et migrations SQL
 
 > Transfert SFTP du poste local vers OVH et application des migrations par le serveur. Module
@@ -441,9 +451,23 @@
 - [x] SP-DP3 — Manifeste distant (hors `www/`), aperçu à blanc : nouveaux, modifiés, retirés en local
 - [x] SP-DP4 — Bouton du header, panneau de confirmation, transfert par lots, mode maintenance, verrou, reprise / abandon, journal
 - [x] SP-DP4b — Correctif : module visible par l'adresse réseau du poste (`http://192.168.1.10/donjon/`), pas seulement par `localhost`
+- [x] SP-DP4c — Correctif : suppression SFTP en chemin relatif (le préfixe `/~/` n'est pas traduit dans les commandes SFTP), et plus aucun échec de suppression ignoré — la production restait en maintenance
 - [x] SP-DP5 — Moteur de migrations (`include/migrations.php`, table `dd_migrations`, référence initiale des 37 migrations antérieures, écran `admin/migrations.php`)
 - [x] SP-DP6 — Application automatique en production : jeton à usage unique déposé par SFTP, point d'entrée `admin/migrations-auto.php`
-- [ ] SP-DP7 — Premier déploiement réel : activer le SFTP du compte OVH, renseigner les paramètres, approuver l'empreinte, « Tester la connexion », puis déployer (le premier envoi part en entier, ~180 fichiers)
+- [x] SP-DP7 — Premier déploiement réel (2026-10-10) : 181 fichiers envoyés, 1 migration appliquée en production
+- [x] SP-DP8 — Action « Remettre en attente » (admin/migrations.php) et requête de diagnostic `sql/diagnostic_reference_sp-dp.sql`
+
+### SP-SY — Synchronisation du contenu local → production
+
+> **En attente d'arbitrage, non prioritaire** (mis de côté le 2026-10-10). Ajouter en production
+> le contenu saisi en local qui y manque, sans jamais rien écraser ni effacer. Voir §6c.
+
+- [ ] SP-SY0 — Arbitrage des 5 questions de §6c (plages d'identifiants, périmètre de tables, modifications locales, suppressions faites en prod, forme de l'outil)
+- [ ] SP-SY1 — Plages d'identifiants séparées : migration qui fait démarrer les compteurs AUTO_INCREMENT de la prod à 1 000 000 sur les tables synchronisées
+- [ ] SP-SY2 — Export du contenu local en `INSERT IGNORE` (données seules, périmètre arbitré, tables de travail exclues)
+- [ ] SP-SY3 — Application en production (dépôt SFTP + jeton, comme les migrations) et compte rendu par table : lignes ajoutées, lignes ignorées sur une autre contrainte d'unicité
+- [ ] SP-SY4 — Bouton « Synchroniser le contenu » dans le module de déploiement, toujours après les migrations
+- [ ] SP-SY5 — Selon arbitrage : mémoire des suppressions faites en prod, propagation des modifications du contenu officiel
 
 ---
 
@@ -574,12 +598,48 @@ pouvait déplacer une entrée existante d'un ruleset à l'autre, ce qui casse to
 `*_ruleset_var_id` n'apparaît que dans les `INSERT`, **jamais dans les `UPDATE`**.
 
 Le formulaire affiche le ruleset en clair (`<input disabled>`, sans `name`) là où l'information est
-utile à la saisie — Campagne et Personnage. Pour créer dans l'autre ruleset, on en change dans son
-profil (§11).
+utile à la saisie — Campagne et Personnage. Pour créer dans l'autre ruleset, on en change par le
+switch du header (ci-dessous) ou dans son profil (§11).
 
 **Seule exception : `include/ajax/modifier/ressource.php`** (admin) garde son select. Une ressource
 est un livre source *déclaré pour* un ruleset ; l'admin en saisit indépendamment du ruleset de sa
 propre session.
+
+### Bascule depuis le header — SP-RB
+
+Quand `j_affichage_ruleset` est actif, le badge du ruleset (`include/header.php`) est un bouton
+qui n'affiche **que le ruleset actif**, suivi d'une petite icône ⇄ (`fa-right-left`) signalant
+qu'il est cliquable (`.site-header__ruleset*`, `css/main.css`) — ~64-75px, contre ~117px pour la
+première version à deux libellés, trop large sur téléphone. C'est un `<form>` POST vers `profil/ruleset.php` (CSRF, ruleset cible, `retour` = URI courante) : aucun JS.
+
+**Session seulement** : la bascule ne modifie pas `j_default_ruleset_var_id` — la prochaine
+connexion repart sur le ruleset du profil.
+
+**Contexte mémorisé par ruleset** — `basculerRuleset($db, $nouveau)` (`helpers.php`), seul point
+de changement du ruleset de session (le profil l'appelle aussi) :
+1. range le contexte courant (`CONTEXTE_RULESET_CLES` : `last_pe_id` et la chaîne
+   `last_camp/sce/scc/re_id|nom`) dans `$_SESSION['contexte_ruleset'][ancien]` ;
+2. purge (`resetContexteRuleset()`) ;
+3. restaure `$_SESSION['contexte_ruleset'][nouveau]` après contrôle en base : personnage existant
+   et du bon ruleset ; campagne non supprimée et du bon ruleset (sinon toute la chaîne campagne
+   est abandonnée).
+
+Un personnage d'un autre ruleset consulté par lien est rangé dans **son** ruleset
+(`setLastPersonnage($pe_id, $pe_ruleset)` → `memoriserPersonnageRuleset()`), et n'écrase pas le
+dernier personnage du ruleset quitté au moment de la bascule.
+
+**Page équivalente** — `pageEquivalenteRuleset($retour, $nouveau)` reconstruit la cible depuis
+`BASE_URL` (jamais l'URI brute : pas de redirection ouverte) :
+
+| Page quittée | Page rechargée |
+|---|---|
+| Listes (compendium, règles, campagnes, personnages, profil, admin…) | Même page, **sans la query** (les filtres visent des entités du ruleset quitté) |
+| `personnages/<sous-page>.php?id=` | Même sous-page du personnage mémorisé, sinon `personnages/index.php` |
+| `campagnes/<niveau>.php?id=` | Même niveau de la chaîne mémorisée, sinon l'ancêtre le plus profond, sinon `campagnes/index.php` |
+| `regles/regle.php?id=` | `regles/index.php` |
+| `regles/recherche.php?q=` | Même recherche (`q` conservé) |
+| `compendium/historiques.php` vers DD3.5 | `compendium/index.php` |
+| `enregistrement.php`, `include/`, URI hors `BASE_URL` ou fichier absent | `index.php` |
 
 ---
 
@@ -1643,9 +1703,9 @@ compilé avec libssh2. **Empreinte de la clé du serveur épinglée**
 (`CURLOPT_SSH_HOST_PUBLIC_KEY_SHA256`) ; sans empreinte approuvée, toute connexion est refusée.
 La lecture de l'empreinte se fait **sans s'authentifier** : épinglage volontairement faux, la
 poignée de main échoue avant l'envoi de tout identifiant et libcurl cite l'empreinte réelle.
-Une poignée curl par objet, `curl_reset()` entre deux opérations : la connexion SSH est
+Dans les commandes SFTP (suppression), les chemins sont **relatifs** au dossier d'ouverture de la session : le préfixe `/~/` n'y est pas traduit, contrairement à l'URL. Seule l'absence du fichier est tolérée à la suppression ; tout autre échec interrompt l'étape (D-DP11). Une poignée curl par objet, `curl_reset()` entre deux opérations : la connexion SSH est
 réutilisée d'un fichier à l'autre. Chemins distants relatifs au dossier d'accueil (`/~/` dans
-l'URL et dans les commandes SFTP) ou absolus.
+l'URL seulement) ou absolus.
 
 ### Manifeste et plan
 
@@ -1692,6 +1752,7 @@ Fichier `.maintenance` à la racine du site, posé et retiré par SFTP. `include
   ignore les erreurs suivantes et bloque la connexion (erreur 2014) — D-DP6.
 - Arrêt à la **première erreur**, avec le rang et un extrait de l'instruction fautive. MySQL
   n'annule pas un `ALTER TABLE` : une migration en échec peut rester partiellement appliquée.
+- **Remettre en attente** (`migrationsRemettreEnAttente()`) : retire une ligne `reference` ou `marquee` pour que le moteur la joue — cas d'une référence fausse (D-DP12). Jamais pour une migration `executee`. Diagnostic : `sql/diagnostic_reference_sp-dp.sql`.
 - Un fichier modifié après application est **signalé** (empreinte), jamais rejoué. Pour corriger
   une migration passée, en écrire une nouvelle.
 - Un script contenant `DELIMITER` est refusé : à passer par phpMyAdmin, puis « Marquer comme
@@ -1739,6 +1800,73 @@ include/maintenance.php     page 503
 
 ---
 
+## 6c. Synchronisation du contenu local → production — SP-SY (en attente d'arbitrage)
+
+> Projet instruit le 2026-10-10, **mis de côté, non prioritaire**. Rien n'est développé. Cette
+> section garde l'analyse pour reprendre le chantier. Décisions : `DECISIONS_LOG.md` D-SY1.
+
+### Besoin
+
+Jean-Michel alimente la base **en local**, au fil du développement (compendium, règles,
+tableaux…). Le déploiement (SP-DP) transfère les fichiers et la **structure** (migrations), pas
+les **données** : la prod manque donc du contenu saisi en local. Le 2026-10-10, la resynchronisation
+s'est faite par copie complète de la base, hors tables des comptes (D-DP13). Ce n'est plus possible
+dès que la prod porte des données propres.
+
+**Règle posée** : le contenu de la production n'est **jamais** écrasé ni effacé ; seul le contenu
+local **absent** de la prod y est ajouté.
+
+### Familles de tables (relevé du 2026-10-10)
+
+| Famille | Exemples | Source |
+|---|---|---|
+| A. Référentiels purs (aucun champ propriétaire) | `dd_classe_niveau`, `dd_classe_capacite`, `dd_capacites_speciales`, `dd_sortclasse`, `dd_sortdomaine`, `dd_variables`, `dd_domaines`, `dd_fp` | Local |
+| B. Compendium (`_res_id`, parfois `_camp_id`) | `dd_sorts`, `dd_dons`, `dd_classes`, `dd_races`, `dd_objets_magiques`, `dd_monstres`, `dd_regles`, `dd_tableaux`, `dd_ressources` | **Mixte** : contenu officiel (local) + suppléments et homebrew de campagne des joueurs (prod) |
+| C. Données de jeu | `dd_personnages*`, `dd_campagnes*`, `dd_scenarios`, `dd_rencontres`, `dd_oppositions`, `dd_notes`, `dd_univers*` | Prod |
+| Comptes | `dd_joueurs`, `dd_joueurs_sources`, `dd_connexions` | Prod — jamais synchronisées |
+| Tables de travail | `*_backup_*`, `*_import`, `*_old`, `*_v1` | Jamais synchronisées |
+
+### Principe technique pressenti
+
+- **`INSERT IGNORE`** : MySQL ajoute une ligne si sa clé primaire est absente et l'ignore sinon.
+  Envoyer tout le contenu local en `INSERT IGNORE` réalise exactement la règle, **sans comparaison
+  ligne à ligne**. Les identifiants sont conservés, donc les liens entre tables restent justes.
+- **Plages d'identifiants séparées, condition indispensable.** Le 2026-10-10, local et prod ont
+  les mêmes identifiants (copie complète). Ensuite, chaque base numérote de son côté : une ligne
+  créée en prod et une ligne créée en local recevraient le même numéro, et `INSERT IGNORE` perdrait
+  la locale **sans bruit**. Parade : faire démarrer les compteurs de la prod à 1 000 000 sur les
+  tables synchronisées (migration unique).
+- **Ordre** : toujours **après** un déploiement et ses migrations, le schéma doit être identique.
+- **Exécution en prod** : la base OVH n'accepte que les connexions de l'hébergement. Même
+  mécanisme que les migrations : fichier déposé par SFTP hors `www/`, appliqué par un point
+  d'entrée protégé par jeton à usage unique (§6b).
+- **Compte rendu** par table : lignes ajoutées, et surtout lignes ignorées à cause d'une **autre**
+  contrainte d'unicité (slug en double…), qui seraient sinon perdues sans bruit.
+
+### Conséquences de la règle, à arbitrer
+
+- Une ligne **modifiée en local** (description corrigée) n'est pas propagée : la prod a déjà la
+  ligne et la garde.
+- Une ligne **supprimée en prod** mais présente en local serait **rajoutée** à chaque
+  synchronisation, sauf à mémoriser les suppressions côté prod.
+- Personnages et campagnes créés en local sont rattachés aux comptes **locaux**, dont les
+  identifiants peuvent différer de ceux de la prod.
+
+### Questions d'arbitrage (SP-SY0)
+
+1. Plages d'identifiants : faire démarrer les compteurs de la prod à 1 000 000 ?
+2. Périmètre : familles A et B seulement, ou aussi la famille C créée en local ?
+3. Modifications locales : les ignorer (règle stricte), ou les propager pour le contenu officiel ?
+4. Suppressions faites en prod : les mémoriser pour ne jamais rajouter une ligne supprimée exprès ?
+5. Forme : commande manuelle (`mysqldump --no-create-info --insert-ignore`, importée dans le
+   phpMyAdmin d'OVH), ou bouton intégré au module de déploiement ?
+
+**Solution d'attente sans développement** : `mysqldump --no-create-info --insert-ignore` sur les
+tables voulues, importé dans phpMyAdmin OVH. Ce n'est sûr qu'**avant** que la prod ait créé ses
+propres lignes, faute de plages séparées.
+
+---
+
 ## 7. Module Personnages
 
 ### 7.1 Finalité — aide de jeu, pas moteur de règles
@@ -1775,9 +1903,11 @@ en blocs repliables (`togglePlus`). La **Magie** reste une **vue dédiée** (`pe
 |---|---|---|---|
 | 1 | Mode jeu *(emplacement réservé)* | Suivi PV et autres variables selon ruleset — **contenu différé**. **Masqué** sauf si `j_affichage_mode_jeu` est actif (profil) | — |
 | 2 | Identité *(sans titre)* | Rangée : **Niveau**, Race (+ archétype DD3.5), Sexe, Alignement, Historique (DD2024) — puis les **classes**, une par ligne | Race, Historique, Classe |
-| 3 | Caractéristiques + CA + PV | Une rangée de trois blocs, sans titres | — |
+| 3 | Caractéristiques + Init + CA + PV | Une rangée de blocs, sans titres. En DD2024 les caractéristiques portent une 4e colonne, le **jet de sauvegarde** (SP-PE11) | — |
+| 3b | Jets de sauvegarde *(DD3.5)* | Réflexes, Vigueur, Volonté — bloc à part, le ruleset n'en a que trois et sous d'autres noms | — |
 | 4 | Compétences + Dons | Une **rangée de deux blocs** au-dessus de 992px, empilés en dessous (SP-PE10m) | Compétence, Don |
-| 5 | NLS prestige *(DD3.5)* | Affectation niveaux de prestige → classes de base lanceuses. **Sous** la rangée, pleine largeur, **replié par défaut** (SP-PE10n) | — |
+| 5 | Capacités de race + de classe | Une rangée de deux blocs, déduite des tables de liaison — aucune saisie (SP-PE11) | Capacité |
+| 6 | NLS prestige *(DD3.5)* | Affectation niveaux de prestige → classes de base lanceuses. **Sous** la rangée, pleine largeur, **replié par défaut** (SP-PE10n) | — |
 
 ### 7.3b Bloc Identité et rangée de stats (SP-PE10h)
 
@@ -1811,6 +1941,28 @@ bouton Modifier : `nlsEditor` l'appelle avant d'ouvrir son éditeur, sans quoi c
 chargerait dans un corps masqué. Les deux corps d'un tel bloc (lecture et édition) sont
 enveloppés dans un conteneur unique, que le chevron replie.
 
+**Initiative, bonus de maîtrise, sauvegardes (SP-PE11)** — `pe_init` et `pe_for_save` …
+`pe_cha_save` sont **saisis**, jamais calculés (§7.1). L'initiative occupe une tuile de la rangée
+de stats, dans les deux rulesets ; le **bonus de maîtrise** DD2024 se lit derrière le niveau
+global du bloc Identité, « Niveau 6 (BM +3) ». Les **sauvegardes** s'affichent en 4e colonne des
+caractéristiques en DD2024 (grille à deux caractéristiques de front sous 992px) et dans un bloc
+`Réflexes / Vigueur / Volonté` en DD3.5, qui n'en connaît que trois.
+
+**Capacités spéciales (SP-PE11)** — deux blocs sur la rangée des listes, alimentés par
+`dd_race_capacite` et `dd_classe_capacite` : aucune saisie. Les capacités de classe sont filtrées
+sur `cc_niveau <= pc_niveau` et groupées par classe ; une **sous-classe DD2024** emprunte le
+niveau de sa classe porteuse, un **archétype DD3.5** ajoute ses capacités à celles de la race.
+Chaque titre ouvre `detail-pp/capacite.php`.
+
+> **Le composant `.sort-detail` vit dans `modules.css`** depuis SP-PE13 — en-tête, lignes,
+> libellés, description et tableaux. Seize fragments de `detail-pp/` l'emploient et s'ouvrent
+> hors du compendium ; dans `compendium-modules.css`, il n'était chargé que sur neuf pages.
+> Ses tableaux couvrent trois saisies : `<th>` en `<thead>`, `<th>` sans `<thead>`, et `<td>`
+> en `<thead>`.
+
+> `.modif-grid` (le `display: grid` des formulaires) vit aussi dans `personnages-modules.css` :
+> elle n'était déclarée que dans les feuilles compendium et admin, que la fiche ne charge pas.
+
 **Rangée Compétences / Dons (SP-PE10m)** — `.per-fiche__rangee--listes`, deux blocs à 50 % au-dessus
 de 992px, empilés en dessous. `min-width: 0` sur les deux : sans lui, le tableau de l'éditeur de
 compétences impose sa largeur intrinsèque et fait déborder la rangée dès l'ouverture.
@@ -1833,7 +1985,9 @@ compétences impose sa largeur intrinsèque et fait déborder la rangée dès l'
 
 **Graisse et taille (SP-PE10j)** — règle d'interface du module : le **libellé porte le gras**, la
 **valeur reste en graisse normale**, et les deux ont la même taille dans la même police. Elle vaut
-pour les champs d'identité (`dt` / `dd`), les classes (nom / niveau) et les tuiles CA / PV.
+pour les champs d'identité (`dt` / `dd`), les classes (nom / niveau), les tuiles CA / PV / Init,
+les jets de sauvegarde et la colonne SAUV des caractéristiques — **sans exception** depuis
+SP-PE12, qui a repris les deux écarts introduits en SP-PE11.
 
 **Compétences** — la colonne **Carac porte deux valeurs** (abréviation et modificateur) et reçoit
 donc 4.6rem, contre 3.2 pour Maîtrise/Rangs et Total ; sur téléphone, 4.2 contre 2.4. La colonne
@@ -3185,8 +3339,9 @@ Ces cinq paramètres sont écrits en base **et** répercutés en session (`rules
 immédiatement, sans reconnexion.
 
 > ⚠️ **Changement de ruleset** — si `j_default_ruleset_var_id` change réellement de valeur, la
-> sauvegarde appelle en plus `resetContexteRuleset()` (`helpers.php`) : personnage, campagne,
-> scénario, chapitre et rencontre mémorisés appartiennent au ruleset quitté. Les conserver
+> sauvegarde passe par `basculerRuleset()` (`helpers.php`, SP-RB — §3) : personnage, campagne,
+> scénario, chapitre et rencontre mémorisés appartiennent au ruleset quitté ; ils sont mis de
+> côté pour ce ruleset et ceux du ruleset rejoint sont restaurés. Les conserver
 > afficherait des boutons de header de l'autre ruleset et, `last_pe_id` étant la priorité 1 de
 > `getActiveResIds()`, ferait remonter les sources de la campagne d'un personnage hors ruleset.
 > La même bascule recharge `$ruleset_nom_actif`, `$ressources_dispo` et `$res_selectionnes`, tous

@@ -65,8 +65,23 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
       <a href="<?= BASE_URL ?>/index.php" class="site-header__logo">
         <img src="<?= BASE_URL ?>/img/logo_codex.png" alt="Codex DD" class="site-header__logo-img">
       </a>
-      <? if (!empty($_SESSION['j_affichage_ruleset']) && !empty($_SESSION['rulesetRep'])): ?>
-        <span class="site-header__ruleset"><?= h($_SESSION['rulesetRep']) ?></span>
+      <? if (!empty($_SESSION['j_affichage_ruleset']) && !empty($_SESSION['rulesetRep'])):
+        // Switch de ruleset (SP-RB) : un clic bascule sur l'autre ruleset et
+        // recharge la page équivalente (profil/ruleset.php).
+        $ruleset_actif_id = (int)($_SESSION['ruleset_var_id'] ?? 1);
+        $ruleset_cible_id = $ruleset_actif_id === 1 ? 2 : 1;
+      ?>
+        <form method="post" action="<?= BASE_URL ?>/profil/ruleset.php" class="site-header__ruleset-form">
+          <?= csrfField() ?>
+          <input type="hidden" name="ruleset_var_id" value="<?= $ruleset_cible_id ?>">
+          <input type="hidden" name="retour" value="<?= h($_SERVER['REQUEST_URI'] ?? '') ?>">
+          <button type="submit" class="site-header__ruleset"
+                  title="Ruleset actif : <?= h($_SESSION['rulesetRep']) ?> — cliquer pour basculer en <?= h(getRulesetRep($ruleset_cible_id)) ?>"
+                  aria-label="Ruleset <?= h($_SESSION['rulesetRep']) ?>, basculer en <?= h(getRulesetRep($ruleset_cible_id)) ?>">
+            <?= h($_SESSION['rulesetRep']) ?>
+            <i class="fa fa-right-left site-header__ruleset-icone" aria-hidden="true"></i>
+          </button>
+        </form>
       <? endif ?>
     </div>
 

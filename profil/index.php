@@ -147,20 +147,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
 
       $ruleset_change = $ruleset_var_id !== $ruleset_var_id_actif;
 
-      $_SESSION['ruleset_var_id']      = $ruleset_var_id;
-      $_SESSION['rulesetRep']          = getRulesetRep($ruleset_var_id);
+      // Le contexte de navigation mémorisé (personnage, campagne, scénario,
+      // chapitre, rencontre) appartient au ruleset quitté : basculerRuleset()
+      // le met de côté et restaure celui du ruleset rejoint (SP-RB), sinon le
+      // header afficherait des niveaux de l'autre ruleset et getActiveResIds()
+      // remonterait les sources de la campagne du personnage précédent.
+      basculerRuleset($db, $ruleset_var_id);
       $_SESSION['j_mode_campagne']     = $mode_campagne;
       $_SESSION['j_affichage_ruleset'] = $affichage_ruleset;
       $_SESSION['j_affichage_mode_jeu'] = $affichage_mode_jeu;
       $_SESSION['j_theme']             = $theme;
 
-      // Le contexte de navigation mémorisé (personnage, campagne, scénario,
-      // chapitre, rencontre) appartient au ruleset quitté : on le purge, sinon
-      // le header affiche des niveaux de l'autre ruleset et getActiveResIds()
-      // remonte les sources de la campagne du personnage précédent.
       if ($ruleset_change):
-        resetContexteRuleset();
-
         // Recharger l'affichage sur le nouveau ruleset (section « Mes sources »)
         $ruleset_var_id_actif = $ruleset_var_id;
         $ruleset_nom_actif    = '';

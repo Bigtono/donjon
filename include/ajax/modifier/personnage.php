@@ -40,6 +40,13 @@ $perso = [
   'pe_int'            => 10,
   'pe_sag'            => 10,
   'pe_cha'            => 10,
+  'pe_init'           => 0,
+  'pe_for_save'       => 0,
+  'pe_con_save'       => 0,
+  'pe_dex_save'       => 0,
+  'pe_int_save'       => 0,
+  'pe_sag_save'       => 0,
+  'pe_cha_save'       => 0,
   'pe_ca'             => 10,
   'pe_pv'             => 0,
   'pe_background'     => '',
@@ -283,20 +290,43 @@ $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['p
       <div class="modif-grid modif-grid--carac">
 
         <?php
+          // En DD3.5, trois sauvegardes seulement portent un nom de jet —
+          // Réflexes, Vigueur, Volonté. Les autres colonnes restent saisissables
+          // mais ne sont pas exposées en lecture (SP-PE11).
+          $est2024 = ($ruleset_rep === 'DD2024');
           $caracs = [
             'pe_for' => ['lbl' => 'Force',        'abr' => 'FOR'],
-            'pe_con' => ['lbl' => 'Constitution', 'abr' => 'CON'],
-            'pe_dex' => ['lbl' => 'Dextérité',    'abr' => 'DEX'],
+            'pe_con' => ['lbl' => 'Constitution', 'abr' => 'CON',
+                         'save' => $est2024 ? 'Constitution' : 'Vigueur',
+                         'save_abr' => $est2024 ? 'SAUV' : 'VIG'],
+            'pe_dex' => ['lbl' => 'Dextérité',    'abr' => 'DEX',
+                         'save' => $est2024 ? 'Dextérité' : 'Réflexes',
+                         'save_abr' => $est2024 ? 'SAUV' : 'RÉF'],
             'pe_int' => ['lbl' => 'Intelligence', 'abr' => 'INT'],
-            'pe_sag' => ['lbl' => 'Sagesse',      'abr' => 'SAG'],
+            'pe_sag' => ['lbl' => 'Sagesse',      'abr' => 'SAG',
+                         'save' => $est2024 ? 'Sagesse' : 'Volonté',
+                         'save_abr' => $est2024 ? 'SAUV' : 'VOL'],
             'pe_cha' => ['lbl' => 'Charisme',     'abr' => 'CHA'],
           ];
         ?>
+        <?php // Le modificateur de SAUVEGARDE se saisit sous sa caractéristique
+              // (SP-PE11) : les deux se lisent ensemble, comme dans le bloc de
+              // stats d'un monstre. Les six colonnes existent dans les deux
+              // rulesets ; en DD3.5 seules trois sont exposées en lecture —
+              // Réflexes, Vigueur, Volonté — mais les saisir toutes coûte moins
+              // cher qu'un formulaire qui change de forme selon le ruleset. ?>
         <?php foreach ($caracs as $champ => $meta): ?>
           <div class="form-group form-group--carac">
             <label for="<?= $champ ?>" title="<?= h($meta['lbl']) ?>"><?= $meta['abr'] ?></label>
             <input type="number" id="<?= $champ ?>" name="<?= $champ ?>"
                    value="<?= (int)$perso[$champ] ?>" min="0" max="99" required
+                   inputmode="numeric">
+            <label for="<?= $champ ?>_save" class="form-group--carac__sous-label"
+                   title="Modificateur de sauvegarde — <?= h($meta['save'] ?? $meta['lbl']) ?>">
+              <?= h($meta['save_abr'] ?? 'SAUV') ?>
+            </label>
+            <input type="number" id="<?= $champ ?>_save" name="<?= $champ ?>_save"
+                   value="<?= (int)$perso[$champ . '_save'] ?>" min="-20" max="40"
                    inputmode="numeric">
           </div>
         <?php endforeach ?>
@@ -312,6 +342,15 @@ $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['p
         <span class="modif-section__label">Section 3 — Combat</span>
       </div>
       <div class="modif-grid">
+
+        <?php // Saisi, pas calculé : l'initiative dépend de dons, d'objets et de
+              // capacités de classe que la base ne modélise pas (§7.1). ?>
+        <div class="form-group">
+          <label for="pe_init">Initiative</label>
+          <input type="number" id="pe_init" name="pe_init"
+                 value="<?= (int)$perso['pe_init'] ?>" min="-20" max="40"
+                 inputmode="numeric">
+        </div>
 
         <div class="form-group">
           <label for="pe_ca">Classe d'armure (CA)</label>

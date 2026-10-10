@@ -148,7 +148,9 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
    **numérotées** dès l'arbitration : `SP-TB0`, `SP-TB1`, … Codes en service : `SP-C`
    (supplément compendium), `SP-E` (équipements), `SP-T` (transfert d'opposition),
    `SP-TB` (tableaux de règles), `SP-GL` (glossaire), `SP-PE` (module Personnages),
-   `SP-IM` (import des données du compendium), `SP-DP` (déploiement en production).
+   `SP-IM` (import des données du compendium), `SP-DP` (déploiement en production),
+   `SP-RB` (bascule de ruleset depuis le header), `SP-SY` (synchronisation du contenu local →
+   production, en attente d'arbitrage).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
    ```markdown
@@ -199,8 +201,8 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - SP-PE7→PE8 : module Personnages (`SP-PE0→PE6` livrées : socle, fiche identité, éditeur
   Classes inline, bloc Compétences, sélecteur de Dons, bloc Campagnes, NLS prestige DD3.5).
   Reste : vue Magie, mode jeu + passe responsive. Aucun patch SQL attendu
-- SP-DP7 : premier déploiement réel (activer le SFTP OVH, paramétrer, approuver l'empreinte,
-  tester la connexion, déployer — le premier envoi part en entier)
+- SP-SY0 : arbitrage de la synchronisation du contenu local → prod (non prioritaire, voir §6c) —
+  ajouter en prod le contenu local absent, sans jamais rien écraser
 - SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)
 - SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
 - SP-C6 : profil "Mes sources" — suppléments publics tiers

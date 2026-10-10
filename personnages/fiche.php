@@ -28,7 +28,7 @@ if (!$perso):
   exit;
 endif;
 
-setLastPersonnage((int)$perso['pe_id']);
+setLastPersonnage((int)$perso['pe_id'], (int)$perso['pe_ruleset_var_id']);
 
 $ruleset_id  = (int)$perso['pe_ruleset_var_id'];
 $ruleset_rep = ($ruleset_id === 2) ? 'DD2024' : 'DD3.5';
@@ -86,6 +86,63 @@ endif;
 // (filtré sur pec_maitrise > 0, cf. archi §7.3) et à l'éditeur inline.
 // ------------------------------------------------------------
 $competences = getPersonnageCompetences($db, (int)$perso['pe_id'], $ruleset_id, $res_ids);
+
+// ------------------------------------------------------------
+// CAPACITÉS SPÉCIALES (SP-PE11)
+// Déduites de la race et des classes — aucune saisie, aucun champ : les
+// tables de liaison dd_race_capacite et dd_classe_capacite disent déjà tout.
+// ------------------------------------------------------------
+
+// Race, et archétype DD3.5 s'il y en a un : ses capacités s'ajoutent à
+// celles de la race de base.
+$ra_ids = array_values(array_filter([
+  (int)($perso['pe_ra_id'] ?? 0),
+  (int)($perso['pe_arc_id'] ?? 0),
+]));
+$capacites_race = [];
+if ($ra_ids):
+  $ph   = implode(',', array_fill(0, count($ra_ids), '?'));
+  $stmt = $db->prepare("
+    SELECT cap.cap_id, cap.cap_nom, cap.cap_type
+      FROM dd_race_capacite cr
+      JOIN dd_capacites_speciales cap ON cap.cap_id = cr.cr_cap_id
+     WHERE cr.cr_ra_id IN ($ph)
+  ORDER BY cr.cr_ordre, cap.cap_nom
+  ");
+  $stmt->execute($ra_ids);
+  $capacites_race = $stmt->fetchAll();
+endif;
+
+// Classes : seulement les capacités dont le niveau d'obtention est ATTEINT.
+// Une requête par classe — un personnage en a deux ou trois, et le niveau
+// seuil diffère de l'une à l'autre.
+$capacites_classes = [];
+$stmt_cap_cla = $db->prepare('
+  SELECT cap.cap_id, cap.cap_nom, cc.cc_niveau, cc.cc_precision
+    FROM dd_classe_capacite cc
+    JOIN dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
+   WHERE cc.cc_cla_id = ? AND cc.cc_niveau <= ?
+ORDER BY cc.cc_niveau, cap.cap_nom
+');
+foreach ($classes as $c):
+  // Une sous-classe DD2024 n'a pas de niveau propre : elle suit celui de la
+  // classe qui la porte, sans quoi ses capacités resteraient invisibles.
+  $niveau_ref = (int)$c['pc_niveau'];
+  if ((int)$c['cla_clt_id'] === CLT_SOUS_CLASSE):
+    foreach ($classes as $parent):
+      if ((int)$parent['pc_cla_id'] === (int)($c['cla_cla_id'] ?? 0)):
+        $niveau_ref = (int)$parent['pc_niveau'];
+        break;
+      endif;
+    endforeach;
+  endif;
+
+  $stmt_cap_cla->execute([(int)$c['pc_cla_id'], $niveau_ref]);
+  $lignes = $stmt_cap_cla->fetchAll();
+  if ($lignes):
+    $capacites_classes[] = ['nom' => $c['cla_nom'], 'capacites' => $lignes];
+  endif;
+endforeach;
 
 // Bonus de maîtrise DD2024 au niveau global (toujours 0 en DD3.5)
 $bonus_maitrise = ($ruleset_rep === 'DD2024')
@@ -309,7 +366,13 @@ require_once '../include/header.php';
         <?php if ($niveau_global > 0): ?>
           <div class="per-identite__champ">
             <dt>Niveau</dt>
-            <dd><?= $niveau_global ?></dd>
+            <?php // Le bonus de maîtrise suit le niveau : il s'en déduit, et se
+                  // lit donc avec lui plutôt que dans une tuile à part (SP-PE11). ?>
+            <dd>
+              <?= $niveau_global ?><?php if ($ruleset_rep === 'DD2024'): ?>
+                <span class="per-identite__appoint" title="Bonus de maîtrise">(BM <?= formatMod($bonus_maitrise) ?>)</span>
+              <?php endif ?>
+            </dd>
           </div>
         <?php endif ?>
 
@@ -476,41 +539,63 @@ require_once '../include/header.php';
 
     <section class="per-fiche__bloc per-fiche__bloc--caracs">
       <div class="per-fiche__bloc-body">
-        <div class="per-caracs">
-          <?php
-            $caracs_def = [
-              ['abr' => 'FOR', 'lbl' => 'Force',        'val' => (int)$perso['pe_for']],
-              ['abr' => 'CON', 'lbl' => 'Constitution', 'val' => (int)$perso['pe_con']],
-              ['abr' => 'DEX', 'lbl' => 'Dextérité',    'val' => (int)$perso['pe_dex']],
-              ['abr' => 'INT', 'lbl' => 'Intelligence', 'val' => (int)$perso['pe_int']],
-              ['abr' => 'SAG', 'lbl' => 'Sagesse',      'val' => (int)$perso['pe_sag']],
-              ['abr' => 'CHA', 'lbl' => 'Charisme',     'val' => (int)$perso['pe_cha']],
-            ];
-          ?>
+        <?php
+          $caracs_def = [
+            ['abr' => 'FOR', 'lbl' => 'Force',        'val' => (int)$perso['pe_for'], 'save' => (int)$perso['pe_for_save']],
+            ['abr' => 'CON', 'lbl' => 'Constitution', 'val' => (int)$perso['pe_con'], 'save' => (int)$perso['pe_con_save']],
+            ['abr' => 'DEX', 'lbl' => 'Dextérité',    'val' => (int)$perso['pe_dex'], 'save' => (int)$perso['pe_dex_save']],
+            ['abr' => 'INT', 'lbl' => 'Intelligence', 'val' => (int)$perso['pe_int'], 'save' => (int)$perso['pe_int_save']],
+            ['abr' => 'SAG', 'lbl' => 'Sagesse',      'val' => (int)$perso['pe_sag'], 'save' => (int)$perso['pe_sag_save']],
+            ['abr' => 'CHA', 'lbl' => 'Charisme',     'val' => (int)$perso['pe_cha'], 'save' => (int)$perso['pe_cha_save']],
+          ];
+          // DD2024 : les six sauvegardes se lisent à côté de leur modificateur,
+          // comme dans le bloc de stats d'un monstre (SP-PE11). DD3.5 n'en a
+          // que trois, et elles portent des noms de jets : elles ont leur
+          // propre bloc, plus bas.
+          $avec_saves = ($ruleset_rep === 'DD2024');
+        ?>
+        <div class="per-caracs<?= $avec_saves ? ' per-caracs--saves' : '' ?>">
+          <?php if ($avec_saves): ?>
+            <?php // Un en-tête PAR COLONNE de caractéristiques, en tête de
+                  // grille (SP-PE13). Un en-tête unique ne coiffait que la
+                  // première : les deux autres colonnes de MOD et de SAUV se
+                  // lisaient sans libellé. Trois cellules ici ; sous 992px,
+                  // la grille n'a que deux colonnes et la troisième est
+                  // masquée, sans quoi elle tomberait sur la rangée suivante. ?>
+            <?php for ($col = 0; $col < 3; $col++): ?>
+              <div class="per-caracs__entete" aria-hidden="true">
+                <span class="per-carac__abr"></span>
+                <span class="per-carac__val"></span>
+                <span class="per-carac__mod">MOD</span>
+                <span class="per-carac__save">SAUV</span>
+              </div>
+            <?php endfor ?>
+          <?php endif ?>
           <?php foreach ($caracs_def as $c): ?>
             <div class="per-carac">
               <div class="per-carac__abr" title="<?= h($c['lbl']) ?>"><?= $c['abr'] ?></div>
               <div class="per-carac__val"><?= $c['val'] ?></div>
               <div class="per-carac__mod"><?= formatMod(modCarac($c['val'])) ?></div>
+              <?php if ($avec_saves): ?>
+                <div class="per-carac__save" title="Sauvegarde de <?= h($c['lbl']) ?>"><?= formatMod($c['save']) ?></div>
+              <?php endif ?>
             </div>
           <?php endforeach ?>
         </div>
       </div>
     </section>
 
-    <?php // Le bonus de maîtrise est une valeur DD2024 qu'on relit sans arrêt —
-          // tous les jets de compétence et d'attaque en dépendent. Il n'existe
-          // pas en DD3.5 (SP-PE10l). ?>
-    <?php if ($ruleset_rep === 'DD2024'): ?>
-      <section class="per-fiche__bloc per-fiche__bloc--stat">
-        <div class="per-fiche__bloc-body">
-          <div class="per-stat" title="Bonus de maîtrise">
-            <span class="per-stat__lbl">BM</span>
-            <span class="per-stat__val"><?= formatMod($bonus_maitrise) ?></span>
-          </div>
+    <?php // L'initiative remplace le bonus de maîtrise, parti rejoindre le
+          // niveau global dans le bloc Identité (SP-PE11). Elle vaut pour les
+          // deux rulesets. ?>
+    <section class="per-fiche__bloc per-fiche__bloc--stat">
+      <div class="per-fiche__bloc-body">
+        <div class="per-stat" title="Initiative">
+          <span class="per-stat__lbl">Init</span>
+          <span class="per-stat__val"><?= formatMod((int)$perso['pe_init']) ?></span>
         </div>
-      </section>
-    <?php endif ?>
+      </div>
+    </section>
 
     <section class="per-fiche__bloc per-fiche__bloc--stat">
       <div class="per-fiche__bloc-body">
@@ -531,6 +616,34 @@ require_once '../include/header.php';
     </section>
 
   </div>
+
+  <?php // ---- Jets de sauvegarde (DD3.5) --------------------------------
+        // Le ruleset n'en connaît que trois, et sous leurs propres noms :
+        // Réflexes (DEX), Vigueur (CON), Volonté (SAG). Elles ne peuvent donc
+        // pas se ranger à côté des six modificateurs comme en DD2024 — d'où un
+        // bloc à elles, juste sous la rangée de stats (SP-PE11). ?>
+  <?php if ($ruleset_rep === 'DD3.5'): ?>
+    <?php
+      $saves_35 = [
+        ['lbl' => 'Réflexes', 'carac' => 'DEX', 'val' => (int)$perso['pe_dex_save']],
+        ['lbl' => 'Vigueur',  'carac' => 'CON', 'val' => (int)$perso['pe_con_save']],
+        ['lbl' => 'Volonté',  'carac' => 'SAG', 'val' => (int)$perso['pe_sag_save']],
+      ];
+    ?>
+    <section class="per-fiche__bloc per-fiche__bloc--saves">
+      <div class="per-fiche__bloc-body">
+        <h2 class="per-saves__titre">Jets de sauvegarde</h2>
+        <div class="per-saves">
+          <?php foreach ($saves_35 as $sv): ?>
+            <div class="per-save" title="Sauvegarde de <?= h($sv['carac']) ?>">
+              <span class="per-save__lbl"><?= h($sv['lbl']) ?></span>
+              <span class="per-save__val"><?= formatMod($sv['val']) ?></span>
+            </div>
+          <?php endforeach ?>
+        </div>
+      </div>
+    </section>
+  <?php endif ?>
 
   <?php // ---- Compétences et Dons côte à côte (SP-PE10m) ------------------
         // Deux listes de même nature, lues de la même façon, qui laissaient
@@ -690,6 +803,77 @@ require_once '../include/header.php';
       </div>
     </section>
   </div>
+
+  <?php // ---- Capacités spéciales (SP-PE11) -----------------------------
+        // Deux blocs sur une rangée, comme Compétences et Dons : ce que la
+        // race apporte d'un côté, ce que les classes apportent de l'autre.
+        // Rien ne s'y saisit — tout vient des tables de liaison. Un bloc vide
+        // n'est pas rendu : mieux vaut une rangée à un bloc qu'un cadre vide. ?>
+  <?php if ($capacites_race || $capacites_classes): ?>
+    <div class="per-fiche__rangee per-fiche__rangee--listes">
+
+      <?php if ($capacites_race): ?>
+        <section class="per-fiche__bloc" id="bloc-capacites-race">
+          <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
+            <h2 class="per-fiche__bloc-titre">
+              <i class="fa fa-dna"></i> Capacités de race
+              <span class="per-fiche__compte"><?= count($capacites_race) ?></span>
+            </h2>
+          </header>
+          <div class="per-fiche__bloc-body">
+            <ul class="per-caps">
+              <?php foreach ($capacites_race as $cap): ?>
+                <li class="per-caps__item">
+                  <a href="javascript:void(0)" class="per-caps__nom"
+                     onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/capacite.php', {id: <?= (int)$cap['cap_id'] ?>}, 'externe')">
+                    <?= h($cap['cap_nom']) ?>
+                  </a>
+                  <?php if (!empty($cap['cap_type'])): ?>
+                    <span class="per-caps__meta"><?= h($cap['cap_type']) ?></span>
+                  <?php endif ?>
+                </li>
+              <?php endforeach ?>
+            </ul>
+          </div>
+        </section>
+      <?php endif ?>
+
+      <?php if ($capacites_classes): ?>
+        <section class="per-fiche__bloc" id="bloc-capacites-classes">
+          <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
+            <h2 class="per-fiche__bloc-titre">
+              <i class="fa fa-shield-halved"></i> Capacités de classe
+              <span class="per-fiche__compte"><?= array_sum(array_map(fn($g) => count($g['capacites']), $capacites_classes)) ?></span>
+            </h2>
+          </header>
+          <div class="per-fiche__bloc-body">
+            <?php foreach ($capacites_classes as $groupe): ?>
+              <?php // L'intertitre ne sert que s'il y a plusieurs classes. ?>
+              <?php if (count($capacites_classes) > 1): ?>
+                <h3 class="per-caps__groupe"><?= h($groupe['nom']) ?></h3>
+              <?php endif ?>
+              <ul class="per-caps">
+                <?php foreach ($groupe['capacites'] as $cap): ?>
+                  <li class="per-caps__item">
+                    <a href="javascript:void(0)" class="per-caps__nom"
+                       onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/capacite.php', {id: <?= (int)$cap['cap_id'] ?>}, 'externe')">
+                      <?= h($cap['cap_nom']) ?>
+                    </a>
+                    <?php if (!empty($cap['cc_precision'])): ?>
+                      <span class="per-caps__precision"><?= h($cap['cc_precision']) ?></span>
+                    <?php endif ?>
+                    <span class="per-caps__meta" title="Niveau d'obtention">niv. <?= (int)$cap['cc_niveau'] ?></span>
+                  </li>
+                <?php endforeach ?>
+              </ul>
+            <?php endforeach ?>
+          </div>
+        </section>
+      <?php endif ?>
+
+    </div>
+  <?php endif ?>
+
 
   <?php if ($nls): ?>
   <!-- ============================================================

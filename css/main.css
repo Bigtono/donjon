@@ -195,15 +195,47 @@ button {
   display: block;
 }
 
+/* Bouton de bascule de ruleset (SP-RB) — affiche le ruleset actif ; un clic
+   poste profil/ruleset.php et bascule sur l'autre. La petite icône ⇄ et la
+   bordure signalent qu'il est cliquable. */
+.site-header__ruleset-form {
+  display: flex;
+  margin: 0;
+}
+
 .site-header__ruleset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--clr-text-muted);
   background: var(--clr-surface-2);
-  padding: 2px 8px;
+  border: 1px solid var(--clr-border);
+  padding: 2px 6px 2px 8px;
   border-radius: var(--radius-sm);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.site-header__ruleset-icone {
+  font-size: 0.6rem;
+  color: var(--clr-accent-2);
+  opacity: 0.8;
+}
+
+.site-header__ruleset:hover,
+.site-header__ruleset:focus-visible {
+  border-color: var(--clr-accent-2);
+  color: var(--clr-text);
+}
+
+.site-header__ruleset:hover .site-header__ruleset-icone,
+.site-header__ruleset:focus-visible .site-header__ruleset-icone {
+  opacity: 1;
 }
 
 .site-header__nav {

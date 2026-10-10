@@ -24,7 +24,7 @@ if (!$perso):
   exit;
 endif;
 
-setLastPersonnage((int)$perso['pe_id']);
+setLastPersonnage((int)$perso['pe_id'], (int)$perso['pe_ruleset_var_id']);
 
 $ruleset_id  = (int)$perso['pe_ruleset_var_id'];
 $est35       = ($ruleset_id === 1);

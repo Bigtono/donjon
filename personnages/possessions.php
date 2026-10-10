@@ -20,7 +20,7 @@ if (!$perso):
   exit;
 endif;
 
-setLastPersonnage((int)$perso['pe_id']);
+setLastPersonnage((int)$perso['pe_id'], (int)$perso['pe_ruleset_var_id']);
 
 $classes     = getPersonnageClasses($db, (int)$perso['pe_id']);
 $nav_lanceur = false;
