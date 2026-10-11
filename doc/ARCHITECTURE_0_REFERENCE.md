@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-10 12:21 -->
+<!-- Mis à jour : 2026-10-10 21:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -229,6 +229,32 @@
 > (`admin/deploiement/`) ne quitte jamais le poste. Voir §0, §6b et `DECISIONS_LOG.md`
 > [2026-10-07] D-DP1 à D-DP9.
 
+> 2026-10-10 : **`SP-PE10p` → `SP-PE10r` livrées** — compactage de la vue Magie. Les quatre cases
+> de synthèse et le panneau « Ressources de sorts » fusionnent en une liste de paires libellé /
+> valeur, en colonne à côté du tableau des emplacements (en ligne sur téléphone) ; le tableau perd
+> sa rangée d'en-tête de groupe et « En stock » devient « Restant » ; les listes de sorts passent
+> en **onglets** — Préparés par défaut —, chacun portant son compteur et ses actions, une ligne par
+> niveau de sort. Le bloc d'un magicien 20 DD2024 passe d'environ 710 à 330px de haut à 1280px.
+> Aucun patch SQL. Voir §0, §7.6b et `DECISIONS_LOG.md` [2026-10-10] D-RS63.
+
+> 2026-10-10 (suite) : **`SP-PE10s` livrée** — « Réinitialiser » passe dans le sélecteur de
+> préparation, les boutons d'onglet se réduisent à leur icône, et **défaut corrigé** : en DD2024
+> les sorts mineurs pesaient sur le plafond de sorts préparés. Aucun patch SQL. Voir §0, §7.6b,
+> §7.6c et `DECISIONS_LOG.md` [2026-10-10] D-RS64.
+
+> 2026-10-10 (suite) : **`SP-MA6a` → `SP-MA6c` livrées** — une classe de prestige DD3.5 accorde
+> soit ses propres sorts par jour, soit un niveau de lanceur à une classe de base, jamais les deux.
+> Les drapeaux de progression du NLS n'étaient ni visibles ni modifiables dans le formulaire, et
+> une prestige du second cas (non lanceuse) n'y avait aucune colonne de magie. La section 2 gagne
+> une bascule entre les deux jeux de colonnes, le serveur garantit l'exclusivité, et la fiche
+> rédige « +1 niv. profane »… **Migration** `sql/2026-10-10_drapeaux_nls_sp-ma6.sql`. Voir §0,
+> §5 « Classes de prestige DD3.5 » et `DECISIONS_LOG.md` [2026-10-10] D-MAG16.
+
+> 2026-10-10 (suite) : **`SP-MA6d` livrée** — drapeaux NLS des classes de base remis à 0
+> (**migration** `sql/2026-10-10_drapeaux_nls_classes_base_sp-ma6.sql`), distinction NULL / 0
+> des sorts par jour DD3.5 vérifiée par banc d'essai, et table de progression d'une classe sans
+> colonnes de sorts tenue dans un téléphone. Voir §0, §5 et `DECISIONS_LOG.md` D-MAG17.
+
 
 ---
 
@@ -342,6 +368,11 @@
 - [x] SP-MA4a — **Sorts toujours préparés DD2024** : table `dd_classe_sort` (+ `cs_variante` pour les 4 terrains du Cercle de la Terre) et **67 lignes du SRD** sur 9 porteurs — 3 sorts de classe et 6 sous-classes. Colonne `pesp_origine` sur `dd_personnages_sorts_prepares` pour les sorts toujours préparés **choisis** (Secrets magiques du Barde niv. 10, Sorts de prédilection du Magicien niv. 20, Arcanum de l'Occultiste). 67 noms résolus en `so_id` sans ambiguïté. **Patch SQL à passer en prod** : `sql/2026-09-01_sorts_toujours_prepares_sp-ma4a.sql`
 - [x] SP-MA4b — **Cadence de renouvellement** *(Q3 tranchée le 2026-09-01, option a)* : colonne `cla_renouvellement` -> `dd_variables` cat. `cadence` (3 valeurs, constantes `CADENCE_*`), 19 classes lanceuses renseignées — dérivées du profil en DD3.5, table du SRD en DD2024. Select au formulaire, ligne à la fiche. **Patch SQL à passer en prod** : `sql/2026-09-01_cadence_renouvellement_sp-ma4b.sql`
 - [ ] SP-MA4c — Reliquat non bloquant : **école de prédilection et écoles interdites du magicien DD3.5** (+1 sort préparé par niveau de sort, 2 écoles interdites — filtre le compendium à la source). Seul élément de `SP-MA4` encore ouvert
+- [x] SP-MA6a — Classes de prestige DD3.5, formulaire : bascule « Sorts par jour » / « Progression du NLS » dans la section 2, trois cases par niveau (Profane, Divin, Au choix), section 1 neutralisée en mode NLS, colonnes de sorts visibles pour une prestige même sans type de magie
+- [x] SP-MA6b — Enregistrement : exclusivité garantie côté serveur (mode NLS → classe non lanceuse et sorts à NULL ; mode Sorts → drapeaux à 0), drapeaux écrits pour les prestiges seulement. **Migration** `sql/2026-10-10_drapeaux_nls_sp-ma6.sql` (drapeaux NULL → 0, sorts à 0 des prestiges du cas 2 → NULL)
+- [x] SP-MA6c — Fiche de la classe : une colonne « Sorts par jour » rédigée en forme courte (« +1 niv. profane »…) pour une prestige qui fait progresser le NLS
+- [x] SP-MA6d — Suites : drapeaux NLS des classes de base remis à 0 (**migration** `sql/2026-10-10_drapeaux_nls_classes_base_sp-ma6.sql`), distinction NULL / 0 des sorts par jour DD3.5 vérifiée de bout en bout, table de progression sans colonnes de sorts resserrée sur téléphone (`.table-dd--etroite`)
+- [ ] SP-MA6e — Archer-Mage (DD3.5) : cocher ses drapeaux de progression du NLS dans le formulaire (saisie, aucun code)
 - [ ] SP-MA5 — Complétion `dd_sortdomaine` : 147 lignes sur 45 domaines (table `dd_domaines` : 72), le SRD seul en demande ~207 pour ses 23 domaines
 
 ### SP-PE — Module Personnages
@@ -377,6 +408,10 @@
   - [x] SP-PE10m — Caractéristiques agrandies (valeur en couleur, abréviation sans fond), « BM » sur la tuile de maîtrise, et **Compétences / Dons côte à côte** au-dessus de 992px — le NLS passe sous la rangée
   - [x] SP-PE10n — Bloc NLS prestige repliable, **fermé par défaut** ; `perDeplierBloc()` ouvre le bloc quand on lance son éditeur depuis l'état replié
   - [x] SP-PE10o — Caractéristiques en colonnes de largeur fixe (`min-width: 0` compris), alignées verticalement d'un rang à l'autre ; largeurs recalculées sous 992px
+  - [x] SP-PE10p — Vue Magie, synthèse de classe : les quatre cases et le panneau « Ressources de sorts » fusionnent en paires libellé / valeur (caractéristique, NLS, DD, attaque, sorts mineurs, renouvellement, domaines) — en colonne à gauche du tableau des emplacements sur ordinateur, en ligne au-dessus sous 992px
+  - [x] SP-PE10q — Vue Magie, tableau des emplacements : une seule rangée d'en-tête (« Niv. » en case d'angle), en-tête en retrait à .85rem, « En stock » renommé « Restant »
+  - [x] SP-PE10r — Vue Magie, listes en onglets : Préparés (par défaut) · Grimoire · À recopier, compteur dans chaque onglet, aide et actions de l'onglet actif à droite de la barre, une ligne par niveau de sort (pastille en tête), sorts toujours préparés dans le premier onglet, onglet actif mémorisé par bloc en `sessionStorage`
+  - [x] SP-PE10s — Vue Magie, retouches : « Réinitialiser » déplacé dans le sélecteur de préparation, boutons d'onglet en icône seule ; **défaut corrigé** — en DD2024 les sorts mineurs comptaient dans le plafond de sorts préparés (vue Magie et sélecteur)
 - [x] SP-PE11 — Initiative (`pe_init`) et six modificateurs de sauvegarde (`pe_*_save`) — **patch SQL** ; bonus de maîtrise accolé au niveau global en DD2024 ; jets de sauvegarde en 4e colonne (DD2024) ou en bloc Réflexes / Vigueur / Volonté (DD3.5) ; rangée **Capacités de race / de classe**. **Défaut corrigé** : `.modif-grid` n'était pas chargée sur la fiche personnage
 - [x] SP-PE12 — Graisse : les valeurs d'initiative et de sauvegarde reviennent à la règle du module (gras au libellé seul)
 - [x] SP-PE13 — En-têtes MOD / SAUV un par colonne (DD2024) ; composant `.sort-detail` déplacé de `compendium-modules.css` vers `modules.css` — les panneaux de détail ouverts hors du compendium perdaient leurs styles
@@ -457,6 +492,16 @@
 - [x] SP-DP7 — Premier déploiement réel (2026-10-10) : 181 fichiers envoyés, 1 migration appliquée en production
 - [x] SP-DP8 — Action « Remettre en attente » (admin/migrations.php) et requête de diagnostic `sql/diagnostic_reference_sp-dp.sql`
 
+### SP-XC — Export de classes vers la production
+
+> Recopie en production des classes choisies avec toutes leurs données, par une migration générée
+> dans `sql/`. Voir §6d.
+
+- [x] SP-XC0 — Arbitrage : clés naturelles, classe écrasée, capacités mises à jour, liste de sorts incluse par défaut, seules les classes cochées, transport par `sql/` (D-XC1 → D-XC4)
+- [x] SP-XC1 — Générateur `admin/deploiement/export-classes-lib.php` : garde-fous avant écriture, résolution par les noms, script rejouable
+- [x] SP-XC2 — Page `admin/deploiement/export-classes.php` (aperçu, écriture de la migration marquée appliquée en local), tuile de l'administration et lien depuis Déploiement
+- [x] SP-XC3 — Documentation (§6d, D-XC1 → D-XC4) et vérification sur une copie de la base
+- [ ] SP-XC4 — Premier export réel joué en production par le déploiement (à confirmer à l'usage)
 ### SP-SY — Synchronisation du contenu local → production
 
 > **En attente d'arbitrage, non prioritaire** (mis de côté le 2026-10-10). Ajouter en production
@@ -1516,6 +1561,52 @@ race n'a plus ni `<strong>` (la graisse vient du CSS) ni styles inline d'espacem
 capacité utilise la classe commune `.cap-type` (l'ancien `.race-detail__cap-type` n'avait aucune
 règle et retombait sur le rendu par défaut).
 
+#### Classes de prestige DD3.5 — sorts propres ou progression du NLS (SP-MA6)
+
+Une classe de prestige DD3.5 lanceuse se comporte de l'une de deux façons, **exclusives** :
+
+| Cas | Exemple | Saisie | `cla_mag_id` |
+|---|---|---|---|
+| 1 — sorts propres | Tueur de Domiel, Assassin | `cn_sort_n0..9` (+ `cn_sortConnu_n*` en répertoire) | 1 ou 2 |
+| 2 — progression du NLS | Archimage, Théurge mystique | drapeaux `cn_niveauSortArcane` / `Divin` / `Effectif` (0/1 par niveau) | **0** |
+
+Une classe du cas 2 reste **non lanceuse** : elle ne lance rien par elle-même, et `cla_mag_id > 0`
+lui ouvrirait un bloc vide dans la vue Magie d'un personnage. Les drapeaux sont consommés par le
+bloc NLS de la fiche (SP-PE6) et `nlsEffectif35()`.
+
+**Le mode n'est pas stocké** : il se déduit des drapeaux (au moins un à 1 → cas 2).
+
+- **Formulaire** — pour une prestige DD3.5, une bascule `.modif-bascule` (radios `cn_mode_magie`
+  = `sorts` | `nls`) dans l'en-tête de la section 2, masquée pour les autres types
+  (`.classe-champ-prestige`, JS `appliquerModeMagie()`). Les deux jeux de colonnes sont rendus ;
+  la classe `est-mode-nls` de la table masque l'un ou l'autre (`.col-mode-sorts` /
+  `.col-mode-nls`). En mode NLS, trois cases par niveau — **Profane, Divin, Au choix** (le théurge
+  mystique coche les deux premières) — et type de magie, profil et renouvellement sont
+  désactivés en section 1. Une prestige affiche ses colonnes de sorts même à `cla_mag_id = 0`.
+- **Enregistrement** — exclusivité garantie par le serveur, quel que soit le formulaire soumis :
+  mode NLS → `cla_mag_id`, profil et cadence à 0, `cn_sort_n*` et `cn_sortConnu_n*` à NULL ;
+  mode Sorts → drapeaux à 0. Rien n'est touché si `cn_mode_magie` n'est pas soumis (création, ou
+  type autre que prestige) : **les drapeaux des classes de base ne sont jamais écrits**.
+- **Fiche** — cas 2 : une seule colonne « Sorts par jour », forme courte (arbitrée pour le
+  téléphone) : « +1 niv. profane », « +1 niv. divin », « +1 niv. profane et divin »,
+  « +1 niv. au choix », « — ». `.table-dd .col-nls` dans `modules.css`.
+
+> **Seules les classes de prestige portent des drapeaux.** Les six classes de base lanceuses
+> DD3.5 en avaient un à 1 sur chacun de leurs niveaux (erreur de saisie), remis à 0 par
+> `sql/2026-10-10_drapeaux_nls_classes_base_sp-ma6.sql`.
+
+**NULL et 0 dans `cn_sort_n*` (DD3.5)** — deux sens distincts, tenus de la saisie au calcul :
+**NULL** = niveau de sort inaccessible ; **0** = niveau accessible, mais par les seuls sorts en
+bonus de caractéristique (`bonusSortsCarac()`). Le formulaire enregistre un champ vide en NULL et
+« 0 » en 0 ; la fiche affiche « — » et « 0 » ; `getMagieContexte()` n'ajoute le bonus qu'à un
+niveau accessible. Contrôlé sur le Paladin (2026-10-10) : niveau 4, Sag 10 → N1 = 0 ; Sag 14 →
+N1 = 1 ; niveau 3, Sag 18 → aucun emplacement.
+
+**Téléphone** — une table de progression sans colonnes de sorts (non lanceuse, ou prestige du
+cas 2) porte `.table-dd--etroite` : sous 768px, Aptitudes y descend de 160 à 88px, sans coupure
+de mot, et la table tient à 375px. Les tables des lanceurs, qui défilent avec leurs dix colonnes
+de sorts, gardent les 160px.
+
 #### Fichiers du module
 
 ```
@@ -1867,6 +1958,70 @@ propres lignes, faute de plages séparées.
 
 ---
 
+## 6d. Export de classes vers la production — SP-XC
+
+> Décisions : `DECISIONS_LOG.md` D-XC1 → D-XC4. Module **local** (`admin/deploiement/`), jamais
+> transféré.
+
+### Usage
+
+Administration → **Export de classes** (ou lien en bas de la page Déploiement). Choisir le ruleset,
+cocher les classes, garder ou non la liste de sorts, puis **Aperçu** (script affiché, rien
+d'écrit) ou **Générer la migration**. Le fichier `sql/AAAA-MM-JJ_xc-HHMMSS_<classes>.sql` est écrit
+et marqué appliqué en local ; le prochain déploiement l'envoie et le fait jouer par le serveur.
+
+### Ce qui part
+
+| Table | Traitement en production |
+|---|---|
+| `dd_classes` | créée si absente, puis mise à jour sur place — jamais supprimée |
+| `dd_classe_niveau`, `dd_classe_competence`, `dd_classe_sort` | lignes de la classe supprimées puis réinsérées |
+| `dd_capacites_speciales` | créées ou mises à jour (texte local), puis rattachées (`dd_classe_capacite` remplacée) |
+| `dd_sortclasse` | remplacée si l'option est cochée (défaut), sinon intacte |
+
+Seules les classes cochées partent : une sous-classe ne suit pas sa base, ni l'inverse. Les classes
+homebrew de campagne (`cla_camp_id`) ne sont pas proposées.
+
+### Clés naturelles
+
+Aucun identifiant local dans le fichier. Chaque référence est résolue en production dans une
+variable SQL (`@xc_res_<id>`, `@xc_cla_<id>`, `@xc_cap_<id>` — l'id est celui du local, seulement
+pour nommer la variable).
+
+| Élément | Clé |
+|---|---|
+| Ressource | `res_nom` + ruleset |
+| Classe | `cla_nom` + ruleset + parent (`IFNULL(cla_cla_id, 0) = 0` pour une base), `cla_camp_id IS NULL` |
+| Sort | `BINARY so_nom` + ruleset + livre (`so_res_id` résolu), puis rang parmi les homonymes exacts (`ORDER BY so_id LIMIT rang, 1`). Sort sans livre : `so_res_id = 0` gardé |
+| Compétence | `comp_nom` + ruleset |
+| Capacité | même nom déjà rattachée à la classe → nom + origine + texte identique → nom + origine si univoque en local → création |
+
+Colonnes recopiées : lues dans le schéma local (`SHOW COLUMNS`), moins les identifiants et clés
+étrangères (`XC_EXCLUSIONS`). Une colonne ajoutée par migration suit sans retoucher le code ; le
+schéma de la prod est identique puisque l'export passe après les migrations.
+
+### Garde-fous
+
+En tête de script, avant toute écriture : ressources, classes parentes non exportées, sorts et
+compétences doivent exister en production. Sinon le script échoue sur
+`SET @xc_garde := (SELECT 'XC : <message>' UNION ALL SELECT '' FROM DUAL WHERE <condition>)`
+(erreur 1242), et le moteur affiche l'extrait qui commence par le message. Pas de `DO` : MariaDB
+n'y lève pas l'erreur. Indispensable, `dd_classe_niveau` et `dd_classe_competence` étant en MyISAM.
+
+À la génération, refus si deux classes portent le même nom dans un ruleset, ou si une classe a deux
+capacités distinctes de même nom. Les liens orphelins locaux (vers un sort, une capacité ou une
+compétence disparus) sont ignorés.
+
+### Fichiers
+
+```
+admin/deploiement/export-classes.php       page (garde.php : admin + poste local)
+admin/deploiement/export-classes-lib.php   xcClassesExportables(), xcGenerer(), xcEcrireMigration()
+admin/deploiement/deploiement.css          .xc-script (bloc du script dans l'aperçu)
+```
+
+---
+
 ## 7. Module Personnages
 
 ### 7.1 Finalité — aide de jeu, pas moteur de règles
@@ -2199,44 +2354,62 @@ Ruleset verrouillé : l'action refuse tout personnage non DD3.5.
 
 La liste de sorts proposée est bornée par `getActiveResIds()` (chaîne campagne → perso → défaut, §5).
 
-### 7.6b Disposition d'un bloc de classe (SP-PE10b)
+### 7.6b Disposition d'un bloc de classe (SP-PE10b, refondue en SP-PE10p→r)
 
-Le corps d'un bloc — un par classe lanceuse — se lit **en trois temps** :
+Le corps d'un bloc — un par classe lanceuse — se lit **en deux temps** :
 
 | Temps | Contenu | Classe CSS |
 |---|---|---|
-| 1 | Quatre cases de synthèse (caractéristique, NLS effectif, DD, attaque), puis la barre d'actions | `.per-magie__cases`, `.per-magie__actions` |
-| 2 | Rangée à deux colonnes : tableau des emplacements à gauche, panneau « Ressources de sorts » à droite | `.per-magie__synthese` > `.per-magie__colonne-empl` + `.per-magie__ressources` |
-| 3 | Sorts toujours préparés, puis les listes du personnage | `.per-magie__toujours`, `.per-magie__liste` |
+| 1 | Synthèse de la classe (paires libellé / valeur) et tableau des emplacements, côte à côte au-dessus de 992px, l'un sous l'autre en dessous | `.per-magie__entete` > `.per-magie__stats` + `.per-magie__colonne-empl` |
+| 2 | Listes de sorts en onglets, aide et actions de l'onglet actif à droite de la barre | `.per-magie__onglets` > `.per-magie__onglets-barre` + `.per-magie__panneau` |
 
-**Panneau « Ressources de sorts »** — paires libellé / valeur, dans cet ordre : sorts mineurs
-connus, sorts préparés, sorts en grimoire, sorts connus (ou « au répertoire »), renouvellement,
-domaines. Une ligne n'est produite **que si le profil d'incantation la porte** : pas de grimoire
-ni de sorts connus pour un `PROFINC_LISTE`, où le compteur afficherait un 0 trompeur. Les
-plafonds suivent le ruleset — « Sorts mineurs connus » n'existe qu'en DD2024 (`cn_sort_n0` y
-compte les mineurs, ailleurs il porte les emplacements de niveau 0), et le plafond de préparation
-n'existe qu'en DD2024 (`cn_sortPrepare`) ; en DD3.5 la ligne n'affiche que le nombre préparé.
+**Synthèse (SP-PE10p)** — `<dl>` de paires, dans cet ordre : caractéristique (son **nom** sert de
+libellé : « Intelligence 18 (+4) »), NLS (écart de classe en appoint grisé, seulement s'il
+existe), DD (formule « 10 + niv. +N » en DD3.5), attaque (DD2024 seulement — le champ n'est pas
+produit en DD3.5), sorts mineurs (DD2024, `cn_sort_n0`), renouvellement, domaines. Règle de
+graisse du module : libellé gras, valeur normale, même taille. Au-dessus de 992px, grille à deux
+colonnes séparée du tableau par un filet vertical ; en dessous, champs insécables en flux, à la
+façon de `.per-identite` — les quatre premiers tiennent sur deux lignes à 375px.
 
-**Listes de sorts** — flux horizontal (`flex-wrap`) à **écart fixe** de 24px entre deux sorts et
-8px entre deux lignes, chaque liste repartant à gauche, à l'aplomb de son titre. Les `columns`
-d'avant découpaient la largeur en tranches égales, ce qui éloignait la deuxième colonne de son
-titre. La même classe `.per-magie__sorts` sert aux quatre listes, sorts toujours préparés compris.
+> Le panneau « Ressources de sorts » de SP-PE10b n'existe plus : ses compteurs de listes sont
+> passés dans les onglets, le reste dans la synthèse. Le total « Sorts connus » (grimoire + à
+> recopier) est abandonné.
 
-> Les compteurs **ne figurent plus dans les titres** de liste : le panneau les porte tous.
+**Tableau des emplacements (SP-PE10c, SP-PE10q)** — une seule rangée d'en-tête, la case d'angle
+portant « Niv. » ; lignes « Par jour », « Sorts connus » (répertoire DD3.5) et « Restant » (miroir
+de « Par jour » tant que `SP-PE8` n'a pas livré le suivi des emplacements consommés). Au-dessus
+de 992px, `.per-magie__table` surcharge `.table-dd` : en-tête en retrait (.85rem, grisé), corps à
+1rem gras, colonnes à 34px, padding 2px/8px. Le séparateur accentué de `.table-dd` est neutralisé
+sur cette table : elle n'a qu'une colonne de libellés en regard des niveaux.
 
-**Tableau des emplacements (SP-PE10c)** — `.per-magie__table` surcharge `.table-dd`
-**au-dessus de 992px seulement**, en reprenant l'échelle du panneau qui lui fait face :
+**Onglets (SP-PE10r)** — un jeu par bloc de classe, motif ARIA `tablist` (flèches gauche / droite),
+onglets **secondaires** (soulignés, plus petits que la barre Fiche / Magie / Possessions) :
 
-| Tableau | Taille | Panneau « Ressources de sorts » |
-|---|---|---|
-| En-tête « Niveaux de sort » | 1.05rem | Titre « Ressources de sorts » |
-| Libellé de ligne (« Par jour ») | 1rem gras | Libellé d'une ressource |
-| Chiffres | 1rem gras | Valeur d'une ressource |
+| Profil | Onglets |
+|---|---|
+| `PROFINC_GRIMOIRE` | **Préparés** · Grimoire · À recopier |
+| `PROFINC_LISTE`, pacte | Préparés |
+| `PROFINC_REPERTOIRE` | Répertoire |
 
-Colonnes à 34px, padding 5px/8px. Le réglage d'origine de `.table-dd` vise les tables de
-progression du compendium, bien plus denses (26px, .82rem). Le séparateur accentué
-(`border-left` sur la première colonne de sorts) est neutralisé sur cette table : elle n'a
-qu'une colonne de libellés en regard des niveaux.
+Un profil à liste unique garde la barre réduite à un onglet : elle lui sert de titre et porte ses
+actions. Chaque onglet affiche son **compteur** — `N/plafond` pour Préparés en DD2024
+(`cn_sortPrepare`), le seul nombre préparé en DD3.5, où le tableau borne. **En DD2024, les sorts
+mineurs (niveau 0) n'entrent pas dans ce compteur** (SP-PE10s) : ils sont connus, pas préparés,
+et `cn_sort_n0` les compte à part ; en DD3.5 le niveau 0 occupe de vrais emplacements et compte.
+Même règle dans le sélecteur (rendu serveur et `_majCompteurs()`). Ses outils — icône d'aide,
+puis un bouton **icône seule** (`title` et `aria-label`) : « Préparer », ou « Gérer » (le
+sélecteur en mode répertoire) — ne sont visibles que s'il est actif. « Réinitialiser la liste
+préparée » vit dans le sélecteur de préparation (§7.6c). Les **sorts toujours préparés** ferment
+le premier onglet, groupés par variante puis par niveau.
+
+L'onglet actif est mémorisé **par bloc** en `sessionStorage` (`perMagieOnglet:<pe_id>:<pc_id>`,
+lectures et écritures sous try/catch, repli sur le premier onglet) : le sélecteur de sorts
+recharge la page à sa fermeture. JS : `perOnglets` dans `js/personnage.js`.
+
+**Listes** — une ligne par niveau de sort (`.per-magie__niveau`) : la pastille de niveau une seule
+fois en tête, puis les sorts en flux (`flex-wrap`, 16px entre deux sorts) qui repartent à
+l'aplomb du premier. Un sort dont le niveau n'est pas résolu pour la classe ferme la liste
+derrière une pastille « ? ».
 
 ### 7.6c Sélecteur de sorts — deux volets, écriture immédiate (SP-PE7b, SP-PE10d)
 
@@ -2282,6 +2455,11 @@ par niveau somment les `data-nb`, pas les lignes.
 
 > `pesp_nb` vaut 0 par défaut en base alors qu'un exemplaire compte pour 1 : toute lecture passe
 > par `GREATEST(pesp_nb, 1)`.
+
+**Bouton « Réinitialiser » (SP-PE10s)** — en mode préparation, sur la ligne des compteurs
+(`.sorts-picker__barre-prep`), à droite. Appelle `sortsPicker.reinitialiser()`, qui vide la liste
+préparée de la classe (les sorts toujours préparés sont conservés) puis recharge la page. Il
+quittait une place permanente dans la vue Magie pour un geste rare.
 
 **Bouton « recopier dans le grimoire »** — n'a de sens que sur un sort retenu. Rendu par le
 serveur sur les sorts déjà connus, **posé et retiré en JS** (`_majBoutonGrimoire()`) au fil des
@@ -4199,6 +4377,13 @@ TinyMCE 6 via CDN **jsDelivr** (`https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.
 (pas de compte tiny.cloud). `base_url`/`suffix` pointent vers le même CDN pour le chargement des plugins
 et du skin. Chaque formulaire d'édition charge sa propre instance via le pattern `initTMCE()` (pas de
 script global partagé) car les sélecteurs, hauteurs et plugins varient par module.
+
+> **Le script CDN n'est chargé qu'une fois par page** (correctif du 2026-10-10). Chaque formulaire
+> porte son `<script src=".../tinymce.min.js">`, mais `executerScriptsInjectes()` (`js/main.js`,
+> appelée par `actualiserPageModif()` et `actualiserPageSub()`) ne recrée pas un script externe
+> déjà chargé — seuls les scripts en ligne sont réexécutés. Le rechargement remplaçait l'objet
+> global `tinymce` après la création des éditeurs : à la deuxième ouverture d'un formulaire sans
+> rechargement de la page, la saisie des champs riches était perdue à l'envoi.
 
 ### Pattern d'initialisation — `initTMCE()`
 

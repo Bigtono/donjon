@@ -105,9 +105,15 @@ $urlSort = BASE_URL . '/include/ajax/detail-pp/sort.php';
       $prepares = $preparesParClasse[$m['cla_id']] ?? [];
       // Le compteur ne totalise QUE les sorts préparés normalement : les sorts
       // toujours préparés — accordés par la classe ou choisis — ne pèsent pas
-      // sur le plafond (METIER_7_SORTS.md §11 Q7).
+      // sur le plafond (METIER_7_SORTS.md §11 Q7). En DD2024, les sorts mineurs
+      // non plus : ils sont connus, pas préparés, et cn_sort_n0 les compte à
+      // part (SP-PE10s). En DD3.5, le niveau 0 occupe de vrais emplacements.
       $nbPrepares = 0;
-      foreach ($prepares as $p) if ((int)$p['pesp_origine'] === 0) $nbPrepares += max(1, (int)$p['pesp_nb']);
+      foreach ($prepares as $p):
+        if ((int)$p['pesp_origine'] !== 0) continue;
+        if (!$est35 && $p['niveau_sort'] !== null && (int)$p['niveau_sort'] === 0) continue;
+        $nbPrepares += max(1, (int)$p['pesp_nb']);
+      endforeach;
     ?>
     <section class="per-fiche__bloc">
       <header class="per-fiche__bloc-header per-fiche__bloc-header--flex">
@@ -133,121 +139,72 @@ $urlSort = BASE_URL . '/include/ajax/detail-pp/sort.php';
           <p class="alert alert-warning text-sm"><i class="fa fa-triangle-exclamation"></i> <?= h($a) ?></p>
         <?php endforeach ?>
 
-        <?php // ---- Quatre cases de synthèse ----------------------------
-              // « Attaque des sorts » était accolée au DD de sauvegarde : deux
-              // chiffres différents sur une même ligne, qu'on confond au premier
-              // coup d'œil. Chacun a désormais sa case. ?>
-        <div class="per-magie__cases">
-          <div class="per-magie__case">
-            <span class="per-magie__case-lbl">Caractéristique</span>
-            <span class="per-magie__case-val">
-              <?php if ($m['car_valeur']): ?>
-                <?= (int)$m['car_valeur'] ?> <small><?= formatMod((int)$m['car_mod']) ?></small>
-              <?php else: ?>—<?php endif ?>
-            </span>
-            <span class="per-magie__case-note"><?= h($m['car_nom'] ?: '') ?></span>
-          </div>
-
-          <div class="per-magie__case">
-            <span class="per-magie__case-lbl">NLS effectif</span>
-            <span class="per-magie__case-val"><?= (int)$m['nls'] ?></span>
-            <span class="per-magie__case-note">
-              <?php if ((int)$m['nls_detail']['prestige'] !== 0): ?>
-                <?= (int)$m['nls_detail']['base'] ?> de classe
-                <?= $m['nls_detail']['origine'] === 'prestige' ? '+ prestige' : '· multiclasse' ?>
-              <?php else: ?>niveau de lanceur<?php endif ?>
-            </span>
-          </div>
-
-          <div class="per-magie__case">
-            <span class="per-magie__case-lbl">DD de sauvegarde</span>
-            <span class="per-magie__case-val">
-              <?php if ($m['dd_par_niveau']): ?>
-                <?= (int)$m['dd_base'] ?><small>+niv<?= formatMod((int)$m['car_mod']) ?></small>
-              <?php else: ?><?= (int)$m['dd_base'] ?><?php endif ?>
-            </span>
-            <span class="per-magie__case-note">
-              <?= $m['dd_par_niveau'] ? 'varie selon le niveau du sort' : 'toutes classes de sorts' ?>
-            </span>
-          </div>
-
-          <div class="per-magie__case">
-            <span class="per-magie__case-lbl">Attaque des sorts</span>
-            <span class="per-magie__case-val">
-              <?= $m['attaque'] !== null ? formatMod((int)$m['attaque']) : '—' ?>
-            </span>
-            <span class="per-magie__case-note">
-              <?= $m['attaque'] !== null ? 'jets d\'attaque de sort' : 'sans objet en DD3.5' ?>
-            </span>
-          </div>
-        </div>
-
-        <?php // ---- Actions : un sélecteur par liste, toujours porté par la classe ?>
-        <div class="per-magie__actions">
-          <?php if ((int)$m['profil'] === PROFINC_GRIMOIRE || (int)$m['profil'] === PROFINC_REPERTOIRE): ?>
-            <button type="button" class="btn btn-secondary btn-sm"
-                    onclick="sortsPicker.ouvrir(<?= (int)$m['pc_id'] ?>, 'repertoire')">
-              <i class="fa fa-book"></i>
-              <?= (int)$m['profil'] === PROFINC_GRIMOIRE ? 'Grimoire et sorts connus' : 'Répertoire' ?>
-            </button>
-          <?php endif ?>
-          <?php if ((int)$m['profil'] !== PROFINC_REPERTOIRE): ?>
-            <button type="button" class="btn btn-secondary btn-sm"
-                    onclick="sortsPicker.ouvrir(<?= (int)$m['pc_id'] ?>, 'prepare')">
-              <i class="fa fa-wand-sparkles"></i> Préparer des sorts
-            </button>
-            <?php if ($nbPrepares > 0): ?>
-              <button type="button" class="btn btn-link btn-sm"
-                      onclick="sortsPicker.reinitialiser(<?= (int)$m['cla_id'] ?>, <?= h(json_encode($m['cla_nom'])) ?>)"
-                      title="Vider la liste préparée ; les sorts toujours préparés sont conservés">
-                <i class="fa fa-rotate-left"></i> Réinitialiser
-              </button>
-            <?php endif ?>
-          <?php endif ?>
-        </div>
-
-        <?php // ---- Synthèse : emplacements à gauche, ressources à droite ---
-              // Le tableau reprend l'habillage de « Nombre de sorts par jour »
-              // du descriptif de classe (.table-dd / .col-sort) : c'est la même
-              // information, elle doit se lire pareil. Les 9 niveaux sont
-              // TOUJOURS affichés, même inaccessibles — une table dont le nombre
-              // de colonnes varie d'une classe à l'autre se compare mal. Un
-              // niveau hors de portée porte « — ».
-              //
-              // SP-PE10b : le panneau « Ressources de sorts » rassemble à droite
-              // ce qui se dispersait en fin de bloc — plafonds, taille des listes,
-              // cadence de renouvellement, domaines. ?>
-        <?php
-          // Une ligne par ressource RÉELLEMENT portée par le profil : un clerc
-          // n'a ni grimoire ni répertoire, et « Sorts connus : 0 » lui ferait
-          // croire à une donnée manquante.
-          $ressources = [];
-          if ($m['sorts_mineurs'] !== null):
-            $ressources[] = ['Sorts mineurs connus', (string)(int)$m['sorts_mineurs']];
-          endif;
-          if ((int)$m['profil'] !== PROFINC_REPERTOIRE):
-            // Le plafond de préparation n'existe qu'en DD2024 (cn_sortPrepare) :
-            // en DD3.5, c'est le nombre d'emplacements de chaque niveau qui borne
-            // la préparation, et le tableau ci-contre le dit déjà.
-            $ressources[] = ['Sorts préparés', $m['sorts_prepares'] !== null
-              ? $nbPrepares . ' / ' . (int)$m['sorts_prepares']
-              : (string)$nbPrepares];
-          endif;
-          if ((int)$m['profil'] === PROFINC_GRIMOIRE):
-            $ressources[] = ['Sorts en grimoire', (string)count($grimoire)];
-            $ressources[] = ['Sorts connus',      (string)count($connus)];
-          elseif ((int)$m['profil'] === PROFINC_REPERTOIRE):
-            $ressources[] = ['Sorts au répertoire', (string)count($connus)];
-          endif;
-          if ($m['cadence_lib']):
-            $ressources[] = ['Renouvellement', $m['cadence_lib']];
-          endif;
-          if ($m['domaines']):
-            $ressources[] = ['Domaines', implode(', ', $m['domaines'])];
-          endif;
+        <?php // ---- Synthèse de la classe (SP-PE10p) ---------------------
+              // Les quatre cases deviennent des paires libellé / valeur, sur le
+              // modèle de la ligne d'identité de la fiche : libellé en gras,
+              // valeur en graisse normale, même taille. Le nom de la
+              // caractéristique sert lui-même de libellé, et les notes qui
+              // répétaient le libellé (« jets d'attaque de sort »…) sont tombées.
+              // Le panneau « Ressources de sorts » a disparu : ses compteurs de
+              // listes sont passés dans les onglets, le reste (sorts mineurs,
+              // renouvellement, domaines) suit ici les quatre valeurs.
+              $stats = [];
+              $stats[] = [
+                $m['car_nom'] ?: 'Caractéristique',
+                $m['car_valeur'] ? (int)$m['car_valeur'] . ' (' . formatMod((int)$m['car_mod']) . ')' : '—',
+                '',
+              ];
+              $stats[] = [
+                'NLS',
+                (string)(int)$m['nls'],
+                (int)$m['nls_detail']['prestige'] !== 0
+                  ? '(' . (int)$m['nls_detail']['base'] . ($m['nls_detail']['origine'] === 'prestige' ? ' + prestige)' : ' · multiclasse)')
+                  : '',
+              ];
+              // DD3.5 : le DD dépend du niveau du sort, il reste une formule.
+              $stats[] = [
+                'DD',
+                $m['dd_par_niveau']
+                  ? (int)$m['dd_base'] . ' + niv. ' . formatMod((int)$m['car_mod'])
+                  : (string)(int)$m['dd_base'],
+                '',
+              ];
+              // Sans objet en DD3.5 : le champ n'est pas produit, plutôt qu'un tiret.
+              if ($m['attaque'] !== null):
+                $stats[] = ['Attaque', formatMod((int)$m['attaque']), ''];
+              endif;
+              if ($m['sorts_mineurs'] !== null):
+                $stats[] = ['Sorts mineurs', (string)(int)$m['sorts_mineurs'], ''];
+              endif;
+              if ($m['cadence_lib']):
+                $stats[] = ['Renouvellement', $m['cadence_lib'], ''];
+              endif;
+              if ($m['domaines']):
+                $stats[] = ['Domaines', implode(', ', $m['domaines']), ''];
+              endif;
         ?>
-        <div class="per-magie__synthese">
+        <div class="per-magie__entete">
 
+          <dl class="per-magie__stats">
+            <?php foreach ($stats as [$st_lbl, $st_val, $st_appoint]): ?>
+              <div class="per-magie__stat">
+                <dt><?= h($st_lbl) ?></dt>
+                <dd>
+                  <?= h($st_val) ?>
+                  <?php if ($st_appoint !== ''): ?>
+                    <span class="per-identite__appoint"><?= h($st_appoint) ?></span>
+                  <?php endif ?>
+                </dd>
+              </div>
+            <?php endforeach ?>
+          </dl>
+
+          <?php // ---- Tableau des emplacements (SP-PE10q) ----------------
+                // Une seule rangée d'en-tête : la ligne de groupe « Niveaux de
+                // sort » est tombée, la case d'angle porte « Niv. ». Les 9
+                // niveaux sont TOUJOURS affichés, même inaccessibles — une table
+                // dont le nombre de colonnes varie d'une classe à l'autre se
+                // compare mal. Un niveau hors de portée porte « — ». ?>
           <div class="per-magie__colonne-empl">
             <?php if ($m['pacte']): ?>
               <p class="per-magie__pacte">
@@ -260,14 +217,10 @@ $urlSort = BASE_URL . '/include/ajax/detail-pp/sort.php';
             <div class="table-dd-wrap">
               <table class="table-dd per-magie__table">
                 <thead>
-                  <tr class="thead-groupes">
-                    <th></th>
-                    <th colspan="<?= $est35 ? 10 : 9 ?>" class="th-groupe-sorts">Niveaux de sort</th>
-                  </tr>
                   <tr>
-                    <th></th>
+                    <th class="per-magie__ligne-lbl" scope="col">Niv.</th>
                     <?php for ($n = $est35 ? 0 : 1; $n <= 9; $n++): ?>
-                      <th class="col-sort"><?= $n ?></th>
+                      <th class="col-sort" scope="col"><?= $n ?></th>
                     <?php endfor ?>
                   </tr>
                 </thead>
@@ -302,7 +255,7 @@ $urlSort = BASE_URL . '/include/ajax/detail-pp/sort.php';
                   <?php endif ?>
                   <tr class="per-magie__stock">
                     <th scope="row" class="per-magie__ligne-lbl">
-                      En stock
+                      Restant
                       <button type="button" class="btn btn-link btn-sm per-magie__stock-reset"
                               title="Restaurer tous les emplacements de la journée"
                               onclick="notifier('Suivi des emplacements consommés : table dédiée prévue en SP-PE8 (Mode jeu).')">
@@ -322,117 +275,179 @@ $urlSort = BASE_URL . '/include/ajax/detail-pp/sort.php';
             </div>
           </div>
 
-          <?php if ($ressources): ?>
-            <div class="per-magie__ressources">
-              <h3 class="per-magie__ressources-titre">Ressources de sorts</h3>
-              <dl class="per-magie__ressources-liste">
-                <?php foreach ($ressources as [$res_lbl, $res_val]): ?>
-                  <div class="per-magie__ressource">
-                    <dt><?= h($res_lbl) ?></dt>
-                    <dd><?= h($res_val) ?></dd>
-                  </div>
-                <?php endforeach ?>
-              </dl>
-            </div>
-          <?php endif ?>
-
         </div>
 
-        <?php // ---- Sorts toujours préparés ?>
-        <?php if ($m['toujours']): ?>
-          <?php
-            // Groupés par variante : le Cercle de la Terre du Druide en propose
-            // quatre, entre lesquelles le joueur choisit à chaque repos long.
-            $parVariante = [];
-            foreach ($m['toujours'] as $t) $parVariante[$t['cs_variante']][] = $t;
-          ?>
-          <div class="per-magie__toujours">
-            <h3 class="per-fiche__sous-titre">
-              Toujours préparés
-              <span class="text-muted text-sm">— ne comptent pas dans le plafond</span>
-            </h3>
-            <?php foreach ($parVariante as $variante => $liste): ?>
-              <?php if ($variante !== ''): ?>
-                <p class="per-magie__variante"><strong>Terres <?= h($variante) ?>s</strong></p>
-              <?php endif ?>
-              <ul class="per-magie__sorts">
-                <?php foreach ($liste as $t): ?>
-                  <li>
-                    <span class="mo-lien"
-                          onclick="actualiserPage('<?= $urlSort ?>', {id: <?= (int)$t['so_id'] ?>}, 'externe')">
-                      <?= h($t['so_nom']) ?>
-                    </span>
-                    <span class="text-muted text-sm">
-                      (niv. <?= (int)$t['cs_niveau'] ?><?php if ($t['cs_usages']): ?>,
-                      <?= (int)$t['cs_usages'] ?>×/repos <?= h($t['cs_recharge']) ?><?php endif ?>)
-                    </span>
-                  </li>
+        <?php // ---- Listes du personnage, en onglets (SP-PE10r) ------------
+              // Ordre DESCENDANT, du plus immédiat au plus lointain :
+              //   Préparés    → ce que je peux lancer aujourd'hui (onglet par défaut)
+              //   Grimoire    → ce que je peux préparer demain
+              //   À recopier  → ce que je pourrai recopier un jour
+              // Chaque onglet porte son compteur et ses actions : la barre
+              // d'actions et le panneau « Ressources de sorts » ont disparu.
+              // Un profil à liste unique (clerc, ensorceleur) garde la barre,
+              // réduite à un onglet : elle lui sert de titre et porte ses actions.
+              // Les outils sont des icônes seules, leur `title` dit l'action.
+              // « Réinitialiser » vit dans le sélecteur de préparation (SP-PE10s).
+              $pcId   = (int)$m['pc_id'];
+              $onglets = [];
+              if ((int)$m['profil'] !== PROFINC_REPERTOIRE):
+                $outils = '<button type="button" class="btn btn-secondary btn-sm"'
+                  . ' onclick="sortsPicker.ouvrir(' . $pcId . ', \'prepare\')"'
+                  . ' title="Préparer des sorts" aria-label="Préparer des sorts">'
+                  . '<i class="fa fa-wand-sparkles"></i></button>';
+                $onglets[] = [
+                  'cle'    => 'prepares',
+                  'titre'  => 'Préparés',
+                  // Le plafond de préparation n'existe qu'en DD2024 (cn_sortPrepare) :
+                  // en DD3.5, c'est le tableau des emplacements qui borne.
+                  'compte' => $m['sorts_prepares'] !== null ? $nbPrepares . '/' . (int)$m['sorts_prepares'] : (string)$nbPrepares,
+                  'liste'  => $prepares,
+                  'aide'   => 'magie-prepares',
+                  'outils' => $outils,
+                ];
+              endif;
+              $outilsRep = '<button type="button" class="btn btn-secondary btn-sm"'
+                . ' onclick="sortsPicker.ouvrir(' . $pcId . ', \'repertoire\')"'
+                . ' title="Gérer les sorts connus" aria-label="Gérer les sorts connus">'
+                . '<i class="fa fa-book"></i></button>';
+              if ((int)$m['profil'] === PROFINC_GRIMOIRE):
+                $onglets[] = ['cle' => 'grimoire', 'titre' => 'Grimoire', 'compte' => (string)count($grimoire),
+                              'liste' => $grimoire, 'aide' => 'magie-grimoire', 'outils' => $outilsRep];
+                $onglets[] = ['cle' => 'recopier', 'titre' => 'À recopier', 'compte' => (string)count($aRecopier),
+                              'liste' => $aRecopier, 'aide' => 'magie-connus', 'outils' => $outilsRep];
+              elseif ((int)$m['profil'] === PROFINC_REPERTOIRE):
+                $onglets[] = ['cle' => 'repertoire', 'titre' => 'Répertoire', 'compte' => (string)count($connus),
+                              'liste' => $connus, 'aide' => null, 'outils' => $outilsRep];
+              endif;
+        ?>
+        <?php if ($onglets): ?>
+          <div class="per-magie__onglets" data-onglets="<?= $pcId ?>">
+
+            <div class="per-magie__onglets-barre">
+              <div class="per-magie__onglets-liste" role="tablist">
+                <?php foreach ($onglets as $i => $o): ?>
+                  <button type="button" role="tab"
+                          class="per-magie__onglet<?= $i === 0 ? ' est-actif' : '' ?>"
+                          id="onglet-<?= $pcId ?>-<?= h($o['cle']) ?>"
+                          aria-controls="panneau-<?= $pcId ?>-<?= h($o['cle']) ?>"
+                          aria-selected="<?= $i === 0 ? 'true' : 'false' ?>"
+                          tabindex="<?= $i === 0 ? '0' : '-1' ?>"
+                          data-onglet="<?= h($o['cle']) ?>">
+                    <?= h($o['titre']) ?>
+                    <span class="per-magie__onglet-compte"><?= h($o['compte']) ?></span>
+                  </button>
                 <?php endforeach ?>
-              </ul>
+              </div>
+              <?php // Les outils de l'onglet actif seulement : les autres sont masqués. ?>
+              <?php foreach ($onglets as $i => $o): ?>
+                <div class="per-magie__outils" data-onglet="<?= h($o['cle']) ?>"<?= $i === 0 ? '' : ' hidden' ?>>
+                  <?php if ($o['aide']): ?><?= aideIcone($o['aide']) ?><?php endif ?>
+                  <?= $o['outils'] /* HTML construit ci-dessus, valeurs échappées */ ?>
+                </div>
+              <?php endforeach ?>
+            </div>
+
+            <?php foreach ($onglets as $i => $o): ?>
+              <div class="per-magie__panneau" role="tabpanel"
+                   id="panneau-<?= $pcId ?>-<?= h($o['cle']) ?>"
+                   aria-labelledby="onglet-<?= $pcId ?>-<?= h($o['cle']) ?>"
+                   data-onglet="<?= h($o['cle']) ?>"<?= $i === 0 ? '' : ' hidden' ?>>
+
+                <?php
+                  // Une ligne par niveau de sort, la pastille une seule fois en
+                  // tête de ligne. niveau_sort est résolu à la requête selon le
+                  // ruleset (so_niveau en DD2024, sc_niveau en DD3.5) ; il peut
+                  // rester NULL si le sort ne figure plus dans la liste de la
+                  // classe — ces sorts ferment la liste, sans pastille.
+                  $parNiveau = [];
+                  foreach ($o['liste'] as $s2):
+                    $niv = ($s2['niveau_sort'] === null || $s2['niveau_sort'] === '') ? '' : (string)(int)$s2['niveau_sort'];
+                    $parNiveau[$niv][] = $s2;
+                  endforeach;
+                  if (isset($parNiveau[''])):
+                    $sansNiveau = $parNiveau[''];
+                    unset($parNiveau['']);
+                    $parNiveau[''] = $sansNiveau;
+                  endif;
+                ?>
+                <?php if ($parNiveau): ?>
+                  <div class="per-magie__niveaux">
+                    <?php foreach ($parNiveau as $niv => $sorts): ?>
+                      <div class="per-magie__niveau">
+                        <span class="per-magie__pastille"<?= $niv === '' ? ' title="Niveau inconnu pour cette classe"' : ' title="Niveau du sort"' ?>><?= $niv === '' ? '?' : h($niv) ?></span>
+                        <ul class="per-magie__sorts">
+                          <?php foreach ($sorts as $s2): ?>
+                            <li>
+                              <span class="mo-lien"
+                                    onclick="actualiserPage('<?= $urlSort ?>', {id: <?= (int)$s2['so_id'] ?>}, 'externe')"><?= h($s2['so_nom']) ?></span>
+                              <?php if (isset($s2['pesp_nb']) && (int)$s2['pesp_nb'] > 1): ?>
+                                <span class="text-muted text-sm">×<?= (int)$s2['pesp_nb'] ?></span>
+                              <?php endif ?>
+                              <?php if (isset($s2['pesp_origine']) && (int)$s2['pesp_origine'] !== 0): ?>
+                                <span class="per-magie__badge">toujours préparé</span>
+                              <?php endif ?>
+                            </li>
+                          <?php endforeach ?>
+                        </ul>
+                      </div>
+                    <?php endforeach ?>
+                  </div>
+                <?php else: ?>
+                  <p class="text-muted text-sm per-magie__vide">Aucun sort.</p>
+                <?php endif ?>
+
+                <?php // ---- Sorts toujours préparés : dans le premier onglet,
+                      // celui de ce qui se lance aujourd'hui. ?>
+                <?php if ($i === 0 && $m['toujours']): ?>
+                  <?php
+                    // Groupés par variante : le Cercle de la Terre du Druide en
+                    // propose quatre, entre lesquelles le joueur choisit à chaque
+                    // repos long. Dans chaque variante, une ligne par niveau.
+                    $parVariante = [];
+                    foreach ($m['toujours'] as $t) $parVariante[$t['cs_variante']][(int)$t['cs_niveau']][] = $t;
+                  ?>
+                  <div class="per-magie__toujours">
+                    <h3 class="per-fiche__sous-titre">
+                      Toujours préparés
+                      <span class="text-muted text-sm">— ne comptent pas dans le plafond</span>
+                    </h3>
+                    <?php foreach ($parVariante as $variante => $niveaux): ?>
+                      <?php ksort($niveaux); ?>
+                      <?php if ($variante !== ''): ?>
+                        <p class="per-magie__variante"><strong>Terres <?= h($variante) ?>s</strong></p>
+                      <?php endif ?>
+                      <div class="per-magie__niveaux">
+                        <?php foreach ($niveaux as $niv => $liste): ?>
+                          <div class="per-magie__niveau">
+                            <span class="per-magie__pastille" title="Niveau du sort"><?= (int)$niv ?></span>
+                            <ul class="per-magie__sorts">
+                              <?php foreach ($liste as $t): ?>
+                                <li>
+                                  <span class="mo-lien"
+                                        onclick="actualiserPage('<?= $urlSort ?>', {id: <?= (int)$t['so_id'] ?>}, 'externe')"><?= h($t['so_nom']) ?></span>
+                                  <?php if ($t['cs_usages']): ?>
+                                    <span class="text-muted text-sm">(<?= (int)$t['cs_usages'] ?>×/repos <?= h($t['cs_recharge']) ?>)</span>
+                                  <?php endif ?>
+                                </li>
+                              <?php endforeach ?>
+                            </ul>
+                          </div>
+                        <?php endforeach ?>
+                      </div>
+                    <?php endforeach ?>
+                    <?php if (count($parVariante) > 1): ?>
+                      <p class="text-muted text-sm">
+                        Un seul de ces groupes s'applique par jour : celui du terrain choisi au dernier repos long.
+                      </p>
+                    <?php endif ?>
+                  </div>
+                <?php endif ?>
+
+              </div>
             <?php endforeach ?>
-            <?php if (count($parVariante) > 1): ?>
-              <p class="text-muted text-sm">
-                Un seul de ces groupes s'applique par jour : celui du terrain choisi au dernier repos long.
-              </p>
-            <?php endif ?>
+
           </div>
         <?php endif ?>
-
-        <?php // ---- Listes du personnage ------------------------------------
-              // Ordre DESCENDANT, du plus immédiat au plus lointain :
-              //   Préparés  → ce que je peux lancer aujourd'hui
-              //   Grimoire  → ce que je peux préparer demain
-              //   Connus    → ce que je pourrai recopier un jour
-              // Les explications passent en bulle d'aide : on ne les lit qu'une
-              // fois, elles n'ont pas à encombrer la page à chaque visite. ?>
-        <?php
-          $blocs = [];
-          if ((int)$m['profil'] !== PROFINC_REPERTOIRE):
-            $blocs[] = ['Sorts préparés', $prepares, 'magie-prepares', 'prepare'];
-          endif;
-          if ((int)$m['profil'] === PROFINC_GRIMOIRE):
-            $blocs[] = ['Grimoire',            $grimoire,  'magie-grimoire', null];
-            $blocs[] = ['Connus, à recopier',  $aRecopier, 'magie-connus',   null];
-          elseif ((int)$m['profil'] === PROFINC_REPERTOIRE):
-            $blocs[] = ['Répertoire', $connus, null, null];
-          endif;
-        ?>
-        <?php foreach ($blocs as [$titre, $liste, $cleAide, $mode]): ?>
-          <div class="per-magie__liste">
-            <h3 class="per-fiche__sous-titre">
-              <?= h($titre) ?>
-              <?php if ($cleAide): ?><?= aideIcone($cleAide) ?><?php endif ?>
-            </h3>
-            <?php if ($liste): ?>
-              <ul class="per-magie__sorts">
-                <?php foreach ($liste as $s2): ?>
-                  <?php
-                    // niveau_sort est résolu à la requête, selon le ruleset
-                    // (so_niveau en DD2024, sc_niveau en DD3.5). Il peut rester
-                    // NULL si le sort ne figure plus dans la liste de la classe —
-                    // on omet alors la pastille plutôt que d'afficher un faux.
-                    $niv = ($s2['niveau_sort'] === null || $s2['niveau_sort'] === '') ? null : (int)$s2['niveau_sort'];
-                  ?>
-                  <li>
-                    <?php if ($niv !== null): ?>
-                      <span class="per-magie__pastille" title="Niveau du sort"><?= $niv ?></span>
-                    <?php endif ?>
-                    <span class="mo-lien"
-                          onclick="actualiserPage('<?= $urlSort ?>', {id: <?= (int)$s2['so_id'] ?>}, 'externe')"><?= h($s2['so_nom']) ?></span>
-                    <?php if (isset($s2['pesp_nb']) && (int)$s2['pesp_nb'] > 1): ?>
-                      <span class="text-muted text-sm">×<?= (int)$s2['pesp_nb'] ?></span>
-                    <?php endif ?>
-                    <?php if (isset($s2['pesp_origine']) && (int)$s2['pesp_origine'] !== 0): ?>
-                      <span class="per-magie__badge">toujours préparé</span>
-                    <?php endif ?>
-                  </li>
-                <?php endforeach ?>
-              </ul>
-            <?php else: ?>
-              <p class="text-muted text-sm">Aucun sort.</p>
-            <?php endif ?>
-          </div>
-        <?php endforeach ?>
       </div>
     </section>
   <?php endforeach ?>

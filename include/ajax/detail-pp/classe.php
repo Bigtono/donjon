@@ -106,6 +106,36 @@ $stmt_niv = $db->prepare('
 $stmt_niv->execute([$id]);
 $niveaux = $stmt_niv->fetchAll();
 
+// SP-MA6 — Prestige DD3.5 qui fait progresser le NLS d'une classe de base au lieu
+// d'accorder ses propres sorts : la table remplace ses colonnes de sorts par une
+// colonne « Sorts par jour » rédigée (« +1 niv. profane »…), en forme courte pour
+// tenir sur un téléphone. Les deux cas sont exclusifs : un seul drapeau levé
+// suffit à basculer.
+$progressionNls = false;
+if ($ruleset === 'DD3.5' && (int)$cla['cla_clt_id'] === 2):
+  foreach ($niveaux as $nv):
+    if ((int)($nv['cn_niveauSortArcane'] ?? 0) === 1
+        || (int)($nv['cn_niveauSortDivin'] ?? 0) === 1
+        || (int)($nv['cn_niveauSortEffectif'] ?? 0) === 1):
+      $progressionNls = true;
+      break;
+    endif;
+  endforeach;
+endif;
+
+// Libellé d'un niveau de progression du NLS. « Au choix » prime : il couvre
+// n'importe quelle classe de base lanceuse.
+$libelleProgressionNls = function (array $nv): string {
+  $arc = (int)($nv['cn_niveauSortArcane']   ?? 0) === 1;
+  $div = (int)($nv['cn_niveauSortDivin']    ?? 0) === 1;
+  $eff = (int)($nv['cn_niveauSortEffectif'] ?? 0) === 1;
+  if ($eff):         return '+1 niv. au choix';         endif;
+  if ($arc && $div): return '+1 niv. profane et divin'; endif;
+  if ($arc):         return '+1 niv. profane';          endif;
+  if ($div):         return '+1 niv. divin';            endif;
+  return '—';
+};
+
 // ============================================================
 // Capacités spéciales complètes (pour la section descriptions)
 // ============================================================
@@ -445,9 +475,10 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
         <strong>Table de progression : <?= h($cla['cla_nom']) ?></strong>
       </p>
 
-      <table class="table-dd" id="classe-niv-table">
+      <?php // Sans colonnes de sorts, la table peut tenir dans un téléphone (SP-MA6). ?>
+      <table class="table-dd<?= ($isLanceurSorts && !$progressionNls) ? '' : ' table-dd--etroite' ?>" id="classe-niv-table">
         <thead>
-          <?php if ($isLanceurSorts): ?>
+          <?php if ($isLanceurSorts && !$progressionNls): ?>
           <tr class="thead-groupes">
             <th colspan="<?= $colsBefore ?>"></th>
             <th colspan="<?= $nbColsSorts ?>" class="th-groupe-sorts"><?= $lblGroupSort ?></th>
@@ -467,7 +498,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
             <?php foreach ($activePouvoirs as $p): ?>
               <th class="col-pouvoir"><?= h((string)($cla['cla_pouvoir' . $p] ?? '')) ?></th>
             <?php endforeach ?>
-            <?php if ($isLanceurSorts): ?>
+            <?php if ($isLanceurSorts && !$progressionNls): ?>
               <?php if ($ruleset === 'DD2024'): ?>
                 <th class="col-sort" title="Sorts mineurs (niveau 0)">Min.</th>
                 <th class="col-sort" title="Sorts préparés">Prép.</th>
@@ -479,6 +510,8 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
                   <th class="col-sort"><?= $s ?></th>
                 <?php endfor ?>
               <?php endif ?>
+            <?php elseif ($progressionNls): ?>
+              <th class="col-nls" title="Niveau de lanceur de sorts gagné par une classe de base">Sorts par jour</th>
             <?php endif ?>
           </tr>
         </thead>
@@ -516,7 +549,7 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
               <?php foreach ($activePouvoirs as $p): ?>
                 <td class="col-pouvoir"><?= h((string)($niv['cn_pouvoir' . $p] ?? '—')) ?></td>
               <?php endforeach ?>
-              <?php if ($isLanceurSorts): ?>
+              <?php if ($isLanceurSorts && !$progressionNls): ?>
                 <?php if ($ruleset === 'DD2024'): ?>
                   <td class="col-sort"><?= $niv['cn_sort_n0'] !== null && $niv['cn_sort_n0'] !== '' ? (int)$niv['cn_sort_n0'] : '—' ?></td>
                   <td class="col-sort"><?= $niv['cn_sortPrepare'] !== null && $niv['cn_sortPrepare'] !== '' ? (int)$niv['cn_sortPrepare'] : '—' ?></td>
@@ -528,6 +561,8 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
                     <td class="col-sort"><?= $niv['cn_sort_n' . $s] !== null && $niv['cn_sort_n' . $s] !== '' ? (int)$niv['cn_sort_n' . $s] : '—' ?></td>
                   <?php endfor ?>
                 <?php endif ?>
+              <?php elseif ($progressionNls): ?>
+                <td class="col-nls"><?= h($libelleProgressionNls($niv)) ?></td>
               <?php endif ?>
             </tr>
           <?php endforeach ?>

@@ -1036,6 +1036,21 @@
   border-left: 2px solid var(--clr-accent);
 }
 
+/* Colonne « Sorts par jour » d'une prestige qui fait progresser le NLS
+   (SP-MA6) : un libellé court par niveau, avec le même séparateur accentué. */
+.table-dd .col-nls {
+  border-left: 2px solid var(--clr-accent);
+  white-space: nowrap;
+}
+/* Sur téléphone, le libellé passe sur deux lignes plutôt que d'élargir la
+   table : « +1 niv. profane et divin » y demandait 147px à lui seul. */
+@media (max-width: 767px) {
+  .table-dd .col-nls {
+    white-space: normal;
+    min-width: 72px;
+  }
+}
+
 /* Colonnes pouvoirs — largeur fixe, retour à la ligne autorisé */
 .table-dd .col-pouvoir {
   width: 70px;
@@ -1052,6 +1067,20 @@
   width: auto;        /* s'étire avec table-layout:auto */
   min-width: 160px;
   word-break: break-word;
+}
+/* Sur téléphone, une table de progression SANS colonnes de sorts (classe non
+   lanceuse, ou prestige qui fait progresser le NLS) se resserre pour tenir
+   dans l'écran (SP-MA6) : les 160px faisaient déborder une table de six
+   colonnes. Pas à zéro — les mots se coupaient lettre à lettre — et sans
+   coupure de mot. Les tables des lanceurs, qui défilent de toute façon avec
+   leurs dix colonnes de sorts, gardent les 160px. */
+@media (max-width: 767px) {
+  .table-dd--etroite .col-aptitudes {
+    min-width: 88px;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+  .table-dd--etroite .col-nls { min-width: 60px; }
 }
 
 /* ============================================================
@@ -2022,6 +2051,17 @@
   border-color: var(--clr-danger);
 }
 .sorts-picker__jeton.est-plein strong { color: var(--clr-danger); }
+
+/* Compteurs et « Réinitialiser » sur une même ligne (SP-PE10s) : le bouton a
+   quitté la vue Magie, où il occupait une place permanente pour un geste rare. */
+.sorts-picker__barre-prep {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-xs) var(--sp-md);
+}
+.sorts-picker__barre-prep .btn { margin-left: auto; }
 
 .dons-picker__decompte {
   margin-left: auto;

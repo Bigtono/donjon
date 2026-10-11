@@ -149,7 +149,7 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
    (supplément compendium), `SP-E` (équipements), `SP-T` (transfert d'opposition),
    `SP-TB` (tableaux de règles), `SP-GL` (glossaire), `SP-PE` (module Personnages),
    `SP-IM` (import des données du compendium), `SP-DP` (déploiement en production),
-   `SP-RB` (bascule de ruleset depuis le header), `SP-SY` (synchronisation du contenu local →
+   `SP-RB` (bascule de ruleset depuis le header), `SP-XC` (export de classes vers la production), `SP-SY` (synchronisation du contenu local →
    production, en attente d'arbitrage).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :

@@ -125,6 +125,35 @@ endfor;
 
 $isLanceurSorts = (int)$cla['cla_mag_id'] > 0;
 
+// SP-MA6 — Une classe de prestige DD3.5 lanceuse se comporte de l'une de deux
+// façons, EXCLUSIVES : elle accorde ses propres sorts par jour (cn_sort_n*, ex.
+// Tueur de Domiel), ou elle fait avancer le NLS d'une classe de base (drapeaux
+// cn_niveauSort*, ex. Archimage). La section 2 porte les deux jeux de colonnes
+// et une bascule en affiche un ; le mode n'est pas stocké, il se déduit des
+// drapeaux. Une classe du second cas reste à cla_mag_id = 0 : sans quoi la vue
+// Magie d'un personnage lui ouvrirait un bloc de classe lanceuse vide.
+$gereModeMagie = ($ruleset === 'DD3.5');
+$modeNls = false;
+if ($gereModeMagie && (int)$cla['cla_clt_id'] === 2):
+  foreach ($niveaux as $row):
+    if ((int)($row['cn_niveauSortArcane'] ?? 0) === 1
+        || (int)($row['cn_niveauSortDivin'] ?? 0) === 1
+        || (int)($row['cn_niveauSortEffectif'] ?? 0) === 1):
+      $modeNls = true;
+      break;
+    endif;
+  endforeach;
+endif;
+// Les colonnes de sorts s'affichent aussi pour une prestige DD3.5 non encore
+// déclarée lanceuse : sans cela, choisir le type de magie obligeait à
+// enregistrer puis rouvrir le formulaire pour les voir apparaître.
+$colsSorts = $isLanceurSorts || ($gereModeMagie && (int)$cla['cla_clt_id'] === 2);
+$drapeauxNls = [
+  'cn_niveauSortArcane'   => ['Profane',  'Avance le NLS d\'une classe de base profane'],
+  'cn_niveauSortDivin'    => ['Divin',    'Avance le NLS d\'une classe de base divine'],
+  'cn_niveauSortEffectif' => ['Au choix', 'Avance le NLS d\'une classe de base lanceuse au choix du joueur'],
+];
+
 // ============================================================
 // Capacités spéciales existantes (section 3)
 // ============================================================
@@ -299,6 +328,18 @@ $classesParentes = $stmt_par->fetchAll();
             <?php endforeach ?>
           </select>
         </div>
+
+        <?php // Conditions d'accès (DD3.5, prestige) : sous le type de classe, sur
+              // toute la largeur. Toujours rendu, affiché par appliquerVisibiliteType()
+              // quand le type est Prestige — on pouvait jusqu'ici passer une classe en
+              // Prestige sans voir le champ avant d'avoir enregistré et rouvert. ?>
+        <?php if ($ruleset === 'DD3.5'): ?>
+          <div class="form-group modif-grid__full classe-champ-prestige-cond">
+            <label for="cla_conditions">Conditions d'accès (prestige)</label>
+            <textarea id="cla_conditions" name="cla_conditions"
+                      class="tinymce-basic"><?= $cla['cla_conditions'] ?? '' ?></textarea>
+          </div>
+        <?php endif ?>
 
         <div class="form-group classe-champ-sousclasse">
           <label for="cla_cla_id">Classe parente <span class="required">*</span></label>
@@ -531,15 +572,7 @@ $classesParentes = $stmt_par->fetchAll();
                   class="tinymce-basic"><?= $cla['cla_sorts'] ?? '' ?></textarea>
       </div>
 
-      <?php if ($isPrestige): ?>
-        <div class="form-group">
-          <label for="cla_conditions">Conditions d'accès (prestige)</label>
-          <textarea id="cla_conditions" name="cla_conditions"
-                    class="tinymce-basic"><?= $cla['cla_conditions'] ?? '' ?></textarea>
-        </div>
-      <?php else: ?>
-        <input type="hidden" name="cla_conditions" value="">
-      <?php endif ?>
+      <?php // « Conditions d'accès » a rejoint la section 1, sous le type de classe. ?>
 
     </div><!-- .modif-section DD3.5 -->
 
@@ -612,6 +645,22 @@ $classesParentes = $stmt_par->fetchAll();
     <div class="modif-section classe-champ-normal">
       <div class="modif-section__header">
         <span class="modif-section__label">Section 2 — Table de progression</span>
+        <?php if ($id > 0 && $gereModeMagie): ?>
+          <?php // Bascule SP-MA6 — visible pour une classe de prestige seulement
+                // (appliquerModeMagie()). Le mode n'est pas stocké : le serveur
+                // le relit à l'enregistrement pour neutraliser l'autre jeu. ?>
+          <div class="modif-bascule classe-champ-prestige" role="radiogroup"
+               aria-label="Magie de la classe de prestige">
+            <label class="modif-bascule__option">
+              <input type="radio" name="cn_mode_magie" value="sorts" <?= $modeNls ? '' : 'checked' ?>>
+              <span>Sorts par jour</span>
+            </label>
+            <label class="modif-bascule__option">
+              <input type="radio" name="cn_mode_magie" value="nls" <?= $modeNls ? 'checked' : '' ?>>
+              <span>Progression du NLS</span>
+            </label>
+          </div>
+        <?php endif ?>
       </div>
 
       <?php if ($id === 0): ?>
@@ -620,8 +669,20 @@ $classesParentes = $stmt_par->fetchAll();
         </p>
       <?php else: ?>
 
+        <?php if ($gereModeMagie): ?>
+          <p class="form-hint classe-mode-nls-hint">
+            Chaque case cochée fait gagner, à ce niveau, un niveau de lanceur de sorts à une classe
+            de base du personnage. La classe ne lance pas de sorts par elle-même : type de magie,
+            profil d'incantation et renouvellement sont neutralisés en section 1.
+          </p>
+          <p class="form-hint classe-mode-sorts-hint">
+            Renseignez le <strong>type de magie</strong> en section 1 : sans lui, ces colonnes ne
+            sont pas prises en compte.
+          </p>
+        <?php endif ?>
+
         <div class="table-scroll">
-          <table class="table-classe-modif">
+          <table class="table-classe-modif<?= $modeNls ? ' est-mode-nls' : '' ?>" id="classe-niv-table-modif">
             <thead>
               <tr>
                 <th class="col-niveau">Niv.</th>
@@ -634,7 +695,7 @@ $classesParentes = $stmt_par->fetchAll();
                 <?php foreach ($activePouvoirs as $p): ?>
                   <th class="col-pouvoir"><?= h((string)($cla['cla_pouvoir' . $p] ?? '')) ?></th>
                 <?php endforeach ?>
-                <?php if ($isLanceurSorts): ?>
+                <?php if ($colsSorts): ?>
                   <?php if ($ruleset === 'DD2024'): ?>
                     <th class="col-sort" title="Sorts mineurs (niveau 0)">Min.</th>
                     <th class="col-sort" title="Sorts préparés">Prép.</th>
@@ -643,15 +704,20 @@ $classesParentes = $stmt_par->fetchAll();
                     <?php endfor ?>
                   <?php else: ?>
                     <?php for ($s = 0; $s <= 9; $s++): ?>
-                      <th class="col-sort">S<?= $s ?></th>
+                      <th class="col-sort col-mode-sorts">S<?= $s ?></th>
                     <?php endfor ?>
                     <?php // Colonnes « sorts connus » : seul un répertoire figé en a (SP-MA0) ?>
                     <?php if ((int)$cla['cla_profil_incantation'] === PROFINC_REPERTOIRE): ?>
                       <?php for ($s = 0; $s <= 9; $s++): ?>
-                        <th class="col-sort">C<?= $s ?></th>
+                        <th class="col-sort col-mode-sorts">C<?= $s ?></th>
                       <?php endfor ?>
                     <?php endif ?>
                   <?php endif ?>
+                <?php endif ?>
+                <?php if ($gereModeMagie): ?>
+                  <?php foreach ($drapeauxNls as [$lbl, $tt]): ?>
+                    <th class="col-nls col-mode-nls" title="<?= h($tt) ?>"><?= h($lbl) ?></th>
+                  <?php endforeach ?>
                 <?php endif ?>
               </tr>
             </thead>
@@ -691,7 +757,7 @@ $classesParentes = $stmt_par->fetchAll();
                              value="<?= h((string)($row['cn_pouvoir' . $p] ?? '')) ?>">
                     </td>
                   <?php endforeach ?>
-                  <?php if ($isLanceurSorts): ?>
+                  <?php if ($colsSorts): ?>
                     <?php if ($ruleset === 'DD2024'): ?>
                       <td>
                         <input type="text" class="col-sort"
@@ -712,7 +778,7 @@ $classesParentes = $stmt_par->fetchAll();
                       <?php endfor ?>
                     <?php else: ?>
                       <?php for ($s = 0; $s <= 9; $s++): ?>
-                        <td>
+                        <td class="col-mode-sorts">
                           <input type="text" class="col-sort"
                                  name="niveaux[<?= $niv ?>][cn_sort_n<?= $s ?>]"
                                  value="<?= h((string)($row['cn_sort_n' . $s] ?? '')) ?>">
@@ -720,7 +786,7 @@ $classesParentes = $stmt_par->fetchAll();
                       <?php endfor ?>
                       <?php if ((int)$cla['cla_profil_incantation'] === PROFINC_REPERTOIRE): ?>
                         <?php for ($s = 0; $s <= 9; $s++): ?>
-                          <td>
+                          <td class="col-mode-sorts">
                             <input type="text" class="col-sort"
                                    name="niveaux[<?= $niv ?>][cn_sortConnu_n<?= $s ?>]"
                                    value="<?= h((string)($row['cn_sortConnu_n' . $s] ?? '')) ?>">
@@ -728,6 +794,16 @@ $classesParentes = $stmt_par->fetchAll();
                         <?php endfor ?>
                       <?php endif ?>
                     <?php endif ?>
+                  <?php endif ?>
+                  <?php if ($gereModeMagie): ?>
+                    <?php foreach ($drapeauxNls as $col => [$lbl, $tt]): ?>
+                      <td class="col-nls col-mode-nls">
+                        <input type="checkbox" value="1" title="<?= h($tt) ?>"
+                               aria-label="<?= h($lbl) ?>, niveau <?= $niv ?>"
+                               name="niveaux[<?= $niv ?>][<?= $col ?>]"
+                               <?= (int)($row[$col] ?? 0) === 1 ? 'checked' : '' ?>>
+                      </td>
+                    <?php endforeach ?>
                   <?php endif ?>
                 </tr>
               <?php endforeach ?>
@@ -910,6 +986,50 @@ $classesParentes = $stmt_par->fetchAll();
     });
     document.querySelectorAll('.classe-champ-sousclasse').forEach(function(el) {
       el.style.display = estSousClasse ? '' : 'none';
+    });
+    // Conditions d'accès : Prestige seulement (masqué pour Base et PNJ).
+    const estPrestige = parseInt(select.value, 10) === PRESTIGE_CLT_ID;
+    document.querySelectorAll('.classe-champ-prestige-cond').forEach(function(el) {
+      el.style.display = estPrestige ? '' : 'none';
+    });
+    appliquerModeMagie();
+  }
+
+  // ---- Bascule Sorts par jour / Progression du NLS (SP-MA6, DD3.5) ----
+  // Prestige seulement : une classe de base garde ses sorts par jour. En mode
+  // NLS, la classe ne lance rien par elle-même — type de magie, profil et
+  // renouvellement sont désactivés (donc non soumis : le serveur les remet à 0,
+  // et les neutralise de toute façon). Leur valeur reste dans le DOM et revient
+  // si l'on rebascule avant d'enregistrer.
+  const PRESTIGE_CLT_ID = 2;
+  const CHAMPS_LANCEUR  = ['cla_mag_id', 'cla_profil_incantation', 'cla_renouvellement'];
+
+  function appliquerModeMagie() {
+    const table = document.getElementById('classe-niv-table-modif');
+    const radio = document.querySelector('input[name="cn_mode_magie"]:checked');
+    if (!table || !radio) return;
+
+    const selectType = document.getElementById('cla_clt_id');
+    const prestige   = selectType && parseInt(selectType.value, 10) === PRESTIGE_CLT_ID;
+    const modeNls    = prestige && radio.value === 'nls';
+
+    document.querySelectorAll('.classe-champ-prestige').forEach(function(el) {
+      el.style.display = prestige ? '' : 'none';
+    });
+    table.classList.toggle('est-mode-nls', modeNls);
+
+    CHAMPS_LANCEUR.forEach(function(id) {
+      const champ = document.getElementById(id);
+      if (champ) champ.disabled = modeNls;
+    });
+
+    const mag = document.getElementById('cla_mag_id');
+    const sansMagie = !mag || parseInt(mag.value, 10) === 0;
+    document.querySelectorAll('.classe-mode-nls-hint').forEach(function(el) {
+      el.style.display = modeNls ? '' : 'none';
+    });
+    document.querySelectorAll('.classe-mode-sorts-hint').forEach(function(el) {
+      el.style.display = (prestige && !modeNls && sansMagie) ? '' : 'none';
     });
   }
 
@@ -1301,6 +1421,11 @@ $classesParentes = $stmt_par->fetchAll();
 
   const _selectType = document.getElementById('cla_clt_id');
   if (_selectType) _selectType.addEventListener('change', appliquerVisibiliteType);
+  document.querySelectorAll('input[name="cn_mode_magie"]').forEach(function(r) {
+    r.addEventListener('change', appliquerModeMagie);
+  });
+  const _selectMag = document.getElementById('cla_mag_id');
+  if (_selectMag) _selectMag.addEventListener('change', appliquerModeMagie);
   appliquerVisibiliteType();
 
 })(); // fin IIFE

@@ -327,6 +327,8 @@ require_once __DIR__ . '/../../include/header.php';
     <?php endif ?>
     <p class="mt-md">
       <a href="<?= BASE_URL ?>/admin/migrations.php"><i class="fa fa-database"></i> Migrations SQL de la base locale</a>
+      <br>
+      <a href="<?= BASE_URL ?>/admin/deploiement/export-classes.php"><i class="fa fa-file-export"></i> Export de classes vers la production</a>
     </p>
   </section>
 

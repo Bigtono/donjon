@@ -1289,6 +1289,18 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
   $ptsComp     = intParam($_POST['cla_pointsCompetences'] ?? 0);
   $poNiv1      = intParam($_POST['cla_po_niveau1']      ?? 0);
 
+  // SP-MA6 — Prestige DD3.5 : sorts par jour OU progression du NLS, jamais les
+  // deux. En mode NLS la classe ne lance rien par elle-même : elle reste non
+  // lanceuse (cla_mag_id = 0), sans quoi la vue Magie d'un personnage lui
+  // ouvrirait un bloc vide. Le profil et la cadence tombent avec (ci-dessous).
+  // La bascule n'existe dans le formulaire qu'une fois la classe créée : sans
+  // elle (création, ou formulaire d'avant SP-MA6), on ne touche à rien.
+  $gereModeMagie = ($ruleset_id === 1 && $clt_id === 2 && isset($_POST['cn_mode_magie']));
+  $modeNls       = $gereModeMagie && (($_POST['cn_mode_magie'] ?? '') === 'nls');
+  if ($modeNls):
+    $mag_id = 0;
+  endif;
+
   // Profil d'incantation (SP-MA0) — remplace les trois drapeaux
   // cla_sort_connu / _compris / _prepare, dépréciés : ils ne sont plus ni lus
   // ni écrits, et leurs colonnes sont laissées figées au 2026-08-27.
@@ -1310,6 +1322,11 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
   $competences    = $_POST['cla_competences']    ?? '';
   $sorts          = $_POST['cla_sorts']          ?? '';
   $conditions     = $_POST['cla_conditions']     ?? '';
+  // Conditions d'accès : propres aux classes de prestige. Le champ reste dans le
+  // formulaire, masqué, quand on choisit un autre type : on ne garde pas son contenu.
+  if ($clt_id !== 2):
+    $conditions = '';
+  endif;
   $caracteristiques = $_POST['cla_caracteristiques'] ?? '';
   $traits         = $_POST['cla_traits']         ?? '';
   $critere_rec    = $_POST['cla_critere_rec']    ?? '';
@@ -1579,6 +1596,13 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
         'cn_pouvoir5',
       ];
 
+      // Drapeaux de progression du NLS (SP-MA6) : écrits pour une prestige DD3.5
+      // seulement. Ceux des classes de base ne sont pas touchés.
+      $drapeauxNls = ['cn_niveauSortArcane', 'cn_niveauSortDivin', 'cn_niveauSortEffectif'];
+      if ($gereModeMagie):
+        $cols_allowed = array_merge($cols_allowed, $drapeauxNls);
+      endif;
+
       foreach ($niveaux_post as $nKey => $row):
         $niv = (int)$nKey;
         if ($niv < 1 || $niv > $niveauMax) continue;
@@ -1592,6 +1616,21 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
             $values[$col] = $raw;
           endif;
         endforeach;
+
+        // Exclusivité garantie côté serveur, quel que soit ce que le formulaire
+        // a soumis : en mode NLS les sorts par jour et connus passent à NULL, en
+        // mode Sorts les drapeaux tombent à 0. Case cochée = 1, absente = 0.
+        if ($gereModeMagie):
+          foreach ($drapeauxNls as $col):
+            $values[$col] = ($modeNls && !empty($row[$col])) ? 1 : 0;
+          endforeach;
+          if ($modeNls):
+            for ($s = 0; $s <= 9; $s++):
+              $values['cn_sort_n' . $s]      = null;
+              $values['cn_sortConnu_n' . $s] = null;
+            endfor;
+          endif;
+        endif;
 
         $stmt_exists->execute([$cla_id, $niv]);
         $exists = (bool)$stmt_exists->fetchColumn();

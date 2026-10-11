@@ -106,6 +106,59 @@
   font-size: 0.9rem;
 }
 
+/* Bascule à deux positions dans l'en-tête d'une section (SP-MA6) —
+   radios masqués, libellés en boutons accolés. */
+.modif-bascule {
+  display: inline-flex;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.modif-bascule__option {
+  position: relative;
+  cursor: pointer;
+}
+.modif-bascule__option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.modif-bascule__option span {
+  display: block;
+  padding: 3px var(--sp-sm);
+  font-size: .8rem;
+  color: var(--clr-text-muted);
+  background: var(--clr-surface);
+  white-space: nowrap;
+}
+.modif-bascule__option + .modif-bascule__option span {
+  border-left: 1px solid var(--clr-border);
+}
+.modif-bascule__option input:checked + span {
+  background: var(--clr-accent);
+  color: var(--clr-surface);
+  font-weight: 600;
+}
+.modif-bascule__option input:focus-visible + span {
+  outline: 2px solid var(--clr-accent-2);
+  outline-offset: -2px;
+}
+
+/* Table de progression : un seul des deux jeux de colonnes de magie est
+   visible — sorts par jour, ou drapeaux de progression du NLS (SP-MA6). */
+.table-classe-modif .col-mode-nls { display: none; }
+.table-classe-modif.est-mode-nls .col-mode-nls { display: table-cell; }
+.table-classe-modif.est-mode-nls .col-mode-sorts { display: none; }
+.table-classe-modif .col-nls {
+  text-align: center;
+  padding: 0 var(--sp-xs);
+  white-space: nowrap;
+}
+.table-classe-modif .col-nls input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
 /* Grille 2 colonnes pour les champs du formulaire */
 .modif-grid {
   display: grid;

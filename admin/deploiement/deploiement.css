@@ -190,6 +190,19 @@
   word-break: break-all;
 }
 
+/* Export de classes (SP-XC) : script SQL affiché dans l'aperçu */
+.xc-script {
+  max-height: 420px;
+  overflow: auto;
+  margin: var(--sp-xs) 0 0;
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--clr-surface-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  white-space: pre;
+}
+
 .deploiement-test {
   margin: var(--sp-md) 0 0;
   padding: 0;

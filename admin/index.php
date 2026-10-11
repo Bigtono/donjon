@@ -69,6 +69,10 @@ require_once '../include/header.php';
       <i class="fa fa-cloud-arrow-up"></i>
       <span>Déploiement</span>
     </a>
+    <a href="<?= BASE_URL ?>/admin/deploiement/export-classes.php" class="dashboard-card dashboard-card--admin">
+      <i class="fa fa-file-export"></i>
+      <span>Export de classes</span>
+    </a>
   <?php endif ?>
 
 </div>

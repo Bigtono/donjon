@@ -1394,6 +1394,72 @@ function perDeplierBloc(idCorps, idBtn) {
 }
 
 // ============================================================
+// ONGLETS DES LISTES DE SORTS (SP-PE10r)
+// Un jeu d'onglets par bloc de classe de la vue Magie. L'onglet actif est
+// gardé par bloc en sessionStorage : le sélecteur de sorts recharge la page à
+// sa fermeture, et sans cela on retomberait toujours sur « Préparés ».
+// Stockage indisponible (navigation privée…) : on reste sur le premier onglet.
+// ============================================================
+
+const perOnglets = (function() {
+
+  function _cle(bloc) {
+    return 'perMagieOnglet:' + (typeof perPeId !== 'undefined' ? perPeId : 0)
+         + ':' + bloc.dataset.onglets;
+  }
+
+  function activer(bloc, cle, memoriser) {
+    const onglets = bloc.querySelectorAll('.per-magie__onglet');
+    let trouve = false;
+    onglets.forEach(function(o) { if (o.dataset.onglet === cle) trouve = true; });
+    if (!trouve) return;
+
+    onglets.forEach(function(o) {
+      const actif = o.dataset.onglet === cle;
+      o.classList.toggle('est-actif', actif);
+      o.setAttribute('aria-selected', actif ? 'true' : 'false');
+      o.tabIndex = actif ? 0 : -1;
+    });
+    bloc.querySelectorAll('.per-magie__panneau, .per-magie__outils').forEach(function(el) {
+      el.hidden = el.dataset.onglet !== cle;
+    });
+    if (memoriser) {
+      try { sessionStorage.setItem(_cle(bloc), cle); } catch (e) { /* stockage indisponible */ }
+    }
+  }
+
+  function _init() {
+    document.querySelectorAll('.per-magie__onglets').forEach(function(bloc) {
+      let memo = null;
+      try { memo = sessionStorage.getItem(_cle(bloc)); } catch (e) { memo = null; }
+      if (memo) activer(bloc, memo, false);
+
+      bloc.addEventListener('click', function(e) {
+        const o = e.target.closest('.per-magie__onglet');
+        if (o && bloc.contains(o)) activer(bloc, o.dataset.onglet, true);
+      });
+
+      // Flèches gauche / droite entre onglets (motif ARIA tablist).
+      bloc.addEventListener('keydown', function(e) {
+        const o = e.target.closest('.per-magie__onglet');
+        if (!o || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+        const liste = Array.from(bloc.querySelectorAll('.per-magie__onglet'));
+        const i = liste.indexOf(o);
+        const suivant = liste[(i + (e.key === 'ArrowRight' ? 1 : liste.length - 1)) % liste.length];
+        activer(bloc, suivant.dataset.onglet, true);
+        suivant.focus();
+        e.preventDefault();
+      });
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
+  else _init();
+
+  return { activer };
+})();
+
+// ============================================================
 // SÉLECTEUR DE SORTS (SP-PE7b)
 // ============================================================
 //
@@ -1544,11 +1610,12 @@ const sortsPicker = (function() {
       return n;
     }
 
-    // DD2024 — plafond global, en sorts DISTINCTS
+    // DD2024 — plafond global, en sorts DISTINCTS. Les sorts mineurs (niveau 0)
+    // sont connus, pas préparés : ils n'y comptent pas (SP-PE10s).
     const global = r.querySelector('[data-restant-global]');
     if (global && r.dataset.plafond !== '') {
       const max     = parseInt(r.dataset.plafond, 10) || 0;
-      const choisis = r.querySelectorAll('.sorts-picker__item.est-choisi').length;
+      const choisis = r.querySelectorAll('.sorts-picker__item.est-choisi:not([data-niv="0"])').length;
       const reste   = Math.max(0, max - choisis);
       global.textContent = reste;
       global.closest('.sorts-picker__compteur')

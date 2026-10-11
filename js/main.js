@@ -173,6 +173,37 @@ function contexteHeaderCadrer() {
 
 document.addEventListener('DOMContentLoaded', contexteHeaderCadrer);
 
+// Les <script> injectés via innerHTML ne s'exécutent pas : on les recrée.
+//
+// Un script EXTERNE déjà chargé dans la page n'est pas rechargé. Sans cela,
+// chaque ouverture d'un formulaire retéléchargeait TinyMCE, qui remplaçait
+// l'objet global `tinymce` APRÈS que le script du formulaire y eut créé ses
+// éditeurs : `tinymce.get()` ne les voyait plus, et la saisie d'un champ riche
+// n'était pas recopiée dans son <textarea> à l'envoi — perdue, dès la deuxième
+// ouverture sans rechargement de la page. Les scripts en ligne, eux, sont
+// réexécutés à chaque fois : ils initialisent le fragment injecté.
+const _scriptsExternesCharges = new Set();
+
+function executerScriptsInjectes(conteneur) {
+  conteneur.querySelectorAll('script').forEach(ancien => {
+    if (ancien.src) {
+      // Déjà chargé par un panneau précédent (dont le DOM a disparu depuis :
+      // d'où le Set), ou par la page elle-même.
+      const dejaCharge = _scriptsExternesCharges.has(ancien.src)
+        || Array.from(document.scripts).some(s => s.src === ancien.src && !conteneur.contains(s));
+      if (dejaCharge) {
+        ancien.remove();
+        return;
+      }
+      _scriptsExternesCharges.add(ancien.src);
+    }
+    const nouveau = document.createElement('script');
+    Array.from(ancien.attributes).forEach(a => nouveau.setAttribute(a.name, a.value));
+    nouveau.textContent = ancien.textContent;
+    ancien.parentNode.replaceChild(nouveau, ancien);
+  });
+}
+
 // Charge #modification via GET — lecture initiale du formulaire
 function actualiserPageModif(url, params = {}) {
   const panel    = document.getElementById('modification');
@@ -196,13 +227,7 @@ function actualiserPageModif(url, params = {}) {
         + '<i class="fa fa-times"></i></button>';
       panel.innerHTML = barrePanneau(closeBtn)
         + '<div class="overlay-panel__inner">' + html + '</div>';
-      // Les <script> injectés via innerHTML ne s'exécutent pas — on les recrée
-      panel.querySelectorAll('script').forEach(ancien => {
-        const nouveau = document.createElement('script');
-        Array.from(ancien.attributes).forEach(a => nouveau.setAttribute(a.name, a.value));
-        nouveau.textContent = ancien.textContent;
-        ancien.parentNode.replaceChild(nouveau, ancien);
-      });
+      executerScriptsInjectes(panel);
     })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
 }
@@ -264,13 +289,7 @@ function actualiserPageSub(url, params = {}) {
         + '<i class="fa fa-times"></i></button>';
       panel.innerHTML = barrePanneau(closeBtn)
         + '<div class="overlay-panel__inner">' + html + '</div>';
-      // Les <script> injectés via innerHTML ne s'exécutent pas — on les recrée
-      panel.querySelectorAll('script').forEach(ancien => {
-        const nouveau = document.createElement('script');
-        Array.from(ancien.attributes).forEach(a => nouveau.setAttribute(a.name, a.value));
-        nouveau.textContent = ancien.textContent;
-        ancien.parentNode.replaceChild(nouveau, ancien);
-      });
+      executerScriptsInjectes(panel);
     })
     .catch(err => { panel.innerHTML = '<p class="erreur">' + err + '</p>'; });
 }

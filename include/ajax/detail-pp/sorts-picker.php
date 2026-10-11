@@ -151,6 +151,9 @@ endif;
 // DD2024 : plafond de sorts DISTINCTS — count($possedes) reste la bonne mesure,
 // la quantité par sort étant une règle DD3.5.
 $plafondGlobal = (!$est35 && $mode === 'prepare') ? $ctx['sorts_prepares'] : null;
+// Les sorts mineurs ne pèsent pas sur ce plafond : en DD2024 ils sont connus,
+// pas préparés, et cn_sort_n0 les compte à part (SP-PE10s).
+$nbPlafonnes = count($possedes) - (int)($parNiveau[0] ?? 0);
 $plafondsNiveau = [];
 if ($est35 && $mode === 'prepare'):
   foreach ($accessibles as $n) $plafondsNiveau[$n] = (int)($ctx['emplacements'][$n] ?? 0);
@@ -176,11 +179,13 @@ $titre = $mode === 'prepare'
 
   <?php // ---- Compteurs, mis à jour en direct par sortsPicker ?>
   <?php if ($mode === 'prepare'): ?>
+  <div class="sorts-picker__barre-prep">
     <?php if ($plafondGlobal !== null): ?>
+      <?php $resteGlobal = max(0, (int)$plafondGlobal - $nbPlafonnes); ?>
       <p class="sorts-picker__compteur" id="sorts-picker-compteur">
-        <strong><span data-restant-global><?= max(0, (int)$plafondGlobal - count($possedes)) ?></span></strong>
-        sort<?= (max(0, (int)$plafondGlobal - count($possedes)) > 1) ? 's' : '' ?>
-        encore préparable<?= (max(0, (int)$plafondGlobal - count($possedes)) > 1) ? 's' : '' ?>
+        <strong><span data-restant-global><?= $resteGlobal ?></span></strong>
+        sort<?= $resteGlobal > 1 ? 's' : '' ?>
+        encore préparable<?= $resteGlobal > 1 ? 's' : '' ?>
         sur <?= (int)$plafondGlobal ?>
       </p>
     <?php elseif ($plafondsNiveau): ?>
@@ -195,6 +200,13 @@ $titre = $mode === 'prepare'
         <?php endforeach ?>
       </div>
     <?php endif ?>
+    <?php // Vide la liste préparée de la classe ; recharge la page (sortsPicker.reinitialiser). ?>
+    <button type="button" class="btn btn-link btn-sm"
+            onclick="sortsPicker.reinitialiser(<?= $cla_id ?>, <?= h(json_encode($classe['cla_nom'])) ?>)"
+            title="Vider la liste préparée ; les sorts toujours préparés sont conservés">
+      <i class="fa fa-rotate-left"></i> Réinitialiser
+    </button>
+  </div>
   <?php endif ?>
 
   <?php if ($mode === 'prepare' && $profil === PROFINC_GRIMOIRE): ?>

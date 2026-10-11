@@ -1492,196 +1492,210 @@
    VUE MAGIE (SP-PE7b)
    ============================================================ */
 
-/* --- Les quatre cases de synthèse -----------------------------
-   Grille auto-ajustée : 4 de front sur un poste, 2 sur tablette,
-   1 sur téléphone, sans média-query — c'est minmax qui décide. */
-.per-magie__cases {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--sp-sm);
-  margin-bottom: var(--sp-md);
-}
-.per-magie__case {
+/* --- Première rangée : synthèse + emplacements (SP-PE10p/q) ----
+   Sur ordinateur, la synthèse de la classe se lit en colonne à gauche du
+   tableau des emplacements. Sous 992px, les deux blocs passent l'un sous
+   l'autre et la synthèse revient en ligne, à la façon de l'identité. */
+.per-magie__entete {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--sp-sm);
-  border: 1px solid var(--clr-border);
-  border-radius: 6px;
-  background: var(--clr-surface-alt);
-  text-align: center;
-}
-.per-magie__case-lbl {
-  font-size: .75rem;
-  text-transform: uppercase;
-  letter-spacing: .03em;
-  color: var(--clr-text-muted);
-}
-.per-magie__case-val {
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--clr-accent);
-}
-.per-magie__case-val small {
-  font-size: .8rem;
-  font-weight: 500;
-  color: var(--clr-text-muted);
-}
-.per-magie__case-note {
-  font-size: .72rem;
-  color: var(--clr-text-muted);
-}
-
-
-/* --- Barre d'actions ------------------------------------------ */
-.per-magie__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-sm);
-  margin-bottom: var(--sp-md);
-}
-
-/* --- Synthèse : emplacements à gauche, ressources à droite (SP-PE10b) ---
-   Le tableau mène la danse : il prend la place qu'il lui faut (11 colonnes
-   en DD3.5, 10 en DD2024) et le panneau occupe le reste. Sous ~760px de
-   large utile, les deux passent l'un sous l'autre. */
-.per-magie__synthese {
-  display: flex;
-  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--sp-lg);
-  margin-bottom: var(--sp-md);
+  margin-bottom: var(--sp-sm);
 }
 .per-magie__colonne-empl {
-  flex: 1 1 440px;
+  flex: 1 1 auto;
   min-width: 0;                  /* sans quoi le tableau force la ligne */
 }
-.per-magie__ressources {
-  flex: 1 1 280px;
-  min-width: 0;
-}
-.per-magie__ressources-titre {
-  margin: 0 0 var(--sp-xs);
-  padding-bottom: 3px;
-  border-bottom: 2px solid var(--clr-text);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--clr-text);
-}
-.per-magie__ressources-liste {
+
+/* Paires libellé / valeur — règle de graisse du module (SP-PE10j) :
+   libellé en gras, valeur en graisse normale, même taille. */
+.per-magie__stats {
+  flex: 0 0 auto;
   margin: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto auto;
   gap: 2px var(--sp-md);
+  padding-right: var(--sp-lg);
+  border-right: 1px solid var(--clr-border);
 }
-/* Chaque paire est un div : elle doit rendre ses deux enfants à la grille. */
-.per-magie__ressource {
-  display: contents;
-}
-.per-magie__ressource dt {
-  color: var(--clr-text);
-}
-.per-magie__ressource dd {
-  margin: 0;
+/* Chaque paire est un div : elle rend ses deux enfants à la grille. */
+.per-magie__stat { display: contents; }
+.per-magie__stat dt {
   font-weight: 700;
+  color: var(--clr-text);
+  white-space: nowrap;
+}
+.per-magie__stat dd {
+  margin: 0;
+  font-weight: 400;
   color: var(--clr-text);
 }
 
-/* --- Tableau des emplacements ---------------------------------- */
+@media (max-width: 991px) {
+  .per-magie__entete {
+    flex-direction: column;
+    gap: var(--sp-sm);
+  }
+  .per-magie__colonne-empl { width: 100%; }
+  /* En ligne, chaque champ insécable passe à la ligne entier. */
+  .per-magie__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px var(--sp-md);
+    padding: 0 0 var(--sp-xs);
+    border-right: none;
+    border-bottom: 1px solid var(--clr-border);
+    width: 100%;
+  }
+  .per-magie__stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--sp-xs);
+  }
+  .per-magie__stat dd { white-space: nowrap; }
+}
+
+.per-magie__pacte { margin: 0 0 var(--sp-sm); }
+
+/* --- Tableau des emplacements (SP-PE10c, resserré en SP-PE10q) ---
+   Une seule rangée d'en-tête, plus petite que le corps : ce sont les
+   chiffres du corps qu'on lit en séance, pas les numéros de colonne. */
+.per-magie__table { margin: 0; }
 .per-magie__table .per-magie__ligne-lbl {
   text-align: left;
   white-space: nowrap;
 }
+.per-magie__table thead th {
+  padding-top: 1px;
+  padding-bottom: 1px;
+  color: var(--clr-text-muted);
+}
 .per-magie__stock td { font-weight: 600; }
-.per-magie__stock-reset { padding: 0 var(--sp-xs); }
+.per-magie__stock-reset { padding: 0 var(--sp-xs); line-height: 1; }
 
 /* Le séparateur accentué de `.table-dd` ne s'applique pas ici (SP-PE10c) :
-   il sépare les colonnes de sorts du reste d'une table de progression de
-   classe, qui en aligne beaucoup d'autres. Ce tableau-ci n'a qu'une colonne de
-   libellés en regard des niveaux — le trait n'y sépare rien. */
-.per-magie__table .th-groupe-sorts,
+   ce tableau n'a qu'une colonne de libellés en regard des niveaux. */
 .per-magie__table td.col-sort:first-of-type,
 .per-magie__table th.col-sort:first-of-type {
   border-left: none;
 }
 
-/* Sur ordinateur, le tableau se cale sur l'échelle de la page (SP-PE10c).
-   `.table-dd` est réglé pour les tables de progression du compendium, qui
-   alignent jusqu'à vingt lignes de colonnes serrées : cellules de 26px, police
-   de .82rem. Ici il n'y a que deux ou trois lignes, lues d'un coup d'œil en
-   séance — et surtout le panneau « Ressources de sorts » leur fait face. Les
-   deux colonnes de la rangée reprennent donc la même échelle :
-
-     en-tête de groupe  1.05rem  =  titre « Ressources de sorts »
-     libellé de ligne   1rem     =  libellé d'une ressource (en gras : c'est
-                                    un en-tête de ligne)
-     chiffres           1rem     =  valeur d'une ressource, gras compris
-
-   Rien ne change sous 992px, où la version compacte tient mieux dans la
-   largeur d'un téléphone. */
+/* Sur ordinateur, le corps reprend l'échelle du texte de la page (1rem),
+   l'en-tête reste en retrait (.85rem). */
 @media (min-width: 992px) {
   .per-magie__table th,
   .per-magie__table td {
-    padding: 5px 8px;
+    padding: 2px 8px;
   }
-  .per-magie__table .thead-groupes th {
-    font-size: 1.05rem;
+  .per-magie__table thead th {
+    font-size: .85rem;
     font-weight: 600;
-    color: var(--clr-text);
-    padding: 3px 8px;
-  }
-  .per-magie__table thead tr:last-child th {
-    font-size: 1rem;
-    font-weight: 700;
+    padding-top: 1px;
+    padding-bottom: 1px;
   }
   .per-magie__table .col-sort {
     width: 34px;
     font-size: 1rem;
     font-weight: 700;
   }
-  .per-magie__table .per-magie__ligne-lbl {
+  .per-magie__table tbody .per-magie__ligne-lbl {
     font-size: 1rem;
     font-weight: 700;
   }
 }
 
 
-/* --- Titre d'une liste de sorts --------------------------------
-   Jamais défini jusqu'ici : les titres tombaient sur le h3 par défaut du
-   navigateur, dont la marge haute ouvrait un trou sous le tableau. */
+/* --- Titre d'une sous-liste (sorts toujours préparés) ----------- */
 .per-fiche__sous-titre {
   display: flex;
   align-items: center;
   gap: var(--sp-xs);
-  margin: 0 0 var(--sp-sm);
-  font-size: 1.15rem;
+  margin: 0 0 var(--sp-xs);
+  font-size: 1rem;
   font-weight: 700;
   color: var(--clr-text);
 }
 
-/* --- Listes de sorts -------------------------------------------
-   SP-PE10b : les sorts se suivent sur la ligne, à espacement fixe, et la
-   liste repart à gauche à chaque retour — on lit un nom après l'autre.
-   Les colonnes `columns` d'avant répartissaient la largeur en tranches
-   égales : la deuxième colonne démarrait au milieu de la page, loin du
-   titre, et un nom court laissait un vide aussi large qu'un nom long. */
-.per-magie__liste { margin-top: var(--sp-lg); }
+/* --- Onglets des listes de sorts (SP-PE10r) ---------------------
+   Onglets SECONDAIRES : soulignés et plus petits que la barre Fiche /
+   Magie / Possessions, pour ne pas se confondre avec la navigation de page.
+   La barre porte à droite les outils de l'onglet actif. */
+.per-magie__onglets-barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-xs) var(--sp-md);
+  border-bottom: 1px solid var(--clr-border);
+  margin-bottom: var(--sp-sm);
+}
+.per-magie__onglets-liste {
+  display: flex;
+  gap: var(--sp-xs);
+  min-width: 0;
+}
+.per-magie__onglet {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+  padding: var(--sp-xs) var(--sp-sm);
+  margin-bottom: -1px;           /* le soulignement recouvre la bordure */
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.per-magie__onglet:hover { color: var(--clr-text); }
+.per-magie__onglet.est-actif {
+  color: var(--clr-accent);
+  border-bottom-color: var(--clr-accent);
+}
+.per-magie__onglet-compte {
+  font-size: .8rem;
+  font-weight: 400;
+  color: var(--clr-text-muted);
+}
+.per-magie__outils {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding-bottom: 3px;
+}
+.per-magie__outils[hidden] { display: none; }
+.per-magie__panneau[hidden] { display: none; }
 
+/* --- Listes de sorts : une ligne par niveau ---------------------
+   La pastille de niveau ouvre la ligne, une seule fois ; les sorts se
+   suivent à sa droite et repartent à son aplomb quand la ligne déborde. */
+.per-magie__niveaux {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+.per-magie__niveau {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+}
 .per-magie__sorts {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  /* Écart FIXE : 24px entre deux sorts, 8px entre deux lignes. */
-  gap: var(--sp-sm) var(--sp-lg);
+  gap: 2px var(--sp-md);
+  min-width: 0;
 }
 .per-magie__sorts li {
   display: flex;
   align-items: baseline;
   gap: var(--sp-xs);
 }
+.per-magie__vide { margin: 0; }
 
 .per-magie__pastille {
   flex: 0 0 auto;
@@ -1704,23 +1718,22 @@
   color: var(--clr-text-muted);
 }
 
-.per-magie__variante { margin: var(--sp-sm) 0 var(--sp-xs); }
-.per-magie__toujours { margin-top: var(--sp-lg); }
-.per-magie__pacte    { margin: 0 0 var(--sp-sm); }
+.per-magie__toujours { margin-top: var(--sp-md); }
+.per-magie__variante { margin: var(--sp-xs) 0; }
 
 /* Tout ce qui est cliquable doit le dire au curseur. */
 .per-magie__sorts .mo-lien,
-.per-magie__toujours .mo-lien,
 .aide-icone,
 .per-fiche__replier { cursor: pointer; }
 
 /* --- Téléphone -------------------------------------------------
-   Les boutons d'action prennent toute la largeur : une cible de la
-   largeur de l'écran se touche sans viser. */
+   Outils d'onglet (icônes seules depuis SP-PE10s) en cible tactile. */
 @media (max-width: 767px) {
-  .per-magie__actions { flex-direction: column; }
-  .per-magie__actions .btn { width: 100%; justify-content: center; }
-  .per-magie__case-val { font-size: 1.3rem; }
+  .per-magie__outils .btn { min-width: 36px; min-height: 36px; padding: 0 6px; justify-content: center; }
+  /* Écarts réduits : trois onglets et un outil tiennent sur 343px. */
+  .per-magie__onglets-barre { column-gap: var(--sp-xs); }
+  .per-magie__onglets-liste { gap: 0; }
+  .per-magie__onglet { padding: var(--sp-xs) 5px; font-size: .9rem; }
 }
 
 /* ============================================================

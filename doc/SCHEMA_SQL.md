@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-07 17:15 -->
+<!-- Mis à jour : 2026-10-10 21:30 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -399,11 +399,11 @@ Table de bonus de classe par niveau.
 | cn_sort_n0 … cn_sort_n9 | tinyint unsigned | null | Sorts par jour par niveau de sort (0-9) |
 | cn_sortPrepare | tinyint unsigned | null | *[DD2024]* Nombre de sorts préparés |
 | cn_sortConnu_n0 … cn_sortConnu_n9 | tinyint unsigned | null | *[DD3.5]*  Sorts connus par niveau de sort (0-9) |
-| cn_niveauSortArcane | tinyint(1) | nn, défaut 0 | *[DD3.5]* 1 = ce niveau de prestige avance le NLS arcane |
-| cn_niveauSortDivin | tinyint(1) | nn, défaut 0 | *[DD3.5]* 1 = ce niveau de prestige avance le NLS divin |
-| cn_niveauSortEffectif | tinyint(1) | nn, défaut 0 | *[DD3.5]* 1 = ce niveau de prestige avance le NLS effectif |
+| cn_niveauSortArcane | int | null (valeurs 0/1 depuis SP-MA6) | *[DD3.5]* 1 = ce niveau de prestige avance le NLS d'une base profane. Exclusif de `cn_sort_n*` (SP-MA6) |
+| cn_niveauSortDivin | int | null (valeurs 0/1 depuis SP-MA6) | *[DD3.5]* 1 = ce niveau de prestige avance le NLS d'une base divine. Exclusif de `cn_sort_n*` (SP-MA6) |
+| cn_niveauSortEffectif | int | null (valeurs 0/1 depuis SP-MA6) | *[DD3.5]* 1 = ce niveau de prestige avance le NLS d'une base lanceuse au choix (« Au choix »). Exclusif de `cn_sort_n*` (SP-MA6) |
 | cn_pouvoir1 … cn_pouvoir5 | varchar(255) | null | Valeur du pouvoir spécifique pour ce niveau |
-| cn_sort_bonus | int unsigned | null | *[DD3.5]* Nb de sorts bonus par niveau de classe de prestige |
+| cn_sortsBonus | int | null | *[DD3.5]* Nb de sorts bonus par niveau de classe de prestige |
 
 ---
 

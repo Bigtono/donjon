@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-10 12:21 -->
+<!-- Mis à jour : 2026-10-10 21:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -5865,6 +5865,84 @@ Code : `css/personnages-modules.css` seul. Aucun patch SQL.
   exact dans tous les cas, et 3px de marge au plus serré (342px) entre le dernier modificateur
   et le bord du bloc.
 
+**[2026-10-10] D-RS63 — SP-PE10p→r : la vue Magie passe en deux temps et ses listes en onglets**
+Code : `personnages/magie.php`, `css/personnages-modules.css`, `js/personnage.js`. Aucun patch
+SQL. Proposition soumise puis arbitrée par Jean-Michel sur le cas du magicien 20 DD2024 (bloc
+d'environ 710px de haut à 1280px, ramené à 330px).
+
+**1. Synthèse de classe (SP-PE10p).**
+→ **Le panneau « Ressources de sorts » est supprimé** (revient sur D-RS46). Ses compteurs de
+  listes rejoignent leurs onglets ; une fois retirés, il ne lui restait que trois lignes.
+→ **Les quatre cases deviennent des paires libellé / valeur**, sur le modèle de la ligne
+  d'identité de la fiche (règle de graisse SP-PE10j). Le nom de la caractéristique sert de
+  libellé (« Intelligence 18 (+4) ») ; les notes qui ne faisaient que répéter le libellé
+  (« jets d'attaque de sort », « toutes classes de sorts », « niveau de lanceur ») tombent, seul
+  l'écart du NLS reste, en appoint grisé. Sorts mineurs, renouvellement et domaines, rescapés du
+  panneau, suivent les quatre valeurs.
+→ **Arbitré : en colonne sur ordinateur, en ligne sur téléphone.** Au-dessus de 992px, la
+  synthèse forme un bloc vertical sur la même rangée que le tableau des emplacements ; en
+  dessous, les deux blocs s'empilent et la synthèse revient en flux — les quatre premiers champs
+  tiennent sur deux lignes à 375px.
+→ **En DD3.5, le champ Attaque n'est pas produit**, plutôt qu'un « sans objet ». Le DD y reste une
+  formule, « 10 + niv. +N ».
+→ **Abandonné** : le total « Sorts connus » (grimoire + à recopier), redondant avec les onglets.
+
+**2. Tableau des emplacements (SP-PE10q).**
+→ **La rangée d'en-tête de groupe « Niveaux de sort » disparaît** : la case d'angle, vide, porte
+  « Niv. ». L'en-tête occupait la moitié de la hauteur du tableau.
+→ **L'en-tête passe en retrait** (.85rem, grisé, 1px de padding vertical) ; le corps garde 1rem
+  gras — ce sont ses chiffres qu'on lit en séance. Revient en partie sur D-RS47 : l'échelle
+  alignée sur le panneau d'en face n'a plus d'objet, ce panneau n'existant plus.
+→ **« En stock » devient « Restant ».**
+
+**3. Listes en onglets (SP-PE10r).**
+→ **Préparés · Grimoire · À recopier** pour un grimoire, **Préparés** est l'onglet par défaut :
+  c'est celui du jeu. Un profil à liste unique (clerc, ensorceleur) garde la barre réduite à un
+  onglet — elle lui sert de titre et porte ses actions.
+→ **Chaque onglet porte son compteur et ses actions.** La barre d'actions au-dessus du tableau
+  disparaît : « Préparer » et « Réinitialiser » vivent dans Préparés, « Gérer » dans Grimoire et
+  À recopier, avec l'icône d'aide de la liste. Seuls les outils de l'onglet actif sont visibles,
+  à droite de la barre ; sous 768px ils se réduisent à leur icône, `title` conservé.
+→ **Une ligne par niveau de sort, pastille en tête** (arbitré, plutôt que des intertitres : des
+  groupes titrés dans un onglet faisaient un empilement de niveaux de titre). La pastille
+  répétée devant chaque sort disparaît.
+→ **Les sorts toujours préparés ferment le premier onglet** : ils se lancent aujourd'hui, comme
+  les préparés. Groupés par variante puis par niveau ; leur niveau passe dans la pastille.
+→ **Onglets secondaires** : soulignés, plus petits que la barre Fiche / Magie / Possessions, pour
+  ne pas se confondre avec la navigation de page. Motif ARIA `tablist`, flèches gauche / droite.
+→ **L'onglet actif survit au rechargement.** Le sélecteur de sorts recharge la page à sa
+  fermeture : sans mémoire, on retombait toujours sur Préparés après avoir géré son grimoire.
+  `sessionStorage`, une clé par bloc de classe (`perMagieOnglet:<pe_id>:<pc_id>`), lectures et
+  écritures sous try/catch, repli sur le premier onglet.
+→ **Téléphone** : écarts d'onglets réduits et police à .9rem pour que trois onglets et un outil
+  tiennent sur 325px de barre (331px demandés avant réglage). Avec deux outils (Préparer +
+  Réinitialiser) à côté de trois onglets, les outils passent sous les onglets.
+
+→ Contrôlé dans le navigateur sur *Telgar Weyr* (DD2024, clerc 10 + magicien 20), *Elminster*
+  (DD3.5, magicien 20 + archimage), *Tarius Amcathra* (prêtre DD3.5, domaines) et *Adon* (clerc
+  DD2024, sorts toujours préparés) à 1280 et 375px : aucun débordement horizontal, onglets et
+  outils synchronisés, onglet Grimoire retrouvé après rechargement. Les six personnages de la
+  base rendus sans avertissement PHP.
+
+**[2026-10-10] D-RS64 — SP-PE10s : Réinitialiser passe dans le sélecteur, les mineurs sortent du plafond**
+Code : `personnages/magie.php`, `include/ajax/detail-pp/sorts-picker.php`, `js/personnage.js`,
+`css/modules.css`, `css/personnages-modules.css`. Aucun patch SQL.
+→ **« Réinitialiser » quitte l'onglet Préparés** pour la ligne des compteurs du sélecteur de
+  préparation. Geste rare, il occupait une place permanente dans la vue ; dans le sélecteur, il
+  est là où l'on refait sa liste. Même appel (`sortsPicker.reinitialiser()`), qui recharge la page.
+→ **Boutons d'onglet en icône seule**, sur toutes les largeurs (`title` et `aria-label` portent
+  l'action). Sur téléphone, trois onglets et leurs outils tiennent désormais sur une ligne dans
+  tous les cas — c'est Réinitialiser qui faisait passer les outils sous les onglets.
+→ **Défaut corrigé — les sorts mineurs pesaient sur le plafond DD2024.** Le compteur « Préparés
+  N/plafond » de la vue Magie et le « sorts encore préparables » du sélecteur comptaient les sorts
+  de niveau 0 préparés. Or en DD2024 un sort mineur est **connu**, pas préparé, et `cn_sort_n0`
+  le compte à part ; `cn_sortPrepare` ne plafonne que les sorts de niveau 1 et plus. Le niveau 0
+  est exclu côté serveur (vue et sélecteur) et dans `_majCompteurs()`. **DD3.5 inchangé** : le
+  niveau 0 y occupe de vrais emplacements, et ses compteurs sont par niveau.
+→ Contrôlé sur *Telgar Weyr* (magicien DD2024 : 7 sorts préparés dont 2 mineurs → « 5/25 » dans
+  l'onglet, « 20 sorts encore préparables sur 25 » dans le sélecteur) et *Elminster* (DD3.5 :
+  jetons N0→N9 intacts, Réinitialiser présent) ; barre d'onglets sur une ligne de 40px à 375px.
+
 ---
 
 ## SP-DP — Déploiement en production et migrations SQL
@@ -6272,3 +6350,206 @@ de `admin/migrations.php` ; requête `sql/diagnostic_reference_sp-dp.sql`.
   absentes comptent.
 → Cinq questions laissées ouvertes (plages, périmètre, modifications locales, suppressions faites
   en prod, forme de l'outil) : `ARCHITECTURE_0_REFERENCE.md` §6c, phase `SP-SY0`.
+
+---
+
+## SP-XC — Export de classes vers la production
+
+**[2026-10-10] D-XC1 — Un export ciblé par classe, retrouvé par son nom en production**
+Code : `admin/deploiement/export-classes.php`, `admin/deploiement/export-classes-lib.php`.
+→ **Besoin** : une classe saisie en local (fiche, progression, capacités, compétences, sorts) doit
+  pouvoir partir en production sans attendre SP-SY. Demande de Jean-Michel : pas d'interface
+  lourde, un fichier SQL rejouable en prod, plusieurs classes possibles dans un même fichier.
+→ **Clés naturelles plutôt qu'identifiants** (arbitré) : le fichier ne contient aucun identifiant
+  local. Chaque ligne est retrouvée en production par son nom — ressource (nom + ruleset), classe
+  (nom + ruleset + parent, hors homebrew de campagne), sort, compétence, capacité. Un export par
+  identifiants écraserait sans bruit une autre classe dès que les compteurs des deux bases auront
+  divergé (même risque que celui instruit pour SP-SY, §6c).
+→ **Sorts : nom octet par octet + ruleset + livre + rang.** Mesuré le 2026-10-10 : 395 noms de
+  sorts DD3.5 existent en deux exemplaires (versions 3.0 et 3.5, dans deux livres), et 974 lignes
+  de listes de sorts pointent vers le second. La collation `general_ci` confond en outre des sorts
+  distincts (« Maths faciles » / « Maths Faciles ») ; 4 sorts sont de vrais homonymes d'un même
+  livre (« Faux-semblant »). D'où `BINARY so_nom`, la ressource dans la clé, et le rang de
+  l'exemplaire parmi ses homonymes exacts (`ORDER BY so_id LIMIT rang, 1`), l'ordre d'insertion
+  étant le même des deux côtés. Les 73 sorts DD3.5 sans livre (`so_res_id = 0`) gardent cette
+  valeur telle quelle.
+→ **Capacités : le lien existant d'abord.** 33 couples nom + classe d'origine sont ambigus
+  (« Armes et armures » ×5, sans origine, textes différents). Ordre de résolution : la capacité de
+  même nom déjà rattachée à la classe en prod ; nom + origine + texte identique ; nom + origine si
+  le couple est univoque en local ; sinon création.
+→ **Refus à la génération** : deux classes de même nom dans un ruleset (cas d'« Archer sylvain »
+  DD3.5), ou deux capacités distinctes de même nom dans une même classe — elles seraient
+  confondues en production. Les classes homebrew de campagne ne sont pas proposées.
+→ **Référentiels recopiés tels quels** : types de classe, caractéristiques, profils
+  d'incantation, cadences — tables identiques des deux côtés.
+
+**[2026-10-10] D-XC2 — La classe est écrasée, jamais supprimée**
+→ Arbitré par Jean-Michel : une classe déjà présente en production est **écrasée**, exception
+  assumée à la règle SP-SY « ne jamais rien écraser », limitée aux classes cochées.
+→ La ligne `dd_classes` est créée si absente puis **mise à jour sur place** : les personnages de la
+  production (`pc_cla_id`, `pesp_cla_id`) y restent rattachés. Ses lignes liées (niveaux,
+  capacités, compétences, sorts toujours préparés, liste de sorts) sont supprimées puis
+  réinsérées. Le script est donc rejouable.
+→ **Liste de sorts** incluse par défaut, décochable : décochée, celle de la production reste
+  intacte. **Sous-classes** : seules les classes cochées partent ; une sous-classe cochée seule
+  exige que sa classe de base existe en production.
+→ `cla_cla_id` d'une classe sans parent reprend la valeur locale (0 en DD3.5, NULL en DD2024).
+
+**[2026-10-10] D-XC3 — Les capacités spéciales sont mises à jour**
+→ Arbitré : une capacité retrouvée en production reçoit le texte local, même si elle est partagée
+  avec une autre classe.
+
+**[2026-10-10] D-XC4 — Transport : une migration de `sql/`, garde-fous avant toute écriture**
+→ Arbitré (« si l'import est sécurisé comme la migration ») : l'export est écrit dans `sql/` sous
+  le nom `AAAA-MM-JJ_xc-HHMMSS_<classes>.sql`. Le déploiement l'envoie par SFTP et le serveur le
+  joue via le jeton à usage unique (§6b) : aucun canal nouveau. Le préfixe `xc-` le fait passer
+  après les migrations de structure écrites le même jour (ordre alphabétique).
+→ La page vit dans `admin/deploiement/` : elle hérite des quatre verrous du module (jamais
+  transférée, requête venue du poste, `Require local`, administrateur).
+→ La migration est **marquée appliquée en local** à l'écriture (statut `marquee`) : elle reproduit
+  le contenu local, seule la production doit la jouer.
+→ **Garde-fous en tête de script** : ressource, classe parente, sorts et compétences absents de la
+  production font échouer le script **avant la première écriture** — important, `dd_classe_niveau`
+  et `dd_classe_competence` étant en MyISAM, sans transaction possible. Le déclencheur est
+  `SET @xc_garde := (SELECT 'XC : <message>' UNION ALL SELECT '' FROM DUAL WHERE <condition>)` :
+  la sous-requête renvoie deux lignes, erreur 1242, et le moteur cite l'extrait qui commence par
+  le message. **Pas de `DO`** : MariaDB y évalue la même sous-requête sans lever l'erreur (constaté
+  en test). `SIGNAL` exigerait une procédure stockée, donc `DELIMITER`.
+→ **Vérifié sur une copie de la base** (8 classes : Archer-Mage, Barde et Magicien DD3.5 ; Clerc,
+  Domaine de la Vie, Druide, Cercle de la Terre, Paladin DD2024) : contenu identique à l'original
+  champ à champ, sur copie identique comme sur classes absentes (recréées avec de nouveaux
+  identifiants, sous-classe rattachée à la bonne base) ; rejeu sans effet ; sort ou parent
+  manquant → échec à la garde, aucune écriture ; liste de sorts décochée → liste de prod intacte.
+→ **Liens orphelins relevés, non exportés** : 55 lignes `dd_sortclasse`, 2 `dd_classe_capacite` et
+  113 `dd_classe_competence` pointent vers des lignes qui n'existent plus en local. Non corrigés.
+
+---
+
+## SP-MA6 — Classes de prestige DD3.5 : sorts propres ou progression du NLS
+
+**[2026-10-10] D-MAG16 — Les deux cas d'une prestige lanceuse sont exclusifs, et le formulaire les porte**
+Code : `include/ajax/modifier/classe.php`, `compendium/enregistrement.php`,
+`include/ajax/detail-pp/classe.php`, `css/compendium-modules.css`, `css/modules.css`.
+**Migration** : `sql/2026-10-10_drapeaux_nls_sp-ma6.sql`.
+→ **Règle posée par Jean-Michel.** Une classe de prestige DD3.5 lanceuse accorde **soit** ses
+  propres sorts par jour (`cn_sort_n0..9`, ex. Tueur de Domiel), **soit** un niveau de lanceur à
+  une classe de base existante (`cn_niveauSortArcane` / `Divin` / `Effectif`, ex. Archimage).
+  Jamais les deux.
+→ **Constat.** Les drapeaux n'apparaissaient nulle part dans le formulaire, et l'enregistrement
+  ne les écrivait pas (absents de la liste des colonnes acceptées) : ceux en base n'étaient
+  modifiables qu'en SQL. Pire, les classes du second cas sont toutes à `cla_mag_id = 0` — le
+  formulaire leur masquait **toute** colonne de magie, et la fiche les affichait sans magie.
+→ **Une bascule plutôt que treize colonnes.** La largeur du formulaire ne tient pas S0-S9 et trois
+  colonnes de drapeaux côte à côte. La section 2 porte une bascule « Sorts par jour » /
+  « Progression du NLS », visible pour une prestige DD3.5 seulement ; les deux jeux de colonnes
+  sont rendus, un seul est affiché, et l'on bascule sans recharger.
+→ **Le mode n'est pas stocké, il se déduit** : au moins un drapeau à 1 → progression du NLS. Pas de
+  colonne nouvelle, et aucune incohérence possible entre un mode déclaré et les données.
+→ **Trois cases par niveau, pas une liste à choix unique** : le théurge mystique avance le profane
+  **et** le divin à chaque niveau. Libellés arbitrés : **Profane, Divin, Au choix** — « Au choix »
+  pour `cn_niveauSortEffectif`, qui avance n'importe quelle classe de base lanceuse, au choix du
+  joueur (c'est ce que fait l'éditeur NLS de la fiche).
+→ **Une classe du second cas reste non lanceuse.** En mode NLS, type de magie, profil
+  d'incantation et renouvellement sont désactivés en section 1, et le serveur les remet à 0 : avec
+  `cla_mag_id > 0`, la vue Magie d'un personnage ouvrirait à l'Archimage un bloc de classe
+  lanceuse vide.
+→ **Exclusivité garantie côté serveur**, quel que soit ce qui est soumis : mode NLS → sorts par
+  jour et connus à NULL ; mode Sorts → drapeaux à 0. Vérifié par une soumission trafiquée sur
+  l'Archimage (S1 = 3, type de magie et profil forcés) : rien n'est passé.
+→ **Les drapeaux des classes de base ne sont jamais écrits.** Le traitement ne s'applique que si la
+  bascule est soumise, donc pour une prestige déjà créée. Relevé au passage : les six classes de
+  base lanceuses portent un drapeau à 1 sur chacun de leurs niveaux. Sans effet — seuls ceux des
+  prestiges sont lus — et laissés en l'état.
+→ **Les colonnes de sorts s'affichent pour une prestige même sans type de magie.** Choisir le type
+  obligeait jusqu'ici à enregistrer puis rouvrir le formulaire pour les voir apparaître ; une note
+  rappelle qu'elles ne comptent qu'avec un type de magie.
+→ **Fiche : une colonne rédigée, en forme courte** (arbitré, pour le téléphone) — « +1 niv.
+  profane », « +1 niv. divin », « +1 niv. profane et divin », « +1 niv. au choix », « — » ; le
+  libellé passe sur deux lignes sous 768px.
+→ **Migration, valeurs seulement** (arbitré) : les drapeaux NULL (725 lignes sur 880) passent à 0.
+  Et les trois prestiges du second cas qui portaient des sorts par jour **à 0** (Adepte de l'ombre,
+  Gardien du feu sacré du Phénix, Olin Gisir) les voient passer à NULL : un 0 y signifie « niveau
+  accessible par les seuls sorts en bonus », pas « aucun sort » — c'est ce que fait désormais
+  l'enregistrement en mode NLS. Les prestiges du premier cas ne sont pas touchées (vérifié). La
+  structure des colonnes (`int NULL`) est inchangée ; `SCHEMA_SQL.md`, qui annonçait
+  `tinyint(1) NOT NULL`, est corrigé.
+→ Contrôlé dans le navigateur : formulaire de l'Archimage ouvert en mode NLS (drapeaux restitués,
+  section 1 désactivée), bascule dans les deux sens ; enregistrement sans modification puis
+  soumission trafiquée, état relevé avant et **vérifié identique après** ; fiches de l'Archimage,
+  du Théurge mystique, du Gardien du savoir (cas 2) et du Tueur de Domiel (cas 1, inchangée).
+→ **Défaut préexistant relevé, non corrigé** : tout enregistrement d'une classe DD3.5 fait passer
+  `cn_sortPrepare` et `cn_pouvoir1..5` de 0 à NULL (champs vides du formulaire). Sans effet sur
+  l'affichage ; remis à l'identique sur l'Archimage après les contrôles.
+→ **Limite** : sur téléphone, la table de progression d'une prestige dépasse encore de 82px à
+  375px, du fait du `min-width: 160px` de la colonne Aptitudes, commun à toutes les tables de
+  classe.
+
+**[2026-10-10] D-MAG17 — SP-MA6d : NULL / 0 vérifié, drapeaux des classes de base retirés, table resserrée**
+Code : `include/ajax/detail-pp/classe.php`, `css/modules.css`. **Migration** :
+`sql/2026-10-10_drapeaux_nls_classes_base_sp-ma6.sql`.
+→ **NULL / 0 dans les sorts par jour DD3.5 — vérifié, rien à corriger.** Règle rappelée par
+  Jean-Michel : NULL = niveau de sort inaccessible ; 0 = accessible, mais par les seuls sorts en
+  bonus de caractéristique. Contrôlé maillon par maillon :
+  - **base** : le Paladin porte bien S1 = 0 aux niveaux 4-5, S2 = 0 au niveau 8, NULL ailleurs ;
+    170 lignes DD3.5 portent un 0 au-delà du niveau 0 ;
+  - **saisie** : un champ vide s'enregistre en NULL, « 0 » en 0 (`cols_nullable`) ; le formulaire
+    restitue les deux tels quels ;
+  - **fiche** : « — » pour NULL, « 0 » pour 0 ;
+  - **calcul** : `getMagieContexte()` marque NULL inaccessible et n'ajoute le bonus qu'à un niveau
+    accessible. Banc d'essai sur un paladin synthétique (transaction annulée, base vérifiée
+    intacte) : niveau 4 Sag 10 → N1 = 0 ; Sag 14 → N1 = 1 ; niveau 8 Sag 10 → N1 = 1, N2 = 0 ;
+    niveau 14 Sag 12 → N1 = 3 ; **niveau 3 Sag 18 → aucun emplacement**, le bonus ne rendant pas
+    accessible un niveau qui ne l'est pas ;
+  - le sélecteur de sorts et la vue Magie lisent ce même contexte.
+  Une nuance, sans effet : les sorts **connus** (`cn_sortConnu_n*`) ne font pas la distinction
+  — un 0 et un NULL s'y affichent tous deux « — ». Aucun bonus ne s'applique aux sorts connus,
+  les deux valeurs y disent la même chose.
+→ **Drapeaux NLS des classes de base remis à 0** (erreur de saisie confirmée) : Barde, Druide,
+  Ensorceleur, Magicien, Prêtre, Rôdeur — 120 niveaux. Nouvelle migration, celle du matin étant
+  déjà appliquée. Il ne reste de drapeaux que sur des prestiges (89 niveaux). Le NLS d'Elminster
+  (magicien 20 + archimage 5) reste à 25.
+→ **Largeur mini de la colonne Aptitudes sur téléphone — essai, puis réglage.** La retirer
+  purement et simplement réglait les prestiges, mais **cassait les tables des lanceurs** : coincée
+  entre dix colonnes de sorts, la colonne tombait à 25px et les mots se coupaient lettre à lettre
+  (`word-break: break-word`). Même chez l'Archimage, elle tombait à 33px. Retenu : une classe
+  `.table-dd--etroite`, posée sur les tables **sans colonnes de sorts** (non lanceuses, ou
+  prestiges du cas 2), où Aptitudes descend à 88px sous 768px, sans coupure de mot ; les tables
+  des lanceurs, qui défilent de toute façon, gardent leurs 160px.
+→ Mesuré à 375px (cadre de 327px) : Archimage et Théurge mystique 327px, Barbare et Guerrier
+  327px — tous sans défilement ; Gardien du savoir 340px (un mot long) ; Moine 511px (colonnes de
+  pouvoirs) ; Magicien et Paladin inchangés (160px, défilement comme avant).
+→ La limite relevée en D-MAG16 (82px de débordement) est levée pour les prestiges du cas 2.
+
+**[2026-10-10] Correctif — « Conditions d'accès » remonte sous le type de classe**
+Code : `include/ajax/modifier/classe.php`, `compendium/enregistrement.php`. Hors chantier.
+→ Le champ `cla_conditions` (DD3.5, classes de prestige) était rendu en fin de section « Données
+  DD3.5 », trop bas pour être trouvé, et **seulement si la classe était déjà une prestige à
+  l'ouverture** : choisir « Prestige » dans la liste ne le faisait pas apparaître.
+→ Il est désormais en section 1, juste après « Type de classe », sur toute la largeur
+  (`modif-grid__full`), éditeur TinyMCE. Toujours rendu en DD3.5, affiché par
+  `appliquerVisibiliteType()` pour le type Prestige, masqué pour Base et PNJ.
+→ Le serveur vide les conditions d'une classe qui n'est pas une prestige : un texte saisi puis
+  masqué en changeant de type ne reste pas en base. Aucune classe non prestige n'en portait.
+
+**[2026-10-10] Correctif — la saisie TinyMCE était perdue à la deuxième ouverture d'un formulaire**
+Code : `js/main.js` seul. Hors chantier, relevé en corrigeant le champ ci-dessus.
+→ **Symptôme** : ouvrir un formulaire, le fermer, en ouvrir un second sans recharger la page — ce
+  qu'on tapait dans un champ riche (description, armes, sorts, conditions…) n'était pas envoyé.
+  L'ancien texte restait en base, sans message. 15 formulaires concernés : tous ceux qui
+  chargent TinyMCE (sort, don, classe, race, objet, règle, campagne, scénario, chapitre,
+  rencontre, personnage…).
+→ **Cause** : `actualiserPageModif()` recréait tous les `<script>` du fragment injecté, y compris
+  `<script src=".../tinymce.min.js">`. TinyMCE se retéléchargeait et, chargé de façon
+  asynchrone, remplaçait l'objet global `tinymce` **après** que `initTMCE()` y eut créé ses
+  éditeurs. `tinymce.get()` interrogeait le nouvel objet, vide : `soumettre()` ne recopiait
+  aucun éditeur dans son `<textarea>`.
+→ **Correctif** : la recréation des scripts passe dans `executerScriptsInjectes()`, commune à
+  `actualiserPageModif()` et `actualiserPageSub()`. Un script **externe** déjà chargé — par un
+  panneau précédent (mémorisé dans un `Set`, son DOM ayant disparu) ou par la page elle-même —
+  n'est pas recréé ; les scripts **en ligne** sont toujours réexécutés, ils initialisent le
+  fragment. Aucun des 15 formulaires n'est modifié.
+→ Contrôlé sans rien enregistrer (lecture du `FormData` seulement) : trois formulaires de classe
+  ouverts à la suite (Tueur de Domiel, Parangon ménestrel, Archimage), puis un formulaire de sort
+  — à chaque fois quatre éditeurs (un pour le sort) vus par `tinymce.get()` et la saisie
+  présente dans le formulaire envoyé ; TinyMCE chargé une seule fois ; sous-panneau
+  `#detail-pp-sub` intact ; aucune erreur console nouvelle.
