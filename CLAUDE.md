@@ -150,7 +150,8 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
    `SP-TB` (tableaux de règles), `SP-GL` (glossaire), `SP-PE` (module Personnages),
    `SP-IM` (import des données du compendium), `SP-DP` (déploiement en production),
    `SP-RB` (bascule de ruleset depuis le header), `SP-XC` (export de classes vers la production), `SP-SY` (synchronisation du contenu local →
-   production, en attente d'arbitrage).
+   production, en attente d'arbitrage), `SP-PO` (possessions : équipements et objets magiques, tag
+   de liste `[[liste:…]]`).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
    ```markdown
@@ -185,6 +186,11 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - Liaison auto du glossaire SP-GL0→GL3 : `include/glossaire-parser.php`, renvois produits au
   rendu dans `reg_texte`, les définitions de glossaire et les descriptions du compendium.
   Point de passage unique : `rendreTexteEnrichi()` — glossaire puis tableaux (voir §9d)
+- Possessions DD3.5 SP-PO0→PO2 + SP-DRS2/DRS3 : `dd_equipements` restructurée (familles
+  `dd_categorie_equipement`, prix, poids, attributs JSON, supplément), 269 articles du DRS 07 importés,
+  règles Équipement et Objets magiques. **Tag `[[liste:equipement|famille=…|source=…]]` /
+  `[[liste:objet|…]]`** : listes dynamiques dans les règles, `include/liste-parser.php`, chaîné dans
+  `rendreTexteEnrichi()` (voir §9e). Journal des corrections de texte : `doc/LOG_CORRECTIONS_DRS07_DRS23.md`
 - Aide à la saisie : `aideIcone()` sur les 13 champs soumis à un parser, contenu dans
   `include/aide-contextuelle.php` (une clé par jeu de parsers réellement appliqué)
 - Déploiement SP-DP0→DP6 : bouton du header (local seulement) qui envoie par SFTP les fichiers
@@ -194,6 +200,9 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   Moteur de migrations `include/migrations.php` + table `dd_migrations` (voir §6b)
 
 ### À faire (priorités)
+
+- SP-PO3→PO6 : bouton TinyMCE du tag de liste, écran des familles d'équipement, ruleset DD2024 (= `SP-E6`),
+  possessions du personnage. Les 4 migrations `sql/2026-10-11_*` restent à jouer en production
 - SP-IM6 : **seule phase du cycle d'import encore ouverte** — les descriptions des 8 classes
   DD2024, absentes du SRD, à saisir depuis le MdJ 2024. Tout le reste est livré le 2026-08-28 :
   classes complètes, 9 espèces, 38 options de classe en dons, et les 356 objets magiques du SRD

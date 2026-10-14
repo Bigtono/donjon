@@ -45,7 +45,10 @@ define('GL_BALISES_EXCLUES', [
 
 // Tag tableau non résolu — repris littéralement plutôt qu'importé de
 // tableau-parser.php : ce fichier ne doit dépendre que de helpers.php.
-define('GL_TAB_MOTIF', '\[\[tab:[a-z0-9\-]{1,120}\]\]');
+// Tags opaques : [[tab:slug]] (tableaux, SP-TB) et [[liste:entite|param=valeur…]]
+// (listes dynamiques, SP-PO1). Les paramètres d'un tag liste contiennent des mots
+// du glossaire (« famille=armes », « source=DRS 3.5 ») : il ne faut pas les lier.
+define('GL_TAB_MOTIF', '\[\[(?:tab:[a-z0-9\-]{1,120}|liste:[a-z]+(?:\|[^\[\]|]*)*)\]\]');
 
 // ============================================================
 // 1. INDEX DES TERMES
@@ -207,11 +210,11 @@ function _glMajProfondeur(string $token, int $profondeur): int
 // 5. ANALYSE D'UN SEGMENT DE TEXTE
 // ============================================================
 
-// Isole les tags [[tab:slug]] avant analyse : ils seront résolus en tableaux
-// juste après, et ne doivent surtout pas se retrouver coupés par une ancre.
+// Isole les tags [[tab:slug]] et [[liste:…]] avant analyse : ils seront résolus en
+// tableaux / listes juste après, et ne doivent surtout pas se retrouver coupés par une ancre.
 function _glLierTexte(string $seg, string $motif, array $parNom, array &$fait): string
 {
-  if (stripos($seg, '[[tab:') === false):
+  if (stripos($seg, '[[tab:') === false && stripos($seg, '[[liste:') === false):
     return _glLierSegment($seg, $motif, $parNom, $fait);
   endif;
 

@@ -164,13 +164,18 @@ require_once '../include/header.php';
     <?php // ---- Corps texte ---- ?>
     <?php if ($noeud['reg_texte']): ?>
       <div class="regles-noeud__texte" id="regles-texte">
-        <?php // Termes du glossaire → ancres (SP-GL), puis [[tab:slug]] → tableaux (SP-TB2).
-              // Cet ordre met le HTML des tableaux hors de portée du parser glossaire. ?>
-        <?= resoudreTagsTableaux(
+        <?php // Termes du glossaire → ancres (SP-GL), puis [[tab:slug]] → tableaux (SP-TB2),
+              // puis [[liste:…]] → listes d'équipements / d'objets (SP-PO1).
+              // Cet ordre met le HTML des tableaux et listes hors de portée du parser glossaire. ?>
+        <?= resoudreTagsListes(
               $db,
-              lierGlossaireAuto($db, $noeud['reg_texte'], $ruleset_id, $id),
-              $ruleset_id,
-              $peut_editer
+              resoudreTagsTableaux(
+                $db,
+                lierGlossaireAuto($db, $noeud['reg_texte'], $ruleset_id, $id),
+                $ruleset_id,
+                $peut_editer
+              ),
+              $ruleset_id
             ) ?>
       </div>
     <?php elseif (empty($enfants) && $peut_editer): ?>
@@ -195,11 +200,6 @@ require_once '../include/header.php';
               <?php if (!$enf['reg_visible']): ?>
                 <span class="regles-badge regles-badge--brouillon">Brouillon</span>
               <?php endif ?>
-              <?php if (!empty($arbre['enfants'][(int)$enf['reg_id']])): ?>
-                <span class="regles-sous-sommaire__nb-enfants">
-                  <?= count($arbre['enfants'][(int)$enf['reg_id']]) ?>
-                </span>
-              <?php endif ?>
             </li>
           <?php endforeach ?>
         </ul>
@@ -221,10 +221,10 @@ require_once '../include/header.php';
       <div class="regles-pagination__prec">
         <?php if ($noeud_prec): ?>
           <a href="<?= BASE_URL ?>/regles/regle.php?id=<?= (int)$id_prec ?>"
-             class="regles-pagination__lien" rel="prev">
+             class="regles-pagination__lien" rel="prev"
+             title="Précédent" aria-label="Précédent : <?= h($noeud_prec['reg_nom']) ?>">
             <i class="fa fa-chevron-left" aria-hidden="true"></i>
             <span>
-              <small>Précédent</small>
               <?= h($noeud_prec['reg_nom']) ?>
             </span>
           </a>
@@ -240,9 +240,9 @@ require_once '../include/header.php';
       <div class="regles-pagination__suiv">
         <?php if ($noeud_suiv): ?>
           <a href="<?= BASE_URL ?>/regles/regle.php?id=<?= (int)$id_suiv ?>"
-             class="regles-pagination__lien" rel="next">
+             class="regles-pagination__lien" rel="next"
+             title="Suivant" aria-label="Suivant : <?= h($noeud_suiv['reg_nom']) ?>">
             <span>
-              <small>Suivant</small>
               <?= h($noeud_suiv['reg_nom']) ?>
             </span>
             <i class="fa fa-chevron-right" aria-hidden="true"></i>

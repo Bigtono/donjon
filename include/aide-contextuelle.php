@@ -10,7 +10,8 @@
 //   Champ                        | Parsers au rendu
 //   -----------------------------|--------------------------------------------
 //   reg_texte, descriptions      | lierGlossaireAuto() + resoudreTagsTableaux()
-//   du compendium                |   -> glossaire auto + [[tab:slug]]
+//   du compendium                |   + resoudreTagsListes()
+//                                |   -> glossaire auto + [[tab:slug]] + [[liste:…]]
 //   tab_contenu (cellules)       | resoudreTagsExplicites()
 //                                |   -> #don# $sort$ &objet& @id@ %id%
 //   mo_stats                     | resoudreTagsExplicites() + lierAuto()
@@ -19,6 +20,9 @@
 // Annoncer un tag là où il n'est pas résolu se paie en saisies inutilisables.
 // Référence : doc/DECISIONS_LOG.md [2026-06-25] — système d'aide contextuelle.
 //             doc/ARCHITECTURE_0_REFERENCE.md §9c (tableaux) et §9d (glossaire).
+
+// LISTE_MAX_LIGNES, cité dans l'aide du tag [[liste:…]] (SP-PO1)
+require_once __DIR__ . '/liste-parser.php';
 
 return [
 
@@ -37,6 +41,27 @@ return [
     ");
     $stmt->execute([$ruleset_id]);
     $nb = (int)$stmt->fetchColumn();
+
+    // Slugs de familles utilisables par le paramètre famille= du tag [[liste:…]] (SP-PO1)
+    // Dans l'ordre de l'arbre (famille, puis ses sous-familles), pas à plat
+    $arbre_eq = catEquipementArbre($db, $ruleset_id);
+    $slugs_eq = [];
+    foreach (array_keys($arbre_eq['rang']) as $cae_id):
+      $slugs_eq[] = $arbre_eq['noeuds'][$cae_id]['cae_slug'];
+    endforeach;
+    $fam_equipement = empty($slugs_eq)
+      ? '<em>aucune pour l\'instant</em>'
+      : '<code>' . implode('</code>, <code>', array_map('h', $slugs_eq)) . '</code>';
+
+    $stmt = $db->prepare('
+      SELECT com_slug FROM dd_categorie_objet_magique
+      WHERE  com_ruleset_var_id = ? AND com_est_propriete = 0 ORDER BY com_nom
+    ');
+    $stmt->execute([$ruleset_id]);
+    $slugs_om = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $fam_objets = empty($slugs_om)
+      ? '<em>aucune pour l\'instant</em>'
+      : '<code>' . implode('</code>, <code>', array_map('h', $slugs_om)) . '</code>';
 
     $glossaire = $nb > 0
       ? '<p><strong>Renvois de glossaire — automatiques.</strong> Les '
@@ -66,6 +91,24 @@ return [
         <li>Le bouton <em>tableau</em> de la barre d\'outils l\'insère
         correctement : préférez-le à la saisie manuelle.</li>
         <li>Un slug inconnu s\'affiche en rouge encadré au lieu du tableau.</li>
+      </ul>
+
+      <p><strong>Insérer une liste d\'équipements ou d\'objets magiques</strong></p>
+      <ul>
+        <li><code>[[liste:equipement]]</code> ou <code>[[liste:objet]]</code> —
+        affiche la liste du compendium, <strong>toujours à jour</strong>.
+        Le tag doit être seul dans son paragraphe.</li>
+        <li>Paramètres facultatifs, séparés par <code>|</code> :
+          <code>famille=slug</code> (plusieurs : <code>famille=a,b</code> ;
+          pour l\'équipement, une famille inclut ses sous-familles),
+          <code>source=DRS 3.5</code> (abréviation ou nom ; sans ce paramètre, les
+          sources actives de l\'utilisateur),
+          <code>tri=nom</code> ou <code>tri=prix</code>,
+          <code>titre=…</code> (<code>titre=-</code> : sans légende).</li>
+        <li>Exemple : <code>[[liste:equipement|famille=armures-legeres|source=DRS 3.5]]</code></li>
+        <li>Familles de ce ruleset — équipement : ' . $fam_equipement . '.
+        Objets magiques : ' . $fam_objets . '.</li>
+        <li>Au-delà de ' . LISTE_MAX_LIGNES . ' lignes, la liste est tronquée avec un lien vers le compendium.</li>
       </ul>
 
       ' . $glossaire . '

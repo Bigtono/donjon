@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-10 21:30 -->
+<!-- Mis à jour : 2026-10-11 15:00 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -26,6 +26,7 @@
 | 1.12 | 2026-08-28 | JM | **SP-IM9b** — 121 déclinaisons d'objets magiques DD2024 redressées (description, rareté propre, catégorie, harmonisation). Aucune évolution de structure. Les 356 objets de la source SRD ont désormais une rareté valide. SQL committé : `sql/2026-08-28_objets_dd2024_sp-im9b.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
 | 1.13 | 2026-08-28 | JM | **SP-IM9c** — 10 tables d'objets magiques saisies dans `dd_tableaux` (ids 43-52) et 10 descriptions réécrites avec le tag `[[tab:slug]]`. Aucune évolution de structure. SQL committé : `sql/2026-08-28_objets_dd2024_sp-im9c.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
 | 1.14 | 2026-10-07 | JM | **SP-DP5** — `dd_migrations` CRÉÉE : trace des migrations SQL appliquées à la base de chaque environnement. Pas de fichier SQL : la table est créée par le moteur (`include/migrations.php`, `migrationsAssurerTable()`) à son premier appel, qui y inscrit aussitôt les 37 migrations antérieures au statut `reference` sans les rejouer. Créée en dev le 2026-10-07 ; sera créée en prod au premier déploiement (SP-DP). Préfixe `dd_` confirmé en production — le renommage `dd2_` n'a jamais été appliqué |
+| 1.15 | 2026-10-11 | JM | **SP-PO0 / SP-PO2** — `dd_categorie_equipement` CRÉÉE (arbre de familles d'équipement par ruleset, colonnes de liste en JSON). `dd_equipements` (vide jusque-là) reçoit `eqt_cae_id`, `eqt_prix_pc`, `eqt_prix_txt`, `eqt_poids_g`, `eqt_poids_txt`, `eqt_attributs`, `eqt_ordre` et `eqt_public` (rejoint le mécanisme Supplément). `dd_categorie_objet_magique.com_slug` ajouté (clé du tag `[[liste:objet|famille=…]]`). Import de 269 articles du DRS 07. SQL committé : `sql/2026-10-11_equipements_00_schema_sp-po0.sql` (**NON IDEMPOTENT**, ALTER TABLE) et `sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql` ; règles : `sql/2026-10-11_regles_dd35_drs07_sp-drs2.sql`, `…_drs23_sp-drs3.sql` (appliqués en dev le 2026-10-11 ; **restent à appliquer en prod OVH**, par le déploiement) |
 | 1.5 | 2026-07-01 | JM | Audit `SHOW CREATE TABLE` sur les 7 tables restantes du Supplément (SP-C5/C6, débloquant) : `_public`/`_visible` **existent déjà en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques` (+ `om_public` sur `dd_objets_magiques`, `om_visible` déjà documenté). Colonnes ajoutées à la doc ci-dessous. `sql/patch_004_supplements.sql` reste introuvable dans le dépôt (appliqué directement en base, jamais committé — même écart que l'incident `mo_j_id`). Écart noté au passage : `dd_dons.do_page_source` (int NOT NULL) présent en base, non documenté, sans rapport avec SP-C — non traité ici |
 
 ---
@@ -609,6 +610,7 @@ Catégories d'objets magiques (Anneau, Arme, Baguette, Parchemin, Potion…).
 |---|---|---|---|
 | com_id | int unsigned | PK | |
 | com_nom | varchar(80) | nn | |
+| com_slug | varchar(100) | null, UK(com_slug, com_ruleset_var_id) | Clé du paramètre `famille=` du tag `[[liste:objet|…]]` (SP-PO1) — rempli par le nom à la migration |
 | com_est_calcule | tinyint(1) | nn, défaut 0 | 1 = calcul auto NLS/prix activable (DD3.5 uniquement) |
 | com_est_propriete | tinyint(1) | nn, défaut 0 | 1 = catégorie masquée par défaut dans la liste (propriétés spéciales DD3.5) |
 | com_ruleset_var_id | int unsigned | nn | -> dd_variables |
@@ -654,6 +656,25 @@ Rareté des bjets magiques du compendium.
 | om_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
 
+### dd_categorie_equipement
+Familles d'équipement, arbre par ruleset (famille > sous-famille > …). **Une seule définition de colonnes
+pilote la liste (tag `[[liste:equipement|…]]`, fiche détail) ET le formulaire d'édition.**
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| cae_id | int unsigned | PK | |
+| cae_cae_id | int unsigned | null | Parent récursif ; NULL = famille racine |
+| cae_nom | varchar(100) | nn | |
+| cae_slug | varchar(100) | nn, UK(cae_slug, cae_ruleset_var_id) | Clé du paramètre `famille=` du tag |
+| cae_colonnes | text | null | JSON `[{k, l, a?, liste?}]` — `k` = `prix`, `poids` ou une clé d'attribut ; `l` = libellé ; `a` = alignement `l/c/r` ; `liste:false` = fiche seulement. NULL = hérite du plus proche ancêtre qui en a une |
+| cae_ordre | smallint unsigned | nn, défaut 0 | Ordre parmi les frères |
+| cae_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+> Jeu DD3.5 (32 familles) : `armes` (courantes / de guerre / exotiques, chacune en légères / une main / deux mains /
+> distance), `armures-et-boucliers` (légères, intermédiaires, lourdes, boucliers, suppléments),
+> `marchandises-et-services` (8 sous-familles). Les familles DD2024 sont à saisir avec l'import des équipements DD2024.
+> Aucun écran d'administration : comme `dd_categorie_objet_magique`, les familles se créent par migration SQL.
+
 ### dd_equipements
 Équipement mondain du compendium (armes, armures, matériel non magique) — distincte de
 `dd_objets_magiques` (objets magiques).
@@ -662,21 +683,25 @@ Rareté des bjets magiques du compendium.
 |---|---|---|---|
 | eqt_id | int unsigned | PK | |
 | eqt_nom | varchar(150) | nn | |
-| eqt_description | text | null | Description HTML TinyMCE (format libre) |
-| eqt_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs |
-| eqt_res_id | int unsigned | nn | Source -> dd_ressources |
+| eqt_cae_id | int unsigned | null | Famille -> dd_categorie_equipement |
+| eqt_prix_pc | int unsigned | null | Prix en pièces de cuivre (1 po = 100 pc) ; NULL = sans prix chiffré |
+| eqt_prix_txt | varchar(60) | null | Prix affiché quand il n'est pas un nombre (« spécial », « +50 po », « Niveau × 5 po ») ; prime sur `eqt_prix_pc` à l'affichage |
+| eqt_poids_g | int unsigned | null | Poids en grammes ; NULL = négligeable ou sans objet |
+| eqt_poids_txt | varchar(60) | null | Poids affiché quand il n'est pas un nombre ; prime sur `eqt_poids_g` |
+| eqt_attributs | text | null | JSON `{clé : valeur}` — les clés sont celles de `cae_colonnes` (dégâts, critique, bonus d'armure…) |
+| eqt_ordre | smallint unsigned | nn, défaut 0 | Ordre dans la famille (celui du livre) ; à égalité, nom |
+| eqt_description | text | null | Description HTML TinyMCE (règles propres à l'article ; format libre) |
+| eqt_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs (sémantique propre, conservée) |
+| eqt_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| eqt_res_id | int unsigned | nn | Source -> dd_ressources (officielle ou supplément de l'utilisateur) |
 | eqt_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | eqt_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
-> Table créée le 2026-06-20 (`sql/2026-06-20_equipements_sp-e0.sql`, committé dans le dépôt).
-> ⚠️ Écart avec le modèle supplément (cf. § Supplément utilisateur, SP-C) : un seul flag
-> `eqt_visible` plutôt que le couple `_public`/`_visible` des 8 tables déjà migrées — modèle de
-> visibilité simple (ancien `om_visible` pré-SP-C0), pas de notion de propriétaire/supplément pour
-> l'instant. À arbitrer explicitement si Équipements doit un jour rejoindre le mécanisme supplément
-> (ajout `eqt_public` + `eqt_res_id` pointant vers une ressource supplément) — non fait, non
-> nécessaire tant qu'aucun module n'existe pour cette table (cf. ARCHITECTURE_0_REFERENCE.md § Plan
-> Équipements SP-E, DECISIONS_LOG.md [2026-06-20]).
-
+> Table créée le 2026-06-20 (`sql/2026-06-20_equipements_sp-e0.sql`) ; **étendue le 2026-10-11** (SP-PO0,
+> `sql/2026-10-11_equipements_00_schema_sp-po0.sql`) — elle était vide, la structure a donc pu changer sans
+> migration de données. Elle rejoint le mécanisme Supplément (`eqt_public` + ressource supplément du propriétaire,
+> même modèle que `om_public`) : cela **solde SP-E5**. Import DRS 07 : 269 articles, source « DRS 3.5 »
+> (`sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql`).
 
 ### dd_monstres
 

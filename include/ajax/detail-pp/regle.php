@@ -87,12 +87,16 @@ $enfants = $stmt_enfants->fetchAll();
 
   <?php if ($noeud['reg_texte']): ?>
     <div class="regle-detail__texte">
-      <?php // Glossaire (SP-GL) puis tableaux (SP-TB2) — cf. regles/regle.php ?>
-      <?= resoudreTagsTableaux(
+      <?php // Glossaire (SP-GL), tableaux (SP-TB2) puis listes (SP-PO1) — cf. regles/regle.php ?>
+      <?= resoudreTagsListes(
             $db,
-            lierGlossaireAuto($db, $noeud['reg_texte'], $ruleset_id, $id),
-            $ruleset_id,
-            $peut_editer
+            resoudreTagsTableaux(
+              $db,
+              lierGlossaireAuto($db, $noeud['reg_texte'], $ruleset_id, $id),
+              $ruleset_id,
+              $peut_editer
+            ),
+            $ruleset_id
           ) ?>
     </div>
   <?php endif ?>

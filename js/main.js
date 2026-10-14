@@ -451,6 +451,7 @@ var MO_LIEN_FICHIERS = {
   competence: 'competence.php',
   sort: 'sort.php',
   objet: 'objet.php',
+  equipement: 'equipement.php',
   capacite: 'capacite.php',
   race: 'race.php',
   classe: 'classe.php',

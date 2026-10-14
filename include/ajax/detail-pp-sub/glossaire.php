@@ -94,8 +94,10 @@ endif;
             // il ne se lie pas à lui-même dans sa propre définition. ?>
       <?php // Tableaux résolus après la liaison glossaire : lierGlossaireAuto()
             // travaille sur le texte, le tag doit lui rester opaque. ?>
-      <?= resoudreTagsTableaux($db,
-            lierGlossaireAuto($db, $terme['reg_texte'], $ruleset_id, (int)$terme['reg_id']),
+      <?= resoudreTagsListes($db,
+            resoudreTagsTableaux($db,
+              lierGlossaireAuto($db, $terme['reg_texte'], $ruleset_id, (int)$terme['reg_id']),
+              $ruleset_id),
             $ruleset_id) ?>
     <?php else: ?>
       <p class="regles-vide"><em>Aucune définition disponible.</em></p>

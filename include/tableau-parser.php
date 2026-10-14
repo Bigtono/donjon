@@ -41,6 +41,8 @@ require_once __DIR__ . '/monstre-parser.php';
 // Requis par rendreTexteEnrichi() (SP-GL3). glossaire-parser.php ne dépend que
 // de helpers.php : la dépendance reste à sens unique.
 require_once __DIR__ . '/glossaire-parser.php';
+// Tag [[liste:equipement|…]] / [[liste:objet|…]] — listes dynamiques (SP-PO1)
+require_once __DIR__ . '/liste-parser.php';
 
 // ============================================================
 // 1. PARSING — convention texte → structure
@@ -369,13 +371,14 @@ function resoudreTagsTableaux(
 }
 
 // Point d'entrée unique des champs texte du compendium (SP-TB7 + SP-GL3).
-// Applique, dans l'ordre imposé, les deux parsers de rendu :
+// Applique, dans l'ordre imposé, les trois parsers de rendu :
 //   1. lierGlossaireAuto()    — mentions de termes de glossaire -> ancres
 //   2. resoudreTagsTableaux() — tags [[tab:slug]] -> tableaux dd_tableaux
+//   3. resoudreTagsListes()   — tags [[liste:…]] -> listes d'équipements / d'objets (SP-PO1)
 //
-// L'ORDRE EST IMPÉRATIF (cf. §9d). Glossaire d'abord : le HTML des tableaux est
-// alors injecté après coup et ne traverse jamais le parser glossaire, ce qui met
-// l'intérieur des tableaux rendus hors de portée sans code dédié.
+// L'ORDRE EST IMPÉRATIF (cf. §9d). Glossaire d'abord : le HTML des tableaux et des
+// listes est alors injecté après coup et ne traverse jamais le parser glossaire, ce qui
+// met l'intérieur des tableaux rendus hors de portée sans code dédié.
 //
 // Le ruleset est lu dans la session plutôt que reçu en paramètre — les endpoints
 // detail-pp du compendium ne définissent pas tous une variable $ruleset_id
@@ -392,7 +395,7 @@ function resoudreTagsTableaux(
 function rendreTexteEnrichi(PDO $db, ?string $html, ?int $ruleset_id = null): string
 {
   $rs = $ruleset_id ?? (int)($_SESSION['ruleset_var_id'] ?? 1);
-  return resoudreTagsTableaux($db, lierGlossaireAuto($db, $html, $rs), $rs);
+  return resoudreTagsListes($db, resoudreTagsTableaux($db, lierGlossaireAuto($db, $html, $rs), $rs), $rs);
 }
 
 // ============================================================

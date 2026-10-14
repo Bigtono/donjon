@@ -347,8 +347,17 @@
   border-radius: var(--radius-sm, 4px);
 }
 
+/* Hauteur fixe de 2 lignes, texte centré : les libellés sur 1 et 2 lignes
+   s'alignent dans la grille. Un libellé de plus de 2 lignes serait rogné. */
 .regles-sous-sommaire__lien {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-sizing: border-box;
+  height: calc(2 * 1.4em + .6rem + 2px);
+  line-height: 1.4;
+  overflow: hidden;
   padding: .3rem .6rem;
   background: var(--clr-surface, #ffffff);
   border: 1px solid var(--clr-border, #d5cfc3);
@@ -367,14 +376,6 @@
 .regles-sous-sommaire__lien:hover {
   color: var(--clr-text, #2a2015);
   border-color: var(--clr-accent, #8b2020);
-}
-
-.regles-sous-sommaire__nb-enfants {
-  font-size: .7rem;
-  color: var(--clr-text-muted, #7a6e5a);
-  background: var(--clr-surface-2, #eae6dd);
-  border-radius: 99px;
-  padding: 1px 6px;
 }
 
 /* ============================================================
@@ -402,10 +403,15 @@
   justify-self: end;
 }
 
+/* Même hauteur de 2 lignes que les cases du sous-sommaire, texte centré. */
 .regles-pagination__lien {
   display: flex;
   align-items: center;
   gap: .5rem;
+  box-sizing: border-box;
+  height: calc(2 * 1.4em + 1rem + 2px);
+  line-height: 1.4;
+  overflow: hidden;
   padding: .5rem .75rem;
   background: var(--clr-surface, #ffffff);
   border: 1px solid var(--clr-border, #d5cfc3);
@@ -423,13 +429,7 @@
 }
 
 .regles-pagination__lien span {
-  display: flex;
-  flex-direction: column;
-}
-
-.regles-pagination__lien small {
-  font-size: .7rem;
-  color: var(--clr-text-muted, #7a6e5a);
+  text-align: center;
 }
 
 /* ============================================================

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-10 21:30 -->
+<!-- Mis à jour : 2026-10-11 15:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -17,6 +17,15 @@
 > PDO) sur OVH alors que le local fonctionne. Cause précise non confirmée (log serveur OVH non
 > consulté) — `include/db.php` instrumenté pour journaliser l'environnement détecté et l'hôte DSN
 > ciblé à chaque échec, sans exposer les identifiants (voir D-CFG2, diagnostic en cours).
+
+> 2026-10-11 : nouveau projet **SP-PO — Possessions** (équipements et objets magiques), ruleset DD3.5 d'abord.
+> Les règles du DRS 07 (Équipement) et du DRS 23 (Objets magiques) sont importées (`SP-DRS2`, `SP-DRS3`),
+> mais **les articles ne sont pas dans les règles** : leurs fiches vivent dans le compendium. Les règles
+> en affichent les listes par un nouveau tag `[[liste:equipement|…]]` / `[[liste:objet|…]]`, toujours à
+> jour, filtrable par famille et par source (`SP-PO1`, §9e). `dd_equipements` (vide) est restructurée :
+> familles (`dd_categorie_equipement`), prix, poids, attributs en JSON, supplément utilisateur (`SP-PO0`,
+> solde `SP-E5`) ; 269 articles du DRS 07 importés avec leur description propre (`SP-PO2`). Corrections de
+> texte : `doc/LOG_CORRECTIONS_DRS07_DRS23.md`. Voir §9e et §0.
 
 > 2026-08-10 : nouveau projet **SP-TB — Tableaux de règles**. Les tableaux de données quittent
 > `reg_texte` (HTML TinyMCE) pour une table dédiée `dd_tableaux`, saisis en convention texte et
@@ -281,9 +290,24 @@
 - [x] SP-E1 — Contrôleur liste `compendium/equipements.php`
 - [x] SP-E2 — Formulaire `modifier/equipement.php` + `enregistrement.php`
 - [x] SP-E3 — Fiche détail `detail-pp/equipement.php`
-- [ ] SP-E4 — `monstre-parser.php` : type liable `equipement` + entrée `MO_LIEN_FICHIERS` *(débloquée)*
-- [ ] SP-E5 — Alignement sur le mécanisme Supplément utilisateur (`eqt_public`) *(à arbitrer, non prioritaire)*
-- [ ] SP-E6 — **Import de l'équipement DD2024** : `dd_equipements` est vide. Inclut les **bottes d'arme** (propriétés d'arme : Fauchage, Éraflure, Entaille, Bousculade, Sape, Ralentissement, Renversement, Harcèlement), écartées de `SP-IM5` le 2026-08-28 — elles qualifient une arme, pas un personnage. Source : `FR_SRD_CC_v5.2.1.pdf`, section équipement (absentes du PDF Classes). Le schéma actuel (`eqt_nom`, `eqt_description`) ne porte ni dégâts, ni propriétés, ni prix : **modélisation à arbitrer** avant import
+- [ ] SP-E4 — `monstre-parser.php` : type liable `equipement` *(débloquée — reste `typesLiablesMonstre()` + `construireIndexAuto()` ; l'entrée `equipement` de `MO_LIEN_FICHIERS` dans `js/main.js` est posée depuis SP-PO1, les listes `[[liste:…]]` s'en servent)*
+- [x] SP-E5 — Alignement sur le mécanisme Supplément utilisateur (`eqt_public`) — **soldée par SP-PO0** (2026-10-11)
+- [ ] SP-E6 — **Import de l'équipement DD2024** : `dd_equipements` ne contient que les articles DD3.5 du DRS 07 (SP-PO2). **Le schéma est tranché** (SP-PO0 : familles, prix, poids, attributs JSON) : reste à saisir les familles DD2024 (`dd_categorie_equipement`, `cae_ruleset_var_id` = 2) et à importer. Inclut les **bottes d'arme** (propriétés d'arme : Fauchage, Éraflure, Entaille, Bousculade, Sape, Ralentissement, Renversement, Harcèlement), écartées de `SP-IM5` le 2026-08-28 — elles qualifient une arme, pas un personnage. Source : `FR_SRD_CC_v5.2.1.pdf`, section équipement (absentes du PDF Classes). ~~Le schéma actuel ne porte ni dégâts, ni propriétés, ni prix~~ — résolu par SP-PO0 : propriétés d'arme, maîtrise et dégâts DD2024 = clés d'attributs de la famille
+
+### SP-PO — Possessions (équipements et objets magiques)
+
+> Chantier ouvert le 2026-10-11, **par ruleset** (les règles diffèrent beaucoup) : DD3.5 d'abord. Les
+> règles ne portent que les mécanismes de jeu ; les articles (prix, poids, caractéristiques,
+> description propre) sont des données du compendium, que les règles affichent par un tag de liste.
+> Arbitrages du 2026-10-11 : `DECISIONS_LOG.md` D-PO1 à D-PO6. Détails en §9e.
+
+- [x] SP-PO0 — Schéma : `dd_categorie_equipement` (arbre de familles, colonnes de liste en JSON), `dd_equipements` étendue (famille, prix, poids, attributs JSON, ordre, `eqt_public`), `com_slug` sur les catégories d'objets magiques ; formulaire, liste (colonnes + filtre famille avec sous-familles), fiche détail et enregistrement mis à niveau — `sql/2026-10-11_equipements_00_schema_sp-po0.sql`
+- [x] SP-PO1 — Tag `[[liste:equipement|…]]` / `[[liste:objet|…]]` : `include/liste-parser.php`, paramètres `famille` / `source` / `tri` / `titre`, branché dans `rendreTexteEnrichi()` et les 3 rendus de règles, protégé du glossaire, aide contextuelle
+- [x] SP-PO2 — Import des **269 équipements DD3.5** du DRS 07 avec leur description propre : 32 familles, source « DRS 3.5 » — `sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql`
+- [ ] SP-PO3 — Bouton TinyMCE d'insertion d'un tag de liste (famille et source à choisir dans un picker, sur le modèle du bouton Tableaux)
+- [ ] SP-PO4 — Écran de gestion des familles d'équipement (aujourd'hui : migration SQL, comme `dd_categorie_objet_magique`)
+- [ ] SP-PO5 — **Ruleset DD2024** : règles d'équipement et d'objets magiques du SRD 5.2.1 sur le même mécanisme (familles DD2024 + import = `SP-E6`)
+- [ ] SP-PO6 — Possessions du personnage (inventaire, richesse, encombrement, objets harmonisés) dans le module Personnages — **à arbitrer** ; s'appuie sur `eqt_prix_pc` / `eqt_poids_g`
 
 ### SP-T — Transfert / Duplication d'opposition
 
@@ -329,7 +353,9 @@
 
 - [x] SP-DRS0 — Socle : ressource « DRS 3.5 », racines thématiques (Bases, Combat, Aventure et environnement, Créatures et pouvoirs spéciaux, Glossaire) — `sql/2026-08-25_regles_dd35_socle.sql`
 - [x] SP-DRS1 — Lot 1 : DRS 01 (caractéristiques), 10 (combat), 12 (extérieur/climat), 18 (pouvoirs et états), 19 (types et sous-types) + 15 tableaux + 63 termes de glossaire — `sql/2026-08-25_regles_dd35_drs*.sql` et `_glossaire_lot1.sql`
-- [ ] SP-DRS2 — Lot 2 : prochains fichiers DRS présentés par l'utilisateur (ordre d'affichage = ordre de présentation des lots)
+- [x] SP-DRS2 — Lot 2 : **DRS 07 (Équipement)** — racine « Équipement » (ordre 40), 13 pages (monnaie, catégories et attributs des armes, listes, armes de maître, attributs des armures, armures de maître et pour créatures inhabituelles, enfiler/ôter, marchandises et services, bardes, lancement de sorts) + 6 tableaux + 12 termes de glossaire — `sql/2026-10-11_regles_dd35_drs07_sp-drs2.sql`. Les listes d'articles sont des tags `[[liste:equipement|…]]`. La racine « Créatures et pouvoirs spéciaux » passe de 40 à 60
+- [x] SP-DRS3 — Lot 3 : **DRS 23 (Objets magiques)** — racine « Objets magiques » (ordre 50), 13 pages (catégories, détection, utilisation, taille, emplacements et affinités, sauvegardes / dégâts / réparation, charges, description, création ×4, estimation du prix, catalogue) + 11 tableaux + 9 termes — `sql/2026-10-11_regles_dd35_drs23_sp-drs3.sql`. Les fiches d'objets (DRS 24 à 28) sont des données du compendium, hors périmètre
+- [ ] SP-DRS4 — Lot suivant : prochains fichiers DRS présentés par l'utilisateur (ordre d'affichage = ordre de présentation des lots)
 
 ### SP-IM — Import des données manquantes (compendium)
 
@@ -1374,7 +1400,13 @@ le calcul si on suivait le même pattern que `.mo-tag-popup`.
 
 ---
 
-### Module Équipements (planifié — SP-E)
+### Module Équipements (SP-E, étendu par SP-PO)
+
+> **Mise à jour 2026-10-11.** La table `dd_equipements`, vide jusque-là, est restructurée par **SP-PO0** :
+> famille (`eqt_cae_id` -> `dd_categorie_equipement`), prix (`eqt_prix_pc` + `eqt_prix_txt`), poids
+> (`eqt_poids_g` + `eqt_poids_txt`), attributs propres à la famille (`eqt_attributs`, JSON), ordre du
+> livre (`eqt_ordre`) et supplément utilisateur (`eqt_public`). Le texte ci-dessous décrit l'état
+> **antérieur** (SP-E0→E3, 2026-06) ; le modèle courant est en §9e et dans `SCHEMA_SQL.md`.
 
 Entité **`dd_equipements`** (`eqt_*`) — équipement mondain (armes, armures, matériel non magique),
 distincte de `dd_objets_magiques` (objets magiques, module déjà existant). Schéma fourni par
@@ -2744,8 +2776,8 @@ partagent le même handler. L'index du parser est par ruleset : DD2024 (155 term
 Import itératif, un lot de fichiers DRS à la fois, arbitré le 2026-08-25 :
 
 - **Arborescence thématique** — les racines ne calquent pas les fichiers DRS : `Les bases du jeu`
-  (ordre 10), `Le combat` (20), `Aventure et environnement` (30), `Créatures et pouvoirs
-  spéciaux` (40), `Glossaire` (90). `reg_ordre` par pas de 10 partout : les lots suivants
+  (ordre 10), `Le combat` (20), `Aventure et environnement` (30), `Équipement` (40, SP-DRS2),
+  `Objets magiques` (50, SP-DRS3), `Créatures et pouvoirs spéciaux` (60 — était 40), `Glossaire` (90). `reg_ordre` par pas de 10 partout : les lots suivants
   s'intercalent sans renumérotation. Sous une racine, un fichier DRS devient un `chapitre`
   (ex. `Les caractéristiques`), sauf quand thème et fichier coïncident (`Le combat` : les règles
   de DRS 10 sont ses enfants directs).
@@ -3251,6 +3283,131 @@ pas devinables de façon fiable, l'auteur les reprend à la main.
 > aussi ce que produit le `style_formats` de TinyMCE. Les titres de tableaux importés n'étaient
 > donc pas stylés. Sans objet après SP-TB5 : le titre remonte dans `tab_nom` et la migration
 > supprime le paragraphe.
+
+---
+
+## 9e. Listes dynamiques d'équipements et d'objets magiques — SP-PO
+
+Projet **SP-PO**. Moteur : `include/liste-parser.php`, point d'entrée
+`resoudreTagsListes(PDO $db, ?string $html, int $ruleset_id)`.
+
+**Principe** — les règles ne portent que les mécanismes de jeu ; les articles (prix, poids,
+caractéristiques, description propre) sont des données du compendium. Pour qu'une règle montre une
+liste d'articles sans la recopier — et sans qu'elle vieillisse —, le texte pose un tag, résolu au
+rendu comme `[[tab:slug]]`. **Rien n'est écrit en base** : ajouter un article au compendium met à
+jour toutes les listes du site. Valable pour les deux rulesets ; seules les familles diffèrent.
+
+### Syntaxe
+
+```
+[[liste:equipement]]
+[[liste:equipement|famille=armes-de-guerre]]
+[[liste:equipement|famille=armures-legeres,boucliers|source=DRS 3.5|tri=prix]]
+[[liste:objet|famille=baguettes|titre=Baguettes du jeu de base]]
+```
+
+| Élément | Règle |
+|---|---|
+| Entités | `equipement` (`dd_equipements`), `objet` (`dd_objets_magiques`) |
+| Séparateurs | `\|` entre paramètres, `,` entre valeurs. Tag **seul dans son paragraphe** |
+| `famille` | slug(s) de catégorie. **Équipement : une famille inclut ses descendants** (`armes` = courantes + de guerre + exotiques). Objets : `com_slug`, plat. Absent = toutes (les « propriétés spéciales » DD3.5, `com_est_propriete = 1`, restent exclues, comme dans le compendium) |
+| `source` | abréviation ou nom de ressource du ruleset (« DRS 3.5 »). **Absent = sources ACTIVES de l'utilisateur** (`getActiveResIds()`), comme le compendium — une même règle peut donc montrer des lignes différentes à deux utilisateurs. **Présent = ces sources-là, quelles que soient les sources actives**. Source inconnue → « Aucun élément » |
+| `tri` | défaut : ordre du livre (`eqt_ordre`) puis nom ; `nom` ; `prix` (sans prix chiffré en dernier) |
+| `titre` | légende du tableau (défaut : nom de la famille) ; **`titre=-` = aucune légende** (quand un `<h3>` la précède déjà) |
+| Références | **par slug, jamais par id** — les ids diffèrent entre le local et OVH (même raison que `[[tab:slug]]`) |
+| Dégradation | entité ou famille inconnue → le tag s'affiche tel quel, encadré en rouge (`.reg-tab__manquant`), crochets en entités pour que la seconde passe ne le re-matche pas |
+
+### Rendu
+
+`<figure class="reg-tab reg-liste" data-detail-base="…">` : le composant `.reg-tab*` des tableaux
+est réutilisé tel quel (défilement horizontal porté par `.reg-tab__scroll`). Le nom de chaque ligne est un
+`<span class="mo-lien" data-type="equipement|objet" data-id="…">` : le handler de `js/main.js`
+(`MO_LIEN_FICHIERS`) ouvre la fiche détail dans `#detail-pp-sub`.
+
+- **Équipement** — colonnes lues dans `cae_colonnes` de la catégorie (héritées du parent si NULL), hors
+  colonnes `liste:false`. Lignes groupées par famille : une ligne de section par feuille (« Armes courantes ›
+  Armes de corps à corps légères »), chemin relatif à la famille demandée. Un tableau **par jeu de colonnes**
+  distinct si la sélection mélange des familles de structure différente (armes + armures).
+- **Objets magiques** — DD3.5 : Nom, Prix (`om_prix`, « — » si 0 ou NULL) ; DD2024 : Nom, Rareté,
+  Harmonisation. Sections par catégorie si plusieurs.
+- Colonne **Source** ajoutée automatiquement quand le résultat mélange plusieurs sources.
+- **Plafond : `LISTE_MAX_LIGNES` = 200** lignes, puis « N autre(s) ligne(s) — voir tout dans le compendium »
+  (lien vers `compendium/equipements.php` ou `objets.php`).
+
+### Visibilité
+
+Même règle que `compendium-liste.php` (Supplément utilisateur, SP-C2), sans le toggle « brouillons » :
+entrée officielle visible (ou tout pour un éditeur) · entrée du supplément du propriétaire courant si
+`_visible = 1` · entrée d'un supplément tiers si `_public = 1` **et** `_visible = 1`. **Jamais de homebrew de
+campagne** (`_camp_id IS NULL`). Un `getActiveResIds()` vide **omet** le filtre (pas de `IN ()`) — alors que le
+moteur de liste du compendium, lui, ne retourne rien : écart assumé, une règle ne doit pas être vide.
+
+### Ordre d'appel — impératif
+
+```php
+resoudreTagsListes($db, resoudreTagsTableaux($db, lierGlossaireAuto($db, $texte, $rs, $id), $rs), $rs)
+```
+
+Même contrainte que §9d : le glossaire d'abord, les blocs HTML injectés ensuite ne le traversent jamais.
+Le parseur de glossaire isole `[[liste:…]]` comme `[[tab:…]]` (`GL_TAB_MOTIF`) : les paramètres contiennent
+des mots du glossaire (« famille=armes ») qu'il ne faut pas lier. `rendreTexteEnrichi()` enchaîne les trois ;
+`regles/regle.php`, `detail-pp/regle.php` et `detail-pp-sub/glossaire.php` appellent les trois explicitement.
+**Non résolu dans `mo_stats`** (bloc de stats des monstres).
+
+### Modèle de données
+
+Voir `SCHEMA_SQL.md` (`dd_categorie_equipement`, `dd_equipements`, `com_slug`).
+
+- **Une définition, trois usages** : `cae_colonnes` (JSON `[{k, l, a?, liste?}]`) fabrique les colonnes de la
+  liste, les lignes de la fiche détail **et** les champs d'attribut du formulaire d'édition (générés en JS au
+  changement de famille). Une nouvelle famille (ex. DD2024 : « Armes de guerre » avec maîtrise et propriétés)
+  n'exige aucun code : une ligne de catégorie et ses colonnes.
+- **Prix et poids = nombre + texte** : `eqt_prix_pc` (pièces de cuivre) et `eqt_poids_g` (grammes) servent au
+  tri et aux calculs à venir (encombrement, richesse) ; `eqt_prix_txt` / `eqt_poids_txt` portent ce qui n'est
+  pas un nombre (« spécial », « +50 po », « Niveau × 5 po ») et **priment à l'affichage**. Saisie du
+  formulaire : « 5 po », « 12 pa », « 3 pc », « 2,5 kg », « 500 g » → nombre ; tout autre texte → texte
+  (`parserPrixSaisie()`, `parserPoidsSaisie()`). Formats d'affichage : `formaterPrixPc()`, `formaterPoidsG()`
+  (espaces insécables).
+- **Une description propre par article** : `eqt_description` porte les règles particulières de l'article
+  (arbalète, chausse-trappes, filet…). La fiche détail affiche **le bloc de données puis la description**.
+  Un texte commun à plusieurs articles (menottes, selles spéciales…) est recopié sur chacun.
+- **Supplément** : `eqt_public` + ressource supplément du propriétaire, même mécanisme que les 8 autres
+  entités (`enregistrerEquipement()` / `supprimerEquipement()` : garde per-entry `canEditCompendiumEntry()`).
+
+### Fichiers
+
+```
+include/liste-parser.php            moteur + familles + formats prix/poids
+include/tableau-parser.php          rendreTexteEnrichi() enchaîne les trois parsers
+include/glossaire-parser.php        GL_TAB_MOTIF : tags opaques
+include/aide-contextuelle.php       aide du tag, avec la liste des slugs de famille du ruleset
+compendium/equipements.php          liste : Famille / Prix / Poids, filtre famille (sous-familles incluses)
+include/ajax/modifier/equipement.php   formulaire (famille, prix, poids, attributs dynamiques, supplément)
+include/ajax/detail-pp/equipement.php  fiche : chemin de famille, bloc de données, description
+css/modules.css                     .reg-liste*, .eqt-donnees*
+sql/2026-10-11_equipements_00_schema_sp-po0.sql        schéma (non idempotent)
+sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql       32 familles + 269 articles
+sql/2026-10-11_regles_dd35_drs07_sp-drs2.sql           règles Équipement
+sql/2026-10-11_regles_dd35_drs23_sp-drs3.sql           règles Objets magiques
+```
+
+### Pièges relevés
+
+- **Ordre des migrations = ordre alphabétique du nom.** Le schéma s'appelle `…_equipements_00_schema_…`
+  pour passer **avant** `…_equipements_dd35_…` : sans le `00`, `dd35` < `sp-po0` aurait joué l'import avant
+  la structure.
+- **Réinitialisation d'un sous-arbre de règles : supprimer feuille par feuille.** Un `DELETE … IN (parent,
+  enfants)` échoue sur `fk_reg_parent` (clé étrangère sans cascade, vérifiée ligne à ligne). Les migrations
+  générées suppriment un nœud par instruction, des feuilles vers la racine. Les deux migrations de règles
+  ont été rejouées deux fois de suite par `migrationsAppliquer()` pour le prouver.
+- **Un test d'écriture par le vrai gestionnaire crée le supplément de l'utilisateur** si absent
+  (`getOrCreateUserSupplement()` + copie de sa sélection de sources). Relevé le 2026-10-11 : ressource et
+  ligne `dd_joueurs_sources` supprimées juste après le test.
+- Le moteur de liste du compendium attend une clé `tri` sur **toute** colonne, y compris calculée en PHP
+  (`'valeurs'`) : `'tri' => false`, sans quoi PHP émet deux avertissements par colonne.
+- `pdftotext -layout` **mélange les colonnes** des grandes tables du DRS (prix détachés des noms) ; le mode
+  `-raw` les restitue ligne à ligne. Les 269 articles ont été saisis depuis le mode brut ; un recoupement
+  visuel reste recommandé (`LOG_CORRECTIONS_DRS07_DRS23.md` §4).
 
 ---
 

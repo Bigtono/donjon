@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-10 21:30 -->
+<!-- Mis à jour : 2026-10-11 15:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -6553,3 +6553,80 @@ Code : `js/main.js` seul. Hors chantier, relevé en corrigeant le champ ci-dessu
   — à chaque fois quatre éditeurs (un pour le sort) vus par `tinymce.get()` et la saisie
   présente dans le formulaire envoyé ; TinyMCE chargé une seule fois ; sous-panneau
   `#detail-pp-sub` intact ; aucune erreur console nouvelle.
+
+---
+
+**[2026-10-11] SP-PO — Possessions, ruleset DD3.5 : règles d'équipement et d'objets magiques, tag de liste dynamique**
+Code : `include/liste-parser.php` (nouveau), `include/tableau-parser.php`, `include/glossaire-parser.php`,
+`include/aide-contextuelle.php`, `compendium/equipements.php`, `compendium/enregistrement.php`,
+`include/ajax/modifier/equipement.php`, `include/ajax/detail-pp/equipement.php`, `regles/regle.php`,
+`include/ajax/detail-pp/regle.php`, `include/ajax/detail-pp-sub/glossaire.php`, `js/main.js`, `css/modules.css` ;
+`sql/2026-10-11_*.sql` (4 migrations). Demande : importer les PDF `DRS 07 (équipement)` et `DRS 23 (objets
+magiques)` comme les règles déjà en place, équipements après « Aventure et environnement », objets magiques
+après « Équipement ». **Précisée en cours d'analyse** : les descriptions d'équipement et d'objets magiques sont
+déjà (ou doivent être) dans leurs tables ; les règles ne portent que les mécanismes de jeu, et affichent les
+listes par un tag dynamique, valable pour les deux rulesets.
+
+**D-PO1 — Les articles sont des données du compendium, les règles n'en affichent que la liste.**
+→ Aucune table « armes », « armures » ni « marchandises » dans `dd_tableaux` : les 269 articles du DRS 07
+  sont importés dans `dd_equipements` **avec leur description propre** (190 en ont une), et les règles les
+  montrent par `[[liste:equipement|famille=…]]`. Les objets magiques existaient déjà (668 en DD3.5).
+→ Raison : une liste saisie dans une règle vieillit dès qu'on ajoute un article, et se saisit deux fois. Seules
+  les petites tables de mécanique restent statiques (monnaie, dégâts TP/G, enfiler/ôter, bardes, création).
+→ **Alternative écartée** : tout en tableaux `dd_tableaux`, les fiches d'articles venant plus tard — c'était
+  recommencer le chantier à l'import suivant.
+
+**D-PO2 — Syntaxe du tag : `[[liste:entite|param=valeur|…]]`, références par slug.**
+→ Entités `equipement` et `objet` ; paramètres `famille`, `source`, `tri`, `titre` (`titre=-` = sans légende).
+  `|` plutôt qu'un espace : les sources en contiennent (« DRS 3.5 »). Mêmes deux passes que `[[tab:slug]]`.
+→ **`source` absent = sources actives de l'utilisateur**, comme le compendium ; renseigné = ces sources-là
+  quelles que soient les actives. Une règle peut donc montrer des lignes différentes à deux utilisateurs — voulu.
+→ Plafond 200 lignes avec lien vers le compendium : un `[[liste:objet]]` nu afficherait 600+ lignes.
+→ Le glossaire isole le tag (`GL_TAB_MOTIF` étendu) : « famille=armes » contient des mots du glossaire.
+
+**D-PO3 — Modèle des équipements : familles en arbre, attributs en JSON piloté par la famille.**
+→ `dd_categorie_equipement` (arbre par ruleset, slug) dont `cae_colonnes` définit **à la fois** les colonnes de
+  la liste, les lignes de la fiche et les champs du formulaire. `dd_equipements.eqt_attributs` (JSON) porte
+  dégâts, critique, bonus d'armure… Prix et poids : nombre (pièces de cuivre, grammes — tri, calculs futurs)
+  **et** texte d'affichage prioritaire (« spécial », « +50 po »).
+→ **Alternative écartée** : 11 colonnes typées (dégâts P/M, critique, portée, bonus d'armure, Dex max, malus,
+  échec, vitesses…) — presque toutes vides pour 90 % des articles, et DD2024 en exigerait d'autres.
+→ **Familles hiérarchiques** : « armes » = courantes + de guerre + exotiques, elles-mêmes divisées par
+  encombrement, exactement comme la table du livre ; la section d'une liste est le chemin sous la famille
+  demandée. Filtrer par famille inclut les descendants (PHP côté tag, ensemble d'ids côté liste du compendium).
+→ `dd_equipements` était vide : structure modifiée sans migration de données. **Elle rejoint le mécanisme
+  Supplément** (`eqt_public`, ressource du propriétaire, garde per-entry à la suppression) — solde SP-E5.
+
+**D-PO4 — Familles d'objets magiques : la catégorie existante, avec un slug.**
+→ `com_slug` ajouté à `dd_categorie_objet_magique`, rempli **par le nom** (les ids ne sont pas les mêmes
+  en local et en production) ; filet `categorie-<id>` pour toute catégorie inconnue. Les propriétés spéciales
+  DD3.5 restent exclues d'une liste sans `famille`, comme dans le compendium.
+→ Constat au passage : un objet DD3.5 a `om_com_id = 0` (sans catégorie) — non corrigé, hors périmètre, il
+  n'apparaît dans aucune liste filtrée par famille.
+
+**D-PO5 — Place dans l'arbre : Équipement (40) et Objets magiques (50) après « Aventure et environnement ».**
+→ « Créatures et pouvoirs spéciaux » passe de 40 à 60 (`UPDATE … AND reg_ordre = 40`, idempotent, dans la
+  migration du DRS 07) : 30 et 40 étaient adjacents, sans place pour s'intercaler.
+→ DRS 07 : 4 chapitres (racine + Armes, Armures et boucliers, Marchandises et services) et 13 pages longues
+  par section ; DRS 23 : racine + 9 pages + chapitre « Création » (4 pages). 17 tableaux, 21 termes de glossaire.
+
+**D-PO6 — Fidélité du texte : corrections de coquilles seulement, toutes journalisées.**
+→ `doc/LOG_CORRECTIONS_DRS07_DRS23.md` : 22 coquilles corrigées, 6 normalisations typographiques, 16
+  changements de structure (dont la fusion des munitions répétées et l'éclatement des articles à variantes).
+→ **Une page ajoutée** hors DRS : « Catalogue des objets magiques », qui démontre `[[liste:objet|…]]`.
+→ Les renvois vers des tables du DRS 28 (objets intelligents), non importé, restent du texte simple.
+
+**D-PO7 — Pièges relevés à l'exécution** (détail en §9e de `ARCHITECTURE_0_REFERENCE.md`)
+→ L'ordre des migrations est l'ordre alphabétique du nom : le schéma s'appelle `…_equipements_00_schema_…`.
+→ `DELETE … IN (parent, enfants)` échoue sur `fk_reg_parent` : suppression feuille par feuille. Découvert
+  en rejouant les migrations par le moteur (`migrationsAppliquer()`), pas par le client `mysql` — le rejeu a
+  été fait deux fois de suite pour chacune.
+→ Un test d'écriture par le vrai gestionnaire créait le supplément de l'utilisateur 1 (+ une ligne de
+  sélection de sources) : supprimés aussitôt, état vérifié.
+→ **Vérifié** : 8 pages de règles rendues sans avertissement ni tag restant (listes : 78 armes, 21 armures et
+  boucliers, 170 marchandises, 486 objets) ; création, modification (source « supplément », prix texte) et
+  suppression d'un équipement par `enregistrement.php` ; rendu navigateur des listes et de la liste du
+  compendium. **Non vérifié** : clic sur un nom de liste (le panneau de travail ne peut pas ouvrir les pages du
+  projet, voir `donjon-verification-sans-navigateur`) et saisie du formulaire dans un vrai navigateur.
+→ **Reste à faire** : appliquer les 4 migrations en production (le déploiement les joue dans l'ordre) ;
+  SP-PO3 à SP-PO6 (§0).

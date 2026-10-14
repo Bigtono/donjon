@@ -12,6 +12,8 @@
 require_once '../include/db.php';
 require_once '../include/auth.php';
 require_once '../include/helpers.php';
+// Catégories d'équipement + saisie prix/poids (SP-PO0)
+require_once '../include/liste-parser.php';
 
 requireAuth();
 verifyCsrf();
@@ -95,10 +97,8 @@ switch ($entite):
         enregistrerEquipement($db, $is_ajax, $redirect);
         break;
       case 'supprimer':
-        supprimerEntite($db, 'dd_equipements', 'eqt_id', $is_ajax, $redirect);
-        break;
       case 'bulk_supprimer':
-        supprimerEntite($db, 'dd_equipements', 'eqt_id', $is_ajax, $redirect);
+        supprimerEquipement($db, $is_ajax, $redirect);
         break;
       default:
         repondreErreur($is_ajax, 'Action inconnue.', $redirect);
@@ -392,56 +392,120 @@ function enregistrerEquipement($db, bool $is_ajax, string $redirect): void
   $eqt_id     = intParam($_POST['eqt_id']             ?? 0);
   $nom        = strParam($_POST['eqt_nom']             ?? '');
   $ruleset_id = rulesetEnregistrement($db, 'dd_equipements', 'eqt_id', 'eqt_ruleset_var_id', $eqt_id);
+  $uid        = (int)($_SESSION['j_id'] ?? 0);
 
   if (!$nom):
     repondreErreur($is_ajax, 'Le nom de l\'équipement est obligatoire.', $redirect);
   endif;
 
-  $res_id = intParam($_POST['eqt_res_id'] ?? 0);
-  if (!$res_id):
+  // eqt_res_id : id réel d'une source active, ou la sentinelle 'supplement'
+  // (cf. § Supplément utilisateur).
+  $res_raw = strParam($_POST['eqt_res_id'] ?? '');
+  if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
 
+  // Famille : doit appartenir au ruleset de l'équipement
+  // Obligatoire dès que le ruleset a des familles ; sans famille définie (DD2024 avant SP-E6), NULL.
+  $cae_id = intParam($_POST['eqt_cae_id'] ?? 0);
+  $arbre  = catEquipementArbre($db, $ruleset_id);
+  if (!empty($arbre['noeuds'])):
+    if (!$cae_id || !isset($arbre['noeuds'][$cae_id])):
+      repondreErreur($is_ajax, 'La famille est obligatoire.', $redirect);
+    endif;
+  else:
+    $cae_id = null;
+  endif;
+
+  [$prix_pc, $prix_txt]   = parserPrixSaisie(strParam($_POST['eqt_prix'] ?? ''));
+  [$poids_g, $poids_txt]  = parserPoidsSaisie(strParam($_POST['eqt_poids'] ?? ''));
+  $ordre = max(0, min(65000, intParam($_POST['eqt_ordre'] ?? 0)));
+
+  // Attributs : seules les clés déclarées par les colonnes de la famille sont retenues
+  $cles_valides = [];
+  foreach (catEquipementColonnes($arbre, (int)$cae_id) as $col):
+    if (!in_array($col['k'], ['prix', 'poids'], true)) $cles_valides[] = $col['k'];
+  endforeach;
+  $attributs = [];
+  foreach ((array)($_POST['eqt_attr'] ?? []) as $cle => $val):
+    $val = trim((string)$val);
+    if ($val !== '' && in_array((string)$cle, $cles_valides, true)):
+      $attributs[(string)$cle] = mb_substr($val, 0, 120);
+    endif;
+  endforeach;
+  $attributs_json = empty($attributs) ? null : json_encode($attributs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
   $camp_id     = intParam($_POST['eqt_camp_id'] ?? 0) ?: null;
+  // eqt_visible : « visible par les joueurs », librement modifiable quelle que soit la source
   $visible     = isset($_POST['eqt_visible']) ? 1 : 0;
-  $description = $_POST['eqt_description'] ?? '';   // HTML TinyMCE
+  $description = $_POST['eqt_description'] ?? '';   // HTML TinyMCE — pas de h()
 
   try {
     $db->beginTransaction();
 
+    // ---- Résolution de la source (mécanisme commun supplément utilisateur) ----
+    if ($res_raw === 'supplement'):
+      $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+      $est_supplement = true;
+    else:
+      $res_id = (int)$res_raw;
+      $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+      $stmt->execute([$res_id]);
+      $res_j_id       = $stmt->fetchColumn();
+      $est_supplement = ($res_j_id !== false && $res_j_id !== null);
+
+      if ($est_supplement && (int)$res_j_id !== $uid && !isAdmin()):
+        $db->rollBack();
+        repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+      endif;
+    endif;
+
+    // ---- eqt_public — pertinent uniquement pour une entrée de supplément ----
+    if ($est_supplement):
+      $public = isset($_POST['eqt_public']) ? 1 : 0;
+      if ($public):
+        $visible = 1;
+      endif;
+    else:
+      $public = 0;
+    endif;
+
     if ($eqt_id === 0):
       $stmt = $db->prepare('
         INSERT INTO dd_equipements
-          (eqt_nom, eqt_description, eqt_visible,
+          (eqt_nom, eqt_cae_id, eqt_prix_pc, eqt_prix_txt, eqt_poids_g, eqt_poids_txt,
+           eqt_attributs, eqt_ordre, eqt_description, eqt_visible, eqt_public,
            eqt_res_id, eqt_camp_id, eqt_ruleset_var_id)
-        VALUES (?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
-        $nom,
-        $description,
-        $visible,
-        $res_id,
-        $camp_id,
-        $ruleset_id
+        $nom, $cae_id, $prix_pc, $prix_txt, $poids_g, $poids_txt,
+        $attributs_json, $ordre, $description, $visible, $public,
+        $res_id, $camp_id, $ruleset_id,
       ]);
       $eqt_id = (int)$db->lastInsertId();
     else:
       $stmt = $db->prepare('
         UPDATE dd_equipements SET
-          eqt_nom            = ?,
-          eqt_description    = ?,
-          eqt_visible        = ?,
-          eqt_res_id         = ?,
-          eqt_camp_id        = ?
+          eqt_nom         = ?,
+          eqt_cae_id      = ?,
+          eqt_prix_pc     = ?,
+          eqt_prix_txt    = ?,
+          eqt_poids_g     = ?,
+          eqt_poids_txt   = ?,
+          eqt_attributs   = ?,
+          eqt_ordre       = ?,
+          eqt_description = ?,
+          eqt_visible     = ?,
+          eqt_public      = ?,
+          eqt_res_id      = ?,
+          eqt_camp_id     = ?
         WHERE eqt_id = ?
       ');
       $stmt->execute([
-        $nom,
-        $description,
-        $visible,
-        $res_id,
-        $camp_id,
-        $eqt_id
+        $nom, $cae_id, $prix_pc, $prix_txt, $poids_g, $poids_txt,
+        $attributs_json, $ordre, $description, $visible, $public,
+        $res_id, $camp_id, $eqt_id,
       ]);
     endif;
 
@@ -451,6 +515,63 @@ function enregistrerEquipement($db, bool $is_ajax, string $redirect): void
     $db->rollBack();
     error_log('enregistrerEquipement : ' . $e->getMessage());
     repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// Suppression — garde per-entry (SP-C5), sur le modèle supprimerObjet().
+function supprimerEquipement($db, bool $is_ajax, string $redirect): void
+{
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_values(array_unique(array_filter(array_map('intval', (array)$ids))));
+
+  if (empty($ids)):
+    repondreErreur($is_ajax, 'Aucun élément à supprimer.', $redirect);
+  endif;
+
+  try {
+    $db->beginTransaction();
+
+    $ph   = resIdsPlaceholders($ids);
+    $stmt = $db->prepare("
+      SELECT eqt.eqt_id, res.res_j_id
+      FROM   dd_equipements eqt
+      LEFT JOIN dd_ressources res ON res.res_id = eqt.eqt_res_id
+      WHERE  eqt.eqt_id IN ($ph)
+    ");
+    $stmt->execute($ids);
+
+    $ids_autorises = [];
+    foreach ($stmt->fetchAll() as $ligne):
+      $res_j_id = $ligne['res_j_id'] !== null ? (int)$ligne['res_j_id'] : null;
+      if (canEditCompendiumEntry($db, $res_j_id)):
+        $ids_autorises[] = (int)$ligne['eqt_id'];
+      endif;
+    endforeach;
+
+    if (empty($ids_autorises)):
+      $db->rollBack();
+      repondreErreur($is_ajax, 'Aucun élément autorisé à la suppression.', $redirect);
+    endif;
+
+    $ph2  = resIdsPlaceholders($ids_autorises);
+    $stmt = $db->prepare("DELETE FROM dd_equipements WHERE eqt_id IN ($ph2)");
+    $stmt->execute($ids_autorises);
+
+    $db->commit();
+
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Élément(s) supprimé(s).'];
+    header('Location: ' . $redirect);
+    exit;
+  } catch (Exception $e) {
+    $db->rollBack();
+    error_log('supprimerEquipement : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
   }
 }
 
