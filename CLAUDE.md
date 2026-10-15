@@ -22,7 +22,7 @@ Deux rulesets : **DD3.5** (id 1) et **DD2024** (id 2).
 - **Balises PHP** : `<?php` pour les blocs logiques, `<?= ... ?>` pour l'affichage inline
 - **Sortie HTML** : toujours via `h()` (= `htmlspecialchars`) — jamais d'affichage brut d'une variable
 - **SQL** : PDO exclusivement, `prepare()`/`execute()` systématiques — jamais de concaténation
-- **URLs** : toujours via `BASE_URL` (`define('BASE_URL', '/donjon')` dans `include/db.php`) — aucune URL absolue codée en dur
+- **URLs** : toujours via `BASE_URL` (`define('BASE_URL', '/donjon')` dans `config/db.config.php`, exclu de git — modèle : `config/db.config.example.php` ; chargé par `include/db.php`) — aucune URL absolue codée en dur
 - **CSS** : `var(--clr-*)` et `var(--sp-*)` — jamais de valeurs hexadécimales en dur dans les fichiers CSS
 - **JS** : pattern IIFE pour les formulaires injectés via AJAX ; `var` (pas `const`) pour les variables pouvant être re-déclarées à la réouverture du formulaire
 
@@ -38,23 +38,24 @@ Deux rulesets : **DD3.5** (id 1) et **DD2024** (id 2).
 | `_camp_id` | FK → `dd_campagnes` |
 | `_res_id` | FK → `dd_ressources` (livre source) |
 | `_ruleset_var_id` | FK → `dd_variables` (ruleset) |
-| Ruleset DD3.5 | id = 1, dossier templates `include/insert/DD3.5/` |
-| Ruleset DD2024 | id = 2, dossier templates `include/insert/DD2024/` |
+| Ruleset DD3.5 | id = 1 |
+| Ruleset DD2024 | id = 2 |
+| Spécificités ruleset | Gérées **inline** (`if ($ruleset_rep === 'DD3.5')`, filtre `_ruleset_var_id`) — pas de dossier de templates par ruleset (`include/insert/DD*/` abandonné le 2026-06-12, voir `DECISIONS_LOG.md`) |
 | `dd_historiques` | DD2024 uniquement — jamais exposé en DD3.5 |
 
 ---
 
-## Fonctions helpers critiques (`include/helpers.php`)
+## Fonctions helpers critiques (`include/helpers.php` et `include/auth.php`)
 
 | Fonction | Rôle |
 |---|---|
 | `h($str)` | Échappement HTML — systématique |
 | `intParam($k)` | Lit et valide un entier depuis GET/POST |
 | `strParam($k)` | Lit et nettoie une chaîne depuis GET/POST |
-| `requireAuth()` | Vérifie la session, redirige sinon |
-| `requireAdmin()` | Vérifie le rôle admin |
-| `csrfField()` / `verifyCsrf()` | Token CSRF — obligatoire sur tout formulaire POST |
-| `isMJ($db, $camp_id)` | Vérifie si l'utilisateur courant est MJ de la campagne |
+| `requireAuth()` | Vérifie la session, redirige sinon (auth.php) |
+| `requireAdmin()` | Vérifie le rôle admin (auth.php) |
+| `csrfField()` / `verifyCsrf()` | Token CSRF — obligatoire sur tout formulaire POST (auth.php) |
+| `isMJ($db, $camp_id)` | Vérifie si l'utilisateur courant est MJ de la campagne (auth.php) |
 | `ownerFilter()` | WHERE `_j_id = :user_id` sauf admin |
 | `canEditCompendium()` | Droit global édition compendium (auth.php) |
 | `canEditCompendiumEntry($db, ?int $res_j_id)` | Droit per-entry (helpers.php) |
@@ -146,12 +147,14 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
 
 1. **Tout nouveau chantier reçoit un code projet** (`SP-<lettres>`) et ses phases sont
    **numérotées** dès l'arbitration : `SP-TB0`, `SP-TB1`, … Codes en service : `SP-C`
-   (supplément compendium), `SP-E` (équipements), `SP-T` (transfert d'opposition),
-   `SP-TB` (tableaux de règles), `SP-GL` (glossaire), `SP-PE` (module Personnages),
-   `SP-IM` (import des données du compendium), `SP-DP` (déploiement en production),
-   `SP-RB` (bascule de ruleset depuis le header), `SP-XC` (export de classes vers la production), `SP-SY` (synchronisation du contenu local →
-   production, en attente d'arbitrage), `SP-PO` (possessions : équipements et objets magiques, tag
-   de liste `[[liste:…]]`).
+   (supplément compendium), `SP-E` (équipements), `SP-PO` (possessions : équipements et objets
+   magiques, tag de liste `[[liste:…]]`), `SP-T` (transfert d'opposition), `SP-TB` (tableaux de
+   règles), `SP-GL` (glossaire), `SP-DRS` (import des règles DD3.5), `SP-IM` (import des données du
+   compendium), `SP-MA` (référentiel de la magie), `SP-PE` (module Personnages), `SP-SC`
+   (sous-classes DD2024), `SP-RS` (UI smartphone), `SP-CP` (refonte du module Campagnes), `SP-AD`
+   (administration), `SP-RB` (bascule de ruleset depuis le header), `SP-DP` (déploiement en
+   production), `SP-XC` (export de classes vers la production), `SP-SY` (synchronisation du contenu
+   local → production, en attente d'arbitrage).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
    ```markdown
@@ -167,17 +170,17 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 
 ---
 
-## État courant du projet (juillet 2026)
+## État courant du projet (octobre 2026)
 
 > **L'état d'avancement fait foi dans `doc/ARCHITECTURE_0_REFERENCE.md` §0** (checklist des
 > phases). La section ci-dessous n'en est qu'un résumé narratif.
 
 ### Implémenté
 - Compendium complet : sorts, classes (+ sous-classes DD2024), races, dons, compétences, objets magiques, historiques (DD2024), monstres
-- Supplément utilisateur SP-C0→SP-C7 : **fait pour Monstres** ; schéma `_public`/`_visible` à vérifier et appliquer aux 7 autres entités (sorts, feats, skills, classes, races, objets, historiques) — `patch_004_supplements.sql` à confirmer appliqué en base
+- Supplément utilisateur SP-C0→SP-C5 et SP-C7 : **fait sur les 8 entités** du compendium (`_public`/`_visible`, menu ⋮ per-entry, source à 2 groupes). Reste SP-C6 (profil « Mes sources » : suppléments publics tiers, partiel)
 - Campagnes : campagnes → scénarios → chapitres → rencontres → oppositions
 - Transfert/Duplication opposition SP-T0 (même campagne) : fait
-- Équipements SP-E0 : table `dd_equipements` créée (`sql/2026-06-20_equipements_sp-e0.sql`)
+- Équipements SP-E0→E3 : table `dd_equipements` (`sql/2026-06-20_equipements_sp-e0.sql`), liste, formulaire, fiche détail
 - Header context buttons : cascade setters, partial `include/header-context.php`, endpoint AJAX
 - Tableaux de règles SP-TB0→TB7 : table `dd_tableaux`, convention texte, tag `[[tab:slug]]`,
   UI de gestion, migration des tableaux HTML existants. Portée du tag : `reg_texte`, définitions
@@ -207,16 +210,19 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   DD2024, absentes du SRD, à saisir depuis le MdJ 2024. Tout le reste est livré le 2026-08-28 :
   classes complètes, 9 espèces, 38 options de classe en dons, et les 356 objets magiques du SRD
   redressés (rareté, harmonisation, catégorie, texte intégral). L'équipement part en `SP-E6`
-- SP-PE7→PE8 : module Personnages (`SP-PE0→PE6` livrées : socle, fiche identité, éditeur
-  Classes inline, bloc Compétences, sélecteur de Dons, bloc Campagnes, NLS prestige DD3.5).
-  Reste : vue Magie, mode jeu + passe responsive. Aucun patch SQL attendu
+- SP-PE8 : module Personnages (livrés : `SP-PE0→PE7` dont la vue Magie, `PE9→PE13` et la
+  compaction `PE10a→s`). Reste : mode jeu (suivi PV et variables par ruleset) + passe responsive
+  < 992px sur les blocs PE3→PE7
 - SP-SY0 : arbitrage de la synchronisation du contenu local → prod (non prioritaire, voir §6c) —
   ajouter en prod le contenu local absent, sans jamais rien écraser
 - SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)
 - SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
 - SP-C6 : profil "Mes sources" — suppléments publics tiers
-- SP-E4/E5 : parser équipement + alignement Supplément
+- SP-E4 : `monstre-parser.php`, type liable `equipement` (SP-E5 soldée par SP-PO0)
 - SP-T1 : Transférer/Dupliquer vers une autre campagne
+- Autres phases ouvertes (détail dans §0) : SP-MA4c / MA5 / MA6e (magie), SP-DRS4 et SP-GL4 (lots
+  suivants du DRS), SP-RS5 / RS6c (UI smartphone), SP-CP8 (outils de partie), SP-XC4 (premier export
+  de classes joué en production)
 
 ---
 
@@ -229,9 +235,9 @@ donjon/
   personnages/       fiche.php, enregistrement.php, …
   admin/             migrations.php, migrations-auto.php ; deploiement/ (LOCAL, jamais transféré)
   include/
-    db.php           define BASE_URL, connexion PDO
-    auth.php         requireAuth(), canEditCompendium()
-    helpers.php      h(), intParam(), csrfField(), ownerFilter(), canEditCompendiumEntry(), …
+    db.php           connexion PDO (charge config/db.config.php, qui définit BASE_URL)
+    auth.php         requireAuth(), requireAdmin(), isMJ(), csrfField(), verifyCsrf(), canEditCompendium()
+    helpers.php      h(), intParam(), strParam(), ownerFilter(), canEditCompendiumEntry(), …
     header.php / footer.php
     compendium-liste.php   moteur de liste générique
     monstre-parser.php     rendu stats monstre (rendreStatsMonstre())
