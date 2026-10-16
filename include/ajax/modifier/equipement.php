@@ -274,7 +274,7 @@ $titre = $id > 0 ? 'Modifier ' . h($equipement['eqt_nom']) : 'Nouvel équipement
     language:      'fr_FR',
     menubar:       false,
     plugins:       'lists link table code',
-    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
+    toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau liste | removeformat | code',
     // Bouton d'insertion d'un tableau dd_tableaux (SP-TB7) —
     // implémentation partagée dans js/main.js
     setup: function (editor) {

@@ -526,6 +526,8 @@ function tableauxInitBouton(editor) {
       }
     }
   });
+  // Même emplacement dans la barre d'outils, même principe : le second bouton insère une liste dynamique (SP-PO3)
+  listesInitBouton(editor);
 }
 
 // Appelée par le picker. Le tag occupe son propre paragraphe : un <table> rendu
@@ -541,6 +543,52 @@ function insererTableauDansEditeur(slug) {
   } else {
     // Repli : TinyMCE absent ou pas encore initialisé
     var ta = document.getElementById(TAB_EDITEUR_ACTIF);
+    if (ta) ta.value += '\n' + bloc;
+  }
+  if (typeof fermerSubPanel === 'function') fermerSubPanel();
+}
+
+// ============================================================
+// LISTES — bouton d'insertion d'un tag [[liste:…]] dans TinyMCE (SP-PO3)
+//
+// Enregistré par tableauxInitBouton() : les 11 éditeurs qui ont le bouton Tableaux
+// reçoivent aussi celui-ci, sans toucher à leurs 'setup'. Seule la barre d'outils
+// de chaque formulaire cite 'liste'.
+//
+// Même mécanique que les tableaux : le picker (listes-picker.php) s'ouvre dans
+// #detail-pp-sub, au-dessus du formulaire, et rappelle insererListeDansEditeur().
+// Le tag est fabriqué et validé par le serveur (liste-apercu.php) ; le navigateur
+// ne fait que l'insérer.
+// ============================================================
+
+// Éditeur ayant ouvert le picker de liste (mémorisé au clic, cf. TAB_EDITEUR_ACTIF).
+var LISTE_EDITEUR_ACTIF = null;
+
+function listesInitBouton(editor) {
+  editor.ui.registry.addButton('liste', {
+    icon: 'template',
+    tooltip: 'Insérer une liste d\'équipements ou d\'objets magiques',
+    onAction: function () {
+      LISTE_EDITEUR_ACTIF = editor.id;
+      if (typeof actualiserPageSub === 'function') {
+        actualiserPageSub(BASE_URL + '/include/ajax/detail-pp-sub/listes-picker.php', {});
+      }
+    }
+  });
+}
+
+// Le tag occupe son propre paragraphe : la liste rendue est un <figure>, invalide dans un <p>
+// (cf. resoudreTagsListes(), passe 1).
+function insererListeDansEditeur(tag) {
+  if (!tag || !LISTE_EDITEUR_ACTIF) return;
+  var bloc = '<p>' + tag + '</p>';
+  var ed   = (typeof tinymce !== 'undefined') ? tinymce.get(LISTE_EDITEUR_ACTIF) : null;
+
+  if (ed && ed.initialized) {
+    ed.insertContent(bloc);
+  } else {
+    // Repli : TinyMCE absent ou pas encore initialisé
+    var ta = document.getElementById(LISTE_EDITEUR_ACTIF);
     if (ta) ta.value += '\n' + bloc;
   }
   if (typeof fermerSubPanel === 'function') fermerSubPanel();

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-16 17:00 -->
+<!-- Mis à jour : 2026-10-16 18:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -305,7 +305,12 @@
 - [x] SP-PO1 — Tag `[[liste:equipement|…]]` / `[[liste:objet|…]]` : `include/liste-parser.php`, paramètres `famille` / `source` / `tri` / `titre`, branché dans `rendreTexteEnrichi()` et les 3 rendus de règles, protégé du glossaire, aide contextuelle
 - [x] SP-PO2 — Import des **269 équipements DD3.5** du DRS 07 avec leur description propre : 32 familles, source « DRS 3.5 » — `sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql`
 - [x] SP-PO2b — Source des 269 équipements DD3.5 : Manuel des joueurs 3.5 (`MdJ3.5`) au lieu de « DRS 3.5 » — `sql/2026-10-15_equipements_dd35_source_sp-po2b.sql`
-- [ ] SP-PO3 — Bouton TinyMCE d'insertion d'un tag de liste (famille et source à choisir dans un picker, sur le modèle du bouton Tableaux)
+- [x] SP-PO3 — Bouton TinyMCE d'insertion d'un tag de liste, sur le modèle du bouton Tableaux
+  - [x] SP-PO3a — Serveur : `listeFamillesProposables()`, `listeSourcesProposables()`, `listeConstruireTag()` (le tag est fabriqué et validé côté PHP), `listeCompterLignes()`, `listeRendreTag()` dans `include/liste-parser.php` ; sélecteur `include/ajax/detail-pp-sub/listes-picker.php`
+  - [x] SP-PO3b — Bouton `liste` : `listesInitBouton()` / `insererListeDansEditeur()` dans `js/main.js` (enregistré par `tableauxInitBouton()`), `liste` ajouté à la barre d'outils des 11 éditeurs, styles `.listes-picker*` dans `css/modules.css`
+  - [x] SP-PO3c — Aperçu : `include/ajax/liste-apercu.php` (JSON : tag canonique, nombre de lignes, troncature)
+  - [x] SP-PO3d — Aide contextuelle, documentation ; correctif du décodage des entités dans `listeParametres()` (légende accentuée enregistrée par TinyMCE)
+- [ ] SP-PO3e — Modifier un tag déjà posé : clic sur la liste (ou sur le tag) dans l'éditeur → le sélecteur se rouvre prérempli et remplace le tag. Demande l'analyse du tag existant (`listeParametres()`) et un repère de sélection dans TinyMCE
 - [ ] SP-PO4 — Écran de gestion des familles d'équipement (aujourd'hui : migration SQL, comme `dd_categorie_objet_magique`)
 - [x] SP-PO5 — **Ruleset DD2024, équipement** : 28 familles propres au ruleset (armes courantes/de guerre × corps à corps/distance, armures, outils, matériel d'aventurier avec munitions/focaliseurs/symboles, montures et véhicules, repas, employés, services d'incantation), **238 articles** du SRD 5.2.1 avec leur description, 13 pages de règles manquantes (armes et propriétés/bottes, armures, outils, matériel, montures et véhicules, train de vie, repas, employés, sorts, fabrication, utilisation des objets magiques), 3 tableaux, listes `[[liste:equipement|…]]` aux emplacements prévus — `sql/2026-10-16_equipements_dd2024_srd_sp-po5.sql` et `sql/2026-10-16_regles_dd2024_equipement_sp-po5.sql`. Soldent `SP-E6`
 - [x] SP-PO5b — **DD2024, objets magiques** : 8 pages de règles créées sous « Objets magiques » + page « Catégories » complétée (pages 215 à 220 du SRD : catégories, miscibilité des potions, règles, rareté et valeur, activation, objets maudits, résilience, fabrication, objets intelligents), page « Objets magiques de A à Z » en listes `[[liste:objet|famille=…|source=SRD 5.2.1]]` ; 9 tableaux de règles. **Descriptions des 357 objets de la source SRD retranscrites** depuis le PDF (tables aplaties ou absentes, paragraphes fusionnés, traits d'union perdus, « Yeux de lynx » manquant) : 34 nouveaux tableaux appelés par `[[tab:slug]]`, chapeau mille-sorts corrigé, 2 profils inclus au texte — `sql/2026-10-16_regles_dd2024_objets_magiques_sp-po5b.sql` et `sql/2026-10-16_objets_dd2024_srd_sp-po5b.sql` (journal : `doc/LOG_CORRECTIONS_SRD2024_OBJETS_MAGIQUES.md`)
@@ -3383,6 +3388,8 @@ include/liste-parser.php            moteur + familles + formats prix/poids
 include/tableau-parser.php          rendreTexteEnrichi() enchaîne les trois parsers
 include/glossaire-parser.php        GL_TAB_MOTIF : tags opaques
 include/aide-contextuelle.php       aide du tag, avec la liste des slugs de famille du ruleset
+include/ajax/detail-pp-sub/listes-picker.php   sélecteur de liste de l'éditeur (SP-PO3)
+include/ajax/liste-apercu.php       aperçu JSON : tag canonique et nombre de lignes (SP-PO3)
 compendium/equipements.php          liste : Famille / Prix / Poids, filtre famille (sous-familles incluses)
 include/ajax/modifier/equipement.php   formulaire (famille, prix, poids, attributs dynamiques, supplément)
 include/ajax/detail-pp/equipement.php  fiche : chemin de famille, bloc de données, description
@@ -3394,6 +3401,25 @@ sql/2026-10-11_regles_dd35_drs23_sp-drs3.sql           règles Objets magiques
 sql/2026-10-16_regles_dd2024_objets_magiques_sp-po5b.sql   règles Objets magiques DD2024 (9 pages, 9 tableaux)
 sql/2026-10-16_objets_dd2024_srd_sp-po5b.sql           357 descriptions d'objets DD2024 + 44 tableaux
 ```
+
+### Bouton d'insertion (SP-PO3)
+
+Barre d'outils TinyMCE, à droite du bouton Tableaux : **« Insérer une liste d'équipements ou d'objets magiques »** (icône `template`). Il ouvre `include/ajax/detail-pp-sub/listes-picker.php` dans `#detail-pp-sub` — au-dessus du formulaire en cours (`#modification`), donc sans jamais remplacer la saisie —, réservé à `canEditCompendium()` comme le sélecteur de tableaux.
+
+Le sélecteur propose : le type de liste (équipement / objets magiques), les **familles** (arbre indenté pour l'équipement, liste à plat pour les objets, sans les propriétés spéciales DD3.5 ; aucune cochée = toutes), la **source** (« sources actives du lecteur » par défaut, recommandé ; ou « figer la source » parmi les ressources officielles du ruleset), le tri, la légende (par défaut / personnalisée / aucune = `titre=-`). Chaque changement appelle `include/ajax/liste-apercu.php` (GET, JSON), qui renvoie **le tag canonique** et **le nombre de lignes** ; le navigateur n'écrit jamais le tag lui-même. Le comptage suit les sources actives de l'utilisateur quand aucune n'est figée.
+
+| Fonction (`liste-parser.php`, §7) | Rôle |
+|---|---|
+| `listeFamillesProposables($db, $entite, $ruleset)` | slugs de famille avec nom et niveau d'indentation |
+| `listeSourcesProposables($db, $ruleset)` | ressources officielles (`res_j_id` NULL) ; `ident` = abréviation si elle est renseignée **et unique**, sinon le nom ; `null` si la valeur contiendrait `, \| [ ]` |
+| `listeConstruireTag(...)` | valide chaque choix contre la base, retourne `['tag','erreur']` ; la légende est nettoyée (`\| [ ] < > "` retirés, `&` → « et », 80 caractères) |
+| `listeRendreTag()` + `listeCompterLignes()` | rendu du tag puis comptage (`class="mo-lien"` = lignes affichées, « N autre(s) ligne(s) » = lignes tronquées) |
+
+Côté JS (`js/main.js`) : `listesInitBouton(editor)` est appelé **par `tableauxInitBouton()`** — les 11 éditeurs qui ont le bouton Tableaux (règle, sort, classe ×2, race ×2, don, compétence, objet, historique, équipement) reçoivent le second bouton sans toucher à leur `setup` ; seule leur barre d'outils cite `liste`. `LISTE_EDITEUR_ACTIF` mémorise l'éditeur au clic (le focus passe au sous-panneau) ; `insererListeDansEditeur(tag)` insère `<p>tag</p>` à la position du curseur, ou en fin de `<textarea>` si TinyMCE n'est pas prêt.
+
+**Piège relevé** : TinyMCE enregistre les lettres accentuées d'une légende en entités (`titre=Baguettes et b&acirc;tons`). `listeParametres()` décode désormais les entités (et `&nbsp;`) : sans cela `h()` affichait « b&acirc;tons » tel quel. Vérifié sur une légende insérée par le vrai éditeur.
+
+**Reste** (SP-PO3e) : rouvrir le sélecteur sur un tag déjà posé pour le modifier.
 
 ### DD2024 (SP-PO5)
 

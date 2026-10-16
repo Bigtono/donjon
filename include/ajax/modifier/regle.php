@@ -212,7 +212,7 @@ $tinymce_id = 'reg_texte_' . ($id ?: 'new');
         plugins: 'lists link table code',
 
         toolbar: 'blocks styles | bold italic underline | bullist numlist | link unlink table | ' +
-          'tableau | removeformat | code',
+          'tableau liste | removeformat | code',
 
         // Bouton d'insertion d'un tableau dd_tableaux (SP-TB4).
         // Implémentation partagée dans js/main.js — le même bouton équipe les

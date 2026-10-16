@@ -737,6 +737,112 @@
   color: var(--clr-text-muted, #7a6e5a);
 }
 
+/* ------------------------------------------------------------
+   Sélecteur de liste dynamique [[liste:…]] — SP-PO3
+   (listes-picker.php, ouvert dans #detail-pp-sub)
+   ------------------------------------------------------------ */
+.listes-picker [hidden] {
+  display: none !important;
+}
+
+.listes-picker__intro {
+  margin: 0 0 var(--sp-md);
+}
+
+.listes-picker__groupe {
+  margin: 0 0 var(--sp-md);
+  padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm, 4px);
+  min-width: 0;
+}
+
+.listes-picker__groupe legend {
+  padding: 0 var(--sp-xs);
+  font-weight: 600;
+  font-size: .9rem;
+}
+
+.listes-picker__choix {
+  display: block;
+  padding: var(--sp-xs) 0;
+  cursor: pointer;
+}
+
+.listes-picker__choix input {
+  margin-right: var(--sp-xs);
+}
+
+/* Familles de l'arbre d'équipement : décalage par niveau */
+.listes-picker__cases .listes-picker__choix {
+  padding-left: calc(var(--lp-niveau, 0) * var(--sp-md));
+}
+
+.listes-picker__cases {
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.listes-picker__sources {
+  margin-top: var(--sp-xs);
+  padding: var(--sp-xs) var(--sp-sm);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--clr-surface-alt);
+}
+
+.listes-picker__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
+.listes-picker__options label select {
+  display: block;
+  margin-top: var(--sp-xs);
+}
+
+.listes-picker__titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-xs) var(--sp-md);
+}
+
+.listes-picker__titre .form-control {
+  flex: 1 1 100%;
+}
+
+.listes-picker__resultat {
+  margin-bottom: var(--sp-md);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--clr-surface-alt);
+}
+
+.listes-picker__compte {
+  margin: 0 0 var(--sp-xs);
+  font-weight: 600;
+}
+
+.listes-picker__tag {
+  display: block;
+  font-size: .8rem;
+  color: var(--clr-text-muted);
+  word-break: break-all;
+}
+
+.listes-picker__alerte {
+  margin: var(--sp-xs) 0 0;
+  font-size: .85rem;
+  color: var(--clr-warning);
+}
+
+.listes-picker__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* ============================================================
    GLOSSAIRE — SOUS-PANNEAU (#detail-pp-sub)
    ============================================================ */

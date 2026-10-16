@@ -225,7 +225,9 @@ function listeParametres(string $bruts): array
     $kv = explode('=', $paire, 2);
     if (count($kv) !== 2) continue;
     $cle = strtolower(trim($kv[0]));
-    $val = trim($kv[1]);
+    // TinyMCE enregistre les lettres accentuées d'une légende en entités (« b&acirc;tons »,
+    // « &nbsp; ») : sans ce décodage, h() les afficherait telles quelles.
+    $val = trim(str_replace("\u{00A0}", ' ', html_entity_decode($kv[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')));
     if ($val === '') continue;
     if ($cle === 'famille' || $cle === 'source'):
       $p[$cle] = array_values(array_filter(array_map('trim', explode(',', $val)), 'strlen'));
@@ -549,4 +551,126 @@ function resoudreTagsListes(PDO $db, ?string $html, int $ruleset_id): string
     },
     $html
   );
+}
+
+// ============================================================
+// 7. CONSTRUCTION DU TAG — sélecteur de l'éditeur (SP-PO3)
+// ============================================================
+// Le sélecteur n'écrit jamais le tag lui-même : il envoie ses choix, le serveur les valide
+// contre la base et renvoie le tag canonique. Un slug inconnu ne devient donc pas un tag
+// qui s'affichera brut chez le lecteur.
+
+// Familles proposables, dans l'ordre d'affichage : [['slug','nom','niveau'],…].
+// Équipement : l'arbre (famille puis sous-familles) ; objets : à plat, sans les propriétés spéciales DD3.5.
+function listeFamillesProposables(PDO $db, string $entite, int $ruleset_id): array
+{
+  $out = [];
+  if ($entite === 'equipement'):
+    $arbre = catEquipementArbre($db, $ruleset_id);
+    foreach (array_keys($arbre['rang']) as $id):
+      $n = $arbre['noeuds'][$id];
+      $out[] = [
+        'slug'   => (string)$n['cae_slug'],
+        'nom'    => (string)$n['cae_nom'],
+        'niveau' => max(0, count(catEquipementChaine($arbre, (int)$id)) - 1),
+      ];
+    endforeach;
+    return $out;
+  endif;
+
+  $stmt = $db->prepare("
+    SELECT com_slug, com_nom FROM dd_categorie_objet_magique
+    WHERE  com_ruleset_var_id = ? AND com_est_propriete = 0 AND com_slug IS NOT NULL AND com_slug <> ''
+    ORDER  BY com_nom
+  ");
+  $stmt->execute([$ruleset_id]);
+  foreach ($stmt->fetchAll() as $c):
+    $out[] = ['slug' => (string)$c['com_slug'], 'nom' => (string)$c['com_nom'], 'niveau' => 0];
+  endforeach;
+  return $out;
+}
+
+// Sources que le tag peut figer : ressources officielles du ruleset (pas les suppléments d'un utilisateur).
+// 'ident' = ce qu'on écrit dans source= — l'abréviation si elle est renseignée et unique dans le ruleset,
+// sinon le nom ; null si la valeur contiendrait un séparateur du tag (« , | [ ] »).
+function listeSourcesProposables(PDO $db, int $ruleset_id): array
+{
+  $stmt = $db->prepare('
+    SELECT res_abreviation, res_nom FROM dd_ressources
+    WHERE  res_ruleset_var_id = ? AND res_j_id IS NULL
+    ORDER  BY res_nom
+  ');
+  $stmt->execute([$ruleset_id]);
+  $rows = $stmt->fetchAll();
+
+  $compte = [];
+  foreach ($rows as $r) $compte[mb_strtolower(trim((string)$r['res_abreviation']))] = ($compte[mb_strtolower(trim((string)$r['res_abreviation']))] ?? 0) + 1;
+
+  $out = [];
+  foreach ($rows as $r):
+    $abr   = trim((string)$r['res_abreviation']);
+    $ident = ($abr !== '' && $compte[mb_strtolower($abr)] === 1) ? $abr : trim((string)$r['res_nom']);
+    if ($ident === '' || preg_match('/[,|\[\]]/u', $ident)) $ident = null;
+    $out[] = ['ident' => $ident, 'nom' => (string)$r['res_nom'], 'abr' => $abr];
+  endforeach;
+  return $out;
+}
+
+// Construit le tag canonique. Retour : ['tag' => string|null, 'erreur' => string|null].
+//   $familles, $sources : listes de slugs / d'identifiants (valeurs de listeSourcesProposables)
+//   $tri    : '' (ordre du livre) | 'nom' | 'prix'
+//   $titre  : '' (légende par défaut) | '-' (aucune légende) | texte libre
+function listeConstruireTag(PDO $db, string $entite, array $familles, array $sources, string $tri, string $titre, int $ruleset_id): array
+{
+  if (!in_array($entite, ['equipement', 'objet'], true)):
+    return ['tag' => null, 'erreur' => 'Type de liste inconnu.'];
+  endif;
+
+  $valides = array_column(listeFamillesProposables($db, $entite, $ruleset_id), 'slug');
+  $demande = array_flip(array_filter(array_map('trim', array_map('strval', $familles)), 'strlen'));
+  foreach (array_keys($demande) as $slug):
+    if (!in_array($slug, $valides, true)) return ['tag' => null, 'erreur' => 'Famille inconnue : ' . $slug];
+  endforeach;
+  $fam = array_values(array_filter($valides, fn($s) => isset($demande[$s])));   // ordre de l'arbre
+
+  $idents = array_column(array_filter(listeSourcesProposables($db, $ruleset_id), fn($s) => $s['ident'] !== null), 'ident');
+  $src = [];
+  foreach (array_filter(array_map('trim', array_map('strval', $sources)), 'strlen') as $s):
+    if (!in_array($s, $idents, true)) return ['tag' => null, 'erreur' => 'Source inconnue : ' . $s];
+    $src[$s] = true;
+  endforeach;
+  $src = array_values(array_filter($idents, fn($s) => isset($src[$s])));
+
+  if (!in_array($tri, ['', 'nom', 'prix'], true)) return ['tag' => null, 'erreur' => 'Tri inconnu.'];
+
+  // Légende : ni séparateur du tag ni caractère qui changerait de sens en HTML (le tag vit dans un <p>)
+  $titre = trim(preg_replace('/\s+/u', ' ', preg_replace('/[|\[\]<>"\x00-\x1F]/u', '', str_replace('&', ' et ', $titre))));
+  $titre = mb_substr($titre, 0, 80);
+
+  $tag = '[[liste:' . $entite;
+  if (!empty($fam)) $tag .= '|famille=' . implode(',', $fam);
+  if (!empty($src)) $tag .= '|source=' . implode(',', $src);
+  if ($tri !== '')  $tag .= '|tri=' . $tri;
+  if ($titre !== '') $tag .= '|titre=' . $titre;
+  return ['tag' => $tag . ']]', 'erreur' => null];
+}
+
+// Lignes affichées et lignes au total d'une liste rendue (la liste est tronquée à LISTE_MAX_LIGNES).
+function listeCompterLignes(string $html): array
+{
+  $affichees = substr_count($html, 'class="mo-lien"');
+  $plus      = preg_match('/(\d+) autre\(s\) ligne/', $html, $m) ? (int)$m[1] : 0;
+  return ['affichees' => $affichees, 'total' => $affichees + $plus];
+}
+
+// Rend un tag construit par listeConstruireTag() — pour l'aperçu. Null si le moteur ne sait pas le rendre.
+function listeRendreTag(PDO $db, string $tag, int $ruleset_id): ?string
+{
+  if (!preg_match('/^' . LISTE_TAG_MOTIF . '$/', $tag, $m)) return null;
+  $p = listeParametres($m[2]);
+  return match ($m[1]) {
+    'equipement' => listeRendreEquipement($db, $p, $ruleset_id),
+    'objet'      => listeRendreObjet($db, $p, $ruleset_id),
+    default      => null,
+  };
 }

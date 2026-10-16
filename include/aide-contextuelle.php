@@ -95,6 +95,9 @@ return [
 
       <p><strong>Insérer une liste d\'équipements ou d\'objets magiques</strong></p>
       <ul>
+        <li>Le plus sûr : le bouton <strong>« Insérer une liste »</strong> de la barre d\'outils
+        (à côté du bouton Tableaux). Il propose les familles et les sources du ruleset, compte
+        les lignes et insère le tag correct.</li>
         <li><code>[[liste:equipement]]</code> ou <code>[[liste:objet]]</code> —
         affiche la liste du compendium, <strong>toujours à jour</strong>.
         Le tag doit être seul dans son paragraphe.</li>

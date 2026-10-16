@@ -1050,7 +1050,7 @@ $classesParentes = $stmt_par->fetchAll();
       language:      'fr_FR',
       menubar:       false,
       plugins:       'lists link table code',
-      toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau liste | removeformat | code',
       // Bouton d'insertion d'un tableau dd_tableaux (SP-TB7) —
       // implémentation partagée dans js/main.js
       setup: function (editor) {
@@ -1247,7 +1247,7 @@ $classesParentes = $stmt_par->fetchAll();
           language:      'fr_FR',
           menubar:       false,
           plugins:       'lists link table code',
-          toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau | removeformat | code',
+          toolbar:       'styles | bold italic underline | bullist numlist | link unlink table | tableau liste | removeformat | code',
           height:        180,
           skin:          isLight ? 'oxide' : 'oxide-dark',
           content_css:   isLight ? 'default' : 'dark',

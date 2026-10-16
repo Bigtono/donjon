@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-16 17:00 -->
+<!-- Mis à jour : 2026-10-16 18:30 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -6734,3 +6734,36 @@ les descriptions des objets déjà présents qu'un import antérieur aurait « r
   la page de A à Z.
 → **Reste à faire** : jouer en production les migrations `sql/2026-10-11_*`, `2026-10-15_*` et `2026-10-16_*` (dont ces
   deux-là, dans l'ordre alphabétique) ; `SP-PO3`, `PO4`, `PO6` (§0).
+
+**[2026-10-16] SP-PO3 — Bouton TinyMCE d'insertion d'un tag `[[liste:…]]`**
+Code : `include/liste-parser.php` (§7), `include/ajax/detail-pp-sub/listes-picker.php`, `include/ajax/liste-apercu.php`,
+`js/main.js`, `css/modules.css`, `include/aide-contextuelle.php`, barre d'outils de 9 fichiers `include/ajax/modifier/*.php`
+(11 éditeurs). Aucune table, aucune migration. Arbitré le même jour (6 questions) avant d'écrire.
+→ **D-PO12 — Le serveur fabrique le tag, le navigateur l'insère.** Chaque changement du sélecteur interroge
+  `liste-apercu.php`, qui valide familles, sources, tri et légende contre la base et renvoie le tag canonique avec le
+  nombre de lignes. **Alternative écartée** : composer le tag en JS — un slug mal copié ou une légende contenant `|` ou
+  `]]` aurait produit un tag qui s'affiche brut chez le lecteur, sans que l'éditeur le voie.
+→ **D-PO13 — Le bouton s'enregistre dans `tableauxInitBouton()`.** Les 11 éditeurs qui ont le bouton Tableaux reçoivent
+  le bouton Liste sans toucher à leurs `setup` ; seule leur barre d'outils cite `liste`. Contrepartie acceptée : le nom de
+  la fonction est devenu un peu trompeur. Le décompte réel est de **11 éditeurs** dans 9 fichiers (le « 13 » de la discussion était
+  une estimation).
+→ **D-PO14 — Source : « sources actives du lecteur » par défaut, « figer la source » en option.** La liste proposée est
+  celle des ressources **officielles** du ruleset (`res_j_id` NULL) : figer le supplément personnel d'un utilisateur dans
+  une règle n'aurait aucun sens. La valeur écrite est l'abréviation **si elle est renseignée et unique dans le ruleset**,
+  sinon le nom : en DD3.5, 20 ressources n'ont pas d'abréviation et « CP » en désigne deux — le moteur
+  (`listeSourcesIds()`) accepterait l'abréviation ambiguë et afficherait les deux sources.
+→ **Aperçu** : le nombre de lignes seulement (pas de rendu), avec avertissement à 0 ligne et au-delà de
+  `LISTE_MAX_LIGNES`. Il compte pour les sources actives **de l'éditeur** quand aucune n'est figée.
+→ **Droits** : `canEditCompendium()`, comme le sélecteur de tableaux.
+→ **Plus tard (SP-PO3e)** : rouvrir le sélecteur sur un tag déjà posé. Inscrit au §0.
+→ **Défaut corrigé au passage** : TinyMCE enregistre `â` en `&acirc;` dans une légende ; `listeParametres()` ne décodait
+  pas les entités et `h()` affichait « b&acirc;tons ». Décodage ajouté (entités et `&nbsp;`). Les 13 pages de règles qui
+  utilisent un tag de liste (4 en DD3.5, 9 en DD2024) rendent toujours sans tag brut.
+→ **Vérifié** : fonctions de construction sur les deux rulesets (familles, source inconnue, tri inconnu, légende hostile) ;
+  endpoint d'aperçu en JSON ; **dans le navigateur de travail, avec une session authentifiée** : bouton présent dans les
+  éditeurs de l'objet (`om_description`) et de la règle, sélecteur ouvert dans `#detail-pp-sub`, bascule équipement /
+  objets, familles, source figée, légende personnalisée, bouton Insérer — le tag est inséré dans son propre `<p>` et le
+  sous-panneau se ferme, formulaire intact. Rien n'a été enregistré.
+→ **Non vérifié** : les neuf autres formulaires (même code, même fonction) ; l'apparence en thème clair ; le mode tactile.
+→ **Hors sujet relevé** : `include/ajax/releve-device.php` répond 500 avec une session de test sans les clés
+  habituelles — le relevé SP-RS5a ; non investigué.

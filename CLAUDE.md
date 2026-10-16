@@ -206,7 +206,7 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 
 ### À faire (priorités)
 
-- SP-PO3, PO4, PO6 : bouton TinyMCE du tag de liste, écran des familles d'équipement, possessions du personnage.
+- SP-PO3e (modifier un tag de liste déjà posé), SP-PO4 (écran des familles d'équipement), SP-PO6 (possessions du personnage).
   Les migrations `sql/2026-10-11_*`, `2026-10-15_*` et `2026-10-16_*` (dont les deux `…_sp-po5b.sql`) restent à jouer en production
 - SP-IM6 : **seule phase du cycle d'import encore ouverte** — les descriptions des 8 classes
   DD2024, absentes du SRD, à saisir depuis le MdJ 2024. Tout le reste est livré le 2026-08-28 :
