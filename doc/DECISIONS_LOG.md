@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-16 15:00 -->
+<!-- Mis à jour : 2026-10-16 17:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -6690,3 +6690,47 @@ aux emplacements prévus dans les règles. Réutilise tel quel le mécanisme de 
   modifiée.
 → **Reste à faire** : jouer les 2 migrations en production ; `SP-PO5b` (objets magiques DD2024) ; les utilisateurs
   qui ont une sélection personnelle de sources doivent cocher « SRD 5.2.1 » (déjà le cas en général).
+
+**[2026-10-16] SP-PO5b — Objets magiques DD2024 : règles du SRD, descriptions retranscrites, tableaux**
+Code : `sql/2026-10-16_regles_dd2024_objets_magiques_sp-po5b.sql`, `sql/2026-10-16_objets_dd2024_srd_sp-po5b.sql`.
+Demande : analyser `FR_SRD_CC_v5.2.1-objets_magiques.pdf` et `…-regles_objets_magiques.pdf`, importer les règles, et remplacer
+les descriptions des objets déjà présents qu'un import antérieur aurait « résumées ». Aucune évolution de schéma.
+→ **Constat avant d'écrire** : les descriptions n'étaient pas résumées — 202 des 236 entrées comparées retrouvaient au moins
+  97 % des mots du PDF (SP-IM9a les avait redressées). Le défaut était structurel : 25 objets avaient leurs **tableaux
+  aplatis** en paragraphes (coût des sorts d'un bâton, tables d'effets…), les 73 déclinaisons d'entrées génériques
+  (anneau de résistance, parchemin de sort…) n'en portaient **aucun**, 12 descriptions avaient des paragraphes fusionnés
+  (armure d'invulnérabilité, chèvre voyageuse…), des traits d'union avalés ; « Yeux de lynx » manquait. Catégorie, rareté
+  et harmonisation des 236 entrées de base déjà présentes sont exactes : non réécrites.
+→ **Tout est reconstruit depuis le PDF** plutôt que corrigé à la main : texte en mode normal de `pdftotext`, tableaux en
+  mode `-raw` (le mode `-layout` détache les nombres de leurs lignes), titres de capacité en gras retrouvés par liste
+  fermée. Le rapport d'écarts ancien / nouveau a servi de contrôle : seules les différences attendues apparaissent.
+→ **D-PO8 — Un tableau d'objet = une ligne de `dd_tableaux`, appelée par `[[tab:slug]]`**, comme pour les règles (SP-TB7) :
+  34 nouveaux tableaux. **Alternative écartée** : conserver l'aplatissement en `<p>` ou écrire des `<table>` en HTML —
+  c'est ce qui avait rendu les tables illisibles, et le rendu doit rester piloté par le CSS (`.reg-tab*`).
+→ **D-PO9 — Convention des déclinaisons** (120 lignes) : texte commun de l'entrée générique du SRD + tableau + seul
+  paragraphe de la déclinaison choisie (déjà le choix de SP-IM9b, complété par le tableau, qui manquait). Chaque
+  déclinaison affiche le tableau **complet** : c'est le texte du livre, et le MJ y lit les autres variantes.
+→ **D-PO10 — Profils inclus au texte** (mouche géante, avatar de la Mort) : bloc de paragraphes + tableau de
+  caractéristiques. **Alternative écartée** : créer deux monstres — ils n'existent que par la carte ou la figurine qui les
+  convoque, et le compendium de monstres ne les attend pas.
+→ **D-PO11 — Migrations par nom et par slug, tableaux en upsert.** Les objets sont mis à jour `JOIN` sur le nom (filtré
+  ruleset + source), les ids de la production n'étant pas ceux du local — et la synchronisation du contenu (SP-SY) n'étant
+  pas faite, la production peut en différer. Les tableaux 43 à 52 (SP-IM9c) sont **réémis** pour la même raison, avec la
+  ligne 96–00 du chapeau mille-sorts corrigée. « Yeux de lynx » : `INSERT … SELECT … WHERE NOT EXISTS`.
+→ **Règles** : 9 pages sous « Objets magiques » (la page « Catégories » existait avec une phrase ; « Utiliser les objets
+  magiques » de SP-PO5 est conservée), 9 tableaux, et une page de A à Z faite de 9 tags `[[liste:objet|famille=…|source=SRD
+  5.2.1|titre=-]]` — aucun objet recopié dans la règle (D-PO1). Texte repris tel quel ; une phrase ajoutée hors SRD.
+→ **Coquille du SRD corrigée** : « pas le biais » → « par le biais » (chapeau mille-sorts). Journal :
+  `doc/LOG_CORRECTIONS_SRD2024_OBJETS_MAGIQUES.md`.
+→ **Vérifié** : migrations jouées par `migrationsAppliquer()`, puis **rejouées** (instructions seules, sans
+  enregistrement) : mêmes comptes, aucun doublon ; 357 descriptions identiques au calcul ; aucun tag `[[tab:…]]` orphelin ;
+  rendu par `rendreTexteEnrichi()` de 8 objets et de 5 pages de règles sans tag restant ; page de A à Z : 34 anneaux, 37 armes,
+  32 armures, 14 baguettes, 12 bâtons, 171 objets merveilleux, 10 parchemins, 40 potions, 7 sceptres (comptes de la base).
+→ **Piège** : régénérer une migration déjà jouée change sa somme de contrôle (`dd_migrations`) ; pour la rejouer en local
+  sans la signaler « retouchée », rejouer ses instructions puis aligner `mig_checksum` (fait une fois, pour la découpe
+  des sorts de l'orbe draconique, dont le préfixe `Sort` avalait aussi le paragraphe « Sorts. »).
+→ **Non vérifié** : l'aspect dans un vrai navigateur (le panneau de travail ne peut pas ouvrir les pages du projet ; un
+  rendu injecté a confirmé les tables du submersible du Crabe, pas la mise en page des profils) ; le clic sur un nom de
+  la page de A à Z.
+→ **Reste à faire** : jouer en production les migrations `sql/2026-10-11_*`, `2026-10-15_*` et `2026-10-16_*` (dont ces
+  deux-là, dans l'ordre alphabétique) ; `SP-PO3`, `PO4`, `PO6` (§0).

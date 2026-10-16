@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-16 15:00 -->
+<!-- Mis à jour : 2026-10-16 17:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -308,7 +308,7 @@
 - [ ] SP-PO3 — Bouton TinyMCE d'insertion d'un tag de liste (famille et source à choisir dans un picker, sur le modèle du bouton Tableaux)
 - [ ] SP-PO4 — Écran de gestion des familles d'équipement (aujourd'hui : migration SQL, comme `dd_categorie_objet_magique`)
 - [x] SP-PO5 — **Ruleset DD2024, équipement** : 28 familles propres au ruleset (armes courantes/de guerre × corps à corps/distance, armures, outils, matériel d'aventurier avec munitions/focaliseurs/symboles, montures et véhicules, repas, employés, services d'incantation), **238 articles** du SRD 5.2.1 avec leur description, 13 pages de règles manquantes (armes et propriétés/bottes, armures, outils, matériel, montures et véhicules, train de vie, repas, employés, sorts, fabrication, utilisation des objets magiques), 3 tableaux, listes `[[liste:equipement|…]]` aux emplacements prévus — `sql/2026-10-16_equipements_dd2024_srd_sp-po5.sql` et `sql/2026-10-16_regles_dd2024_equipement_sp-po5.sql`. Soldent `SP-E6`
-- [ ] SP-PO5b — DD2024, objets magiques : règles détaillées et listes `[[liste:objet|…]]` dans le chapitre « Objets magiques » (le catalogue DD3.5 est à reproduire ; la structure des catégories DD2024 est plus plate)
+- [x] SP-PO5b — **DD2024, objets magiques** : 8 pages de règles créées sous « Objets magiques » + page « Catégories » complétée (pages 215 à 220 du SRD : catégories, miscibilité des potions, règles, rareté et valeur, activation, objets maudits, résilience, fabrication, objets intelligents), page « Objets magiques de A à Z » en listes `[[liste:objet|famille=…|source=SRD 5.2.1]]` ; 9 tableaux de règles. **Descriptions des 357 objets de la source SRD retranscrites** depuis le PDF (tables aplaties ou absentes, paragraphes fusionnés, traits d'union perdus, « Yeux de lynx » manquant) : 34 nouveaux tableaux appelés par `[[tab:slug]]`, chapeau mille-sorts corrigé, 2 profils inclus au texte — `sql/2026-10-16_regles_dd2024_objets_magiques_sp-po5b.sql` et `sql/2026-10-16_objets_dd2024_srd_sp-po5b.sql` (journal : `doc/LOG_CORRECTIONS_SRD2024_OBJETS_MAGIQUES.md`)
 - [ ] SP-PO6 — Possessions du personnage (inventaire, richesse, encombrement, objets harmonisés) dans le module Personnages — **à arbitrer** ; s'appuie sur `eqt_prix_pc` / `eqt_poids_g`
 
 ### SP-T — Transfert / Duplication d'opposition
@@ -3391,6 +3391,8 @@ sql/2026-10-11_equipements_00_schema_sp-po0.sql        schéma (non idempotent)
 sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql       32 familles + 269 articles
 sql/2026-10-11_regles_dd35_drs07_sp-drs2.sql           règles Équipement
 sql/2026-10-11_regles_dd35_drs23_sp-drs3.sql           règles Objets magiques
+sql/2026-10-16_regles_dd2024_objets_magiques_sp-po5b.sql   règles Objets magiques DD2024 (9 pages, 9 tableaux)
+sql/2026-10-16_objets_dd2024_srd_sp-po5b.sql           357 descriptions d'objets DD2024 + 44 tableaux
 ```
 
 ### DD2024 (SP-PO5)
@@ -3398,6 +3400,24 @@ sql/2026-10-11_regles_dd35_drs23_sp-drs3.sql           règles Objets magiques
 Même mécanisme, familles propres au ruleset (28 lignes de `dd_categorie_equipement`, `cae_ruleset_var_id` = 2, mêmes slugs que le DD3.5 quand le sens est le même : `armes`, `armures`…). Colonnes de liste : armes `Dégâts / Propriétés / Botte d'arme / Poids / Prix` ; armures `CA / Force / Discrétion / Poids / Coût` ; outils `Caractéristique / Poids / Prix` ; véhicules `Vitesse / Équipage / Passagers / Cargaison / CA / PV / Seuil / Prix` ; services d'incantation `Disponibilité / Prix`. Source des articles : « SRD 5.2.1 » (retrouvée par abréviation). Les règles s'insèrent sous les chapitres **existants** « Équipement » (id 15 en local) et « Objets magiques » : le générateur de migrations retrouve ces nœuds **par slug** (`SET @r_equipement := (SELECT reg_id … reg_slug = 'equipement')`) et met à jour la règle `monnaie` sur place. Corrections de texte : `doc/LOG_CORRECTIONS_SRD2024_EQUIPEMENT.md`.
 
 **Légende des listes à plusieurs tableaux** : sans `titre=`, la légende est la plus profonde famille commune aux lignes du tableau (« Munitions », « Armes »…), à défaut la famille demandée ; une ligne de section identique à la légende n'est pas répétée. Les sous-familles qui héritent des mêmes colonnes que leur parent (focaliseurs, symboles) restent dans le tableau du parent, en sections.
+
+### DD2024 — objets magiques (SP-PO5b)
+
+Deux migrations, **par nom et par slug** (jamais par id : ceux de la production ne sont pas ceux du local) :
+
+- `sql/2026-10-16_regles_dd2024_objets_magiques_sp-po5b.sql` — 9 tableaux de règles (`dd_tableaux`, upsert sur `slug + ruleset`) et 9 pages sous le chapitre `objets-magiques` : `categories_objets-magiques` (slug historique, mis à jour sur place), `regles-concernant-les-objets-magiques`, `rarete-et-valeur-des-objets-magiques`, `activation-d-un-objet-magique`, `objets-maudits`, `resilience-des-objets-magiques`, `fabrication-d-objets-magiques`, `objets-magiques-intelligents`, `objets-magiques-de-a-a-z`. La dixième page du chapitre, `utiliser-les-objets-magiques` (SP-PO5, section Équipement du SRD), n'est pas touchée. La page de A à Z ne contient aucun objet saisi : un tag `[[liste:objet|famille=…|source=SRD 5.2.1|titre=-]]` par catégorie.
+- `sql/2026-10-16_objets_dd2024_srd_sp-po5b.sql` — 44 tableaux, `om_description` des 357 objets de la source SRD (table temporaire `nom → texte`, `UPDATE … JOIN` filtré sur ruleset et ressource), ajout gardé de « Yeux de lynx ». Catégorie, rareté et harmonisation ont été comparées à la ligne de type du SRD pour les 236 entrées de base déjà présentes : aucun écart, elles ne sont pas réécrites.
+
+**Convention des déclinaisons** (120 lignes tirées d'une entrée générique du SRD : anneau de résistance, parchemin de sort, pierre de Ioun, figurine merveilleuse…) : le texte commun de l'entrée générique, **la table qui s'y rattache** (`[[tab:slug]]`, la même pour toutes les déclinaisons) et le seul paragraphe de la déclinaison choisie. Les paragraphes propres aux autres déclinaisons sont écartés. Les tableaux des sacs à malices sont, eux, un par couleur.
+
+**Profils inclus au texte** (mouche géante des figurines merveilleuses, avatar de la Mort du tarot mystérieux) : paragraphes `<p>` à libellés en gras et un tableau de caractéristiques (`mouche-geante-caracteristiques`, `avatar-de-la-mort-caracteristiques`). Pas de tag de monstre : ce ne sont pas des entrées du bestiaire.
+
+**Pièges d'extraction** (SRD en PDF, mise en page sur deux colonnes) :
+
+- `pdftotext` sans option rend les paragraphes entiers **mais fusionne un paragraphe à titre en gras avec le précédent** (« …dépensées, à l'aube. Sorts. Lorsque… », « …7 jours. Mouche d'ébène (rare). Cette statuette… »), éparpille les tableaux en fragments (`Sort` / `Coût en charges` / `5` / `4`…) et recolle les mots coupés par un trait d'union dur (« Reportezvous », « ellemême », « luimême », « Mortvivant »). `-layout` détache les nombres de leurs lignes. **`-raw` restitue chaque tableau ligne à ligne, dans le bon ordre** : c'est la source des tableaux.
+- Les titres de capacité sont retrouvés par **liste fermée** (120 titres) et par la forme « Nom (rareté) » ; une phrase courte suivie d'une majuscule n'est pas un titre (« Cette baguette dispose de 7 charges. »).
+- Une coquille du SRD est corrigée : « pas le biais du chapeau » → « par le biais » (chapeau mille-sorts). Les autres écarts sont des artefacts d'extraction (journal : `doc/LOG_CORRECTIONS_SRD2024_OBJETS_MAGIQUES.md`).
+- Une migration régénérée après avoir été jouée en local change de somme de contrôle : pour la rejouer sans la déclarer « retouchée », rejouer ses instructions puis aligner `dd_migrations.mig_checksum`.
 
 ### Pièges relevés
 

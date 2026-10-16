@@ -189,7 +189,8 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - Liaison auto du glossaire SP-GL0→GL3 : `include/glossaire-parser.php`, renvois produits au
   rendu dans `reg_texte`, les définitions de glossaire et les descriptions du compendium.
   Point de passage unique : `rendreTexteEnrichi()` — glossaire puis tableaux (voir §9d)
-- Possessions DD2024 SP-PO5 : 28 familles, 238 articles du SRD 5.2.1, 13 pages de règles, listes dynamiques (journal : `doc/LOG_CORRECTIONS_SRD2024_EQUIPEMENT.md`). Reste `SP-PO5b` (objets magiques DD2024)
+- Possessions DD2024 SP-PO5 : 28 familles, 238 articles du SRD 5.2.1, 13 pages de règles, listes dynamiques (journal : `doc/LOG_CORRECTIONS_SRD2024_EQUIPEMENT.md`)
+- Possessions DD2024 SP-PO5b : règles « Objets magiques » du SRD (9 pages, 9 tableaux, page de A à Z en listes `[[liste:objet|…]]`) et **357 descriptions d'objets retranscrites** depuis le PDF — 44 tableaux appelés par `[[tab:slug]]`, déclinaisons complétées de leur table (journal : `doc/LOG_CORRECTIONS_SRD2024_OBJETS_MAGIQUES.md`, méthode : §9e)
 - Possessions DD3.5 SP-PO0→PO2 + SP-DRS2/DRS3 : `dd_equipements` restructurée (familles
   `dd_categorie_equipement`, prix, poids, attributs JSON, supplément), 269 articles du DRS 07 importés,
   règles Équipement et Objets magiques. **Tag `[[liste:equipement|famille=…|source=…]]` /
@@ -205,8 +206,8 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 
 ### À faire (priorités)
 
-- SP-PO3→PO6 : bouton TinyMCE du tag de liste, écran des familles d'équipement, objets magiques DD2024 (`SP-PO5b`),
-  possessions du personnage. Les migrations `sql/2026-10-11_*`, `2026-10-15_*` et `2026-10-16_*` restent à jouer en production
+- SP-PO3, PO4, PO6 : bouton TinyMCE du tag de liste, écran des familles d'équipement, possessions du personnage.
+  Les migrations `sql/2026-10-11_*`, `2026-10-15_*` et `2026-10-16_*` (dont les deux `…_sp-po5b.sql`) restent à jouer en production
 - SP-IM6 : **seule phase du cycle d'import encore ouverte** — les descriptions des 8 classes
   DD2024, absentes du SRD, à saisir depuis le MdJ 2024. Tout le reste est livré le 2026-08-28 :
   classes complètes, 9 espèces, 38 options de classe en dons, et les 356 objets magiques du SRD
