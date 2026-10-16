@@ -1,4 +1,4 @@
-<?
+<?php
 // profil/reinitialisation.php — Réinitialisation du mot de passe via token
 require_once '../include/db.php';
 require_once '../include/auth.php';
@@ -41,7 +41,7 @@ if (!$token || !$joueur):
       </p>
     </div>
   </div>
-<?
+<?php
   require_once '../include/footer.php';
   exit;
 endif;
@@ -77,7 +77,7 @@ require_once '../include/header.php';
     <h1 class="login-box__title">Nouveau mot de passe</h1>
     <p class="login-box__sub">Bonjour <?= h($joueur['j_pseudo']) ?>, choisissez votre nouveau mot de passe.</p>
 
-    <? if ($ok): ?>
+    <?php if ($ok): ?>
       <div class="flash-message flash-message--success">
         Mot de passe modifié avec succès.
       </div>
@@ -87,10 +87,10 @@ require_once '../include/header.php';
         </a>
       </p>
 
-    <? else: ?>
-      <? if ($errors): ?>
+    <?php else: ?>
+      <?php if ($errors): ?>
         <div class="flash-message flash-message--error"><?= h(implode(' ', $errors)) ?></div>
-      <? endif ?>
+      <?php endif ?>
 
       <form method="POST" action="<?= BASE_URL ?>/profil/reinitialisation.php?token=<?= urlencode($token) ?>">
         <?= csrfField() ?>
@@ -110,10 +110,10 @@ require_once '../include/header.php';
           </button>
         </div>
       </form>
-    <? endif ?>
+    <?php endif ?>
   </div>
 </div>
 
-<?
+<?php
 require_once '../include/footer.php';
 ?>

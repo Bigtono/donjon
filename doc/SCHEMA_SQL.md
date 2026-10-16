@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-11 15:00 -->
+<!-- Mis à jour : 2026-10-16 15:00 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -27,6 +27,7 @@
 | 1.13 | 2026-08-28 | JM | **SP-IM9c** — 10 tables d'objets magiques saisies dans `dd_tableaux` (ids 43-52) et 10 descriptions réécrites avec le tag `[[tab:slug]]`. Aucune évolution de structure. SQL committé : `sql/2026-08-28_objets_dd2024_sp-im9c.sql` (appliqué en dev le 2026-08-28 ; **reste à appliquer en prod OVH**) |
 | 1.14 | 2026-10-07 | JM | **SP-DP5** — `dd_migrations` CRÉÉE : trace des migrations SQL appliquées à la base de chaque environnement. Pas de fichier SQL : la table est créée par le moteur (`include/migrations.php`, `migrationsAssurerTable()`) à son premier appel, qui y inscrit aussitôt les 37 migrations antérieures au statut `reference` sans les rejouer. Créée en dev le 2026-10-07 ; sera créée en prod au premier déploiement (SP-DP). Préfixe `dd_` confirmé en production — le renommage `dd2_` n'a jamais été appliqué |
 | 1.15 | 2026-10-11 | JM | **SP-PO0 / SP-PO2** — `dd_categorie_equipement` CRÉÉE (arbre de familles d'équipement par ruleset, colonnes de liste en JSON). `dd_equipements` (vide jusque-là) reçoit `eqt_cae_id`, `eqt_prix_pc`, `eqt_prix_txt`, `eqt_poids_g`, `eqt_poids_txt`, `eqt_attributs`, `eqt_ordre` et `eqt_public` (rejoint le mécanisme Supplément). `dd_categorie_objet_magique.com_slug` ajouté (clé du tag `[[liste:objet|famille=…]]`). Import de 269 articles du DRS 07. SQL committé : `sql/2026-10-11_equipements_00_schema_sp-po0.sql` (**NON IDEMPOTENT**, ALTER TABLE) et `sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql` ; règles : `sql/2026-10-11_regles_dd35_drs07_sp-drs2.sql`, `…_drs23_sp-drs3.sql` (appliqués en dev le 2026-10-11 ; **restent à appliquer en prod OVH**, par le déploiement) |
+| 1.16 | 2026-10-16 | JM | **SP-PO5** — équipement DD2024, aucune évolution de structure : 28 familles `dd_categorie_equipement` (ruleset 2) et 238 articles `dd_equipements` (source « SRD 5.2.1 »), 13 règles et 3 tableaux. SQL committé : `sql/2026-10-16_equipements_dd2024_srd_sp-po5.sql`, `sql/2026-10-16_regles_dd2024_equipement_sp-po5.sql` (appliqués en dev le 2026-10-16 ; **restent à appliquer en prod OVH**) |
 | 1.5 | 2026-07-01 | JM | Audit `SHOW CREATE TABLE` sur les 7 tables restantes du Supplément (SP-C5/C6, débloquant) : `_public`/`_visible` **existent déjà en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques` (+ `om_public` sur `dd_objets_magiques`, `om_visible` déjà documenté). Colonnes ajoutées à la doc ci-dessous. `sql/patch_004_supplements.sql` reste introuvable dans le dépôt (appliqué directement en base, jamais committé — même écart que l'incident `mo_j_id`). Écart noté au passage : `dd_dons.do_page_source` (int NOT NULL) présent en base, non documenté, sans rapport avec SP-C — non traité ici |
 
 ---
@@ -670,6 +671,7 @@ pilote la liste (tag `[[liste:equipement|…]]`, fiche détail) ET le formulaire
 | cae_ordre | smallint unsigned | nn, défaut 0 | Ordre parmi les frères |
 | cae_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
+> Jeu DD2024 (28 familles, SP-PO5) : `armes` (courantes / de guerre × corps à corps / distance), `armures` (légères, intermédiaires, lourdes, bouclier), `outils` (d'artisan, autres), `materiel-d-aventurier` (munitions, focaliseurs arcaniques et druidiques, symboles sacrés), `montures-et-vehicules` (animaux, harnachement, véhicules aériens et bateaux), `repas-boisson-et-hebergement`, `services` (employés, services d'incantation).
 > Jeu DD3.5 (32 familles) : `armes` (courantes / de guerre / exotiques, chacune en légères / une main / deux mains /
 > distance), `armures-et-boucliers` (légères, intermédiaires, lourdes, boucliers, suppléments),
 > `marchandises-et-services` (8 sous-familles). Les familles DD2024 sont à saisir avec l'import des équipements DD2024.

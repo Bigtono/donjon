@@ -49,6 +49,8 @@ const DEPLOIEMENT_LOT_OCTETS   = 4 * 1024 * 1024; // … ou ce volume, au premie
 const DEPLOIEMENT_PLAN_DUREE   = 900;             // un aperçu plus vieux est recalculé
 const DEPLOIEMENT_VERROU_DUREE = 3600;            // au-delà, un verrou est réputé orphelin
 const DEPLOIEMENT_CURLE_ABSENT = 78;              // CURLE_REMOTE_FILE_NOT_FOUND
+const DEPLOIEMENT_JETON_ESSAIS = 10;              // appels des migrations tant que le jeton n'est pas visible…
+const DEPLOIEMENT_JETON_PAUSE  = 6;               // … à 6 s d'écart : ~1 min, pour ~15 s mesurées
 
 const DEPLOIEMENT_CONFIG_DEFAUT = [
   'hote'           => '',
@@ -736,22 +738,35 @@ function deploiementAppliquerMigrations(DeploiementTransport $transport, array $
   $transport->ecrire($cheminJeton, json_encode(['empreinte' => hash('sha256', $jeton)]));
 
   try {
-    $ch = curl_init($config['url_production'] . '/admin/migrations-auto.php');
-    curl_setopt_array($ch, [
-      CURLOPT_POST           => true,
-      CURLOPT_POSTFIELDS     => http_build_query(['jeton' => $jeton]),
-      CURLOPT_RETURNTRANSFER => true,
-      CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-      CURLOPT_FOLLOWLOCATION => true,
-      CURLOPT_POSTREDIR      => CURL_REDIR_POST_ALL, // http → https sans perdre le POST
-      CURLOPT_MAXREDIRS      => 3,
-      CURLOPT_CONNECTTIMEOUT => 20,
-      CURLOPT_TIMEOUT        => 320,
-    ]);
-    $corps  = curl_exec($ch);
-    $code   = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    $erreur = curl_error($ch);
-    curl_close($ch);
+    // Le fichier déposé par SFTP n'est pas visible tout de suite côté web : le
+    // système de fichiers d'OVH garde en mémoire l'absence d'un fichier déjà
+    // cherché (mesuré le 2026-10-15 : ~15 s). Tant que le serveur répond
+    // « jeton absent », le fichier est donc réessayé — le jeton n'est consommé
+    // que lorsqu'il est reconnu, ces essais ne le grillent pas.
+    for ($essai = 1; $essai <= DEPLOIEMENT_JETON_ESSAIS; $essai++) {
+      $ch = curl_init($config['url_production'] . '/admin/migrations-auto.php');
+      curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => http_build_query(['jeton' => $jeton]),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_POSTREDIR      => CURL_REDIR_POST_ALL, // http → https sans perdre le POST
+        CURLOPT_MAXREDIRS      => 3,
+        CURLOPT_CONNECTTIMEOUT => 20,
+        CURLOPT_TIMEOUT        => 320,
+      ]);
+      $corps  = curl_exec($ch);
+      $code   = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+      $erreur = curl_error($ch);
+      curl_close($ch);
+
+      $jetonPasVu = $code === 403 && is_string($corps) && str_contains($corps, 'Jeton absent ou invalide');
+      if (!$jetonPasVu || $essai === DEPLOIEMENT_JETON_ESSAIS) {
+        break;
+      }
+      sleep(DEPLOIEMENT_JETON_PAUSE);
+    }
   } finally {
     // Normalement déjà consommé par le serveur ; sinon, ne pas le laisser traîner.
     $transport->supprimer($cheminJeton);

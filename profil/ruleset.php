@@ -1,4 +1,4 @@
-<?
+<?php
 // profil/ruleset.php — Bascule du ruleset actif depuis le header (SP-RB).
 // POST du switch .site-header__ruleset : passe la session sur l'autre ruleset,
 // restaure le contexte de navigation mémorisé pour celui-ci (dernier

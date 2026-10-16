@@ -1,4 +1,4 @@
-<?
+<?php
 // include/header.php
 // Variables attendues du contrôleur :
 //   $page_title  (string) — titre affiché dans <title>
@@ -45,27 +45,27 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
   <link rel="icon" type="image/png" href="<?= BASE_URL ?>/img/logo_codex.png">
   <link rel="stylesheet" href="<?= BASE_URL ?>/css/main.css">
   <link rel="stylesheet" href="<?= BASE_URL ?>/css/modules.css">
-  <? if (!empty($css_module)): ?>
+  <?php if (!empty($css_module)): ?>
     <link rel="stylesheet" href="<?= BASE_URL ?>/css/<?= $css_module ?>-modules.css">
-  <? endif ?>
+  <?php endif ?>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <meta name="csrf-token" content="<?= csrfToken() ?>">
 </head>
 
 <body class="theme-<?= $theme_actif ?><?= $body_class ? ' ' . $body_class : '' ?>">
 
-  <? if ($debug_ui): ?>
+  <?php if ($debug_ui): ?>
     <div id="debug-viewport" class="debug-viewport"
          data-breakpoints="991,768,479"
          title="Mode debug — cliquer pour déplacer le badge">…</div>
-  <? endif ?>
+  <?php endif ?>
 
   <header class="site-header">
     <div class="site-header__brand">
       <a href="<?= BASE_URL ?>/index.php" class="site-header__logo">
         <img src="<?= BASE_URL ?>/img/logo_codex.png" alt="Codex DD" class="site-header__logo-img">
       </a>
-      <? if (!empty($_SESSION['j_affichage_ruleset']) && !empty($_SESSION['rulesetRep'])):
+      <?php if (!empty($_SESSION['j_affichage_ruleset']) && !empty($_SESSION['rulesetRep'])):
         // Switch de ruleset (SP-RB) : un clic bascule sur l'autre ruleset et
         // recharge la page équivalente (profil/ruleset.php).
         $ruleset_actif_id = (int)($_SESSION['ruleset_var_id'] ?? 1);
@@ -82,10 +82,10 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
             <i class="fa fa-right-left site-header__ruleset-icone" aria-hidden="true"></i>
           </button>
         </form>
-      <? endif ?>
+      <?php endif ?>
     </div>
 
-    <? if ($nav_collapsible): ?>
+    <?php if ($nav_collapsible): ?>
       <button type="button" class="site-header__burger" id="site-nav-toggle"
               aria-controls="site-nav" aria-expanded="false"
               onclick="toggleMenuPrincipal()">
@@ -95,21 +95,21 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
         </span>
         <i class="fa fa-chevron-down site-header__burger-chevron"></i>
       </button>
-    <? endif ?>
+    <?php endif ?>
 
     <nav class="site-header__nav<?= $nav_collapsible ? ' site-header__nav--collapsible' : '' ?>" id="site-nav">
-      <? if (!empty($_SESSION['j_id'])): ?>
+      <?php if (!empty($_SESSION['j_id'])): ?>
         <a href="<?= BASE_URL ?>/regles/index.php">Règles</a>
         <a href="<?= BASE_URL ?>/compendium/index.php">Compendium</a>
         <a href="<?= BASE_URL ?>/personnages/index.php">Personnages</a>
-        <? if (!empty($_SESSION['j_mode_campagne'])): ?>
+        <?php if (!empty($_SESSION['j_mode_campagne'])): ?>
           <a href="<?= BASE_URL ?>/campagnes/index.php">Campagnes</a>
-        <? endif ?>
+        <?php endif ?>
         <a href="<?= BASE_URL ?>/wiki/univers.php">Univers</a>
-        <? if (!empty($_SESSION['j_admin'])): ?>
+        <?php if (!empty($_SESSION['j_admin'])): ?>
           <a href="<?= BASE_URL ?>/admin/index.php">Admin</a>
-        <? endif ?>
-        <?
+        <?php endif ?>
+        <?php
         // Bouton de déploiement (SP-DP) : le module n'existe qu'en local, le
         // fichier est donc absent en production et rien ne s'affiche.
         $deploiement_bouton = __DIR__ . '/../admin/deploiement/bouton.php';
@@ -124,23 +124,23 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
           <i class="fa fa-sign-out-alt"></i>
           <span class="site-header__nav-label">Déconnexion</span>
         </a>
-      <? else: ?>
+      <?php else: ?>
         <a href="<?= BASE_URL ?>/index.php">Connexion</a>
-      <? endif ?>
+      <?php endif ?>
     </nav>
 
-    <? if (!empty($header_personnage)): ?>
+    <?php if (!empty($header_personnage)): ?>
       <a class="site-header__perso"
          href="<?= BASE_URL ?>/personnages/fiche.php?id=<?= (int)$header_personnage['id'] ?>"
          title="Dernier personnage consulté">
         <i class="fa fa-user" aria-hidden="true"></i>
         <span class="site-header__perso-nom"><?= h($header_personnage['nom']) ?></span>
       </a>
-    <? endif ?>
+    <?php endif ?>
   </header>
 
   <div id="site-header-context-zone">
-    <? include __DIR__ . '/header-context.php'; ?>
+    <?php include __DIR__ . '/header-context.php'; ?>
   </div>
 
   <main class="site-main">
@@ -151,7 +151,7 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
     <div id="detail-pp-sub-backdrop" class="overlay-backdrop overlay-backdrop--sub noDisplay" onclick="fermerSubPanel()"></div>
     <div id="detail-pp-sub" class="overlay-panel overlay-panel--sub noDisplay" style="position:fixed;"></div>
 
-    <?
+    <?php
     // Affichage d'un message flash s'il existe
     if (!empty($_SESSION['flash_message'])):
       $flash = $_SESSION['flash_message'];
@@ -160,4 +160,4 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
       <div class="flash-message flash-message--<?= h($flash['type']) ?>">
         <?= h($flash['text']) ?>
       </div>
-    <? endif ?>
+    <?php endif ?>

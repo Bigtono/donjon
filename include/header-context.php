@@ -1,4 +1,4 @@
-<?
+<?php
 // include/header-context.php
 // Fragment HTML du bloc de contexte de navigation (boutons retour rapide).
 // Attend $header_context_niveaux (array) déjà calculé par l'appelant — soit
@@ -17,9 +17,9 @@
 // module. La chaîne d'ancêtres n'a plus à être transportée en JS : chaque
 // page reconstruit la sienne à partir de la session.
 ?>
-<? if (!empty($header_context_niveaux)): ?>
+<?php if (!empty($header_context_niveaux)): ?>
   <div class="site-header__context">
-    <?
+    <?php
     $ctx_base_camp = BASE_URL . '/campagnes';
     $ctx_urls = [
       'campagne'  => $ctx_base_camp . '/campagne.php',
@@ -49,7 +49,7 @@
       if ($ctx_i > 0):
     ?>
       <i class="fa fa-chevron-right site-header__context-sep" aria-hidden="true"></i>
-    <?
+    <?php
       endif;
       if ($ctx_niveau['type'] === 'personnage'):
     ?>
@@ -58,7 +58,7 @@
         <i class="fa <?= $ctx_icones['personnage'] ?>" aria-hidden="true"></i>
         <span class="site-header__context-nom"><?= h($ctx_niveau['nom']) ?></span>
       </a>
-    <?
+    <?php
         continue;
       endif;
     ?>
@@ -68,6 +68,6 @@
         <span class="site-header__context-type"><?= h($ctx_labels[$ctx_niveau['type']]) ?> :</span>
         <span class="site-header__context-nom"><?= h($ctx_niveau['nom']) ?></span>
       </a>
-    <? endforeach ?>
+    <?php endforeach ?>
   </div>
-<? endif ?>
+<?php endif ?>

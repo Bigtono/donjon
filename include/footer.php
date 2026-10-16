@@ -1,4 +1,4 @@
-<?
+<?php
 // include/footer.php
 ?>
 </main>
@@ -15,9 +15,9 @@
 </script>
 <script src="<?= BASE_URL ?>/js/main.js"></script>
 <script src="<?= BASE_URL ?>/js/tri-liste.js"></script>
-<? if (!empty($js_module)): ?>
+<?php if (!empty($js_module)): ?>
   <script src="<?= BASE_URL ?>/js/<?= $js_module ?>.js"></script>
-<? endif ?>
+<?php endif ?>
 
 </body>
 </html>

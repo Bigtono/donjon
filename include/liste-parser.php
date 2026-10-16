@@ -369,6 +369,19 @@ function listeRendreEquipement(PDO $db, array $p, int $ruleset_id): ?string
     foreach ($cols as $c) $entetes[] = [(string)$c['l'], listeAlign($c['a'] ?? null)];
     if ($avec_source) $entetes[] = ['Source', 'left'];
 
+    // Légende : celle du tag ; sinon, pour plusieurs tableaux, la plus profonde famille commune à leurs lignes
+    // (« Munitions », « Armes »…), à défaut le nom de la famille demandée.
+    $caption = $p['titre'];
+    if ($caption === '' && ($multi || count($bases) === 1)):
+      $commun = null;
+      foreach ($t['rows'] as [$r0, $cid0, $b0]):
+        $ch = catEquipementChaine($arbre, $cid0);
+        $commun = $commun === null ? $ch : array_values(array_intersect_assoc($commun, $ch));
+      endforeach;
+      $id_cap = !empty($commun) ? end($commun) : array_key_first($t['bases']);
+      $caption = (string)$arbre['noeuds'][$id_cap]['cae_nom'];
+    endif;
+
     // Sections : chemin sous la base ; avec une seule base on l'omet
     $une_base = count($bases) === 1;
     $lignes   = [];
@@ -379,7 +392,7 @@ function listeRendreEquipement(PDO $db, array $p, int $ruleset_id): ?string
       $noms   = [];
       foreach (array_slice($chaine, $une_base ? $pos + 1 : $pos) as $anc) $noms[] = $arbre['noeuds'][$anc]['cae_nom'];
       $label = implode(' › ', $noms);
-      if ($label !== '' && $label !== $section_prec):
+      if ($label !== '' && $label !== $section_prec && $label !== $caption):
         $lignes[] = ['section' => $label];
       endif;
       $section_prec = $label;
@@ -391,11 +404,6 @@ function listeRendreEquipement(PDO $db, array $p, int $ruleset_id): ?string
       $lignes[] = ['cellules' => $cel];
     endforeach;
 
-    $caption = $p['titre'];
-    if ($caption === '' && ($multi || count($bases) === 1)):
-      $b = array_key_first($t['bases']);
-      $caption = (string)$arbre['noeuds'][$b]['cae_nom'];
-    endif;
     $html .= listeHtmlTable($p['titre'] === '-' ? '' : $caption, $entetes, $lignes, '');
   endforeach;
 

@@ -1,4 +1,4 @@
-<?
+<?php
 // include/ajax/aide.php — Endpoint unique pour toutes les bulles d'aide contextuelle.
 // Appelé par le handler .aide-icone de js/main.js.
 //

@@ -1,4 +1,4 @@
-<?
+<?php
 // profil/mot-de-passe-oublie.php — Demande de réinitialisation du mot de passe
 require_once '../include/db.php';
 require_once '../include/auth.php';
@@ -75,16 +75,16 @@ require_once '../include/header.php';
     <h1 class="login-box__title">Mot de passe oublié</h1>
     <p class="login-box__sub">Saisissez votre email pour recevoir un lien de réinitialisation.</p>
 
-    <? if ($message): ?>
+    <?php if ($message): ?>
       <div class="flash-message flash-message--<?= $is_error ? 'error' : 'info' ?>">
         <?= h($message) ?>
-        <? if ($dev_lien): ?>
+        <?php if ($dev_lien): ?>
           <br><a href="<?= h($dev_lien) ?>" style="word-break:break-all;"><?= h($dev_lien) ?></a>
-        <? endif ?>
+        <?php endif ?>
       </div>
-    <? endif ?>
+    <?php endif ?>
 
-    <? if (!$message || $is_error): ?>
+    <?php if (!$message || $is_error): ?>
       <form method="POST" action="<?= BASE_URL ?>/profil/mot-de-passe-oublie.php">
         <?= csrfField() ?>
         <div class="form-group">
@@ -99,7 +99,7 @@ require_once '../include/header.php';
           </button>
         </div>
       </form>
-    <? endif ?>
+    <?php endif ?>
 
     <p class="login-box__footer">
       <a href="<?= BASE_URL ?>/index.php"><i class="fa fa-arrow-left"></i> Retour à la connexion</a>
@@ -107,6 +107,6 @@ require_once '../include/header.php';
   </div>
 </div>
 
-<?
+<?php
 require_once '../include/footer.php';
 ?>

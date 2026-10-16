@@ -1,4 +1,4 @@
-<?
+<?php
 // include/helpers.php — Fonctions transverses
 // À inclure après auth.php dans chaque page contrôleur
 

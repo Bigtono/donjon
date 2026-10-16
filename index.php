@@ -1,4 +1,4 @@
-<?
+<?php
 // DEBUG CSRF — À SUPPRIMER APRÈS
 error_log('HOST: ' . ($_SERVER['HTTP_HOST'] ?? 'n/a'));
 error_log('SESSION ID: ' . session_id());
@@ -86,25 +86,25 @@ if (!empty($_SESSION['j_id'])) {
       <i class="fa fa-book"></i>
       <span>Compendium</span>
     </a>
-    <? if (!empty($_SESSION['j_mode_campagne'])): ?>
+    <?php if (!empty($_SESSION['j_mode_campagne'])): ?>
       <a href="<?= BASE_URL ?>/campagnes/index.php" class="dashboard-card">
         <i class="fa fa-map"></i>
         <span>Mes campagnes</span>
       </a>
-    <? endif ?>
+    <?php endif ?>
     <a href="<?= BASE_URL ?>/wiki/univers.php" class="dashboard-card">
       <i class="fa fa-globe"></i>
       <span>Mes univers</span>
     </a>
-    <? if (!empty($_SESSION['j_admin'])): ?>
+    <?php if (!empty($_SESSION['j_admin'])): ?>
       <a href="<?= BASE_URL ?>/admin/index.php" class="dashboard-card dashboard-card--admin">
         <i class="fa fa-cog"></i>
         <span>Administration</span>
       </a>
-    <? endif ?>
+    <?php endif ?>
   </div>
 
-<?
+<?php
   require_once 'include/footer.php';
   exit;
 }
@@ -119,11 +119,11 @@ require_once 'include/header.php';
     <h1 class="login-box__title">Codex DD</h1>
     <p class="login-box__sub">Connexion à votre espace</p>
 
-    <? if (!empty($errors)): ?>
+    <?php if (!empty($errors)): ?>
       <div class="flash-message flash-message--error">
         <?= h(implode(' ', $errors)) ?>
       </div>
-    <? endif ?>
+    <?php endif ?>
 
     <form method="POST" action="<?= BASE_URL ?>/index.php">
       <?= csrfField() ?>
@@ -160,6 +160,6 @@ require_once 'include/header.php';
   </div>
 </div>
 
-<?
+<?php
 require_once 'include/footer.php';
 ?>

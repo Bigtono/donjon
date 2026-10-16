@@ -1,4 +1,4 @@
-<?
+<?php
 // include/auth.php — Gestion de session et contrôle d'accès
 // À inclure après db.php dans chaque page contrôleur
 

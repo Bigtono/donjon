@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-11 14:00 -->
+<!-- Mis à jour : 2026-10-15 12:00 -->
 
 # Journal des corrections — import du DRS 07 (Équipement) et du DRS 23 (Objets magiques)
 
@@ -78,3 +78,8 @@
 - **C3** : le PDF est cohérent en interne sur « armure à pointes » (description) ; la table du DRS anglais dit *armor spikes*.
 - **S10** : retrouver la note ² dans le DRS 23 papier si elle existe.
 - Valeurs lues sur le PDF en mode texte brut : un recoupement visuel des trois grandes tables (armes, armures, marchandises) est recommandé — les listes sont maintenant des données du compendium, modifiables article par article.
+
+## 5. Source des articles (2026-10-15)
+
+Les 269 articles ne sont plus rattachés à « DRS 3.5 » mais au **Manuel des joueurs 3.5** (`MdJ3.5`) :
+`sql/2026-10-15_equipements_dd35_source_sp-po2b.sql`. Les pages de règles restent sous « DRS 3.5 ».

@@ -1,4 +1,4 @@
-<?
+<?php
 // profil/index.php — Profil utilisateur
 require_once '../include/db.php';
 require_once '../include/auth.php';
@@ -247,14 +247,14 @@ require_once '../include/header.php';
 <div class="profil-page">
   <h1 class="profil-page__title">Mon profil</h1>
 
-  <? if ($ok): ?>
+  <?php if ($ok): ?>
     <div class="flash-message flash-message--success">Modifications enregistrées.</div>
-  <? endif ?>
-  <? if ($errors): ?>
+  <?php endif ?>
+  <?php if ($errors): ?>
     <div class="flash-message flash-message--error">
       <?= h(implode(' ', $errors)) ?>
     </div>
-  <? endif ?>
+  <?php endif ?>
 
   <nav class="profil-nav">
     <button class="profil-nav__btn active" onclick="showSection('identite', this)">
@@ -354,12 +354,12 @@ require_once '../include/header.php';
         <div class="form-group">
           <label for="j_default_ruleset_var_id">Ruleset par défaut</label>
           <select id="j_default_ruleset_var_id" name="j_default_ruleset_var_id">
-            <? foreach ($rulesets as $r): ?>
+            <?php foreach ($rulesets as $r): ?>
               <option value="<?= (int)$r['var_id'] ?>"
                 <?= (int)$r['var_id'] === (int)$joueur['j_default_ruleset_var_id'] ? 'selected' : '' ?>>
                 <?= h($r['var_valeur']) ?>
               </option>
-            <? endforeach ?>
+            <?php endforeach ?>
           </select>
           <p class="form-hint">Ruleset chargé par défaut à chaque connexion.</p>
         </div>
@@ -420,11 +420,11 @@ require_once '../include/header.php';
         <div class="form-group">
           <label for="j_items_par_page">Éléments par page dans les listes</label>
           <select id="j_items_par_page" name="j_items_par_page">
-            <? foreach ([10, 20, 50, 100] as $n): ?>
+            <?php foreach ([10, 20, 50, 100] as $n): ?>
               <option value="<?= $n ?>" <?= (int)$joueur['j_items_par_page'] === $n ? 'selected' : '' ?>>
                 <?= $n ?>
               </option>
-            <? endforeach ?>
+            <?php endforeach ?>
           </select>
         </div>
 
@@ -442,9 +442,9 @@ require_once '../include/header.php';
   <section class="profil-section noDisplay" id="section-sources">
     <h2>Mes sources — <?= h($ruleset_nom_actif) ?></h2>
 
-    <? if (empty($ressources_dispo)): ?>
+    <?php if (empty($ressources_dispo)): ?>
       <p class="text-muted">Aucune ressource disponible pour ce ruleset.</p>
-    <? else: ?>
+    <?php else: ?>
 
       <p class="form-hint mb-md">
         Sélectionnez les ressources à utiliser dans le compendium pour le ruleset
@@ -457,21 +457,21 @@ require_once '../include/header.php';
         <input type="hidden" name="section" value="sources">
 
         <div class="sources-liste">
-          <? foreach ($ressources_dispo as $res): ?>
+          <?php foreach ($ressources_dispo as $res): ?>
             <label class="sources-item">
               <input type="checkbox"
                      name="res_ids[]"
                      value="<?= (int)$res['res_id'] ?>"
                      <?= in_array((int)$res['res_id'], array_map('intval', $res_selectionnes)) ? 'checked' : '' ?>>
               <span class="sources-item__nom"><?= h($res['res_nom']) ?></span>
-              <? if ($res['res_abreviation']): ?>
+              <?php if ($res['res_abreviation']): ?>
                 <span class="sources-item__abrev"><?= h($res['res_abreviation']) ?></span>
-              <? endif ?>
-              <? if ($res['res_selection']): ?>
+              <?php endif ?>
+              <?php if ($res['res_selection']): ?>
                 <span class="sources-item__defaut" title="Sélection par défaut">★</span>
-              <? endif ?>
+              <?php endif ?>
             </label>
-          <? endforeach ?>
+          <?php endforeach ?>
         </div>
 
         <div class="form-actions">
@@ -487,11 +487,11 @@ require_once '../include/header.php';
         </div>
       </form>
 
-    <? endif ?>
+    <?php endif ?>
   </section>
 
 </div>
 
-<?
+<?php
 require_once '../include/footer.php';
 ?>

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-11 15:30 -->
+<!-- Mis à jour : 2026-10-16 15:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -6630,3 +6630,63 @@ listes par un tag dynamique, valable pour les deux rulesets.
   projet, voir `donjon-verification-sans-navigateur`) et saisie du formulaire dans un vrai navigateur.
 → **Reste à faire** : appliquer les 4 migrations en production (le déploiement les joue dans l'ordre) ;
   SP-PO3 à SP-PO6 (§0).
+
+**[2026-10-15] D-DP14 — Jeton de migrations « absent » : le web d'OVH ne voit pas tout de suite un fichier déposé en SFTP**
+→ Symptôme : après le changement de poste, l'étape « Application des migrations SQL en production » échouait
+  avec « Jeton absent ou invalide », site laissé en maintenance (verrou conservé, étape rejouable).
+→ Cause mesurée : un fichier déposé par SFTP sur OVH n'apparaît côté HTTP qu'au bout d'environ **15 s** quand le
+  web a déjà cherché ce chemin (cache négatif du système de fichiers). Le déployeur postait le jeton aussitôt
+  après le dépôt de `config/.migrations-jeton`. Le POST arrivait bien (sans redirection, corps reçu) ;
+  c'est `is_file()` qui répondait faux côté serveur.
+→ Correction (module local seulement, `admin/deploiement/lib.php`) : `deploiementAppliquerMigrations()` réessaie
+  l'appel tant que la réponse est « Jeton absent ou invalide » (`DEPLOIEMENT_JETON_ESSAIS` = 10, pause
+  `DEPLOIEMENT_JETON_PAUSE` = 6 s). Sans risque : `migrations-auto.php` ne supprime le jeton que lorsqu'il est
+  reconnu ; un jeton non vu n'est pas consommé. `migrations-auto.php` est inchangé.
+→ Même poste : le déploiement exige PHP ≥ 8.2 / libcurl ≥ 7.80 (`CURLOPT_SSH_HOST_PUBLIC_KEY_SHA256`) ; sous
+  Apache, les DLL `libssh2`, `nghttp2` et `brotlidec` de PHP sont préchargées par `LoadFile` dans
+  `httpd-xampp.conf` (celles d'`apache/bin` sont plus anciennes et empêchaient le chargement de `curl`).
+
+**[2026-10-15] SP-PO2b — Source des équipements DD3.5 : Manuel des joueurs 3.5, pas « DRS 3.5 »**
+Code : `sql/2026-10-15_equipements_dd35_source_sp-po2b.sql`. Constat : après l'import du 2026-10-11, les 269
+articles étaient masqués à l'utilisateur dont la sélection personnelle de sources ne contenait pas « DRS 3.5 » ;
+la source a été corrigée à la main en local (articles rattachés à `MdJ3.5`, ces données étant aussi celles du
+Manuel des joueurs).
+→ Nouvelle migration plutôt que retouche de celle du 2026-10-11 (déjà appliquée) : elle déplace les articles
+  de « DRS 3.5 » vers `MdJ3.5`, **ressources retrouvées par abréviation** (ids différents entre local et OVH).
+  Idempotente, sans effet en local ; jouée deux fois par `migrationsAppliquer()`.
+→ ⚠ **Ne jamais rejouer** `…_equipements_dd35_drs07_sp-po2.sql` après celle-ci : elle supprime par source
+  « DRS 3.5 » et recréerait 269 doublons sous cette source. Les règles (`…_regles_dd35_drs07/drs23_…`) restent
+  sous « DRS 3.5 ».
+→ Rappel : le compendium filtre sur les sources **cochées** de l'utilisateur (`getActiveResIds()`, priorité 2) ;
+  une source ajoutée après coup n'apparaît pas dans une sélection personnelle existante.
+
+**[2026-10-16] SP-PO5 — Équipement DD2024 : règles, familles propres au ruleset, 238 articles, listes dynamiques**
+Code : `sql/2026-10-16_equipements_dd2024_srd_sp-po5.sql`, `sql/2026-10-16_regles_dd2024_equipement_sp-po5.sql`,
+`include/liste-parser.php` (légende des listes). Demande : analyser `FR_SRD_CC_v5.2.1-equipements.pdf`, importer les
+règles encore absentes, remplir `dd_equipements` avec les catégories propres au ruleset, poser les listes dynamiques
+aux emplacements prévus dans les règles. Réutilise tel quel le mécanisme de SP-PO0/PO1 : aucune évolution de schéma.
+→ **Familles DD2024** en arbre (armes courantes / de guerre × corps à corps / distance ; armures légères,
+  intermédiaires, lourdes, bouclier ; outils d'artisan / autres ; matériel d'aventurier et ses sous-familles ;
+  montures et véhicules ; repas ; employés ; services d'incantation). Les attributs de chaque famille reprennent les
+  colonnes du livre (botte d'arme, CA, Force, Discrétion, vitesse, équipage…).
+→ **Règles déjà présentes, donc complétées plutôt que dupliquées** : le chapitre « Équipement » (id 15) et sa règle
+  « Monnaie » existaient. « Monnaie » est **remplacée** (table « Monnaie et valeurs » absente, mots collés) ; 12 pages
+  sont créées sous le chapitre ; la section « Objets magiques » du PDF devient une page du chapitre « Objets magiques »
+  existant. Le générateur retrouve les nœuds existants par slug, jamais par id.
+→ **Variantes** (boîte de jeux, instruments) en articles distincts, sans l'entrée générique « variable » ; les entrées
+  génériques « Munitions », « Focaliseur… », « Symbole sacré » sont conservées en plus de leurs formes (voir le journal
+  des corrections, S1 et S6).
+→ **Source** : « SRD 5.2.1 » (id 93 en local), retrouvée par abréviation. Pas de source « Manuel des joueurs » ici :
+  le PDF est le SRD.
+→ **Légende des listes** : avec plusieurs tableaux dans un seul tag (`famille=materiel-d-aventurier`), tous
+  portaient la même légende ; elle est maintenant la plus profonde famille commune aux lignes de chaque tableau.
+  Contrôlé sur les listes DD3.5 existantes (armes, armures, combinaison de familles) : inchangé ou amélioré.
+→ **Vérifié** : les 2 migrations jouées deux fois chacune par `migrationsAppliquer()` ; 13 pages de règles
+  rendues sans avertissement ni tag restant (38 armes, 13 armures, 37 outils, 98 articles de matériel, 25 montures
+  et véhicules, 17 repas, 3 employés, 7 services) ; liste du compendium DD2024 : 238 résultats ; recoupement des
+  prix et poids avec une seconde extraction du PDF (207 / 238 automatiquement, le reste relu à l'œil).
+→ **Non vérifié** : le clic sur un nom de liste et le formulaire dans un vrai navigateur (le panneau de travail ne
+  peut pas ouvrir les pages du projet). **Introduction du chapitre « Équipement »** (id 15) : mots collés, non
+  modifiée.
+→ **Reste à faire** : jouer les 2 migrations en production ; `SP-PO5b` (objets magiques DD2024) ; les utilisateurs
+  qui ont une sélection personnelle de sources doivent cocher « SRD 5.2.1 » (déjà le cas en général).

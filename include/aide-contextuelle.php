@@ -1,4 +1,4 @@
-<?
+<?php
 // include/aide-contextuelle.php — Contenu des bulles d'aide contextuelle
 // Chaque entrée est une closure (PDO $db, int $ruleset_id) -> string HTML,
 // résolue par include/ajax/aide.php. Permet d'inclure du contenu dynamique

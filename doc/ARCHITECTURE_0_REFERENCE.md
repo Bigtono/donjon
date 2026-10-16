@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-11 15:00 -->
+<!-- Mis à jour : 2026-10-16 15:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -292,7 +292,7 @@
 - [x] SP-E3 — Fiche détail `detail-pp/equipement.php`
 - [ ] SP-E4 — `monstre-parser.php` : type liable `equipement` *(débloquée — reste `typesLiablesMonstre()` + `construireIndexAuto()` ; l'entrée `equipement` de `MO_LIEN_FICHIERS` dans `js/main.js` est posée depuis SP-PO1, les listes `[[liste:…]]` s'en servent)*
 - [x] SP-E5 — Alignement sur le mécanisme Supplément utilisateur (`eqt_public`) — **soldée par SP-PO0** (2026-10-11)
-- [ ] SP-E6 — **Import de l'équipement DD2024** : `dd_equipements` ne contient que les articles DD3.5 du DRS 07 (SP-PO2). **Le schéma est tranché** (SP-PO0 : familles, prix, poids, attributs JSON) : reste à saisir les familles DD2024 (`dd_categorie_equipement`, `cae_ruleset_var_id` = 2) et à importer. Inclut les **bottes d'arme** (propriétés d'arme : Fauchage, Éraflure, Entaille, Bousculade, Sape, Ralentissement, Renversement, Harcèlement), écartées de `SP-IM5` le 2026-08-28 — elles qualifient une arme, pas un personnage. Source : `FR_SRD_CC_v5.2.1.pdf`, section équipement (absentes du PDF Classes). ~~Le schéma actuel ne porte ni dégâts, ni propriétés, ni prix~~ — résolu par SP-PO0 : propriétés d'arme, maîtrise et dégâts DD2024 = clés d'attributs de la famille
+- [x] SP-E6 — *soldée par SP-PO5 (2026-10-16)* — **Import de l'équipement DD2024** : `dd_equipements` ne contient que les articles DD3.5 du DRS 07 (SP-PO2). **Le schéma est tranché** (SP-PO0 : familles, prix, poids, attributs JSON) : reste à saisir les familles DD2024 (`dd_categorie_equipement`, `cae_ruleset_var_id` = 2) et à importer. Inclut les **bottes d'arme** (propriétés d'arme : Fauchage, Éraflure, Entaille, Bousculade, Sape, Ralentissement, Renversement, Harcèlement), écartées de `SP-IM5` le 2026-08-28 — elles qualifient une arme, pas un personnage. Source : `FR_SRD_CC_v5.2.1.pdf`, section équipement (absentes du PDF Classes). ~~Le schéma actuel ne porte ni dégâts, ni propriétés, ni prix~~ — résolu par SP-PO0 : propriétés d'arme, maîtrise et dégâts DD2024 = clés d'attributs de la famille
 
 ### SP-PO — Possessions (équipements et objets magiques)
 
@@ -304,9 +304,11 @@
 - [x] SP-PO0 — Schéma : `dd_categorie_equipement` (arbre de familles, colonnes de liste en JSON), `dd_equipements` étendue (famille, prix, poids, attributs JSON, ordre, `eqt_public`), `com_slug` sur les catégories d'objets magiques ; formulaire, liste (colonnes + filtre famille avec sous-familles), fiche détail et enregistrement mis à niveau — `sql/2026-10-11_equipements_00_schema_sp-po0.sql`
 - [x] SP-PO1 — Tag `[[liste:equipement|…]]` / `[[liste:objet|…]]` : `include/liste-parser.php`, paramètres `famille` / `source` / `tri` / `titre`, branché dans `rendreTexteEnrichi()` et les 3 rendus de règles, protégé du glossaire, aide contextuelle
 - [x] SP-PO2 — Import des **269 équipements DD3.5** du DRS 07 avec leur description propre : 32 familles, source « DRS 3.5 » — `sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql`
+- [x] SP-PO2b — Source des 269 équipements DD3.5 : Manuel des joueurs 3.5 (`MdJ3.5`) au lieu de « DRS 3.5 » — `sql/2026-10-15_equipements_dd35_source_sp-po2b.sql`
 - [ ] SP-PO3 — Bouton TinyMCE d'insertion d'un tag de liste (famille et source à choisir dans un picker, sur le modèle du bouton Tableaux)
 - [ ] SP-PO4 — Écran de gestion des familles d'équipement (aujourd'hui : migration SQL, comme `dd_categorie_objet_magique`)
-- [ ] SP-PO5 — **Ruleset DD2024** : règles d'équipement et d'objets magiques du SRD 5.2.1 sur le même mécanisme (familles DD2024 + import = `SP-E6`)
+- [x] SP-PO5 — **Ruleset DD2024, équipement** : 28 familles propres au ruleset (armes courantes/de guerre × corps à corps/distance, armures, outils, matériel d'aventurier avec munitions/focaliseurs/symboles, montures et véhicules, repas, employés, services d'incantation), **238 articles** du SRD 5.2.1 avec leur description, 13 pages de règles manquantes (armes et propriétés/bottes, armures, outils, matériel, montures et véhicules, train de vie, repas, employés, sorts, fabrication, utilisation des objets magiques), 3 tableaux, listes `[[liste:equipement|…]]` aux emplacements prévus — `sql/2026-10-16_equipements_dd2024_srd_sp-po5.sql` et `sql/2026-10-16_regles_dd2024_equipement_sp-po5.sql`. Soldent `SP-E6`
+- [ ] SP-PO5b — DD2024, objets magiques : règles détaillées et listes `[[liste:objet|…]]` dans le chapitre « Objets magiques » (le catalogue DD3.5 est à reproduire ; la structure des catégories DD2024 est plus plate)
 - [ ] SP-PO6 — Possessions du personnage (inventaire, richesse, encombrement, objets harmonisés) dans le module Personnages — **à arbitrer** ; s'appuie sur `eqt_prix_pc` / `eqt_poids_g`
 
 ### SP-T — Transfert / Duplication d'opposition
@@ -3390,6 +3392,12 @@ sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql       32 familles + 269 article
 sql/2026-10-11_regles_dd35_drs07_sp-drs2.sql           règles Équipement
 sql/2026-10-11_regles_dd35_drs23_sp-drs3.sql           règles Objets magiques
 ```
+
+### DD2024 (SP-PO5)
+
+Même mécanisme, familles propres au ruleset (28 lignes de `dd_categorie_equipement`, `cae_ruleset_var_id` = 2, mêmes slugs que le DD3.5 quand le sens est le même : `armes`, `armures`…). Colonnes de liste : armes `Dégâts / Propriétés / Botte d'arme / Poids / Prix` ; armures `CA / Force / Discrétion / Poids / Coût` ; outils `Caractéristique / Poids / Prix` ; véhicules `Vitesse / Équipage / Passagers / Cargaison / CA / PV / Seuil / Prix` ; services d'incantation `Disponibilité / Prix`. Source des articles : « SRD 5.2.1 » (retrouvée par abréviation). Les règles s'insèrent sous les chapitres **existants** « Équipement » (id 15 en local) et « Objets magiques » : le générateur de migrations retrouve ces nœuds **par slug** (`SET @r_equipement := (SELECT reg_id … reg_slug = 'equipement')`) et met à jour la règle `monnaie` sur place. Corrections de texte : `doc/LOG_CORRECTIONS_SRD2024_EQUIPEMENT.md`.
+
+**Légende des listes à plusieurs tableaux** : sans `titre=`, la légende est la plus profonde famille commune aux lignes du tableau (« Munitions », « Armes »…), à défaut la famille demandée ; une ligne de section identique à la légende n'est pas répétée. Les sous-familles qui héritent des mêmes colonnes que leur parent (focaliseurs, symboles) restent dans le tableau du parent, en sections.
 
 ### Pièges relevés
 
