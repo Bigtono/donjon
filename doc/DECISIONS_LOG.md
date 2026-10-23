@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-16 18:30 -->
+<!-- Mis à jour : 2026-10-23 13:55 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -6767,3 +6767,34 @@ Code : `include/liste-parser.php` (§7), `include/ajax/detail-pp-sub/listes-pick
 → **Non vérifié** : les neuf autres formulaires (même code, même fonction) ; l'apparence en thème clair ; le mode tactile.
 → **Hors sujet relevé** : `include/ajax/releve-device.php` répond 500 avec une session de test sans les clés
   habituelles — le relevé SP-RS5a ; non investigué.
+
+## Sécurité — Renouvellement des mots de passe après incident (2026-10-23)
+
+**[2026-10-23] D-SEC1 — MariaDB local fermé au réseau, comptes protégés, phpMyAdmin authentifié**
+Fichiers hors projet : `C:\xampp\mysql\bin\my.ini`, `C:\xampp\phpMyAdmin\config.inc.php`.
+→ **Constat.** MariaDB écoutait sur `0.0.0.0:3306` avec `root` sans mot de passe, et phpMyAdmin
+  se connectait seul en `root` (`auth_type=config`, `AllowNoPassword=true`). Apache restait limité à
+  `Require local`, mais le port SQL était joignable depuis le réseau local.
+→ **`bind-address="127.0.0.1"`** dans `my.ini` : le serveur n'écoute plus que sur la boucle locale.
+→ **Mots de passe** posés sur les trois comptes `root` (`localhost`, `127.0.0.1`, `::1`), sur `pma`
+  (aléatoire, reporté dans `controlpass`) et sur le compte applicatif. Le compte applicatif n'est
+  plus joignable que depuis `localhost`.
+→ **phpMyAdmin** passe en `auth_type=cookie`, `AllowNoPassword=false`, `blowfish_secret` renouvelé.
+→ **Production (OVH)** : mot de passe de la base renouvelé et `config/db.config.php` retransféré par
+  SFTP. Le fichier reste commun aux deux environnements (voir D-CFG1) ; chaque bloc a ses identifiants.
+→ **Historique git vérifié** : `config/db.config.php` n'a jamais été commité, rien à purger.
+→ **Aucune valeur secrète n'est consignée** ici ni dans `doc/`. Procédure appliquée par un script
+  hors projet (`C:\xampp\private\`), mot de passe root saisi en masqué.
+
+**[2026-10-23] D-SEC2 — Table système `mysql.db` corrompue (#1034) et tablespace `dd_format_objet_magique`**
+→ **Constat.** phpMyAdmin « Comptes utilisateurs » renvoyait `#1034 Index corrompu dans la table 'db'`.
+  Le serveur plantait aussi sur `SHOW CREATE TABLE dd_format_objet_magique` (page 0 du fichier `.ibd`
+  illisible).
+→ **Réparation.** `mysql.db` (Aria) réparée serveur arrêté (`aria_chk -r`) puis `REPAIR TABLE`.
+  `dd_format_objet_magique` dumpée en mode `innodb_force_recovery=1`, supprimée puis recréée avec ses
+  deux lignes (`1 Auto (calculé)`, `2 Description libre`). Serveur relancé en mode normal.
+→ **Sauvegardes** avant intervention : copie des fichiers de données et dump de la base du projet,
+  dans `C:\xampp\private\sauvegardes-mysql-20261023\` (hors projet, hors OneDrive, hors git).
+→ **Non fait** : suppression des droits anonymes sur la base `test` dans `mysql.db` (refusée en
+  session, à faire manuellement si souhaité). Le dump de juin ne contient aucune ligne pour cette table, la
+  comparaison avec l'original n'a donc pas été possible.
