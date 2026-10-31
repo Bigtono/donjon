@@ -177,17 +177,19 @@ $urlSort = BASE_URL . '/include/ajax/detail-pp/sort.php';
                 $stats[] = ['Sorts mineurs', (string)(int)$m['sorts_mineurs'], ''];
               endif;
               if ($m['cadence_lib']):
-                $stats[] = ['Renouvellement', $m['cadence_lib'], ''];
+                $stats[] = ['Renouvellement', $m['cadence_lib'], '', 'texte'];
               endif;
               if ($m['domaines']):
-                $stats[] = ['Domaines', implode(', ', $m['domaines']), ''];
+                $stats[] = ['Domaines', implode(', ', $m['domaines']), '', 'texte'];
               endif;
         ?>
         <div class="per-magie__entete">
 
           <dl class="per-magie__stats">
-            <?php foreach ($stats as [$st_lbl, $st_val, $st_appoint]): ?>
-              <div class="per-magie__stat">
+            <?php foreach ($stats as $st): ?>
+              <?php [$st_lbl, $st_val, $st_appoint] = $st; ?>
+              <?php // 4e élément : champ de texte libre, qui doit pouvoir passer à la ligne ?>
+              <div class="per-magie__stat<?= ($st[3] ?? '') === 'texte' ? ' per-magie__stat--texte' : '' ?>">
                 <dt><?= h($st_lbl) ?></dt>
                 <dd>
                   <?= h($st_val) ?>

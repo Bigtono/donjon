@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-16 18:30 -->
+<!-- Mis à jour : 2026-10-31 11:05 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -159,7 +159,7 @@
 
 > 2026-08-28 : correctif de design hors phase — les **capacités raciales** de la fiche race
 > reprennent le titre des capacités de classe (`.race-detail__capacite*` groupé avec
-> `.classe-detail__capacite*` dans `css/compendium-modules.css`). Mêmes entrées
+> `.classe-detail__capacite*`, déplacés le 2026-10-30 dans `css/modules.css`). Mêmes entrées
 > `dd_capacites_speciales`, même lecture d'une fiche à l'autre. Aucun patch SQL. Voir §5 et
 > `DECISIONS_LOG.md` [2026-08-28] D-RS43.
 
@@ -473,6 +473,7 @@
 - [x] SP-RS6b — Moteur de liste rendu générique (6 clés optionnelles), Personnages migré, JS des listes promu dans `main.js`
 - [x] SP-RS6d — Ajustements de la liste et de la fiche personnage (gras, campagne détachée, en-tête en grille, Mode jeu repliable, Classes dans Identité, Combat côte à côte, Dons en deux colonnes)
 - [x] SP-RS6e — Bloc Compétences de la fiche rendu comme le bloc Dons (liste flex + ligne d'en-tête en gras)
+- [x] SP-RS7 — Fiche classe sur smartphone : style des capacités déplacé dans `modules.css` (chargé partout, dont Personnages), description aérée, lignes Compétences / Armes / Outils / Armures / Équipement « au fil du texte » (`.sort-detail__row--inline`), vue Magie : Renouvellement et Domaines se replient au lieu de déborder ; feuilles CSS et scripts versionnés par `assetUrl()` (le navigateur gardait l'ancien `modules.css`) ; table de progression : colonne Niv. fixe et indicateur de défilement (`.table-dd-scroll`), filet rouge de l'en-tête retiré
 - [ ] SP-RS6c — Unification complète : replier les 7 capacités d'`admin-liste.php` dans le moteur, migrer `admin/utilisateurs.php`, `admin/ressources.php` et `campagnes/index.php`, supprimer `admin-liste.php`, aligner le CSS du menu ⋮ de l'admin
 - [x] SP-RS5a — Collecte des relevés d'affichage : beacon, `dd_joueurs.j_last_*`, `dd_connexions`, écran admin
 - [ ] SP-RS5 — Arbitrage des paliers définitifs (991 / 768 / 479) à partir des relevés accumulés dans `dd_connexions`
@@ -1553,7 +1554,26 @@ libellé empilé au-dessus du texte : deux tailles de caractères sur la même f
 alignements. Ils sont désormais des `.sort-detail__row` du même bloc — libellé puis valeur sur la
 même ligne, comme "Dé de vie" ou "Magie". Les deux champs riches (TinyMCE) portent en plus
 `.sort-detail__value--html`, qui neutralise les marges de bord des `<p>` / `<ul>` générés
-(`css/compendium-modules.css`) : sans cela le contenu retombe sous le libellé.
+(`css/modules.css`) : sans cela le contenu retombe sous le libellé.
+
+**Lignes « au fil du texte » (2026-10-30, SP-RS7).** Le modificateur `.sort-detail__row--inline`
+(`css/modules.css`) rend une ligne en `display:block` : libellé et valeur deviennent des éléments
+en ligne, le texte reprend sous le libellé au lieu de rester dans une colonne étroite à sa droite.
+Le premier `<p>` d'une valeur `--html` reste en ligne, les suivants et les listes restent en blocs.
+Posé sur Compétences, Armes, Outils, Armures et Équipement de départ ; les lignes courtes gardent le
+flex. Le style des capacités (`.classe-detail__capacite*`, `.race-detail__capacite*`, y compris
+`-desc` : paragraphes, listes, `strong`) est dans `modules.css`, la fiche classe s'ouvrant aussi
+depuis Personnages où `compendium-modules.css` n'est pas chargé.
+
+**Tables qui défilent (2026-10-31, SP-RS7).** `.table-dd-scroll` (`css/modules.css`) enveloppe un
+`.table-dd-wrap` : colonne `.col-niv` en `position:sticky; left:0` (fonds opaques : la teinte des lignes
+est une couche `linear-gradient` posée sur `--clr-surface`), ombre sur son bord une fois la table
+défilée, et indicateur (dégradé + chevron animé sur le bord droit, éteint au bout et avec
+`prefers-reduced-motion`). Les états `.is-scrollable` / `.is-decale` / `.is-fin` sont posés par le
+script de fin de `js/main.js` (écoute `scroll` en capture, `MutationObserver` pour les fragments AJAX,
+`ResizeObserver` pour la mesure à l'ouverture du panneau). Adopté par les deux tables de la fiche
+classe ; les `.table-dd-wrap` seuls (Personnages) sont inchangés. Le titre de la table est hors de la
+zone qui défile.
 
 La ligne **"Niveaux"** (`cla_niveauMax`) n'est plus affichée en DD2024 — la progression y est
 commune à toutes les classes, la donnée n'y porte pas d'information. Elle reste affichée en DD3.5,

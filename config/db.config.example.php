@@ -6,6 +6,6 @@
 define('BASE_URL', '/donjon');
 define('DEV_MODE', false); // true en développement local
 
-define('DB_DSN',  'mysql:host=localhost;dbname=NOM_BASE;charset=utf8mb4');
+define('DB_DSN',  'mysql:host=127.0.0.1;dbname=NOM_BASE;charset=utf8mb4');
 define('DB_USER', 'UTILISATEUR_MYSQL');
 define('DB_PASS', 'MOT_DE_PASSE');

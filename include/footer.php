@@ -13,10 +13,10 @@
   // encore transmis ses caractéristiques d'affichage (cf. releveDevice()).
   var RELEVE_DEVICE = <?= (!empty($_SESSION['j_id']) && empty($_SESSION['releve_device'])) ? 'true' : 'false' ?>;
 </script>
-<script src="<?= BASE_URL ?>/js/main.js"></script>
-<script src="<?= BASE_URL ?>/js/tri-liste.js"></script>
+<script src="<?= assetUrl('js/main.js') ?>"></script>
+<script src="<?= assetUrl('js/tri-liste.js') ?>"></script>
 <?php if (!empty($js_module)): ?>
-  <script src="<?= BASE_URL ?>/js/<?= $js_module ?>.js"></script>
+  <script src="<?= assetUrl('js/' . $js_module . '.js') ?>"></script>
 <?php endif ?>
 
 </body>

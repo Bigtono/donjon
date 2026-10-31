@@ -11,6 +11,15 @@ function h(string $val): string {
   return htmlspecialchars($val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+// URL d'une feuille CSS ou d'un script du projet ("css/main.css"), suffixée de
+// la date de modification du fichier : le navigateur recharge dès qu'il change,
+// sans qu'un rechargement forcé soit nécessaire après un déploiement.
+function assetUrl(string $chemin): string {
+  $fichier = __DIR__ . '/../' . $chemin;
+  $v = is_file($fichier) ? (int)filemtime($fichier) : 0;
+  return h(BASE_URL . '/' . $chemin . ($v ? '?v=' . $v : ''));
+}
+
 // Nettoie un entier venant de l'input utilisateur
 function intParam($val, int $default = 0): int {
   return (int)($val ?? $default);

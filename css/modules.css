@@ -1039,7 +1039,7 @@
    - Pas de bordures de cellule
    - En-têtes (<th>) : gras, fond surface-alt, couleur texte standard
    - En-têtes de groupe (thead-groupes, ex: "Nombre de sorts par jour") :
-     fond surface-alt, séparateur accentué à gauche du groupe sorts
+     fond surface-alt, sans séparateur
    - Lignes tbody : alternance gris perle (impair) / transparent (pair)
    - Scroll horizontal sur petits écrans
    - Compatible deux thèmes (toutes couleurs via var(--clr-*))
@@ -1064,6 +1064,80 @@
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* ---- Table qui défile : colonne Niv. fixe + indicateur (SP-RS7) ----
+   .table-dd-scroll enveloppe un .table-dd-wrap. Le script de main.js lui pose
+   .is-scrollable (la table déborde), .is-decale (elle a défilé) et .is-fin
+   (bout atteint). Ces états ne sont posés que par lui : sans JS la table défile
+   quand même, simplement sans indicateur. */
+.table-dd-scroll {
+  position: relative;
+}
+
+/* Colonne Niv. : reste visible pendant le défilement. Les fonds doivent être
+   opaques pour masquer les colonnes qui passent dessous : la teinte des lignes
+   (rgba) est donc posée en couche au-dessus de la couleur de surface. */
+.table-dd-scroll .table-dd .col-niv {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--clr-surface);
+}
+.table-dd-scroll .table-dd thead .col-niv {
+  background: var(--clr-surface-alt);
+}
+.table-dd-scroll .table-dd tbody tr:nth-child(odd) td.col-niv {
+  background: linear-gradient(rgba(128, 128, 128, .08), rgba(128, 128, 128, .08)), var(--clr-surface);
+}
+.table-dd-scroll .table-dd tbody tr:hover td.col-niv {
+  background: linear-gradient(rgba(128, 128, 128, .16), rgba(128, 128, 128, .16)), var(--clr-surface);
+}
+
+/* Ombre sur le bord de la colonne fixe, une fois la table défilée */
+.table-dd-scroll.is-decale .table-dd .col-niv {
+  box-shadow: 4px 0 5px -3px rgba(0, 0, 0, .3);
+}
+
+/* Indicateur : dégradé sur le bord droit + chevron, tant qu'il reste du
+   contenu à découvrir. Ne capte aucun clic. */
+.table-dd-scroll::before,
+.table-dd-scroll::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s;
+  z-index: 2;
+}
+.table-dd-scroll::before {
+  content: '';
+  width: 40px;
+  background: linear-gradient(to right, transparent, var(--clr-surface));
+}
+.table-dd-scroll::after {
+  content: '\203A';
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--clr-accent);
+  animation: table-dd-indice 1.4s ease-in-out infinite;
+}
+.table-dd-scroll.is-scrollable:not(.is-fin)::before,
+.table-dd-scroll.is-scrollable:not(.is-fin)::after {
+  opacity: 1;
+}
+@keyframes table-dd-indice {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .table-dd-scroll::after { animation: none; }
 }
 
 /* Cellules générales */
@@ -1095,9 +1169,9 @@
   padding: 2px 6px;
 }
 
-/* Séparateur visuel avant le groupe sorts */
+/* Libellé du groupe sorts — sans filet : le trait accentué qui le précédait
+   ne se prolongeait pas dans le corps du tableau et ne marquait que l'en-tête. */
 .table-dd .th-groupe-sorts {
-  border-left: 2px solid var(--clr-accent);
   font-weight: 600;
   color: var(--clr-text);
 }
@@ -1136,16 +1210,10 @@
   min-width: 20px;
 }
 
-/* Séparateur accentué avant la première colonne sorts */
-.table-dd td.col-sort:first-of-type,
-.table-dd th.col-sort:first-of-type {
-  border-left: 2px solid var(--clr-accent);
-}
-
 /* Colonne « Sorts par jour » d'une prestige qui fait progresser le NLS
-   (SP-MA6) : un libellé court par niveau, avec le même séparateur accentué. */
+   (SP-MA6) : un libellé court par niveau, sans séparateur (retiré le 2026-10-31,
+   comme celui de l'en-tête de groupe). */
 .table-dd .col-nls {
-  border-left: 2px solid var(--clr-accent);
   white-space: nowrap;
 }
 /* Sur téléphone, le libellé passe sur deux lignes plutôt que d'élargir la
@@ -1695,6 +1763,119 @@
   padding-left: var(--sp-lg);
 }
 
+/* Ligne « au fil du texte » (fiche classe : compétences, armes, armures…) :
+   le libellé n'occupe pas une colonne, la valeur le suit sur la même ligne et
+   reprend sous lui quand elle déborde. Le premier <p> d'un champ riche reste
+   en ligne pour la même raison ; les suivants et les listes restent en blocs. */
+.sort-detail__row--inline {
+  display: block;
+}
+
+.sort-detail__row--inline > .sort-detail__label,
+.sort-detail__row--inline > .sort-detail__value {
+  display: inline;
+}
+
+.sort-detail__row--inline > .sort-detail__label {
+  margin-right: 0.5em;
+}
+
+.sort-detail__row--inline > .sort-detail__value--html > p:first-child {
+  display: inline;
+}
+
+/* ============================================================
+   DETAIL-PP — CLASSE / RACE : capacités spéciales
+   Pas de libellé de section : chaque titre « Niveau X : Nom » ouvre son bloc.
+   Les capacités raciales partagent le même jeu de règles : ce sont les mêmes
+   entrées (dd_capacites_speciales), elles doivent se lire de la même façon
+   d'une fiche à l'autre. Ici et non dans compendium-modules.css (2026-10-30) :
+   la fiche classe s'ouvre aussi depuis Personnages.
+   ============================================================ */
+
+.classe-detail__capacites,
+.race-detail__capacites {
+  margin-top: var(--sp-lg);
+}
+
+/* L'air entre deux capacités vient du margin-top du suivant, jamais d'un
+   margin-bottom : la dernière ne creuse donc pas de vide avant le pied de fiche. */
+.classe-detail__capacite + .classe-detail__capacite,
+.race-detail__capacite + .race-detail__capacite {
+  margin-top: var(--sp-lg);
+}
+
+.classe-detail__capacite-nom,
+.race-detail__capacite-nom {
+  /* +20% sur le corps de texte de la fiche (1rem), accent du nom de la classe */
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--clr-accent-2);
+  margin-bottom: var(--sp-xs);
+}
+
+/* Le type de capacité reste une mention secondaire : il ne suit pas le
+   grossissement du titre qui le porte. */
+.classe-detail__capacite-nom .cap-type,
+.race-detail__capacite-nom .cap-type {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--clr-text-muted);
+}
+
+/* Texte de la capacité : le reset global (margin/padding à 0) collait les
+   paragraphes et retirait le retrait des listes. */
+.classe-detail__capacite-desc,
+.race-detail__capacite-desc {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--clr-text);
+  overflow-wrap: anywhere;
+}
+
+.classe-detail__capacite-desc p,
+.race-detail__capacite-desc p {
+  margin: 0 0 var(--sp-sm);
+}
+
+.classe-detail__capacite-desc ul,
+.classe-detail__capacite-desc ol,
+.race-detail__capacite-desc ul,
+.race-detail__capacite-desc ol {
+  margin: 0 0 var(--sp-sm);
+  padding-left: var(--sp-lg);
+}
+
+.classe-detail__capacite-desc strong,
+.race-detail__capacite-desc strong {
+  font-weight: 700;
+}
+
+.classe-detail__capacite-desc > :last-child,
+.race-detail__capacite-desc > :last-child {
+  margin-bottom: 0;
+}
+
+/* Sous 992px le panneau passe en feuille plein écran (SP-RS4) : la hauteur
+   utile devient la ressource rare. On garde une respiration entre capacités,
+   mais réduite, et un titre à peine plus grand que le texte pour ne pas
+   pousser les noms longs sur trois lignes. */
+@media (max-width: 991px) {
+
+  .classe-detail__capacites,
+  .race-detail__capacites,
+  .classe-detail__capacite + .classe-detail__capacite,
+  .race-detail__capacite + .race-detail__capacite {
+    margin-top: var(--sp-md);
+  }
+
+  .classe-detail__capacite-nom,
+  .race-detail__capacite-nom {
+    font-size: 1.1rem;
+  }
+
+}
+
 .sort-detail__description {
   margin: 1rem 0;
   font-size: 0.9rem;
@@ -1805,7 +1986,6 @@
   border-bottom: none;
 }
 .sort-detail__description table .th-groupe-sorts {
-  border-left: 2px solid var(--clr-accent);
   font-weight: 600;
   color: var(--clr-text);
 }

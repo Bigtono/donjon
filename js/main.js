@@ -1110,3 +1110,59 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e.target.classList && e.target.classList.contains('comp-check')) compMajBulkBar();
   });
 });
+
+
+// ============================================================
+// TABLES QUI DÉFILENT (SP-RS7) — .table-dd-scroll > .table-dd-wrap
+// Pose sur le conteneur .is-scrollable (la table déborde), .is-decale (elle a
+// défilé) et .is-fin (bout atteint) ; le CSS en tire l'indicateur de défilement
+// et l'ombre de la colonne Niv. fixe. Fonctionne pour les tables injectées en
+// AJAX (détail-pp) : un MutationObserver repère les nouvelles, un
+// ResizeObserver les remesure à l'ouverture du panneau ou au changement de taille.
+// ============================================================
+(function () {
+  var observes = new WeakSet();
+  var planifie = false;
+  var ro = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(function () { majTablesDefilantes(); })
+    : null;
+
+  function majTable(scroll) {
+    var wrap = scroll.querySelector('.table-dd-wrap');
+    if (!wrap) return;
+    var reste = wrap.scrollWidth - wrap.clientWidth;
+    scroll.classList.toggle('is-scrollable', reste > 2);
+    scroll.classList.toggle('is-decale', wrap.scrollLeft > 1);
+    scroll.classList.toggle('is-fin', wrap.scrollLeft >= reste - 2);
+    if (ro && !observes.has(wrap)) {
+      observes.add(wrap);
+      ro.observe(wrap);
+      var table = wrap.querySelector('table');
+      if (table) ro.observe(table);
+    }
+  }
+
+  function majTablesDefilantes() {
+    document.querySelectorAll('.table-dd-scroll').forEach(majTable);
+  }
+
+  function planifier() {
+    if (planifie) return;
+    planifie = true;
+    requestAnimationFrame(function () {
+      planifie = false;
+      majTablesDefilantes();
+    });
+  }
+
+  // scroll ne remonte pas : écoute en phase de capture.
+  document.addEventListener('scroll', function (e) {
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('table-dd-wrap') && t.parentNode) {
+      majTable(t.parentNode);
+    }
+  }, true);
+  window.addEventListener('resize', planifier);
+  new MutationObserver(planifier).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('DOMContentLoaded', planifier);
+})();

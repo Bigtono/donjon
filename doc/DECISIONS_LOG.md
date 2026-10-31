@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-23 13:55 -->
+<!-- Mis à jour : 2026-10-31 11:20 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -6798,3 +6798,72 @@ Fichiers hors projet : `C:\xampp\mysql\bin\my.ini`, `C:\xampp\phpMyAdmin\config.
 → **Non fait** : suppression des droits anonymes sur la base `test` dans `mysql.db` (refusée en
   session, à faire manuellement si souhaité). Le dump de juin ne contient aucune ligne pour cette table, la
   comparaison avec l'original n'a donc pas été possible.
+
+**[2026-10-30] D-RS65 — SP-RS7 : fiche classe lisible sur smartphone**
+→ **Capacités spéciales.** Les règles `.classe-detail__capacite*` / `.race-detail__capacite*` quittent
+  `compendium-modules.css` pour `modules.css` (règle permanente du 2026-06-14) : la fiche classe s'ouvre
+  aussi depuis Personnages, où le titre perdait son gras et son espacement. `.classe-detail__capacite-desc`
+  n'avait aucune règle : le reset global collait les `<p>` et retirait le retrait des `<ul>`. Elle reçoit
+  marges de paragraphe, retrait de liste, `strong` en gras et `overflow-wrap`.
+→ **Libellé sans colonne.** `.sort-detail__value{flex:1}` laissait la valeur dans une colonne à droite du
+  libellé. Nouveau modificateur `.sort-detail__row--inline` (nom neuf, aucun effet sur les seize autres
+  fiches qui partagent `.sort-detail__row`), appliqué dans `classe.php` à Compétences, Armes & armures,
+  Outils, Armures et Équipement de départ. Le modificateur `--full`, qui n'avait aucune règle, est retiré de
+  cette dernière ligne.
+→ **« Renouvellement » qui déborde (DD2024).** La ligne de la fiche classe tenait dans le cadre (mesure à
+  375 px). Le défaut était dans la **vue Magie du personnage** : `.per-magie__stat dd{white-space:nowrap}`
+  sous 992 px rendait « Repos long, changement libre » insécable (316 px sur 326 disponibles à 375 px,
+  débordement à 360 px et moins ; même risque pour « Domaines »). Les deux champs de texte libre portent
+  maintenant `.per-magie__stat--texte` et se replient ; les valeurs courtes restent insécables.
+→ **Non traité.** Les feuilles CSS sont chargées sans paramètre de version : un navigateur qui a gardé
+  l'ancien `modules.css` ne voit pas ces changements avant un rechargement forcé.
+
+**[2026-10-31] D-CFG3 — Connexion locale à MariaDB par `127.0.0.1` au lieu de `localhost`**
+Fichiers : `config/db.config.php` (bloc local seulement), `config/db.config.example.php`.
+→ **Constat.** Depuis la mise à jour Windows du 2026-10-29 (26H2, build 26300), toute page PHP locale
+  mettait environ 2 s à répondre, contre quelques millisecondes pour les fichiers statiques. Mesure
+  isolée : `new PDO('mysql:host=localhost')` 2 033 ms, `host=127.0.0.1` 15 ms.
+→ **Cause.** `localhost` se résout désormais en `::1` (AAAA) avant `127.0.0.1`. MariaDB n'écoute que sur
+  `127.0.0.1` (`bind-address`, D-SEC1) : le pilote tente l'IPv6, attend son délai, puis se replie sur
+  l'IPv4. Le délai frappait chaque connexion, donc chaque page.
+→ **Décision.** Le DSN local vise `host=127.0.0.1`. Le bloc OVH n'est pas touché, le fichier reste
+  commun aux deux environnements (D-CFG1). Le modèle `db.config.example.php` suit.
+→ **Compte applicatif.** Restreint à `localhost` par D-SEC1, il reste accepté : la connexion TCP depuis
+  `127.0.0.1` est rattachée à l'hôte `localhost` (`CURRENT_USER()` = `maikasteiymaika@localhost`).
+→ **Écarté.** Faire écouter MariaDB aussi sur `::1`, ou modifier le fichier `hosts` : deux réglages
+  système hors projet, pour un gain identique.
+→ **Résultat.** Pages locales mesurées entre 8 et 23 ms.
+
+**[2026-10-31] D-RS66 — SP-RS7 : feuilles CSS et scripts versionnés (cache navigateur)**
+→ **Constat.** Une fiche classe ouverte en popup depuis la fiche personnage s'affichait sans le style des
+  capacités, alors que le CSS livré était bon (vérifié : titre en 700, accent, `p` espacés). Le navigateur
+  servait l'ancien `modules.css` : les feuilles étaient chargées sans paramètre de version.
+→ **Décision.** Nouvelle fonction `assetUrl($chemin)` (`include/helpers.php`) : URL en `BASE_URL`, suffixée
+  de `?v=<filemtime>`. Utilisée par `header.php` (main, modules, module CSS) et `footer.php` (main.js,
+  tri-liste.js, module JS). Plus de rechargement forcé après une modification ou un déploiement.
+→ **Reste hors périmètre.** Les CSS/JS chargés ailleurs (ex. `admin/deploiement/`) ne sont pas versionnés.
+
+**[2026-10-31] D-RS67 — SP-RS7 : filet rouge retiré de l'en-tête de la table de progression**
+→ Le trait accentué venait de `border-left` sur `.th-groupe-sorts` (ligne « Nombre de sorts par jour »),
+  seul de son espèce : le corps du tableau n'en avait pas. Supprimé dans `.table-dd` et dans
+  `.sort-detail__description table`, ainsi que les règles `.col-sort:first-of-type`, qui ne s'appliquaient
+  jamais (`:first-of-type` désigne la colonne Niv., pas la première colonne de sorts). La colonne
+  « Sorts par jour » des prestiges (`.col-nls`) garde son filet.
+
+**[2026-10-31] D-RS68 — SP-RS7 : colonne Niv. fixe et indicateur de défilement sur la table de progression**
+→ **Constat.** Sur smartphone la table d'un lanceur (Magicien DD2024) fait 593 px pour 327 visibles : le
+  lecteur perd la colonne Niv. dès qu'il défile et rien n'indique que la table déborde.
+→ **Décision.** Nouveau conteneur `.table-dd-scroll` : colonne Niv. en `sticky` (fonds opaques), ombre une
+  fois décalée, dégradé + chevron sur le bord droit tant qu'il reste du contenu, éteints au bout. Script
+  générique dans `main.js` (pas de code par fiche). La cellule vide de l'en-tête de groupe est scindée
+  (`col-niv` + reste) pour que la colonne reste pleine sur les deux lignes d'en-tête. Le titre sort de la
+  zone qui défile (il glissait avec la table).
+→ **Écarté.** Ligne de texte « Faire défiler » : plus explicite mais ajoute du texte à la fiche ; à
+  reprendre si le chevron ne suffit pas à l'usage.
+→ **Non vérifié.** Table « Sorts connus » (DD3.5, répertoire) : même gabarit, structure validée par
+  analyse du HTML mais aucune classe concernée n'a été ouverte en mobile ; thème sombre non regardé.
+
+**[2026-10-31] D-RS69 — SP-RS7 : filet de la colonne « Sorts par jour » des prestiges retiré**
+→ Complète D-RS67, qui laissait `.col-nls` (classes de prestige qui font progresser le NLS) avec son
+  `border-left` accentué : même défaut, même suppression. Plus aucun filet rouge dans la table de
+  progression. La mention « garde son filet » de D-RS67 est caduque.

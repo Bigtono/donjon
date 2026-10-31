@@ -1553,6 +1553,17 @@
     gap: var(--sp-xs);
   }
   .per-magie__stat dd { white-space: nowrap; }
+  /* Texte libre (Renouvellement, Domaines) : trop long pour rester insécable
+     sur un petit écran, il se replie dans la largeur de la rangée. */
+  .per-magie__stat--texte {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .per-magie__stat--texte dd {
+    white-space: normal;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 }
 
 .per-magie__pacte { margin: 0 0 var(--sp-sm); }

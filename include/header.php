@@ -43,10 +43,10 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= $page_title ?></title>
   <link rel="icon" type="image/png" href="<?= BASE_URL ?>/img/logo_codex.png">
-  <link rel="stylesheet" href="<?= BASE_URL ?>/css/main.css">
-  <link rel="stylesheet" href="<?= BASE_URL ?>/css/modules.css">
+  <link rel="stylesheet" href="<?= assetUrl('css/main.css') ?>">
+  <link rel="stylesheet" href="<?= assetUrl('css/modules.css') ?>">
   <?php if (!empty($css_module)): ?>
-    <link rel="stylesheet" href="<?= BASE_URL ?>/css/<?= $css_module ?>-modules.css">
+    <link rel="stylesheet" href="<?= assetUrl('css/' . $css_module . '-modules.css') ?>">
   <?php endif ?>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <meta name="csrf-token" content="<?= csrfToken() ?>">
