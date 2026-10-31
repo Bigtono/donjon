@@ -24,6 +24,12 @@
 
   <p class="camp-outils__titre">Outils</p>
 
+  <?php // Notes du MJ de la campagne (SP-NO3) ?>
+  <a class="camp-outil" href="<?= BASE_URL ?>/campagnes/notes.php?f_campagne=<?= (int)($outils_camp_id ?? 0) ?>">
+    <i class="fa fa-sticky-note" aria-hidden="true"></i>
+    Notes
+  </a>
+
   <button type="button" class="camp-outil camp-outil--inactif" disabled
           title="Écran du MJ — en cours de développement (SP-TB8)">
     <i class="fa fa-chalkboard" aria-hidden="true"></i>

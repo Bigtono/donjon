@@ -159,12 +159,13 @@ $drapeauxNls = [
 // ============================================================
 
 // Structure : cap_key → { cap_id, cap_nom, cap_description, cap_type, affectations[] }
-// affectations[] : [ { cc_niveau, cc_precision } ]
+// affectations[] : [ { cc_niveau, cc_precision, cc_nb_choix } ]
 $capacitesInit = [];
 if ($id > 0):
   $stmt_cap = $db->prepare('
     SELECT cap.cap_id, cap.cap_nom, cap.cap_description, cap.cap_type,
-           cc.cc_niveau, cc.cc_precision
+           cap.cap_choix_mode, cap.cap_choix_dado_id, cap.cap_choix_guerrier,
+           cc.cc_niveau, cc.cc_precision, cc.cc_nb_choix
     FROM   dd_classe_capacite cc
     JOIN   dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
     WHERE  cc.cc_cla_id = ?
@@ -181,16 +182,26 @@ if ($id > 0):
         'cap_nom'         => $row['cap_nom'],
         'cap_description' => $row['cap_description'] ?? '',
         'cap_type'        => $row['cap_type'] ?? '',
+        'cap_choix_mode'    => $row['cap_choix_mode'] ?? '',
+        'cap_choix_dado_id' => (int)($row['cap_choix_dado_id'] ?? 0),
+        'cap_choix_guerrier' => (int)$row['cap_choix_guerrier'],
         'affectations'    => [],
       ];
     endif;
     $tmpCaps[$capId]['affectations'][] = [
       'cc_niveau'    => (int)$row['cc_niveau'],
       'cc_precision' => $row['cc_precision'] ?? '',
+      'cc_nb_choix'  => (int)$row['cc_nb_choix'],
     ];
   endwhile;
   $capacitesInit = array_values($tmpCaps);
 endif;
+
+// Catégories de dons du ruleset : alimentent le select « catégorie proposée »
+// d'une capacité à choix de don (SP-CH1).
+$stmt_dado = $db->prepare('SELECT dado_id, dado_nom FROM dd_data_don WHERE dado_ruleset_var_id = ? ORDER BY dado_nom');
+$stmt_dado->execute([$ruleset_id]);
+$categoriesDon = $stmt_dado->fetchAll();
 
 // ============================================================
 // Listes de référence
@@ -919,6 +930,30 @@ $classesParentes = $stmt_par->fetchAll();
              placeholder="Ext, Mag, Sur…" style="width:140px;">
     </div>
 
+    <?php // Capacité à choix (SP-CH1) : nature du choix que le joueur saisira sur sa fiche.
+          // Le nombre de choix se règle par niveau, dans le tableau des affectations. ?>
+    <div class="form-group">
+      <label for="ov_cap_choix_mode">Choix du joueur</label>
+      <select id="ov_cap_choix_mode" onchange="classeForm.majChoixMode(true)">
+        <option value="">Aucun</option>
+        <option value="texte">Texte libre</option>
+        <option value="don">Un don</option>
+      </select>
+      <select id="ov_cap_choix_dado" style="display:none;">
+        <option value="0">Toutes les catégories de dons</option>
+        <?php foreach ($categoriesDon as $cd): ?>
+          <option value="<?= (int)$cd['dado_id'] ?>"><?= h($cd['dado_nom']) ?></option>
+        <?php endforeach ?>
+      </select>
+      <?php if ($ruleset === 'DD3.5'): ?>
+        <label id="ov_cap_choix_guerrier_lbl" class="form-label--checkbox" style="display:none;">
+          <input type="checkbox" id="ov_cap_choix_guerrier">
+          Limiter aux dons de guerrier
+          <span class="form-hint">(avec une catégorie : dons de guerrier <em>ou</em> de cette catégorie)</span>
+        </label>
+      <?php endif ?>
+    </div>
+
     <div class="form-group">
       <label for="ov_cap_description">Description<?= aideIcone('texte-parsers') ?></label>
       <textarea id="ov_cap_description" rows="5" style="width:100%;"></textarea>
@@ -938,6 +973,8 @@ $classesParentes = $stmt_par->fetchAll();
           <tr>
             <th style="text-align:left; padding:2px 6px; border-bottom:1px solid #ccc;">Niveau</th>
             <th style="text-align:left; padding:2px 6px; border-bottom:1px solid #ccc;">Précision</th>
+            <th class="ov-affect-choix" style="text-align:left; padding:2px 6px; border-bottom:1px solid #ccc;"
+                title="Nombre de choix accordés à ce niveau">Choix</th>
             <th style="width:32px;"></th>
           </tr>
         </thead>
@@ -1153,6 +1190,10 @@ $classesParentes = $stmt_par->fetchAll();
           '<input type="text" value="' + esc(a.cc_precision || '') + '"' +
           ' style="width:100%;" placeholder="ex: 3/jour" data-affect-precision data-idx="' + idx + '">' +
         '</td>' +
+        '<td class="ov-affect-choix" style="padding:2px 4px;">' +
+          '<input type="number" min="0" max="9" value="' + int(a.cc_nb_choix) + '"' +
+          ' style="width:48px;" data-affect-choix data-idx="' + idx + '">' +
+        '</td>' +
         '<td style="padding:2px 4px; text-align:center;">' +
           '<button type="button" class="btn btn-sm btn-danger"' +
             ' onclick="classeForm.supprimerAffectation(' + idx + ')">' +
@@ -1163,6 +1204,26 @@ $classesParentes = $stmt_par->fetchAll();
     });
   }
 
+  // Capacité à choix (SP-CH1) : la colonne « Choix » et le select de catégorie
+  // n'ont de sens que si la capacité a un mode de choix.
+  // Appelée depuis le select (parUtilisateur = true) : si aucun niveau n'accorde
+  // encore de choix, on en propose un par niveau plutôt que de laisser des 0 qui
+  // feraient croire à une capacité sans emplacement sur la fiche.
+  function majChoixMode(parUtilisateur) {
+    const mode = document.getElementById('ov_cap_choix_mode').value;
+    document.getElementById('ov_cap_choix_dado').style.display = (mode === 'don') ? '' : 'none';
+    const lblGuerrier = document.getElementById('ov_cap_choix_guerrier_lbl');
+    if (lblGuerrier) lblGuerrier.style.display = (mode === 'don') ? '' : 'none';
+    document.querySelectorAll('#classe-cap-overlay .ov-affect-choix').forEach(function(el) {
+      el.style.display = mode ? '' : 'none';
+    });
+    if (parUtilisateur === true && mode) {
+      const champs = document.querySelectorAll('#ov-affect-tbody [data-affect-choix]');
+      const tousNuls = Array.prototype.every.call(champs, function(c) { return int(c.value) === 0; });
+      if (tousNuls) champs.forEach(function(c) { c.value = 1; });
+    }
+  }
+
   function int(v) { return parseInt(v, 10) || 0; }
 
   function lireAffectations() {
@@ -1171,8 +1232,9 @@ $classesParentes = $stmt_par->fetchAll();
     rows.forEach(function(row) {
       const niv  = int(row.querySelector('[data-affect-niveau]')?.value);
       const prec = row.querySelector('[data-affect-precision]')?.value || '';
+      const nbc  = Math.max(0, Math.min(9, int(row.querySelector('[data-affect-choix]')?.value)));
       if (niv >= 1 && niv <= NIVEAU_MAX) {
-        result.push({ cc_niveau: niv, cc_precision: prec });
+        result.push({ cc_niveau: niv, cc_precision: prec, cc_nb_choix: nbc });
       }
     });
     // Dédoublonner et trier
@@ -1200,6 +1262,10 @@ $classesParentes = $stmt_par->fetchAll();
         '<input type="text" style="width:100%;" placeholder="ex: 3/jour"' +
         ' data-affect-precision data-idx="' + idx + '">' +
       '</td>' +
+      '<td class="ov-affect-choix" style="padding:2px 4px;">' +
+        '<input type="number" min="0" max="9" value="1" style="width:48px;"' +
+        ' data-affect-choix data-idx="' + idx + '">' +
+      '</td>' +
       '<td style="padding:2px 4px; text-align:center;">' +
         '<button type="button" class="btn btn-sm btn-danger"' +
           ' onclick="classeForm.supprimerAffectation(' + idx + ')">' +
@@ -1207,6 +1273,7 @@ $classesParentes = $stmt_par->fetchAll();
         '</button>' +
       '</td>';
     if (tbody) tbody.appendChild(tr);
+    majChoixMode();
   }
 
   function supprimerAffectation(idx) {
@@ -1235,7 +1302,12 @@ $classesParentes = $stmt_par->fetchAll();
     const desc = cap.cap_description || '';
     document.getElementById('ov_cap_description').value = desc;
 
+    document.getElementById('ov_cap_choix_mode').value = cap.cap_choix_mode || '';
+    document.getElementById('ov_cap_choix_dado').value = String(cap.cap_choix_dado_id || 0);
+    const cbGuerrier = document.getElementById('ov_cap_choix_guerrier');
+    if (cbGuerrier) cbGuerrier.checked = !!cap.cap_choix_guerrier;
     rendreAffectations(cap.affectations || []);
+    majChoixMode();
 
     document.getElementById('classe-cap-overlay').style.display = 'block';
 
@@ -1271,7 +1343,7 @@ $classesParentes = $stmt_par->fetchAll();
   function nouvelleCapacite() {
     overlayKey = null;
     ouvrirOverlay('Nouvelle capacité spéciale', {
-      cap_nom: '', cap_type: '', cap_description: '', affectations: [],
+      cap_nom: '', cap_type: '', cap_description: '', cap_choix_mode: '', cap_choix_dado_id: 0, affectations: [],
     });
   }
 
@@ -1300,6 +1372,16 @@ $classesParentes = $stmt_par->fetchAll();
 
     const type   = document.getElementById('ov_cap_type').value.trim();
     const affects = lireAffectations();
+    const choixMode = document.getElementById('ov_cap_choix_mode').value;
+    const choixDado = (choixMode === 'don') ? int(document.getElementById('ov_cap_choix_dado').value) : 0;
+    const cbG = document.getElementById('ov_cap_choix_guerrier');
+    const choixGuerrier = (choixMode === 'don' && cbG && cbG.checked) ? 1 : 0;
+    // Sans mode de choix, aucun niveau ne peut accorder de choix.
+    if (!choixMode) affects.forEach(function(a) { a.cc_nb_choix = 0; });
+    // Un mode sans aucun choix accordé n'ouvre aucun emplacement sur la fiche.
+    if (choixMode && affects.length && affects.every(function(a) { return !a.cc_nb_choix; })) {
+      if (!confirm('Aucun niveau n\'accorde de choix (colonne « Choix » à 0) : la fiche n\'affichera aucun emplacement. Valider quand même ?')) return;
+    }
 
     if (overlayKey === null) {
       // Nouvelle capacité
@@ -1310,6 +1392,9 @@ $classesParentes = $stmt_par->fetchAll();
         cap_nom:         nom,
         cap_description: desc,
         cap_type:        type,
+        cap_choix_mode:    choixMode,
+        cap_choix_dado_id: choixDado,
+        cap_choix_guerrier: choixGuerrier,
         affectations:    affects,
       });
     } else {
@@ -1319,6 +1404,9 @@ $classesParentes = $stmt_par->fetchAll();
         cap.cap_nom         = nom;
         cap.cap_description = desc;
         cap.cap_type        = type;
+        cap.cap_choix_mode    = choixMode;
+        cap.cap_choix_dado_id = choixDado;
+        cap.cap_choix_guerrier = choixGuerrier;
         cap.affectations    = affects;
       }
     }
@@ -1350,12 +1438,16 @@ $classesParentes = $stmt_par->fetchAll();
         cap_nom:         cap.cap_nom,
         cap_description: cap.cap_description || '',
         cap_type:        cap.cap_type || '',
+        cap_choix_mode:    cap.cap_choix_mode || '',
+        cap_choix_dado_id: cap.cap_choix_dado_id || 0,
+        cap_choix_guerrier: cap.cap_choix_guerrier || 0,
       });
       (cap.affectations || []).forEach(function(a) {
         affects.push({
           cap_key:      cap.cap_key,
           cc_niveau:    a.cc_niveau,
           cc_precision: a.cc_precision || '',
+          cc_nb_choix:  a.cc_nb_choix || 0,
         });
       });
     });
@@ -1410,6 +1502,7 @@ $classesParentes = $stmt_par->fetchAll();
     supprimerCapacite:   supprimerCapacite,
     ajouterAffectation:  ajouterAffectation,
     supprimerAffectation: supprimerAffectation,
+    majChoixMode:        majChoixMode,
     soumettre:           soumettre,
   };
 

@@ -21,11 +21,13 @@ endif;
 
 $stmt = $db->prepare('
   SELECT comp.*,
+         mere.comp_nom AS mere_nom,
          car.car_nom,
          res.res_nom,
          res.res_j_id,
          var.var_valeur AS ruleset_label
   FROM   dd_competences comp
+  LEFT JOIN dd_competences      mere ON mere.comp_id = comp.comp_parent_id
   LEFT JOIN dd_caracteristiques car ON car.car_id = comp.comp_car_id
   LEFT JOIN dd_ressources       res ON res.res_id  = comp.comp_res_id
   LEFT JOIN dd_variables        var ON var.var_id  = comp.comp_ruleset_var_id
@@ -38,6 +40,21 @@ if (!$competence):
   http_response_code(404);
   echo '<p class="erreur">Compétence introuvable.</p>';
   exit;
+endif;
+
+// Domaines d'une compétence mère (SP-CD) : sources actives seulement
+$domaines = [];
+if ($competence['comp_parent_id'] === null):
+  $res_ids = getActiveResIds($db, (int)$competence['comp_ruleset_var_id']);
+  $sql     = 'SELECT comp_id, comp_nom FROM dd_competences WHERE comp_parent_id = ?';
+  $params  = [$id];
+  if (!empty($res_ids)):
+    $sql   .= ' AND comp_res_id IN (' . resIdsPlaceholders($res_ids) . ')';
+    $params = array_merge($params, $res_ids);
+  endif;
+  $stmt = $db->prepare($sql . ' ORDER BY comp_nom');
+  $stmt->execute($params);
+  $domaines = $stmt->fetchAll();
 endif;
 ?>
 
@@ -72,6 +89,30 @@ endif;
       </p>
     <?php endif ?>
   </div>
+
+  <?php if ($competence['comp_parent_id'] !== null): ?>
+    <div class="sort-detail__row">
+      <span class="sort-detail__label">Domaine de</span>
+      <span class="sort-detail__value">
+        <span class="lien-sub"
+              onclick="naviguerDetailPP('<?= BASE_URL ?>/include/ajax/detail-pp/competence.php', {id:<?= (int)$competence['comp_parent_id'] ?>})"
+              title="Voir la compétence mère">
+          <?= h($competence['mere_nom'] ?? '') ?>
+        </span>
+      </span>
+    </div>
+  <?php elseif (!empty($domaines)): ?>
+    <div class="sort-detail__row">
+      <span class="sort-detail__label">Domaines</span>
+      <span class="sort-detail__value">
+        <?php foreach ($domaines as $i => $d): ?>
+          <?= $i > 0 ? '·' : '' ?>
+          <span class="lien-sub"
+                onclick="naviguerDetailPP('<?= BASE_URL ?>/include/ajax/detail-pp/competence.php', {id:<?= (int)$d['comp_id'] ?>})"><?= h($d['comp_nom']) ?></span>
+        <?php endforeach ?>
+      </span>
+    </div>
+  <?php endif ?>
 
   <!-- Description -->
   <?php if ($competence['comp_description']): ?>

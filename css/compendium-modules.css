@@ -122,6 +122,27 @@
   }
 }
 
+/* Données techniques d'un don DD3.5 (SP-DO) : bloc replié, huit petits champs. */
+.modif-technique > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.modif-technique__grille {
+  grid-template-columns: repeat(4, 1fr);
+  margin: var(--sp-sm) 0;
+}
+
+.modif-technique__grille input {
+  width: 100%;
+}
+
+@media (max-width: 991px) {
+  .modif-technique__grille {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* Checkboxes composantes */
 .modif-checks {
   display: flex;

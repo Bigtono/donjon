@@ -5,7 +5,7 @@
 // Sinon      → redirige avec flash message SESSION
 //
 // POST requis :
-//   entite  — 'utilisateur' | 'ressource'
+//   entite  — 'utilisateur' | 'ressource' | 'categorie-note' (SP-NO6)
 //   action  — voir chaque entité ci-dessous
 
 require_once '../include/db.php';
@@ -82,6 +82,19 @@ switch ($entite):
         break;
       case 'supprimer':
         supprimerRessource($db, $is_ajax, $redirect);
+        break;
+      default:
+        adminErreur($is_ajax, 'Action inconnue.', $redirect);
+    endswitch;
+    break;
+
+  case 'categorie-note':
+    switch ($action):
+      case 'sauvegarder':
+        sauvegarderCategorieNote($db, $is_ajax, $redirect);
+        break;
+      case 'supprimer':
+        supprimerCategorieNote($db, $is_ajax, $redirect);
         break;
       default:
         adminErreur($is_ajax, 'Action inconnue.', $redirect);
@@ -440,4 +453,115 @@ function verifierDependancesRessource($db, int $res_id, array $tables): ?string
   endforeach;
 
   return empty($compteurs) ? null : implode(', ', $compteurs);
+}
+
+// ============================================================
+// CATÉGORIE DE NOTES — Sauvegarde (SP-NO6)
+// Nom unique par ruleset ; ruleset figé dès qu'une note (même supprimée)
+// emploie la catégorie : la note doit garder le ruleset de sa campagne.
+// ============================================================
+
+function sauvegarderCategorieNote($db, bool $is_ajax, string $redirect): void
+{
+  $tyno_id    = intParam($_POST['tyno_id'] ?? 0);
+  $nom        = trim(strParam($_POST['tyno_nom'] ?? ''));
+  $ruleset_id = intParam($_POST['tyno_ruleset_var_id'] ?? 0);
+  $ordre_brut = trim((string)($_POST['tyno_ordre'] ?? ''));
+
+  if ($nom === ''):
+    adminErreur($is_ajax, 'Le nom de la catégorie est obligatoire.', $redirect);
+  endif;
+  if (mb_strlen($nom) > 80):
+    adminErreur($is_ajax, 'Le nom ne doit pas dépasser 80 caractères.', $redirect);
+  endif;
+
+  $stmt = $db->prepare("SELECT var_id FROM dd_variables WHERE var_id = ? AND var_cat = 'ruleset'");
+  $stmt->execute([$ruleset_id]);
+  if (!$stmt->fetch()):
+    adminErreur($is_ajax, 'Ruleset invalide.', $redirect);
+  endif;
+
+  if ($tyno_id > 0):
+    $stmt = $db->prepare('SELECT tyno_ruleset_var_id FROM dd_types_notes WHERE tyno_id = ?');
+    $stmt->execute([$tyno_id]);
+    $actuel = $stmt->fetchColumn();
+    if ($actuel === false):
+      adminErreur($is_ajax, 'Catégorie introuvable.', $redirect);
+    endif;
+    if ((int)$actuel !== $ruleset_id):
+      $stmt = $db->prepare('SELECT COUNT(*) FROM dd_notes WHERE no_tyno_id = ?');
+      $stmt->execute([$tyno_id]);
+      if ((int)$stmt->fetchColumn() > 0):
+        adminErreur($is_ajax, 'Des notes emploient cette catégorie : son ruleset ne peut plus changer.', $redirect);
+      endif;
+    endif;
+  endif;
+
+  $stmt = $db->prepare('SELECT COUNT(*) FROM dd_types_notes WHERE tyno_ruleset_var_id = ? AND tyno_nom = ? AND tyno_id <> ?');
+  $stmt->execute([$ruleset_id, $nom, $tyno_id]);
+  if ((int)$stmt->fetchColumn() > 0):
+    adminErreur($is_ajax, 'Une catégorie de ce nom existe déjà pour ce ruleset.', $redirect);
+  endif;
+
+  // Ordre vide : à la suite des catégories du ruleset
+  if ($ordre_brut === ''):
+    $stmt = $db->prepare('SELECT COALESCE(MAX(tyno_ordre), 0) + 10 FROM dd_types_notes WHERE tyno_ruleset_var_id = ? AND tyno_id <> ?');
+    $stmt->execute([$ruleset_id, $tyno_id]);
+    $ordre = (int)$stmt->fetchColumn();
+  else:
+    $ordre = max(0, min(65535, (int)$ordre_brut));
+  endif;
+
+  try {
+    if ($tyno_id === 0):
+      $db->prepare('INSERT INTO dd_types_notes (tyno_nom, tyno_ruleset_var_id, tyno_ordre) VALUES (?, ?, ?)')
+         ->execute([$nom, $ruleset_id, $ordre]);
+      $tyno_id = (int)$db->lastInsertId();
+    else:
+      $db->prepare('UPDATE dd_types_notes SET tyno_nom = ?, tyno_ruleset_var_id = ?, tyno_ordre = ? WHERE tyno_id = ?')
+         ->execute([$nom, $ruleset_id, $ordre, $tyno_id]);
+    endif;
+    adminOk($is_ajax, $tyno_id, 'categorie-note', $redirect);
+  } catch (Exception $e) {
+    error_log('sauvegarderCategorieNote : ' . $e->getMessage());
+    adminErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// ============================================================
+// CATÉGORIE DE NOTES — Suppression : refusée si une note l'emploie,
+// y compris une note supprimée (no_tyno_id est NOT NULL).
+// ============================================================
+
+function supprimerCategorieNote($db, bool $is_ajax, string $redirect): void
+{
+  $ids = $_POST['ids'] ?? [];
+  if (!empty($_POST['id'])) $ids[] = $_POST['id'];
+  $ids = array_filter(array_map('intval', (array)$ids));
+
+  if (empty($ids)):
+    adminErreur($is_ajax, 'Aucune catégorie sélectionnée.', $redirect);
+  endif;
+
+  $stmt = $db->prepare('SELECT COUNT(*) FROM dd_notes WHERE no_tyno_id = ?');
+  foreach ($ids as $tyno_id):
+    $stmt->execute([$tyno_id]);
+    $nb = (int)$stmt->fetchColumn();
+    if ($nb > 0):
+      adminErreur($is_ajax, 'Impossible de supprimer : ' . $nb . ' note' . ($nb > 1 ? 's emploient' : ' emploie')
+        . ' cette catégorie. Changez-leur de catégorie d\'abord.', $redirect);
+    endif;
+  endforeach;
+
+  $del = $db->prepare('DELETE FROM dd_types_notes WHERE tyno_id = ?');
+  foreach ($ids as $tyno_id) $del->execute([$tyno_id]);
+
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
+    exit;
+  endif;
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Catégorie(s) supprimée(s).'];
+  header('Location: ' . $redirect);
+  exit;
 }

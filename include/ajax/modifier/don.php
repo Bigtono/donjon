@@ -32,6 +32,27 @@ $don = [
   'do_camp_id'       => '',
   'do_public'        => 0,
   'do_visible'       => 1,
+  'do_guerrier'      => 0,
+  'do_prereq_bba'    => null,
+  'do_prereq_for'    => null,
+  'do_prereq_dex'    => null,
+  'do_prereq_con'    => null,
+  'do_prereq_int'    => null,
+  'do_prereq_sag'    => null,
+  'do_prereq_cha'    => null,
+  'do_niv_lanceur'   => null,
+];
+
+// Données techniques DD3.5 (SP-DO) : libellé de chaque champ, dans l'ordre d'affichage.
+$champs_techniques = [
+  'do_prereq_bba'  => 'Bonus de base à l\'attaque',
+  'do_prereq_for'  => 'Force',
+  'do_prereq_dex'  => 'Dextérité',
+  'do_prereq_con'  => 'Constitution',
+  'do_prereq_int'  => 'Intelligence',
+  'do_prereq_sag'  => 'Sagesse',
+  'do_prereq_cha'  => 'Charisme',
+  'do_niv_lanceur' => 'Niveau de lanceur de sorts',
 ];
 
 if ($id > 0):
@@ -142,6 +163,18 @@ $titre = $id > 0 ? 'Modifier ' . h($don['do_nom']) : 'Nouveau don';
           </select>
         </div>
 
+        <!-- Don de guerrier (DD3.5) -->
+        <?php if ($ruleset === 'DD3.5'): ?>
+          <div class="form-group">
+            <label class="form-label--checkbox">
+              <input type="checkbox" id="do_guerrier" name="do_guerrier" value="1"
+                <?= (int)$don['do_guerrier'] === 1 ? 'checked' : '' ?>>
+              Don de guerrier
+            </label>
+            <span class="form-hint">Peut être choisi par le guerrier en tant que don supplémentaire.</span>
+          </div>
+        <?php endif ?>
+
         <!-- Source -->
         <div class="form-group">
           <label for="do_res_id">Source <span class="required">*</span></label>
@@ -219,6 +252,30 @@ $titre = $id > 0 ? 'Modifier ' . h($don['do_nom']) : 'Nouveau don';
                   rows="3"><?= h($don['do_resume'] ?? '') ?></textarea>
       </div>
     </div>
+
+    <!-- Données techniques (DD3.5) : repliées, jamais affichées dans la fiche du don -->
+    <?php if ($ruleset === 'DD3.5'): ?>
+      <div class="modif-section">
+        <details class="modif-technique">
+          <summary>Données techniques
+            <span class="form-hint" style="font-weight:normal;">
+              (prérequis chiffrés — non affichés dans la fiche du don)
+            </span>
+          </summary>
+          <div class="modif-grid modif-technique__grille">
+            <?php foreach ($champs_techniques as $champ => $libelle): ?>
+              <div class="form-group">
+                <label for="<?= h($champ) ?>"><?= h($libelle) ?></label>
+                <input type="number" id="<?= h($champ) ?>" name="<?= h($champ) ?>"
+                       min="0" max="255" step="1"
+                       value="<?= $don[$champ] !== null ? (int)$don[$champ] : '' ?>">
+              </div>
+            <?php endforeach ?>
+          </div>
+          <span class="form-hint">Une case vide = aucun prérequis connu pour cette donnée.</span>
+        </details>
+      </div>
+    <?php endif ?>
 
     <!-- Boutons -->
     <div class="modif-actions">

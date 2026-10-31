@@ -727,3 +727,27 @@
   font-size: 0.85rem;
   word-break: break-all;
 }
+
+/* ============================================================
+   IMPORT DES NOTES V1 (SP-NO7) — admin/import-notes-v1.php
+   ============================================================ */
+.import-v1__campagne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin: var(--sp-md) 0;
+}
+
+.import-v1__table {
+  width: 100%;
+  margin-bottom: var(--sp-lg);
+}
+
+.import-v1__table select,
+.import-v1__table input[type="text"] {
+  width: 100%;
+  max-width: 260px;
+}
+
+.import-v1__table summary { cursor: pointer; }

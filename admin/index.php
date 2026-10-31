@@ -54,6 +54,16 @@ require_once '../include/header.php';
     <span>Ressources</span>
   </a>
 
+  <a href="<?= BASE_URL ?>/admin/categories-notes.php" class="dashboard-card dashboard-card--admin">
+    <i class="fa fa-sticky-note"></i>
+    <span>Catégories de notes</span>
+  </a>
+
+  <a href="<?= BASE_URL ?>/admin/import-notes-v1.php" class="dashboard-card dashboard-card--admin">
+    <i class="fa fa-file-import"></i>
+    <span>Import des notes v1</span>
+  </a>
+
   <a href="<?= BASE_URL ?>/admin/connexions.php" class="dashboard-card dashboard-card--admin">
     <i class="fa fa-mobile-screen"></i>
     <span>Relevés d'affichage</span>

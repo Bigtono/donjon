@@ -8,10 +8,13 @@
 //   action — 'enregistrerCampagne' | 'supprimerCampagne'
 //           | 'enregistrerScenario' | 'supprimerScenario'
 //           | 'enregistrerChapitre' | 'supprimerChapitre'
+//           | 'enregistrerNote' | 'supprimerNote' (SP-NO2)
 
 require_once '../include/db.php';
 require_once '../include/auth.php';
 require_once '../include/helpers.php';
+require_once '../include/personnage_helpers.php'; // texteRicheVide() (SP-NO2)
+require_once '../include/tableau-parser.php';     // _tabSlugify() : slug des mots-clés (SP-NO2)
 
 requireAuth();
 verifyCsrf();
@@ -121,6 +124,14 @@ switch ($action):
 
   case 'reordonnerOppositions':
     reordonnerOppositions($db, $is_ajax, $redirect);
+    break;
+
+  case 'enregistrerNote':
+    enregistrerNote($db, $is_ajax, $redirect);
+    break;
+
+  case 'supprimerNote':
+    supprimerNote($db, $is_ajax, $redirect);
     break;
 
   default:
@@ -275,6 +286,7 @@ function supprimerCampagne($db, bool $is_ajax, string $redirect): void
     softDeleteIds($db, 'dd_rencontres', 're_supprime', 're_date_supprime', 're_id', $re_ids);
     softDeleteIds($db, 'dd_scenarios_chapitres', 'scc_supprime', 'scc_date_supprime', 'scc_id', $scc_ids);
     softDeleteIds($db, 'dd_scenarios', 'sce_supprime', 'sce_date_supprime', 'sce_id', $sce_ids);
+    softDeleteIds($db, 'dd_notes', 'no_supprime', 'no_date_supprime', 'no_camp_id', [$camp_id]);
 
     $db->prepare('UPDATE dd_campagnes SET camp_supprime = 1, camp_date_supprime = ? WHERE camp_id = ?')
        ->execute([$now, $camp_id]);
@@ -282,7 +294,6 @@ function supprimerCampagne($db, bool $is_ajax, string $redirect): void
     $db->prepare('UPDATE dd_personnages SET pe_camp_id = NULL WHERE pe_camp_id = ?')->execute([$camp_id]);
     $db->prepare('DELETE FROM dd_campagnes_personnages WHERE cp_camp_id = ?')->execute([$camp_id]);
     $db->prepare('DELETE FROM dd_campagnes_sources     WHERE cs_camp_id = ?')->execute([$camp_id]);
-    $db->prepare('DELETE FROM dd_campagnes_notes       WHERE cpno_camp_id = ?')->execute([$camp_id]);
 
     $db->commit();
 
@@ -425,6 +436,10 @@ function supprimerScenario($db, bool $is_ajax, string $redirect): void
     $now = date('Y-m-d H:i:s');
     $db->prepare('UPDATE dd_scenarios SET sce_supprime = 1, sce_date_supprime = ? WHERE sce_id = ?')
        ->execute([$now, $sce_id]);
+
+    // Les notes du scénario remontent au niveau de la campagne (D-NO7) : les
+    // joueurs ne perdent pas des informations déjà reçues.
+    $db->prepare('UPDATE dd_notes SET no_sce_id = NULL WHERE no_sce_id = ?')->execute([$sce_id]);
 
     $db->commit();
 
@@ -1144,4 +1159,223 @@ function checkReOwner(PDO $db, int $re_id): bool
   $stmt->execute([$re_id]);
   $row = $stmt->fetch();
   return $row && isMJ($db, (int)$row['camp_id']);
+}
+
+// ============================================================
+// NOTES — Sauvegarde (SP-NO2)
+// Une note = tronc commun + sections (JSON sections_json) avec leurs
+// conditions « compétence + DD », mots-clés (tags[]) et destinataires
+// (pe_ids[]). Sections, conditions et mots-clés sont remplacés en bloc ;
+// les destinataires conservés gardent leur date de diffusion et de lecture,
+// sauf « signaler_maj » qui remet la note à « non lue » (D-NO8).
+// ============================================================
+
+function enregistrerNote(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $no_id    = intParam($_POST['no_id']      ?? 0);
+  $camp_id  = intParam($_POST['camp_id']    ?? 0);
+  $nom      = strParam($_POST['no_nom']     ?? '');
+  $tyno_id  = intParam($_POST['no_tyno_id'] ?? 0);
+  $sce_id   = intParam($_POST['no_sce_id']  ?? 0);
+  $texte    = (string)($_POST['no_texte']   ?? '');
+  $date     = strParam($_POST['no_date']    ?? '');
+  $signaler = !empty($_POST['signaler_maj']);
+
+  // Modification : la campagne est celle de la note, jamais celle du formulaire.
+  if ($no_id > 0):
+    $stmt = $db->prepare('SELECT no_camp_id FROM dd_notes WHERE no_id = ? AND no_supprime = 0');
+    $stmt->execute([$no_id]);
+    $camp_id = (int)$stmt->fetchColumn();
+  endif;
+  if (!$camp_id || !isMJ($db, $camp_id)):
+    campErreur($is_ajax, 'Accès refusé.', $redirect);
+  endif;
+
+  if ($nom === ''):
+    campErreur($is_ajax, 'Le titre de la note est obligatoire.', $redirect);
+  endif;
+  $nom = mb_substr($nom, 0, 200);
+
+  $stmt = $db->prepare('SELECT camp_ruleset_var_id FROM dd_campagnes WHERE camp_id = ?');
+  $stmt->execute([$camp_id]);
+  $ruleset_id = (int)$stmt->fetchColumn();
+
+  // Catégorie du ruleset de la campagne
+  $stmt = $db->prepare('SELECT COUNT(*) FROM dd_types_notes WHERE tyno_id = ? AND tyno_ruleset_var_id = ?');
+  $stmt->execute([$tyno_id, $ruleset_id]);
+  if (!(int)$stmt->fetchColumn()):
+    campErreur($is_ajax, 'Catégorie invalide.', $redirect);
+  endif;
+
+  // Scénario facultatif, de la même campagne
+  if ($sce_id > 0):
+    $stmt = $db->prepare('SELECT COUNT(*) FROM dd_scenarios WHERE sce_id = ? AND sce_camp_id = ? AND sce_supprime = 0');
+    $stmt->execute([$sce_id, $camp_id]);
+    if (!(int)$stmt->fetchColumn()):
+      campErreur($is_ajax, 'Scénario invalide.', $redirect);
+    endif;
+  endif;
+
+  $d        = DateTime::createFromFormat('!Y-m-d', $date);
+  $date_sql = ($d && $d->format('Y-m-d') === $date) ? $date . ' 00:00:00' : date('Y-m-d H:i:s');
+
+  // Sections : JSON [{titre, texte, conditions: [{comp_id, dd}]}]. Une section
+  // sans intertitre ni contenu est ignorée ; une compétence hors du ruleset est
+  // écartée, une compétence en double garde le DD le plus bas (UK section + compétence).
+  $stmt = $db->prepare('SELECT comp_id FROM dd_competences WHERE comp_ruleset_var_id = ?');
+  $stmt->execute([$ruleset_id]);
+  $comp_valides = array_flip(array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN)));
+
+  $brutes = json_decode((string)($_POST['sections_json'] ?? '[]'), true);
+  if (!is_array($brutes)):
+    campErreur($is_ajax, 'Sections illisibles.', $redirect);
+  endif;
+  $sections = [];
+  foreach ($brutes as $s):
+    if (!is_array($s)) continue;
+    $titre_s = mb_substr(trim((string)($s['titre'] ?? '')), 0, 200);
+    $texte_s = (string)($s['texte'] ?? '');
+    if ($titre_s === '' && texteRicheVide($texte_s)) continue;
+    $conds = [];
+    foreach ((array)($s['conditions'] ?? []) as $c):
+      if (!is_array($c)) continue;
+      $cid = (int)($c['comp_id'] ?? 0);
+      $dd  = max(1, min(60, (int)($c['dd'] ?? 0)));
+      if (!isset($comp_valides[$cid])) continue;
+      $conds[$cid] = isset($conds[$cid]) ? min($conds[$cid], $dd) : $dd;
+    endforeach;
+    $sections[] = ['titre' => $titre_s, 'texte' => $texte_s, 'conditions' => $conds];
+  endforeach;
+
+  // Mots-clés : identifiés par leur slug chez le MJ (« Valombre » = « valombre »).
+  $tags = [];
+  foreach ((array)($_POST['tags'] ?? []) as $t):
+    $t    = mb_substr(preg_replace('/\s+/u', ' ', trim((string)$t)), 0, 80);
+    $slug = $t !== '' ? _tabSlugify($t) : '';
+    if ($slug !== '' && !isset($tags[$slug])) $tags[$slug] = $t;
+  endforeach;
+
+  // Destinataires : personnages de la campagne, ou déjà destinataires de la note
+  // (un personnage qui a quitté la campagne peut rester destinataire).
+  $pe_ids = array_values(array_unique(array_filter(array_map('intval', (array)($_POST['pe_ids'] ?? [])))));
+  if ($pe_ids):
+    $ph   = implode(',', array_fill(0, count($pe_ids), '?'));
+    $stmt = $db->prepare("
+      SELECT pe.pe_id FROM dd_personnages pe
+       WHERE pe.pe_id IN ($ph)
+         AND (EXISTS (SELECT 1 FROM dd_campagnes_personnages cp WHERE cp.cp_pe_id = pe.pe_id AND cp.cp_camp_id = ?)
+          OR  EXISTS (SELECT 1 FROM dd_personnages_notes pno WHERE pno.pno_pe_id = pe.pe_id AND pno.pno_no_id = ?))
+    ");
+    $stmt->execute(array_merge($pe_ids, [$camp_id, $no_id]));
+    $pe_ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+  endif;
+
+  try {
+    $db->beginTransaction();
+    $maintenant = date('Y-m-d H:i:s');
+
+    if ($no_id === 0):
+      $db->prepare('
+        INSERT INTO dd_notes (no_nom, no_camp_id, no_sce_id, no_tyno_id, no_texte, no_j_id, no_date, no_supprime)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+      ')->execute([$nom, $camp_id, $sce_id ?: null, $tyno_id, $texte, (int)$_SESSION['j_id'], $date_sql]);
+      $no_id = (int)$db->lastInsertId();
+    else:
+      $db->prepare('
+        UPDATE dd_notes SET no_nom = ?, no_sce_id = ?, no_tyno_id = ?, no_texte = ?, no_date = ?, no_date_maj = ?
+         WHERE no_id = ?
+      ')->execute([$nom, $sce_id ?: null, $tyno_id, $texte, $date_sql, $maintenant, $no_id]);
+    endif;
+
+    // Sections et conditions : remplacées en bloc (rien d'autre ne référence noc_id).
+    $db->prepare('
+      DELETE nocd FROM dd_notes_conditions nocd
+        JOIN dd_notes_contenus noc ON noc.noc_id = nocd.nocd_noc_id
+       WHERE noc.noc_no_id = ?
+    ')->execute([$no_id]);
+    $db->prepare('DELETE FROM dd_notes_contenus WHERE noc_no_id = ?')->execute([$no_id]);
+    $ins_sec  = $db->prepare('INSERT INTO dd_notes_contenus (noc_no_id, noc_ordre, noc_titre, noc_texte) VALUES (?, ?, ?, ?)');
+    $ins_cond = $db->prepare('INSERT INTO dd_notes_conditions (nocd_noc_id, nocd_comp_id, nocd_dd) VALUES (?, ?, ?)');
+    foreach ($sections as $rang => $s):
+      $ins_sec->execute([$no_id, $rang + 1, $s['titre'] !== '' ? $s['titre'] : null, $s['texte']]);
+      $noc_id = (int)$db->lastInsertId();
+      foreach ($s['conditions'] as $cid => $dd):
+        $ins_cond->execute([$noc_id, $cid, $dd]);
+      endforeach;
+    endforeach;
+
+    // Mots-clés
+    $db->prepare('DELETE FROM dd_notes_tags WHERE notag_no_id = ?')->execute([$no_id]);
+    $sel_tag = $db->prepare('SELECT tag_id FROM dd_tags WHERE tag_j_id = ? AND tag_slug = ?');
+    $ins_tag = $db->prepare('INSERT INTO dd_tags (tag_nom, tag_slug, tag_j_id, tag_date) VALUES (?, ?, ?, ?)');
+    $lien    = $db->prepare('INSERT INTO dd_notes_tags (notag_no_id, notag_tag_id) VALUES (?, ?)');
+    foreach ($tags as $slug => $t):
+      $sel_tag->execute([(int)$_SESSION['j_id'], $slug]);
+      $tag_id = (int)$sel_tag->fetchColumn();
+      if (!$tag_id):
+        $ins_tag->execute([$t, $slug, (int)$_SESSION['j_id'], $maintenant]);
+        $tag_id = (int)$db->lastInsertId();
+      endif;
+      $lien->execute([$no_id, $tag_id]);
+    endforeach;
+
+    // Destinataires
+    if ($pe_ids):
+      $ph = implode(',', array_fill(0, count($pe_ids), '?'));
+      $db->prepare("DELETE FROM dd_personnages_notes WHERE pno_no_id = ? AND pno_pe_id NOT IN ($ph)")
+         ->execute(array_merge([$no_id], $pe_ids));
+    else:
+      $db->prepare('DELETE FROM dd_personnages_notes WHERE pno_no_id = ?')->execute([$no_id]);
+    endif;
+    if ($signaler):
+      $db->prepare('UPDATE dd_personnages_notes SET pno_lu_date = NULL WHERE pno_no_id = ?')->execute([$no_id]);
+    endif;
+    $ins_pno = $db->prepare('INSERT IGNORE INTO dd_personnages_notes (pno_no_id, pno_pe_id, pno_date) VALUES (?, ?, ?)');
+    foreach ($pe_ids as $pe_id):
+      $ins_pno->execute([$no_id, $pe_id, $maintenant]);
+    endforeach;
+
+    $db->commit();
+    if ($is_ajax):
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => true, 'id' => $no_id, 'camp_id' => $camp_id]);
+      exit;
+    endif;
+    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Note enregistrée.'];
+    header('Location: ' . $redirect);
+    exit;
+
+  } catch (Exception $e) {
+    if ($db->inTransaction()) $db->rollBack();
+    error_log('enregistrerNote : ' . $e->getMessage());
+    campErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+}
+
+// ============================================================
+// NOTES — Suppression douce (SP-NO2)
+// Les destinataires ne la voient plus (getNotesPersonnage() filtre no_supprime).
+// ============================================================
+
+function supprimerNote(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $no_id = intParam($_POST['id'] ?? 0);
+
+  $stmt = $db->prepare('SELECT no_camp_id FROM dd_notes WHERE no_id = ? AND no_supprime = 0');
+  $stmt->execute([$no_id]);
+  $camp_id = (int)$stmt->fetchColumn();
+  if (!$camp_id || !isMJ($db, $camp_id)):
+    campErreur($is_ajax, 'Accès refusé.', $redirect);
+  endif;
+
+  softDeleteIds($db, 'dd_notes', 'no_supprime', 'no_date_supprime', 'no_id', [$no_id]);
+
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => true, 'id' => $no_id, 'camp_id' => $camp_id]);
+    exit;
+  endif;
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Note supprimée.'];
+  header('Location: ' . $redirect);
+  exit;
 }

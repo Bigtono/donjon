@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-31 11:05 -->
+<!-- Mis à jour : 2026-10-31 19:40 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -362,7 +362,10 @@
 - [x] SP-DRS1 — Lot 1 : DRS 01 (caractéristiques), 10 (combat), 12 (extérieur/climat), 18 (pouvoirs et états), 19 (types et sous-types) + 15 tableaux + 63 termes de glossaire — `sql/2026-08-25_regles_dd35_drs*.sql` et `_glossaire_lot1.sql`
 - [x] SP-DRS2 — Lot 2 : **DRS 07 (Équipement)** — racine « Équipement » (ordre 40), 13 pages (monnaie, catégories et attributs des armes, listes, armes de maître, attributs des armures, armures de maître et pour créatures inhabituelles, enfiler/ôter, marchandises et services, bardes, lancement de sorts) + 6 tableaux + 12 termes de glossaire — `sql/2026-10-11_regles_dd35_drs07_sp-drs2.sql`. Les listes d'articles sont des tags `[[liste:equipement|…]]`. La racine « Créatures et pouvoirs spéciaux » passe de 40 à 60
 - [x] SP-DRS3 — Lot 3 : **DRS 23 (Objets magiques)** — racine « Objets magiques » (ordre 50), 13 pages (catégories, détection, utilisation, taille, emplacements et affinités, sauvegardes / dégâts / réparation, charges, description, création ×4, estimation du prix, catalogue) + 11 tableaux + 9 termes — `sql/2026-10-11_regles_dd35_drs23_sp-drs3.sql`. Les fiches d'objets (DRS 24 à 28) sont des données du compendium, hors périmètre
-- [ ] SP-DRS4 — Lot suivant : prochains fichiers DRS présentés par l'utilisateur (ordre d'affichage = ordre de présentation des lots)
+- [x] SP-DRS4 — Lot 4 : **DRS 04 (Les compétences)**, règles générales (pages 1 à 4 du PDF) — racine « Les compétences » (ordre 15), 10 pages (points de compétence et degrés de maîtrise, utilisation, nouvelles tentatives et test inné, conditions, temps d'utilisation, test sans jet de dé, entraide, synergie, tests de caractéristique, lecture d'une fiche) + 2 tableaux + 11 termes de glossaire — `sql/2026-10-31_regles_dd35_drs04_sp-drs4.sql`. Journal des corrections : `doc/LOG_CORRECTIONS_DRS04.md`. Les descriptions des 36 compétences sont des données du compendium, hors périmètre → `SP-DRS4b`
+- [x] SP-DRS4c — Page de règles « **Liste des compétences** » (racine « Les compétences », ordre 110) : tag `[[liste:competence]]`, nouvelle entité de `liste-parser.php` (`listeRendreCompetence()`) — `sql/2026-10-31_regles_dd35_drs04_sp-drs4c.sql`
+- [ ] SP-DRS4b — **Descriptions des compétences DD3.5** (pages 5 à 34 du DRS 04, compendium `dd_competences`) : mesuré le 2026-10-31, **22 des 35 fiches couvrent moins de 60 % du texte du DRS** (Bluff 1 %, Survie 6 %, Équitation 7 %, Maîtrise des cordes 4 %…) ; 11 sont complètes (≥ 90 %), Dressage dépasse le DRS (210 %). Import à arbitrer fiche par fiche : il réécrit des données du compendium
+- [ ] SP-DRS5 — Lot suivant : prochains fichiers DRS présentés par l'utilisateur (ordre d'affichage = ordre de présentation des lots)
 
 ### SP-IM — Import des données manquantes (compendium)
 
@@ -448,9 +451,44 @@
 - [x] SP-PE11 — Initiative (`pe_init`) et six modificateurs de sauvegarde (`pe_*_save`) — **patch SQL** ; bonus de maîtrise accolé au niveau global en DD2024 ; jets de sauvegarde en 4e colonne (DD2024) ou en bloc Réflexes / Vigueur / Volonté (DD3.5) ; rangée **Capacités de race / de classe**. **Défaut corrigé** : `.modif-grid` n'était pas chargée sur la fiche personnage
 - [x] SP-PE12 — Graisse : les valeurs d'initiative et de sauvegarde reviennent à la règle du module (gras au libellé seul)
 - [x] SP-PE13 — En-têtes MOD / SAUV un par colonne (DD2024) ; composant `.sort-detail` déplacé de `compendium-modules.css` vers `modules.css` — les panneaux de détail ouverts hors du compendium perdaient leurs styles
+- [x] SP-PE14 — Éditeur de compétences DD3.5 : étoile sur les compétences de classe (au moins une classe du personnage, via `dd_classe_competence` ; 1 point de compétence = 1 rang) et légende ; rien en DD2024, où le lien a un autre sens
+- [x] SP-PE15 — Éditeur de compétences sous 992px : colonne de saisie ramenée de 200 à 72px, nom autorisé à passer à la ligne (le `white-space: nowrap` de `.table-dd td` l'empêchait) — la table tient dans son cadre à 375px
+- [x] SP-PE16 — Éditeur de compétences : colonne Carac réduite à l'abréviation (DD3.5 et DD2024), le modificateur reste dans le Total ; la lecture n'est pas touchée
+- [x] SP-PE17 — Bloc Compétences en lecture : colonne Carac réduite à l'abréviation (comme l'éditeur, SP-PE16), les trois colonnes de valeurs à largeur égale (3,2rem ; 2,4rem sous 992px)
 
 > Hors périmètre SP-PE : les **objets magiques du personnage** (`personnages/objets.php` reste un
 > placeholder, aucune table) — analyse métier non fiabilisée, cf. `DECISIONS_LOG.md` [2026-06-12] [D].
+
+### SP-CH — Choix liés aux capacités de classe (fiche de personnage)
+
+> Une capacité de classe peut imposer un choix à chaque niveau (Grand arcane de l'Archimage, Don
+> supplémentaire du Guerrier…). Le compendium déclare les emplacements (`cc_nb_choix` par niveau,
+> `cap_choix_mode` par capacité), la fiche les remplit (`dd_personnages_choix`, clé naturelle).
+> Décisions : `DECISIONS_LOG.md` D-CH1.
+
+- [x] SP-CH0 — Arbitrage + migration `sql/2026-10-31_choix_capacites_sp-ch0.sql` (colonnes `cc_nb_choix`, `cap_choix_mode`, `cap_choix_dado_id`, `ped_pech_id`, table `dd_personnages_choix`) ; amorçage Grand arcane et Don supplémentaire du Guerrier DD3.5
+- [x] SP-CH1 — Saisie compendium : colonne « Choix » des affectations et select « Choix du joueur » de l'overlay capacité (`include/ajax/modifier/classe.php`, `compendium/enregistrement.php`)
+- [x] SP-CH2 — Actions `enregistrerChoixCapacite` / `effacerChoixCapacite` (`personnages/enregistrement.php`), cascade à la suppression du personnage, purge des classes retirées
+- [x] SP-CH3 — Fiche : emplacements sous chaque capacité, rappel « N à faire », champ texte inline, sélecteur de don (`include/ajax/detail-pp/choix-don-picker.php`), helper `getCapacitesClassesPersonnage()`
+- [x] SP-CH4 — Lien avec le bloc Dons : le don choisi est posé dans `dd_personnages_dons` marqué par `ped_pech_id`, retiré avec le choix ; retrait refusé depuis le sélecteur de dons
+- [x] SP-CH5 — Export de classes (SP-XC) : `cc_nb_choix` et `cap_choix_mode` transportés, `cap_choix_dado_id` volontairement exclu
+- [x] SP-CH6 — Capacités à choix DD3.5 déclarées par lecture des textes : 16 capacités, `sql/2026-10-31_choix_capacites_sp-ch6_dd35.sql` (à rejouer en production avec `sp-ch0`)
+- [x] SP-CH6b — Choix uniques à l'obtention DD3.5 (Style de combat et Compagnon animal du Rôdeur, Arme distinctive du Kensaï, École de prédilection et Appel de familier du Magicien, Appel de familier de l'Ensorceleur et du Tourmenteur, Compagnon animal du Druide, Talent du Magiciel du Zhentarim) : 9 couples, `sql/2026-10-31_choix_capacites_sp-ch6b_dd35.sql`
+- [ ] SP-CH6c — Déclarer le reste : Secret d'Olin Gisir (DD3.5, nombre de secrets à vérifier ; l'Ennemi juré du Parangon ménestrel a été corrigé et déclaré par l'utilisateur) et toutes les capacités DD2024 (Métamagie, Style de combat, Manifestations occultes…)
+- [x] SP-CH8 — Précision libre d'un don choisi (arme d'une Spécialisation martiale, école, compétence…) : champ dans le sélecteur de don, bouton étiquette sur l'emplacement, affichée dans les blocs Capacités et Dons — `sql/2026-10-31_choix_precision_sp-ch8.sql`
+- [x] SP-CH9 — Mise en page des emplacements : libellé « Choix » retiré, trois cases d'actions à largeur fixe (modifier · préciser · effacer) AVANT le choix, qui s'aligne ainsi d'une ligne à l'autre
+- [x] SP-CH10 — Boutons de gestion des choix masqués par défaut ; bouton à droite de l'en-tête du bloc Capacités de classe pour les afficher, état mémorisé (`localStorage`, `perChoixGestion`)
+- [ ] SP-CH7 — (optionnel) listes de pouvoirs structurées : découper le texte d'une capacité à choix en entrées et piocher dedans (mode `capacite`)
+
+### SP-DO — Dons DD3.5 : dons de guerrier et données techniques
+
+> Décisions : `DECISIONS_LOG.md` D-DO1. Colonnes `dd_dons.do_guerrier`, `do_prereq_*`, `do_niv_lanceur` (SCHEMA_SQL).
+
+- [x] SP-DO0 — Migration `sql/2026-10-31_dons_techniques_dd35_sp-do0.sql` : colonnes, 92 dons DD3.5 renseignés par appariement de nom avec une table tierce locale, 46 dons de guerrier
+- [x] SP-DO1 — Formulaire de don (DD3.5) : case « Don de guerrier » et bloc replié « Données techniques » ; filtre « Don de guerrier » dans la liste ; la fiche du don n'affiche rien de plus
+- [x] SP-DO2 — Choix de don d'une capacité limité aux dons de guerrier (`cap_choix_guerrier`, case dans l'overlay capacité du formulaire de classe, `conditionDonsChoix()`, contrôle serveur) : Guerrier, Guerrier psychique (+ dons psioniques), Champion occultiste
+- [ ] SP-DO3 — Compléter les dons DD3.5 non appariés (208 sur 300) : prérequis chiffrés extraits de `do_conditions` ou saisis à la main
+- [ ] SP-DO4 — Option d'affichage des données techniques dans la fiche du don (reportée, évolution à venir)
 
 ### SP-SC — Sous-classes DD2024 (module Classes)
 
@@ -474,7 +512,7 @@
 - [x] SP-RS6d — Ajustements de la liste et de la fiche personnage (gras, campagne détachée, en-tête en grille, Mode jeu repliable, Classes dans Identité, Combat côte à côte, Dons en deux colonnes)
 - [x] SP-RS6e — Bloc Compétences de la fiche rendu comme le bloc Dons (liste flex + ligne d'en-tête en gras)
 - [x] SP-RS7 — Fiche classe sur smartphone : style des capacités déplacé dans `modules.css` (chargé partout, dont Personnages), description aérée, lignes Compétences / Armes / Outils / Armures / Équipement « au fil du texte » (`.sort-detail__row--inline`), vue Magie : Renouvellement et Domaines se replient au lieu de déborder ; feuilles CSS et scripts versionnés par `assetUrl()` (le navigateur gardait l'ancien `modules.css`) ; table de progression : colonne Niv. fixe et indicateur de défilement (`.table-dd-scroll`), filet rouge de l'en-tête retiré
-- [ ] SP-RS6c — Unification complète : replier les 7 capacités d'`admin-liste.php` dans le moteur, migrer `admin/utilisateurs.php`, `admin/ressources.php` et `campagnes/index.php`, supprimer `admin-liste.php`, aligner le CSS du menu ⋮ de l'admin
+- [ ] SP-RS6c — Unification complète : replier les 7 capacités d'`admin-liste.php` dans le moteur, migrer `admin/utilisateurs.php`, `admin/ressources.php`, `admin/categories-notes.php` et `campagnes/index.php`, supprimer `admin-liste.php`, aligner le CSS du menu ⋮ de l'admin
 - [x] SP-RS5a — Collecte des relevés d'affichage : beacon, `dd_joueurs.j_last_*`, `dd_connexions`, écran admin
 - [ ] SP-RS5 — Arbitrage des paliers définitifs (991 / 768 / 479) à partir des relevés accumulés dans `dd_connexions`
 
@@ -547,6 +585,23 @@
 - [ ] SP-SY3 — Application en production (dépôt SFTP + jeton, comme les migrations) et compte rendu par table : lignes ajoutées, lignes ignorées sur une autre contrainte d'unicité
 - [ ] SP-SY4 — Bouton « Synchroniser le contenu » dans le module de déploiement, toujours après les migrations
 - [ ] SP-SY5 — Selon arbitrage : mémoire des suppressions faites en prod, propagation des modifications du contenu officiel
+
+### SP-NO — Module Notes (diffusion d'informations aux joueurs)
+
+> Le MJ rédige des notes (texte, images) rattachées à une campagne, un scénario facultatif et une
+> catégorie propre au ruleset, et les diffuse à des personnages ; le joueur les lit dans la fiche.
+> Une note = un tronc commun + des sections conditionnées par compétence (D-NO1 → D-NO4).
+
+- [x] SP-NO — Arbitrage : conditions par section, seuil en DD « prendre 10 », compétences combinées en OU, scénario facultatif (D-NO1 → D-NO4)
+- [x] SP-NO0 — Schéma `sql/2026-11-01_sp-no0_notes.sql` : tables de notes recréées (campagne, scénario facultatif, catégorie par ruleset, sections, destinataires), `dd_notes_conditions` créée, `dd_campagnes_notes` supprimée, 11 catégories par ruleset, garde-fou « tables vides » ; `METIER_11_Notes.md`, `SCHEMA_SQL.md` §9, §8b (D-NO5). Appliquée en local, **reste à jouer en production** (SP-NO8)
+- [x] SP-NO1 — Moteur d'accès (`include/personnage_helpers.php`) : `niveauGlobalPersonnage()` et `modsCaracCompetences()` extraits de `fiche.php`, `bonusCompetencesPersonnage()`, `conditionNoteSatisfaite()` / `sectionNoteAccessible()`, `getSectionsNotes()`, `getNotesPersonnage()` (sections filtrées et recherche côté serveur) ; fiche inchangée (D-NO6)
+- [x] SP-NO2 — Formulaire MJ `include/ajax/modifier/note.php` et `enregistrerNote()` / `supprimerNote()` : catégorie, scénario, date, mots-clés, tronc et sections TinyMCE avec images, conditions compétence + DD, destinataires, case « signaler la mise à jour » ; notes d'un scénario supprimé remontées à la campagne (D-NO7 → D-NO9). Ouvert pour l'instant sans bouton : le point d'entrée vient avec SP-NO3
+- [x] SP-NO3 — Interface MJ `campagnes/notes.php` (moteur de liste ; filtres campagne, scénario, catégorie, mot-clé par `exists` ; recherche titre + tronc + sections ; tri date décroissante), fiche `detail-pp/note.php` avec aperçu « vu par », section Notes du scénario, outil Notes de la colonne d'outils, lien Notes du menu Campagnes (D-NO10)
+- [x] SP-NO4 — Interface joueur : page `personnages/notes.php` (onglet Notes du sous-menu, cartes, bascule campagne en cours / toutes sur `pe_notes_scope`, filtres campagne, scénario, catégorie, mot-clé, recherche, tri par date, pastille « Nouveau »), lecture `detail-pp/note-perso.php` qui marque la note lue (D-NO11)
+- [x] SP-NO5 — Passe smartphone de l'interface joueur, contrôlée en 375 px dans les deux thèmes : images TinyMCE à proportions conservées (`height: auto`, aussi côté MJ), mots longs coupés, extrait limité à 3 lignes, bascule de portée à 44 px et contrastée, puces de mots-clés visibles, compteur « n nouvelles » mis à jour à la lecture (D-NO12)
+- [x] SP-NO6 — Écran admin `admin/categories-notes.php` (moteur `admin-liste.php`) : création, renommage, ordre, suppression des catégories de notes par ruleset ; nom unique par ruleset, ruleset figé et suppression refusée dès qu'une note (même supprimée) emploie la catégorie (D-NO13)
+- [x] SP-NO7 — Import v1 : migration de transit `sql/2026-11-01_sp-no7_notes_v1_transit.sql` (tables `dd_v1_*`, export repris à l'identique), écran `admin/import-notes-v1.php` (campagne cible, type v1 → catégorie + compétences, libellés des mots-clés), règles `include/notes-import-v1.php` : DD 10 → tronc, DD > 10 → sections au même DD, images retirées, entités converties, relance sans doublon (D-NO14). Transit appliquée en local, import **non lancé** (base locale remise à vide)
+- [ ] SP-NO8 — Production : jouer `2026-11-01_sp-no0_notes.sql` puis `2026-11-01_sp-no7_notes_v1_transit.sql`, lancer l'import depuis l'écran admin dans la campagne de la Trilogie, diffuser les notes aux personnages, puis supprimer les tables `dd_v1_*` par une migration
 
 ---
 
@@ -2358,7 +2413,7 @@ ouvrages dans tout le compendium de la session (`$_SESSION['last_pe_id']`).
   (nom, race, classes, statut). Les noms ne sont cliquables que pour les personnages accessibles
   (`canAccess`) — `detail-pp/personnage.php` est réservé à leur propriétaire.
 - `cp_notes_mj` reste **non exposé** : `METIER_10` le déclare prévu mais non actif, dépendant du
-  module Notes (Phase 5).
+  module Notes (chantier `SP-NO`).
 
 ### 7.5d Bloc NLS prestige — affectation par niveau (SP-PE6, DD3.5)
 
@@ -2579,7 +2634,7 @@ supprimerait silencieusement ces compétences de la fiche. Modificateur 0, colon
 ### 7.9 Pages annexes
 
 - `personnages/objets.php` : placeholder « Fonctionnalité à venir » (analyse métier non fiabilisée, aucune table).
-- Onglet Notes : emplacement réservé ; le contenu relève du module Notes (Phase 5). La préférence d'affichage
+- Onglet Notes : emplacement réservé ; le contenu relève du module Notes (chantier `SP-NO`, voir §0). La préférence d'affichage
   (campagne en cours / toutes les campagnes) est mémorisée sur le personnage (`pe_notes_scope`).
 
 ### 7.10 Fichiers du module
@@ -2731,6 +2786,100 @@ liens sont exclus de la zone.
 
 ---
 
+## 8b. Module Notes — SP-NO
+
+> Règles fonctionnelles : `METIER_11_Notes.md`. Schéma : `SCHEMA_SQL.md` §9. Décisions D-NO0 → D-NO5.
+
+- **Modèle** : `dd_notes` (campagne obligatoire, scénario facultatif, catégorie `dd_types_notes` du ruleset de la campagne,
+  tronc commun `no_texte`) → `dd_notes_contenus` (sections ordonnées) → `dd_notes_conditions` (compétence + DD).
+  Destinataires : `dd_personnages_notes` (`pno_date` diffusion, `pno_lu_date` lecture). Mots-clés : `dd_tags` / `dd_notes_tags`.
+- **Ruleset** : hérité de la campagne par jointure (`no_camp_id` → `camp_ruleset_var_id`), comme les scénarios ;
+  la cohérence catégorie ↔ ruleset est contrôlée à l'enregistrement.
+- **Accès à une section** : aucune condition = libre ; sinon OU de `10 + bonus total ≥ nocd_dd` ; en DD3.5, compétence à
+  formation requise sans rang = non satisfaite. Calcul **côté serveur** à chaque consultation (SP-NO1) : une section
+  inaccessible n'est jamais envoyée au navigateur.
+- **Moteur d'accès (SP-NO1, `include/personnage_helpers.php`)** :
+  - `bonusCompetencesPersonnage($db, $perso)` → `[comp_id => [bonus, maitrise, formation]]`, toutes les compétences du
+    ruleset sans filtre de sources, même calcul que la fiche (`niveauGlobalPersonnage()`, `getBonusMaitrise()`,
+    `modsCaracCompetences()`, `bonusCompetence()` — la fiche passe par les deux premiers extraits) ;
+  - `conditionNoteSatisfaite()` / `sectionNoteAccessible()` : règle d'accès ci-dessus ;
+  - `getSectionsNotes($db, $no_ids)` : sections ordonnées avec leurs conditions (sert aussi à l'aperçu MJ, NO3) ;
+  - `getNotesPersonnage($db, $perso, $filtres)` : notes reçues (non supprimées, campagne active), filtres `no_id`,
+    `camp_id`, `sce_id`, `tyno_id`, `tag_id`, `q`, `tri` ; ne renvoie que les sections lisibles ; écarte une note dont le
+    tronc est vide (`texteRicheVide()` : ni texte ni image, `<p>&nbsp;</p>` compris) sans section lisible. La recherche `q`
+    est faite en PHP après filtrage, sur titre + tronc + sections lisibles : chercher dans une section cachée la trahirait.
+  - Un scénario supprimé disparaît de la note (jointure sur `sce_supprime = 0`), la note reste.
+- **Formulaire du MJ (SP-NO2)** : `include/ajax/modifier/note.php?id=…` (ou `?id=0&camp_id=…[&sce_id=…]`), ouvert
+  dans `#modification` par `actualiserPageModif()`. Titre, catégorie (ruleset de la campagne), scénario facultatif, date,
+  mots-clés (pastilles, Entrée ou virgule, suggestions `<datalist>` des mots-clés du MJ), tronc commun et sections
+  TinyMCE avec images (`upload-image.php`). Sections construites depuis deux `<template>` (section, condition) ; ↑/↓
+  retire puis recrée les deux éditeurs concernés (une iframe TinyMCE déplacée se recharge vide). Destinataires :
+  personnages de `dd_campagnes_personnages`, plus les destinataires actuels qui ont quitté la campagne ; case « Tous ».
+  En modification, case `signaler_maj`. JS en IIFE dans le fragment (`window.noteForm`), styles `.note-form__*` dans
+  `css/campagnes-modules.css`.
+- **Enregistrement (SP-NO2, `campagnes/enregistrement.php`)** : `enregistrerNote()` — droits par `isMJ()` sur la campagne
+  **de la note** en modification (jamais celle du formulaire) ; catégorie du ruleset, scénario de la campagne ; date
+  `AAAA-MM-JJ` sinon maintenant. Les sections arrivent en JSON (`sections_json`) : section sans intertitre ni contenu
+  (`texteRicheVide()`) ignorée, compétence hors ruleset écartée, DD borné à 1-60, compétence en double = DD le plus bas.
+  Sections, conditions et liens de mots-clés sont **remplacés en bloc** ; mots-clés retrouvés ou créés par
+  `(tag_j_id, tag_slug)`, slug par `_tabSlugify()` (`include/tableau-parser.php`). Destinataires : suppression des
+  retirés, `INSERT IGNORE` des nouveaux (les conservés gardent `pno_date` / `pno_lu_date`), `signaler_maj` remet
+  `pno_lu_date` à NULL. `supprimerNote()` : suppression douce. `supprimerScenario()` remet `no_sce_id` à NULL (D-NO7).
+- **Suppression** : douce (`no_supprime`). `supprimerCampagne()` (`campagnes/enregistrement.php`) passe les notes de la
+  campagne en suppression douce ; la suppression d'un personnage efface ses lignes `dd_personnages_notes`.
+- **Interface MJ (SP-NO3)** : `campagnes/notes.php` — campagnes du MJ dans le ruleset de la session (`champ_ruleset` =
+  `camp.camp_ruleset_var_id`, `extra_where` sur `camp_j_id`), moteur `compendium-liste.php` hors compendium (`champ_camp`
+  false, `edition_libre`, suppression AJAX `supprimerNote`). Filtre `f_campagne` (défaut : `last_camp_id` s'il est au MJ ;
+  valeur vide explicite = toutes), `f_sce` (scénarios de la campagne choisie), `f_tyno`, `f_tag` (type `exists` : le
+  N-N n'a pas demandé de nouveau type de filtre). Recherche sur titre, tronc et sections concaténées (`GROUP_CONCAT`) ;
+  le formulaire enregistre les accents en clair (`entity_encoding: 'raw'`) pour que `LIKE` les trouve. Tri par défaut
+  `no_date` décroissant. « Nouvelle note » exige une campagne choisie.
+  Fiche `include/ajax/detail-pp/note.php` (MJ seul, `isMJ`) : métadonnées, mots-clés, tronc et sections passés par
+  `rendreTexteEnrichi()` avec leurs conditions, puis tableau **« vu par »** — une ligne par destinataire, une colonne par
+  section, ✓/✗ calculés par `sectionNoteAccessible()` (infobulle : 10 + bonus / DD par compétence), date de lecture, et
+  « ne voit rien » quand le tronc est vide et aucune section n'est lisible. Points d'entrée : outil « Notes » de
+  `include/campagne-outils.php`, section Notes de `campagnes/scenario.php` (liste + « Nouvelle » avec `sce_id`), lien
+  « Notes » du menu en mode campagne (`include/header.php`).
+- **Interface joueur (SP-NO4)** : `personnages/notes.php`, onglet « Notes » de `include/personnage-nav.php` (entre
+  Possessions et Background). Tout passe par `getNotesPersonnage()` : la page ne reçoit que les notes et sections
+  lisibles. Portée `pe_notes_scope` (0 = campagne en cours, 1 = toutes ; sans campagne en cours, toutes), basculée
+  par l'action `definirPorteeNotes` de `personnages/enregistrement.php` (écriture immédiate, contrôle
+  `canAccess`) ; les listes de choix (campagne, scénario, catégorie, mot-clé) sont tirées des seules notes reçues
+  dans la portée. Barre de filtres `comp-filtre-*` partagée (repliée sous 992 px, `toggleFiltresMobile()`), cartes
+  en une colonne (`.per-notes__*`, `css/personnages-modules.css`) avec extrait de 160 caractères et pastille
+  « Nouveau » (`pno_lu_date` NULL). Lecture `include/ajax/detail-pp/note-perso.php` (`pe_id`, `id`) : tronc et
+  sections lisibles via `rendreTexteEnrichi()`, sans conditions ni destinataires ; elle pose `pno_lu_date` **seulement
+  si l'utilisateur est le propriétaire du personnage** (un admin qui consulte ne l'efface pas). JS :
+  `perDefinirPorteeNotes()`, `perOuvrirNote()` dans `js/personnage.js` (la seconde retire aussi la pastille et
+  décrémente le compteur du titre).
+- **Smartphone (SP-NO5)** : les images insérées par TinyMCE portent `width`/`height` ; le `max-width: 100%` global
+  de `main.css` les écrasait en hauteur — `.per-note img` et `.note-detail img` reçoivent `height: auto`, et les deux
+  fiches `overflow-wrap: anywhere` (URL et mots longs). Les puces `.per-notes__tag` prennent `--clr-bg` + bordure :
+  `--clr-surface-alt` et `--clr-surface-2` ont la même teinte que la carte. `--clr-accent-muted` n'est défini dans
+  aucun thème : ne pas l'employer sans repli.
+- **Catégories (SP-NO6)** : `admin/categories-notes.php` (carte « Catégories de notes » du tableau de bord admin), sur le
+  moteur `admin-liste.php` comme Ressources ; formulaire `include/ajax/modifier/categorie-note.php`, fiche
+  `include/ajax/detail-pp/categorie-note.php`, écritures `admin/enregistrement.php` (`entite = categorie-note`,
+  actions `sauvegarder` / `supprimer`). Tri par défaut ruleset puis `tyno_ordre` (clé calculée
+  `tyno_ruleset_var_id * 100000 + tyno_ordre`) ; ordre laissé vide = à la suite (max + 10). Nom unique par ruleset
+  (contrôle applicatif aligné sur la clé unique, collation insensible à la casse). `no_tyno_id` étant NOT NULL sans
+  clé étrangère, l'intégrité est applicative : une catégorie employée par une note, même supprimée, ne change pas de
+  ruleset et n'est pas supprimable.
+- **Import v1 (SP-NO7)** : la migration de transit reprend tels quels les INSERT de l'export phpMyAdmin (découpés par
+  `migrationsInstructions()`, tables renommées `dd_v1_notes`, `dd_v1_notes_contenus`, `dd_v1_notes_tags`, colonnes v1
+  conservées) et ajoute `dd_v1_notes.no_importe_no_id`. L'écran `admin/import-notes-v1.php` (carte du tableau de bord
+  admin) choisit la campagne, puis pour chaque type v1 une catégorie et une ou deux compétences du ruleset de la
+  campagne (propositions `NOTES_V1_CATEGORIE` / `NOTES_V1_COMPETENCES`), et le libellé de chaque mot-clé v1 (vide =
+  ignoré). `importerNotesV1()` (une transaction) : rédacteur = MJ de la campagne, date v1, pas de scénario ni de
+  destinataire ; blocs DD ≤ 10 concaténés en tronc, blocs DD > 10 en sections conditionnées (OU des compétences du
+  type) ; `nettoyerHtmlV1()` retire les images, déballe les liens relatifs de la v1, convertit les entités (sauf
+  `&lt; &gt; &amp; &quot;`) et supprime les paragraphes vides ; un bloc vide après nettoyage est écarté. Seules les
+  notes non marquées sont importées : relancer ne crée pas de doublon. Les colonnes `no_texte_basique … expert` de
+  la v1 sont ignorées (copies anciennes et partielles des blocs).
+- **Phases à venir** : production (NO8). Voir §0.
+
+---
+
 ## 9. Module Wiki / Univers
 
 Univers (public/privé) → Catégories → Articles (visible/caché)
@@ -2803,9 +2952,9 @@ partagent le même handler. L'index du parser est par ruleset : DD2024 (155 term
 Import itératif, un lot de fichiers DRS à la fois, arbitré le 2026-08-25 :
 
 - **Arborescence thématique** — les racines ne calquent pas les fichiers DRS : `Les bases du jeu`
-  (ordre 10), `Le combat` (20), `Aventure et environnement` (30), `Équipement` (40, SP-DRS2),
-  `Objets magiques` (50, SP-DRS3), `Créatures et pouvoirs spéciaux` (60 — était 40), `Glossaire` (90). `reg_ordre` par pas de 10 partout : les lots suivants
-  s'intercalent sans renumérotation. Sous une racine, un fichier DRS devient un `chapitre`
+  (ordre 10), `Les compétences` (15, SP-DRS4), `Le combat` (20), `Aventure et environnement` (30), `Équipement` (40, SP-DRS2),
+  `Objets magiques` (50, SP-DRS3), `Créatures et pouvoirs spéciaux` (60 — était 40), `Glossaire` (90). `reg_ordre` par pas de 10 : les lots suivants
+  s'intercalent sans renumérotation (`Les compétences` prend **15**, juste après `Les bases du jeu`, sans toucher aux autres racines — contrairement à SP-DRS2 qui avait déplacé « Créatures » de 40 à 60). Sous une racine, un fichier DRS devient un `chapitre`
   (ex. `Les caractéristiques`), sauf quand thème et fichier coïncident (`Le combat` : les règles
   de DRS 10 sont ses enfants directs).
 - **Pages longues par section** — pas un nœud par manœuvre ou par état : une règle par section
@@ -3335,7 +3484,7 @@ jour toutes les listes du site. Valable pour les deux rulesets ; seules les fami
 
 | Élément | Règle |
 |---|---|
-| Entités | `equipement` (`dd_equipements`), `objet` (`dd_objets_magiques`) |
+| Entités | `equipement` (`dd_equipements`), `objet` (`dd_objets_magiques`), `competence` (`dd_competences`, SP-DRS4c) |
 | Séparateurs | `\|` entre paramètres, `,` entre valeurs. Tag **seul dans son paragraphe** |
 | `famille` | slug(s) de catégorie. **Équipement : une famille inclut ses descendants** (`armes` = courantes + de guerre + exotiques). Objets : `com_slug`, plat. Absent = toutes (les « propriétés spéciales » DD3.5, `com_est_propriete = 1`, restent exclues, comme dans le compendium) |
 | `source` | abréviation ou nom de ressource du ruleset (« DRS 3.5 »). **Absent = sources ACTIVES de l'utilisateur** (`getActiveResIds()`), comme le compendium — une même règle peut donc montrer des lignes différentes à deux utilisateurs. **Présent = ces sources-là, quelles que soient les sources actives**. Source inconnue → « Aucun élément » |
@@ -3343,6 +3492,10 @@ jour toutes les listes du site. Valable pour les deux rulesets ; seules les fami
 | `titre` | légende du tableau (défaut : nom de la famille) ; **`titre=-` = aucune légende** (quand un `<h3>` la précède déjà) |
 | Références | **par slug, jamais par id** — les ids diffèrent entre le local et OVH (même raison que `[[tab:slug]]`) |
 | Dégradation | entité ou famille inconnue → le tag s'affiche tel quel, encadré en rouge (`.reg-tab__manquant`), crochets en entités pour que la seconde passe ne le re-matche pas |
+
+### Entité `competence` (SP-DRS4c)
+
+`[[liste:competence]]` — une table `Compétence | Caractéristique`, complétée en DD3.5 de `Formation nécessaire` et `Malus d'armure` (colonnes `comp_formation`, `comp_malusArmure`) et d'une colonne `Source` quand la liste mêle plusieurs ressources. `titre` et `source` valent comme ailleurs ; `tri` : `nom` (défaut, alphabétique, `strcoll`) ou `car` (par caractéristique). **Pas de `famille`** : `dd_competences` n'en a pas, et le paramètre fait signaler le tag comme inconnu plutôt que de produire silencieusement la liste complète. Pas de filtre homebrew de campagne (la table n'a pas de `comp_camp_id`). Les noms sont nettoyés des blancs parasites saisis (espace ou tabulation de fin). Le lien ouvre `include/ajax/detail-pp/competence.php`. Le sélecteur de l'éditeur (`listes-picker.php`) ne propose pas encore cette entité : le tag se saisit à la main.
 
 ### Rendu
 
@@ -4574,7 +4727,6 @@ recherche FULLTEXT, glossaire DD2024 (nœuds reg_type='glossaire' + ancres .glos
 | dd_rencontres | re | Rencontres |
 | dd_oppositions | opp | Copie éditable d'un monstre |
 | dd_fichiers | fi | Pièces jointes PDF génériques |
-| dd_campagnes_notes | cpno | RÉSERVÉ |
 
 ### Wiki / Univers
 | Table | Préfixe | Rôle |
@@ -4592,9 +4744,11 @@ recherche FULLTEXT, glossaire DD2024 (nœuds reg_type='glossaire' + ancres .glos
 ### Notes
 | Table | Préfixe | Rôle |
 |---|---|---|
-| dd_notes | no | Notes de jeu |
-| dd_notes_contenus | noc | Blocs de contenu |
-| dd_personnages_notes | pno | Note attribuée à un personnage |
+| dd_types_notes | tyno | Catégories de notes, par ruleset |
+| dd_notes | no | Notes du MJ (campagne, scénario facultatif, tronc commun) |
+| dd_notes_contenus | noc | Sections d'une note |
+| dd_notes_conditions | nocd | Conditions d'accès d'une section (compétence + DD, OU) |
+| dd_personnages_notes | pno | Destinataires d'une note (diffusion, lecture) |
 | dd_tags | tag | Tags libres |
 | dd_notes_tags | notag | Association notes <-> tags |
 

@@ -233,6 +233,20 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
   $resume     = strParam($_POST['do_resume']   ?? '');
   $texte      = $_POST['do_texte'] ?? '';   // HTML TinyMCE
 
+  // DD3.5 uniquement (SP-DO) : don de guerrier et données techniques. Une case
+  // vide donne NULL (aucun prérequis connu), jamais 0.
+  $guerrier = 0;
+  $tech     = ['bba' => null, 'for' => null, 'dex' => null, 'con' => null,
+               'int' => null, 'sag' => null, 'cha' => null, 'niv_lanceur' => null];
+  if ($ruleset_id === 1):
+    $guerrier = isset($_POST['do_guerrier']) ? 1 : 0;
+    foreach ($tech as $k => $v):
+      $champ = $k === 'niv_lanceur' ? 'do_niv_lanceur' : 'do_prereq_' . $k;
+      $brut  = strParam($_POST[$champ] ?? '');
+      $tech[$k] = $brut === '' ? null : max(0, min(255, intParam($brut)));
+    endforeach;
+  endif;
+
   try {
     $db->beginTransaction();
 
@@ -269,8 +283,10 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
       $stmt = $db->prepare('
         INSERT INTO dd_dons
           (do_nom, do_dado_id, do_conditions, do_texte, do_resume,
-           do_res_id, do_camp_id, do_public, do_visible, do_ruleset_var_id)
-        VALUES (?,?,?,?,?,?,?,?,?,?)
+           do_res_id, do_camp_id, do_public, do_visible, do_ruleset_var_id,
+           do_guerrier, do_prereq_bba, do_prereq_for, do_prereq_dex, do_prereq_con,
+           do_prereq_int, do_prereq_sag, do_prereq_cha, do_niv_lanceur)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
@@ -282,7 +298,10 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
         $camp_id,
         $public,
         $visible,
-        $ruleset_id
+        $ruleset_id,
+        $guerrier,
+        $tech['bba'], $tech['for'], $tech['dex'], $tech['con'],
+        $tech['int'], $tech['sag'], $tech['cha'], $tech['niv_lanceur']
       ]);
       $do_id = (int)$db->lastInsertId();
     else:
@@ -296,7 +315,16 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
           do_res_id         = ?,
           do_camp_id        = ?,
           do_public         = ?,
-          do_visible        = ?
+          do_visible        = ?,
+          do_guerrier       = ?,
+          do_prereq_bba     = ?,
+          do_prereq_for     = ?,
+          do_prereq_dex     = ?,
+          do_prereq_con     = ?,
+          do_prereq_int     = ?,
+          do_prereq_sag     = ?,
+          do_prereq_cha     = ?,
+          do_niv_lanceur    = ?
         WHERE do_id = ?
       ');
       $stmt->execute([
@@ -309,6 +337,9 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
         $camp_id,
         $public,
         $visible,
+        $guerrier,
+        $tech['bba'], $tech['for'], $tech['dex'], $tech['con'],
+        $tech['int'], $tech['sag'], $tech['cha'], $tech['niv_lanceur'],
         $do_id
       ]);
     endif;
@@ -929,12 +960,43 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
   endif;
 
   $car_id      = intParam($_POST['comp_car_id']      ?? 0);
+  $formation   = isset($_POST['comp_formation'])  ? 1 : 0;
+  $malusArmure = intParam($_POST['comp_malusArmure'] ?? 0);
+
+  // Domaine d'une compétence mère (SP-CD) : nom complet « Mère (domaine) »,
+  // caractéristique, formation et malus d'armure recopiés de la mère
+  $parent_id = intParam($_POST['comp_parent_id'] ?? 0);
+  $ancien_nom = null;
+  if ($comp_id > 0):
+    $stmt = $db->prepare('SELECT comp_nom FROM dd_competences WHERE comp_id = ?');
+    $stmt->execute([$comp_id]);
+    $ancien_nom = $stmt->fetchColumn();
+  endif;
+  if ($parent_id > 0):
+    $stmt = $db->prepare('
+      SELECT comp_nom, comp_car_id, comp_formation, comp_malusArmure
+        FROM dd_competences
+       WHERE comp_id = ? AND comp_parent_id IS NULL AND comp_ruleset_var_id = ? AND comp_id <> ?
+    ');
+    $stmt->execute([$parent_id, $ruleset_id, $comp_id]);
+    $mere = $stmt->fetch();
+    $stmt = $db->prepare('SELECT COUNT(*) FROM dd_competences WHERE comp_parent_id = ?');
+    $stmt->execute([$comp_id]);
+    if (!$mere || (int)$stmt->fetchColumn() > 0):
+      repondreErreur($is_ajax, 'Compétence mère invalide.', $redirect);
+    endif;
+    $nom         = $mere['comp_nom'] . ' (' . $nom . ')';
+    $car_id      = (int)$mere['comp_car_id'];
+    $formation   = (int)$mere['comp_formation'];
+    $malusArmure = (int)$mere['comp_malusArmure'];
+    if (mb_strlen($nom) > 100):
+      repondreErreur($is_ajax, 'Nom du domaine trop long.', $redirect);
+    endif;
+  endif;
+
   if (!$car_id):
     repondreErreur($is_ajax, 'La caractéristique est obligatoire.', $redirect);
   endif;
-
-  $formation   = isset($_POST['comp_formation'])  ? 1 : 0;
-  $malusArmure = intParam($_POST['comp_malusArmure'] ?? 0);
   $description = $_POST['comp_description'] ?? '';   // HTML TinyMCE — pas de h()
 
   try {
@@ -972,13 +1034,14 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
     if ($comp_id === 0):
       $stmt = $db->prepare('
         INSERT INTO dd_competences
-          (comp_nom, comp_car_id, comp_formation, comp_malusArmure,
+          (comp_nom, comp_parent_id, comp_car_id, comp_formation, comp_malusArmure,
            comp_description, comp_res_id, comp_public, comp_visible,
            comp_ruleset_var_id)
-        VALUES (?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom,
+        $parent_id > 0 ? $parent_id : null,
         $car_id,
         $formation,
         $malusArmure,
@@ -993,6 +1056,7 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
       $stmt = $db->prepare('
         UPDATE dd_competences SET
           comp_nom            = ?,
+          comp_parent_id      = ?,
           comp_car_id         = ?,
           comp_formation      = ?,
           comp_malusArmure    = ?,
@@ -1004,6 +1068,7 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
       ');
       $stmt->execute([
         $nom,
+        $parent_id > 0 ? $parent_id : null,
         $car_id,
         $formation,
         $malusArmure,
@@ -1013,6 +1078,19 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
         $visible,
         $comp_id,
       ]);
+
+      // Mère modifiée : ses domaines suivent (nom, caractéristique, formation, malus)
+      if ($parent_id === 0):
+        $stmt = $db->prepare('
+          UPDATE dd_competences SET
+            comp_nom         = CONCAT(?, SUBSTRING(comp_nom, CHAR_LENGTH(?) + 1)),
+            comp_car_id      = ?,
+            comp_formation   = ?,
+            comp_malusArmure = ?
+          WHERE comp_parent_id = ?
+        ');
+        $stmt->execute([$nom, (string)$ancien_nom, $car_id, $formation, $malusArmure, $comp_id]);
+      endif;
     endif;
 
     $db->commit();
@@ -1799,20 +1877,32 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
         $cap_desc = $capRow['cap_description'] ?? '';
         $cap_type = strParam($capRow['cap_type'] ?? '');
 
+        // Choix du joueur (SP-CH) : mode borné à la liste, catégorie de don
+        // seulement en mode « don » (NULL = toutes les catégories).
+        $choix_mode = strParam($capRow['cap_choix_mode'] ?? '');
+        if (!in_array($choix_mode, ['texte', 'don'], true)):
+          $choix_mode = '';
+        endif;
+        $choix_dado = ($choix_mode === 'don') ? intParam($capRow['cap_choix_dado_id'] ?? 0) : 0;
+        $choix_dado = $choix_dado > 0 ? $choix_dado : null;
+        // Limite aux dons de guerrier (SP-DO) : propre au mode « don »
+        $choix_guerrier = ($choix_mode === 'don' && intParam($capRow['cap_choix_guerrier'] ?? 0) === 1) ? 1 : 0;
+
         if ($cap_id > 0):
           // Mise à jour de la capacité existante
           $db->prepare('
             UPDATE dd_capacites_speciales
-            SET cap_nom = ?, cap_description = ?, cap_type = ?
+            SET cap_nom = ?, cap_description = ?, cap_type = ?,
+                cap_choix_mode = ?, cap_choix_dado_id = ?, cap_choix_guerrier = ?
             WHERE cap_id = ?
-          ')->execute([$cap_nom, $cap_desc, $cap_type, $cap_id]);
+          ')->execute([$cap_nom, $cap_desc, $cap_type, $choix_mode, $choix_dado, $choix_guerrier, $cap_id]);
           $capKeyToId[$capKey] = $cap_id;
         else:
           // Nouvelle capacité
           $db->prepare('
-            INSERT INTO dd_capacites_speciales (cap_nom, cap_description, cap_type)
-            VALUES (?, ?, ?)
-          ')->execute([$cap_nom, $cap_desc, $cap_type]);
+            INSERT INTO dd_capacites_speciales (cap_nom, cap_description, cap_type, cap_choix_mode, cap_choix_dado_id, cap_choix_guerrier)
+            VALUES (?, ?, ?, ?, ?, ?)
+          ')->execute([$cap_nom, $cap_desc, $cap_type, $choix_mode, $choix_dado, $choix_guerrier]);
           $capKeyToId[$capKey] = (int)$db->lastInsertId();
         endif;
       endforeach;
@@ -1823,13 +1913,14 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
       // Réinsérer depuis affectations_payload
       $seen = [];
       $stmt_ins_aff = $db->prepare('
-        INSERT INTO dd_classe_capacite (cc_cla_id, cc_cap_id, cc_niveau, cc_precision)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO dd_classe_capacite (cc_cla_id, cc_cap_id, cc_niveau, cc_precision, cc_nb_choix)
+        VALUES (?, ?, ?, ?, ?)
       ');
       foreach ($affectations_payload as $aff):
         $capKey   = (string)($aff['cap_key'] ?? '');
         $cc_niv   = intParam($aff['cc_niveau'] ?? 0);
         $cc_prec  = strParam($aff['cc_precision'] ?? '');
+        $cc_nbc   = max(0, min(9, intParam($aff['cc_nb_choix'] ?? 0)));
 
         if (!isset($capKeyToId[$capKey]) || $cc_niv < 1 || $cc_niv > $niveauMax) continue;
         $cap_id_eff = $capKeyToId[$capKey];
@@ -1839,7 +1930,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
         if (isset($seen[$sig])) continue;
         $seen[$sig] = true;
 
-        $stmt_ins_aff->execute([$cla_id, $cap_id_eff, $cc_niv, $cc_prec]);
+        $stmt_ins_aff->execute([$cla_id, $cap_id_eff, $cc_niv, $cc_prec, $cc_nbc]);
       endforeach;
 
     endif;

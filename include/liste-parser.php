@@ -11,6 +11,7 @@
 //
 // ENTITÉS     equipement  → dd_equipements       (familles : dd_categorie_equipement)
 //             objet       → dd_objets_magiques   (familles : dd_categorie_objet_magique)
+//             competence  → dd_competences       (pas de familles ; tri = nom | car)
 // PARAMÈTRES  (tous facultatifs, séparés par « | », valeurs multiples par « , »)
 //   famille   slug(s) de catégorie. Pour l'équipement, la famille inclut ses descendants
 //             (« armes » = courantes + de guerre + exotiques). Absent = toutes.
@@ -512,6 +513,83 @@ function listeRendreObjet(PDO $db, array $p, int $ruleset_id): ?string
   return $html;
 }
 
+// ------------------------------------------------------------
+// 5c. Compétences (SP-DRS4c)
+// ------------------------------------------------------------
+// Une table : Compétence | Caractéristique, et en DD3.5 « Formation nécessaire » et « Malus d'armure ».
+// Pas de familles : un tag [[liste:competence|famille=…]] est signalé comme inconnu (affiché brut)
+// plutôt que de produire silencieusement la liste complète. tri = nom (défaut) | car.
+// dd_competences n'a pas de colonne camp_id : pas de filtre homebrew de campagne.
+function listeRendreCompetence(PDO $db, array $p, int $ruleset_id): ?string
+{
+  if (!empty($p['famille'])) return null;
+
+  $params = [$ruleset_id];
+  $where  = ['c.comp_ruleset_var_id = ?'];
+
+  $res_ids = listeSourcesIds($db, $p['source'], $ruleset_id);
+  if ($res_ids !== null):
+    if (empty($res_ids)) return '<p class="reg-liste__vide">Aucun élément.</p>';
+    $where[] = 'c.comp_res_id IN (' . resIdsPlaceholders($res_ids) . ')';
+    $params  = array_merge($params, $res_ids);
+  endif;
+
+  $where[] = listeClauseVisibilite('res.res_j_id', 'c.comp_public', 'c.comp_visible', $params);
+
+  $stmt = $db->prepare('
+    SELECT c.comp_id, c.comp_nom, c.comp_car_id, c.comp_malusArmure, c.comp_formation,
+           car.car_nom, res.res_abreviation
+    FROM   dd_competences c
+    LEFT JOIN dd_caracteristiques car ON car.car_id = c.comp_car_id
+    LEFT JOIN dd_ressources       res ON res.res_id = c.comp_res_id
+    WHERE  ' . implode(' AND ', $where) . '
+    LIMIT  2000
+  ');
+  $stmt->execute($params);
+  $rows = $stmt->fetchAll();
+  if (empty($rows)) return '<p class="reg-liste__vide">Aucun élément.</p>';
+
+  // Le nom saisi peut porter des blancs parasites (espace ou tabulation en fin de nom)
+  foreach ($rows as &$r) $r['comp_nom'] = trim(preg_replace('/\s+/u', ' ', (string)$r['comp_nom']));
+  unset($r);
+  $cle = fn(array $r) => mb_strtolower($r['comp_nom']);
+  usort($rows, $p['tri'] === 'car'
+    ? fn($a, $b) => [(string)$a['car_nom'], $cle($a)] <=> [(string)$b['car_nom'], $cle($b)]
+    : fn($a, $b) => strcoll($cle($a), $cle($b)));
+
+  $total       = count($rows);
+  $rows        = array_slice($rows, 0, LISTE_MAX_LIGNES);
+  $dd35        = $ruleset_id === 1;
+  $avec_source = count(array_unique(array_column($rows, 'res_abreviation'))) > 1;
+
+  $entetes = [['Compétence', 'left'], ['Caractéristique', 'left']];
+  if ($dd35):
+    $entetes[] = ['Formation nécessaire', 'center'];
+    $entetes[] = ["Malus d'armure", 'center'];
+  endif;
+  if ($avec_source) $entetes[] = ['Source', 'left'];
+
+  $lignes = [];
+  foreach ($rows as $r):
+    $cel = [listeLien('competence', (int)$r['comp_id'], $r['comp_nom']),
+            h((string)($r['car_nom'] ?? ($dd35 ? 'Aucune' : '—')))];
+    if ($dd35):
+      $cel[] = (int)$r['comp_formation'] === 1 ? 'Oui' : '—';
+      $cel[] = (int)$r['comp_malusArmure'] === 1 ? 'Oui' : '—';
+    endif;
+    if ($avec_source) $cel[] = h((string)$r['res_abreviation']);
+    $lignes[] = ['cellules' => $cel];
+  endforeach;
+
+  $caption = $p['titre'] !== '' ? $p['titre'] : 'Compétences';
+  $html = listeHtmlTable($caption === '-' ? '' : $caption, $entetes, $lignes);
+  if ($total > LISTE_MAX_LIGNES):
+    $html .= '<p class="reg-liste__plus">' . ($total - LISTE_MAX_LIGNES) . ' autre(s) ligne(s) — '
+           . '<a href="' . BASE_URL . '/compendium/competences.php">voir tout dans le compendium</a>.</p>';
+  endif;
+  return $html;
+}
+
 // ============================================================
 // 6. RÉSOLUTION DU TAG [[liste:…]]
 // ============================================================
@@ -528,6 +606,7 @@ function resoudreTagsListes(PDO $db, ?string $html, int $ruleset_id): string
     return match ($entite) {
       'equipement' => listeRendreEquipement($db, $p, $ruleset_id),
       'objet'      => listeRendreObjet($db, $p, $ruleset_id),
+      'competence' => listeRendreCompetence($db, $p, $ruleset_id),
       default      => null,
     };
   };
@@ -565,6 +644,7 @@ function resoudreTagsListes(PDO $db, ?string $html, int $ruleset_id): string
 function listeFamillesProposables(PDO $db, string $entite, int $ruleset_id): array
 {
   $out = [];
+  if ($entite === 'competence') return [];   // pas de familles de compétences
   if ($entite === 'equipement'):
     $arbre = catEquipementArbre($db, $ruleset_id);
     foreach (array_keys($arbre['rang']) as $id):
@@ -622,7 +702,7 @@ function listeSourcesProposables(PDO $db, int $ruleset_id): array
 //   $titre  : '' (légende par défaut) | '-' (aucune légende) | texte libre
 function listeConstruireTag(PDO $db, string $entite, array $familles, array $sources, string $tri, string $titre, int $ruleset_id): array
 {
-  if (!in_array($entite, ['equipement', 'objet'], true)):
+  if (!in_array($entite, ['equipement', 'objet', 'competence'], true)):
     return ['tag' => null, 'erreur' => 'Type de liste inconnu.'];
   endif;
 
@@ -671,6 +751,7 @@ function listeRendreTag(PDO $db, string $tag, int $ruleset_id): ?string
   return match ($m[1]) {
     'equipement' => listeRendreEquipement($db, $p, $ruleset_id),
     'objet'      => listeRendreObjet($db, $p, $ruleset_id),
+    'competence' => listeRendreCompetence($db, $p, $ruleset_id),
     default      => null,
   };
 }

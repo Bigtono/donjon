@@ -48,6 +48,18 @@ $stmt_scc = $db->prepare('
 $stmt_scc->execute([$id]);
 $chapitres = $stmt_scc->fetchAll();
 
+// Notes rattachées au scénario (SP-NO3), les plus récentes d'abord.
+$stmt_no = $db->prepare('
+  SELECT n.no_id, n.no_nom, n.no_date, tyno.tyno_nom,
+         (SELECT COUNT(*) FROM dd_personnages_notes pno WHERE pno.pno_no_id = n.no_id) AS nb_dest
+  FROM   dd_notes n
+  LEFT JOIN dd_types_notes tyno ON tyno.tyno_id = n.no_tyno_id
+  WHERE  n.no_sce_id = ? AND n.no_supprime = 0
+  ORDER  BY n.no_date DESC, n.no_id DESC
+');
+$stmt_no->execute([$id]);
+$notes = $stmt_no->fetchAll();
+
 $page_title     = $sce['sce_nom'];
 $js_module      = 'campagne';
 $css_module     = 'campagnes';
@@ -181,6 +193,39 @@ require_once '../include/header.php';
             <?php endforeach ?>
           </tbody>
         </table>
+      <?php endif ?>
+    </div>
+
+    <!-- Notes du scénario (SP-NO3) -->
+    <div class="camp-detail__section">
+      <div class="camp-section__header">
+        <h2 class="camp-detail__section-title">Notes</h2>
+        <div class="flex flex-gap">
+          <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/campagnes/notes.php?f_campagne=<?= $camp_id ?>&amp;f_sce=<?= $id ?>">
+            <i class="fa fa-list"></i> Toutes
+          </a>
+          <button class="btn btn-primary btn-sm"
+                  onclick="actualiserPageModif('<?= $base_modifier ?>/note.php', {id:0, camp_id:<?= $camp_id ?>, sce_id:<?= $id ?>})">
+            <i class="fa fa-plus"></i> Nouvelle
+          </button>
+        </div>
+      </div>
+
+      <?php if (empty($notes)): ?>
+        <p class="text-muted">Aucune note pour ce scénario.</p>
+      <?php else: ?>
+        <ul class="note-sce__liste">
+          <?php foreach ($notes as $no): ?>
+            <li class="note-sce__item"
+                onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/note.php', {id: <?= (int)$no['no_id'] ?>})">
+              <span class="note-sce__nom"><?= h($no['no_nom']) ?></span>
+              <span class="note-sce__meta">
+                <?= h($no['tyno_nom'] ?? '') ?> · <?= h(date('d/m/Y', strtotime($no['no_date']))) ?>
+                · <?= (int)$no['nb_dest'] ?> destinataire<?= (int)$no['nb_dest'] > 1 ? 's' : '' ?>
+              </span>
+            </li>
+          <?php endforeach ?>
+        </ul>
       <?php endif ?>
     </div>
 

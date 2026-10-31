@@ -38,6 +38,19 @@ $filtres = [
     'query'        => "SELECT 1 val, 'Formation requise' lab",
     'query_params' => [],
   ],
+  // Domaines d'une compétence mère (SP-CD — DD3.5)
+  [
+    'type'         => 'select',
+    'name'         => 'f_comp_parent_id',
+    'label'        => 'Domaines de',
+    'champ'        => 'comp.comp_parent_id',
+    'query'        => 'SELECT DISTINCT m.comp_id val, m.comp_nom lab
+                         FROM dd_competences m
+                         JOIN dd_competences d ON d.comp_parent_id = m.comp_id
+                        WHERE m.comp_ruleset_var_id = ?
+                        ORDER BY m.comp_nom',
+    'query_params' => [$ruleset_id],
+  ],
 ];
 
 // ============================================================

@@ -104,6 +104,7 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
         <a href="<?= BASE_URL ?>/personnages/index.php">Personnages</a>
         <?php if (!empty($_SESSION['j_mode_campagne'])): ?>
           <a href="<?= BASE_URL ?>/campagnes/index.php">Campagnes</a>
+          <a href="<?= BASE_URL ?>/campagnes/notes.php">Notes</a>
         <?php endif ?>
         <a href="<?= BASE_URL ?>/wiki/univers.php">Univers</a>
         <?php if (!empty($_SESSION['j_admin'])): ?>

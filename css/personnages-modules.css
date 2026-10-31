@@ -376,6 +376,117 @@
   color: var(--clr-text-muted);
 }
 
+/* --- Choix liés aux capacités de classe (SP-CH) ---------------------
+   Les emplacements passent sous la ligne de leur capacité, en retrait. */
+.per-choix {
+  flex: 1 1 100%;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 var(--sp-md);
+}
+
+.per-choix__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+  padding: 1px 0;
+  font-size: .9em;
+}
+
+/* Actions (modifier · préciser · effacer) : trois cases de largeur fixe, toujours réservées, puis un
+   espace, puis le choix — tous les choix de la liste commencent ainsi à la même hauteur de colonne. */
+.per-choix__actions {
+  flex: 0 0 auto;
+  display: none;   /* masquées par défaut : le joueur les affiche avec le bouton de l'en-tête du bloc */
+  grid-template-columns: repeat(3, 1.6rem);
+  margin-right: var(--sp-md);
+}
+
+.is-gestion .per-choix__actions {
+  display: grid;
+}
+
+/* Bouton de l'en-tête qui affiche / masque les boutons de gestion : accentué tant qu'ils sont affichés. */
+.per-choix__bascule {
+  flex: 0 0 auto;
+}
+
+.is-gestion .per-choix__bascule {
+  color: var(--clr-accent);
+}
+
+.per-choix__val {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Emplacement à remplir : mis en évidence sans alarmer. */
+.per-choix__item.is-vide .per-choix__val {
+  color: var(--clr-warning);
+}
+
+.per-choix__btn {
+  padding: 0;
+  text-align: center;
+}
+
+/* Case réservée quand l'action n'existe pas : garde l'alignement sans rien afficher. */
+.per-choix__btn--vide {
+  display: block;
+}
+
+.per-choix__champ {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Précision d'un don (arme, école, compétence…), à côté de son nom — aussi dans le bloc Dons. */
+.per-choix__precision {
+  color: var(--clr-text-muted);
+  font-size: .9em;
+}
+
+/* Rappel « N à faire » dans l'en-tête du bloc. */
+.per-choix__restant {
+  margin-left: var(--sp-sm);
+  font-size: .8em;
+  font-weight: 400;
+  color: var(--clr-warning);
+  white-space: nowrap;
+}
+
+/* Sélecteur d'un don pour un emplacement : liste simple, un clic choisit. */
+.choix-don-picker__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.choix-don-picker__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding: var(--sp-xs) 0;
+  border-bottom: 1px dashed var(--clr-border);
+}
+
+.choix-don-picker__item.is-courant .choix-don-picker__nom {
+  font-weight: 700;
+}
+
+.choix-don-picker__nom {
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.choix-don-picker__cat {
+  flex: 0 0 auto;
+  font-size: .8em;
+  color: var(--clr-text-muted);
+}
+
 /* Intertitre d'une classe — seulement quand le personnage en a plusieurs. */
 .per-caps__groupe {
   margin: var(--sp-sm) 0 2px;
@@ -998,6 +1109,17 @@
 }
 
 /* Drapeaux DD3.5 : formation requise (F), malus d'armure (A) */
+/* Étoile des compétences de classe (DD3.5) dans l'éditeur, et sa légende. */
+.per-comp__classe {
+  color: var(--clr-accent);
+  font-size: .8em;
+  vertical-align: middle;
+}
+
+.per-comp__legende {
+  white-space: nowrap;
+}
+
 .per-comp__flag {
   display: inline-flex;
   align-items: center;
@@ -1089,10 +1211,20 @@
     flex: 1 1 100%;
   }
 
-  /* Le nom peut passer à la ligne, les colonnes chiffrées restent compactes */
-  .per-comp-table__nom {
+  /* Le nom peut passer à la ligne, les colonnes chiffrées restent compactes.
+     Préfixé .table-dd : `.table-dd td { white-space: nowrap }` (modules.css) l'emporterait sinon, et
+     le nom le plus long fixait la largeur de toute la table. */
+  .table-dd .per-comp-table__nom {
     white-space: normal;
     min-width: 120px;
+  }
+
+  /* Colonne de saisie : 200px sur ordinateur, mais un champ de rangs (2 chiffres) ou un select M. / E
+     n'en demande pas autant — sur 375px elle faisait déborder le tableau (498px dans un cadre de 325px)
+     et rognait le nom. Le sélecteur reprend celui de la règle de base pour l'emporter à égalité. */
+  .table-dd .per-comp-table__saisie {
+    width: 72px;
+    min-width: 72px;
   }
 }
 
@@ -1397,10 +1529,9 @@
 /* Largeur en rem, pas en em : l'en-tête et les lignes n'ont pas la même
    taille de police, une largeur en em produirait des colonnes décalées.
 
-   La colonne Carac est la plus large des trois : elle porte DEUX valeurs —
-   l'abréviation et le modificateur — qui passaient à la ligne l'une sous
-   l'autre. Maîtrise (« M. » / « E » depuis SP-PE10j) et Total tiennent en
-   beaucoup moins. */
+   Les trois colonnes ont la même largeur : Carac n'affiche plus que
+   l'abréviation (« INT »), le modificateur n'y figure plus (SP-PE17) ; Maîtrise
+   (« M. » / « E » depuis SP-PE10j) et Total tiennent dans la même largeur. */
 .per-comp__val {
   flex: 0 0 auto;
   width: 3.2rem;
@@ -1409,10 +1540,6 @@
   font-size: .9em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.per-comp__val--carac {
-  width: 4.6rem;
 }
 
 .per-comp__val--total {
@@ -1429,11 +1556,6 @@
   .per-comp__val {
     width: 2.4rem;
     margin-left: 2px;
-  }
-
-  /* Sauf la colonne Carac : c'est elle qui porte deux valeurs. */
-  .per-comp__val--carac {
-    width: 4.2rem;
   }
 
   /* Une explication qu'on ne lit qu'une fois ne vaut pas quatre lignes sur un
@@ -1789,4 +1911,152 @@
 @media (max-width: 767px) {
   .per-nav__lbl { display: none; }
   .per-nav__item { padding: var(--sp-sm) var(--sp-md); font-size: 1.05rem; }
+}
+
+/* ============================================================
+   NOTES DU PERSONNAGE (SP-NO4) — personnages/notes.php
+   et lecture include/ajax/detail-pp/note-perso.php
+   ============================================================ */
+
+.per-notes__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+}
+
+.per-notes__compte {
+  margin-left: var(--sp-sm);
+  padding: 1px var(--sp-sm);
+  border-radius: var(--radius-lg);
+  background: var(--clr-accent);
+  color: var(--clr-bg);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Bascule de portée : deux boutons accolés */
+.per-notes__portee {
+  display: inline-flex;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.per-notes__portee-btn {
+  padding: var(--sp-xs) var(--sp-md);
+  background: var(--clr-surface);
+  border: none;
+  color: var(--clr-text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.per-notes__portee-btn + .per-notes__portee-btn { border-left: 1px solid var(--clr-border); }
+.per-notes__portee-btn:hover { color: var(--clr-text); }
+.per-notes__portee-btn.est-actif {
+  background: var(--clr-accent);
+  color: var(--clr-bg);
+  font-weight: 600;
+}
+
+/* Cartes : une colonne, toute la carte est la cible du clic */
+.per-notes__liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.per-notes__carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  width: 100%;
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-left: 3px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.per-notes__carte:hover { border-color: var(--clr-accent-2); }
+.per-notes__carte.est-nouveau { border-left-color: var(--clr-accent); }
+
+.per-notes__tete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+}
+
+.per-notes__titre { font-weight: 600; }
+.per-notes__carte.est-nouveau .per-notes__titre { color: var(--clr-accent); }
+
+.per-notes__nouveau {
+  flex-shrink: 0;
+  padding: 0 var(--sp-sm);
+  border-radius: var(--radius-lg);
+  background: var(--clr-accent);
+  color: var(--clr-bg);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.per-notes__meta {
+  color: var(--clr-text-muted);
+  font-size: 0.8rem;
+}
+
+.per-notes__extrait {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  color: var(--clr-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.per-notes__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-xs);
+  margin: 0;
+}
+
+/* Puces : fond de page + bordure — surface-alt et surface-2 sont la même teinte que la carte (SP-NO5) */
+.per-notes__tag {
+  padding: 1px var(--sp-sm);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+  background: var(--clr-bg);
+  font-size: 0.75rem;
+}
+
+/* Lecture — les images de TinyMCE portent width/height : sans height:auto, max-width
+   les écrase en hauteur sur un écran étroit (SP-NO5) */
+.per-note { overflow-wrap: anywhere; }
+.per-note img { height: auto; }
+.per-note__section { margin-top: var(--sp-md); }
+
+.per-note__section-titre {
+  margin: 0 0 var(--sp-xs);
+  font-size: 1rem;
+  color: var(--clr-accent);
+}
+
+@media (max-width: 479px) {
+  .per-notes__portee { width: 100%; }
+  .per-notes__portee-btn { flex: 1; min-height: 44px; padding: var(--sp-sm); }
 }

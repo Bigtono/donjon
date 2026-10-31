@@ -49,7 +49,9 @@ const XC_RULESETS = [1 => 'DD3.5', 2 => 'DD2024'];
 const XC_EXCLUSIONS = [
   'dd_classes'             => ['cla_id', 'cla_res_id', 'cla_cla_id', 'cla_camp_id'],
   'dd_classe_niveau'       => ['cn_id', 'cn_cla_id'],
-  'dd_capacites_speciales' => ['cap_id', 'cap_classe_initiale'],
+  // cap_choix_dado_id (SP-CH) : id de catégorie de don, non transporté — rien ne garantit
+  // qu'il désigne la même catégorie en production ; il se règle depuis le formulaire de classe.
+  'dd_capacites_speciales' => ['cap_id', 'cap_classe_initiale', 'cap_choix_dado_id'],
   'dd_classe_capacite'     => ['cc_id', 'cc_cla_id', 'cc_cap_id'],
   'dd_classe_competence'   => ['ccomp_id', 'ccomp_cla_id', 'ccomp_comp_id'],
   'dd_classe_sort'         => ['cs_id', 'cs_cla_id', 'cs_so_id'],

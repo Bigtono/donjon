@@ -10,10 +10,10 @@
 // Attendus avant l'inclusion :
 //   $perso            tableau du personnage (getPersonnageContext)
 //   $nav_courante     clé de la page en cours : fiche | magie | possessions
-//                     | background | campagnes
+//                     | notes | background | campagnes
 //   $nav_lanceur      (optionnel) bool — masque l'onglet Magie si false
 //
-// Sur téléphone, les libellés disparaissent au profit des seules icônes : cinq
+// Sur téléphone, les libellés disparaissent au profit des seules icônes : six
 // libellés ne tiennent pas sur une ligne, et un menu qui se replie sur deux
 // lignes mange la hauteur utile.
 
@@ -24,6 +24,7 @@ $nav_items = [
   'fiche'       => ['fiche.php',       'fa-user',          'Fiche'],
   'magie'       => ['magie.php',       'fa-hat-wizard',    'Magie'],
   'possessions' => ['possessions.php', 'fa-sack-xmark',    'Possessions'],
+  'notes'       => ['notes.php',       'fa-sticky-note',   'Notes'],
   'background'  => ['background.php',  'fa-feather',       'Background'],
   'campagnes'   => ['campagnes.php',   'fa-map',           'Campagnes'],
 ];

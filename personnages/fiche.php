@@ -44,16 +44,8 @@ foreach ($classes as $c):
   if ((int)$c['cla_mag_id'] > 0) { $aClasseLanceuse = true; break; }
 endforeach;
 
-// Niveau global = somme des niveaux des classes, SOUS-CLASSES EXCLUES.
-// Une sous-classe DD2024 (cla_clt_id = 5) est une ligne de
-// dd_personnages_classes comme une autre, mais elle n'ajoute aucun niveau : le
-// Domaine de la Vie d'Adon est une facette de son Clerc, pas une classe de
-// plus. Les compter donnait 7 à un clerc 5 / guerrier 1 — et un bonus de
-// maîtrise faux avec (SP-PE10h).
-$niveau_global = 0;
-foreach ($classes as $c):
-  if ((int)$c['cla_clt_id'] !== CLT_SOUS_CLASSE) $niveau_global += (int)$c['pc_niveau'];
-endforeach;
+// Niveau global = somme des niveaux des classes, SOUS-CLASSES EXCLUES (SP-PE10h).
+$niveau_global = niveauGlobalPersonnage($classes);
 
 // Toutes les classes du ruleset pour le select de l'éditeur.
 // Le ruleset passé est celui du PERSONNAGE, pas celui de la session : les deux
@@ -87,6 +79,18 @@ endif;
 // ------------------------------------------------------------
 $competences = getPersonnageCompetences($db, (int)$perso['pe_id'], $ruleset_id, $res_ids);
 
+// Compétences de classe (DD3.5 uniquement) : celles d'AU MOINS UNE des classes du personnage — un point de
+// compétence y vaut 1 rang, contre 1/2 rang ailleurs. En DD2024, dd_classe_competence désigne les compétences
+// qu'une classe PEUT maîtriser (autre sens, cf. SCHEMA_SQL) : pas de marquage.
+$comp_classe_ids = [];
+if ($ruleset_rep === 'DD3.5' && $classes):
+  $cla_ids = array_map(fn($c) => (int)$c['pc_cla_id'], $classes);
+  $stmt = $db->prepare('SELECT DISTINCT ccomp_comp_id FROM dd_classe_competence WHERE ccomp_cla_id IN ('
+    . implode(',', array_fill(0, count($cla_ids), '?')) . ')');
+  $stmt->execute($cla_ids);
+  $comp_classe_ids = array_flip($stmt->fetchAll(PDO::FETCH_COLUMN));
+endif;
+
 // ------------------------------------------------------------
 // CAPACITÉS SPÉCIALES (SP-PE11)
 // Déduites de la race et des classes — aucune saisie, aucun champ : les
@@ -113,36 +117,13 @@ if ($ra_ids):
   $capacites_race = $stmt->fetchAll();
 endif;
 
-// Classes : seulement les capacités dont le niveau d'obtention est ATTEINT.
-// Une requête par classe — un personnage en a deux ou trois, et le niveau
-// seuil diffère de l'une à l'autre.
-$capacites_classes = [];
-$stmt_cap_cla = $db->prepare('
-  SELECT cap.cap_id, cap.cap_nom, cc.cc_niveau, cc.cc_precision
-    FROM dd_classe_capacite cc
-    JOIN dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
-   WHERE cc.cc_cla_id = ? AND cc.cc_niveau <= ?
-ORDER BY cc.cc_niveau, cap.cap_nom
-');
-foreach ($classes as $c):
-  // Une sous-classe DD2024 n'a pas de niveau propre : elle suit celui de la
-  // classe qui la porte, sans quoi ses capacités resteraient invisibles.
-  $niveau_ref = (int)$c['pc_niveau'];
-  if ((int)$c['cla_clt_id'] === CLT_SOUS_CLASSE):
-    foreach ($classes as $parent):
-      if ((int)$parent['pc_cla_id'] === (int)($c['cla_cla_id'] ?? 0)):
-        $niveau_ref = (int)$parent['pc_niveau'];
-        break;
-      endif;
-    endforeach;
-  endif;
-
-  $stmt_cap_cla->execute([(int)$c['pc_cla_id'], $niveau_ref]);
-  $lignes = $stmt_cap_cla->fetchAll();
-  if ($lignes):
-    $capacites_classes[] = ['nom' => $c['cla_nom'], 'capacites' => $lignes];
-  endif;
-endforeach;
+// Classes : seulement les capacités dont le niveau d'obtention est ATTEINT,
+// chacune avec ses emplacements de choix (SP-CH) — voir
+// getCapacitesClassesPersonnage() : la sous-classe DD2024 suit le niveau de sa
+// classe porteuse, le choix saisi est joint par clé naturelle.
+$ctx_caps_classes  = getCapacitesClassesPersonnage($db, (int)$perso['pe_id'], $classes);
+$capacites_classes = $ctx_caps_classes['groupes'];
+$choix_restants    = $ctx_caps_classes['restant'];
 
 // Bonus de maîtrise DD2024 au niveau global (toujours 0 en DD3.5)
 $bonus_maitrise = ($ruleset_rep === 'DD2024')
@@ -150,19 +131,7 @@ $bonus_maitrise = ($ruleset_rep === 'DD2024')
   : 0;
 
 // Modificateur de la caractéristique associée, indexé par comp_car_id.
-// car_diminutif ('for', 'dex', …) correspond au suffixe des champs pe_*.
-// Certaines compétences n'ont pas de caractéristique (comp_car_id = 0,
-// ex. « Langue » en DD3.5) : modificateur 0, aucun champ pe_* à lire.
-$mod_par_carac = [];
-foreach ($competences as $c):
-  $cid = (int)$c['comp_car_id'];
-  if (!isset($mod_par_carac[$cid])):
-    $dim = $c['car_diminutif'] ?? '';
-    $mod_par_carac[$cid] = ($dim !== '' && isset($perso['pe_' . $dim]))
-      ? modCarac((int)$perso['pe_' . $dim])
-      : 0;
-  endif;
-endforeach;
+$mod_par_carac = modsCaracCompetences($perso, $competences);
 
 // Mode lecture : compétences maîtrisées uniquement
 $competences_maitrisees = array_values(array_filter($competences, function($c) {
@@ -188,10 +157,12 @@ $stmt_dons = $db->prepare('
   SELECT ped.ped_do_id,
          ped.ped_niveau,
          do.do_nom,
-         dad.dado_nom
+         dad.dado_nom,
+         pech.pech_precision
     FROM dd_personnages_dons ped
     JOIN dd_dons do        ON do.do_id     = ped.ped_do_id
     LEFT JOIN dd_data_don dad ON dad.dado_id = do.do_dado_id
+    LEFT JOIN dd_personnages_choix pech ON pech.pech_id = ped.ped_pech_id
    WHERE ped.ped_pe_id = ?
    ORDER BY do.do_nom
 ');
@@ -254,7 +225,7 @@ require_once '../include/header.php';
   }, $classes), JSON_UNESCAPED_UNICODE) ?>;
 
   // Tableau complet des compétences du ruleset (état initial de l'éditeur SP-PE3)
-  var perCompetencesInitiales = <?= json_encode(array_map(function($c) use ($mod_par_carac) {
+  var perCompetencesInitiales = <?= json_encode(array_map(function($c) use ($mod_par_carac, $comp_classe_ids) {
     return [
       'comp_id'      => (int)$c['comp_id'],
       'nom'          => $c['comp_nom'],
@@ -262,6 +233,7 @@ require_once '../include/header.php';
       'mod'          => (int)($mod_par_carac[(int)$c['comp_car_id']] ?? 0),
       'formation'    => (bool)$c['comp_formation'],
       'malusArmure'  => (bool)$c['comp_malusArmure'],
+      'classe'       => isset($comp_classe_ids[(int)$c['comp_id']]),
       'maitrise'     => (int)$c['pec_maitrise'],
     ];
   }, $competences), JSON_UNESCAPED_UNICODE) ?>;
@@ -272,6 +244,9 @@ require_once '../include/header.php';
   // Sélecteur de dons (SP-PE4)
   var perUrlDonsPicker = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/dons-picker.php') ?>;
   var perUrlDonDetail  = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/don.php') ?>;
+
+  // Choix de don d'une capacité de classe (SP-CH)
+  var perUrlChoixDonPicker = <?= json_encode(BASE_URL . '/include/ajax/detail-pp/choix-don-picker.php') ?>;
 
 
   // NLS prestige (SP-PE6) — état initial de l'éditeur. null si le bloc est omis.
@@ -715,7 +690,6 @@ require_once '../include/header.php';
                 <span class="per-comp__val per-comp__val--carac">
                   <?php if (!empty($c['car_diminutif'])): ?>
                     <?= h(strtoupper($c['car_diminutif'])) ?>
-                    <span class="text-muted"><?= formatMod($mod) ?></span>
                   <?php else: ?>
                     <span class="text-muted" title="Aucune caractéristique associée">—</span>
                   <?php endif ?>
@@ -748,6 +722,12 @@ require_once '../include/header.php';
               ? 'Aucune / Maîtrise / Expertise'
               : 'Nombre de rangs (0 = non maîtrisée)' ?>
           </span>
+          <?php if ($ruleset_rep === 'DD3.5'): ?>
+            <?php // Légende de l'étoile posée sur les compétences de classe par l'éditeur ?>
+            <span class="text-muted text-sm per-comp__legende">
+              <i class="fa fa-star per-comp__classe"></i> compétence de classe (1 point = 1 rang)
+            </span>
+          <?php endif ?>
         </div>
         <div id="competences-editor-lignes">
           <!-- Le tableau est généré par competencesEditor.init() en JS -->
@@ -794,6 +774,9 @@ require_once '../include/header.php';
                      onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/don.php', {id: <?= (int)$d['ped_do_id'] ?>}, 'externe')">
                     <?= h($d['do_nom']) ?>
                   </a>
+                  <?php if ((string)$d['pech_precision'] !== ''): ?>
+                    <span class="per-choix__precision">(<?= h($d['pech_precision']) ?>)</span>
+                  <?php endif ?>
                 </span>
                 <span class="per-dons__cat text-muted"><?= h($d['dado_nom'] ?? '—') ?></span>
               </li>
@@ -844,7 +827,28 @@ require_once '../include/header.php';
             <h2 class="per-fiche__bloc-titre">
               <i class="fa fa-shield-halved"></i> Capacités de classe
               <span class="per-fiche__compte"><?= array_sum(array_map(fn($g) => count($g['capacites']), $capacites_classes)) ?></span>
+              <?php // Rappel des choix encore à faire (SP-CH) — mis à jour par perChoix ?>
+              <span class="per-choix__restant<?= $choix_restants ? '' : ' noDisplay' ?>" id="per-choix-restant"
+                    title="Choix de capacités encore à faire">
+                <i class="fa fa-list-check"></i>
+                <span id="per-choix-restant-n"><?= (int)$choix_restants ?></span> à faire
+              </span>
             </h2>
+            <?php // Bascule des boutons de gestion des choix : masqués par défaut (l'état est mémorisé par perChoix).
+                  // Pas de bouton s'il n'y a aucun emplacement de choix à gérer. ?>
+            <?php $a_des_choix = false;
+                  foreach ($capacites_classes as $g):
+                    foreach ($g['capacites'] as $c):
+                      if ($c['choix']) $a_des_choix = true;
+                    endforeach;
+                  endforeach ?>
+            <?php if ($a_des_choix): ?>
+              <button type="button" class="btn btn-link btn-sm per-choix__bascule" id="per-choix-bascule"
+                      onclick="perChoix.basculerGestion()" aria-pressed="false"
+                      title="Afficher les boutons de gestion des choix">
+                <i class="fa fa-pen-to-square"></i>
+              </button>
+            <?php endif ?>
           </header>
           <div class="per-fiche__bloc-body">
             <?php foreach ($capacites_classes as $groupe): ?>
@@ -863,6 +867,65 @@ require_once '../include/header.php';
                       <span class="per-caps__precision"><?= h($cap['cc_precision']) ?></span>
                     <?php endif ?>
                     <span class="per-caps__meta" title="Niveau d'obtention">niv. <?= (int)$cap['cc_niveau'] ?></span>
+                    <?php // Emplacements de choix (SP-CH) : un par choix accordé à ce niveau ?>
+                    <?php if ($cap['choix']): ?>
+                      <ul class="per-choix">
+                        <?php foreach ($cap['choix'] as $rang => $ch): ?>
+                          <li class="per-choix__item<?= $ch ? '' : ' is-vide' ?>"
+                              data-cla-id="<?= (int)$groupe['cla_id'] ?>"
+                              data-cap-id="<?= (int)$cap['cap_id'] ?>"
+                              data-niveau="<?= (int)$cap['cc_niveau'] ?>"
+                              data-rang="<?= (int)$rang ?>"
+                              data-do-id="<?= $ch ? (int)($ch['pech_do_id'] ?? 0) : 0 ?>"
+                              data-mode="<?= h($cap['cap_choix_mode']) ?>"
+                              data-dado-id="<?= (int)$cap['cap_choix_dado_id'] ?>"
+                              data-guerrier="<?= (int)$cap['cap_choix_guerrier'] ?>">
+                            <?php // Trois cases d'actions à largeur fixe (modifier · préciser · effacer), puis le choix :
+                                  // les choix de toutes les lignes s'alignent, quelles que soient les actions disponibles. ?>
+                            <span class="per-choix__actions">
+                              <button type="button" class="btn btn-link btn-sm per-choix__btn"
+                                      onclick="perChoix.editer(this)"
+                                      title="<?= $ch ? 'Modifier ce choix' : 'Faire ce choix' ?>">
+                                <i class="fa <?= $ch ? 'fa-pencil' : 'fa-plus' ?>"></i>
+                              </button>
+                              <?php // Précision d'un don (arme, école, compétence…) : texte libre à côté du don ?>
+                              <?php if ($ch && $ch['pech_do_id'] !== null): ?>
+                                <button type="button" class="btn btn-link btn-sm per-choix__btn"
+                                        onclick="perChoix.precision(this)" title="Préciser ce don (arme, école, compétence…)"
+                                        data-precision="<?= h($ch['precision']) ?>">
+                                  <i class="fa fa-tag"></i>
+                                </button>
+                              <?php else: ?>
+                                <span class="per-choix__btn per-choix__btn--vide"></span>
+                              <?php endif ?>
+                              <?php if ($ch): ?>
+                                <button type="button" class="btn btn-link btn-sm per-choix__btn"
+                                        onclick="perChoix.effacer(this)" title="Effacer ce choix">
+                                  <i class="fa fa-times"></i>
+                                </button>
+                              <?php else: ?>
+                                <span class="per-choix__btn per-choix__btn--vide"></span>
+                              <?php endif ?>
+                            </span>
+                            <span class="per-choix__val">
+                              <?php if (!$ch): ?>
+                                <em>à choisir</em>
+                              <?php elseif ($ch['pech_do_id'] !== null): ?>
+                                <a href="javascript:void(0)"
+                                   onclick="actualiserPage('<?= BASE_URL ?>/include/ajax/detail-pp/don.php', {id: <?= (int)$ch['pech_do_id'] ?>}, 'externe')">
+                                  <?= h($ch['libelle']) ?>
+                                </a>
+                                <?php if ($ch['precision'] !== ''): ?>
+                                  <span class="per-choix__precision">(<?= h($ch['precision']) ?>)</span>
+                                <?php endif ?>
+                              <?php else: ?>
+                                <?= h($ch['libelle']) ?>
+                              <?php endif ?>
+                            </span>
+                          </li>
+                        <?php endforeach ?>
+                      </ul>
+                    <?php endif ?>
                   </li>
                 <?php endforeach ?>
               </ul>

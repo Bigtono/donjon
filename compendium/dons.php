@@ -28,6 +28,19 @@ $filtres = [
   ],
 ];
 
+// Don de guerrier (SP-DO) — DD3.5 uniquement. Le moteur filtre sur « champ = valeur » :
+// une seule option, « Dons de guerrier », qui retient do_guerrier = 1.
+if ($ruleset_rep === 'DD3.5'):
+  $filtres[] = [
+    'type'         => 'select',
+    'name'         => 'f_guerrier',
+    'label'        => 'Don de guerrier',
+    'champ'        => 'do.do_guerrier',
+    'query'        => "SELECT 1 val, 'Dons de guerrier' lab",
+    'query_params' => [],
+  ];
+endif;
+
 // ============================================================
 // Configuration de la liste
 // ============================================================

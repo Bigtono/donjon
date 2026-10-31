@@ -469,6 +469,15 @@ const competencesEditor = (function() {
     const tdNom = document.createElement('td');
     tdNom.className = 'per-comp-table__nom';
     tdNom.textContent = data.nom;
+    // DD3.5 : compétence de classe d'au moins une classe du personnage (1 point = 1 rang)
+    if (data.classe) {
+      const e = document.createElement('i');
+      e.className = 'fa fa-star per-comp__classe';
+      e.title     = 'Compétence de classe : 1 point de compétence = 1 rang';
+      e.setAttribute('aria-label', 'Compétence de classe');
+      tdNom.appendChild(document.createTextNode(' '));
+      tdNom.appendChild(e);
+    }
     if (data.formation) {
       const f = document.createElement('span');
       f.className   = 'per-comp__flag';
@@ -487,15 +496,12 @@ const competencesEditor = (function() {
     }
     tr.appendChild(tdNom);
 
-    // Caractéristique associée + son modificateur.
+    // Caractéristique associée, abréviation seule : le modificateur n'est pas affiché ici (il pèse sur la
+    // lisibilité, surtout sur smartphone) ; il reste compris dans la colonne Total, recalculée en direct.
     // Certaines compétences n'en ont aucune (« Langue » en DD3.5) → « — ».
     const tdCarac = document.createElement('td');
     if (data.carac) {
-      tdCarac.textContent = data.carac + ' ';
-      const spanMod = document.createElement('span');
-      spanMod.className   = 'text-muted';
-      spanMod.textContent = _formatMod(data.mod);
-      tdCarac.appendChild(spanMod);
+      tdCarac.textContent = data.carac;
     } else {
       const spanVide = document.createElement('span');
       spanVide.className   = 'text-muted';
@@ -569,6 +575,7 @@ const competencesEditor = (function() {
         mod:         c.mod,
         formation:   c.formation,
         malusArmure: c.malusArmure,
+        classe:      !!c.classe,
         maitrise:    c.maitrise,
       };
     });
@@ -862,6 +869,259 @@ const donsPicker = (function() {
   }
 
   return { ouvrir, fermer, filtrer, voir, basculer };
+
+})();
+
+// ============================================================
+// CHOIX LIÉS AUX CAPACITÉS DE CLASSE (SP-CH)
+// ============================================================
+// Chaque emplacement est un <li.per-choix__item> qui porte sa clé naturelle en
+// data-* (cla-id, cap-id, niveau, rang) et le mode de la capacité (texte | don).
+// Écriture immédiate (enregistrerChoixCapacite / effacerChoixCapacite), puis
+// rechargement de la fiche : le bloc Dons et le rappel « N à faire » en dépendent.
+//
+// Dépend des variables injectées par fiche.php :
+//   perPeId, perUrlEnreg
+// ============================================================
+
+var perChoix = (function() {
+  'use strict';
+
+  var _courant = null;   // <li> dont le sélecteur de don est ouvert
+
+  function _csrf() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
+  function _formData(li, action) {
+    var fd = new FormData();
+    fd.append('action', action);
+    fd.append('pe_id',  perPeId);
+    fd.append('cla_id', li.dataset.claId);
+    fd.append('cap_id', li.dataset.capId);
+    fd.append('niveau', li.dataset.niveau);
+    fd.append('rang',   li.dataset.rang);
+    fd.append('csrf_token', _csrf());
+    return fd;
+  }
+
+  function _envoyer(fd, apres) {
+    return fetch(perUrlEnreg, { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) {
+          alert(data.erreur || 'Erreur lors de l\'enregistrement.');
+          return;
+        }
+        if (apres) apres(data);
+        window.location.reload();
+      })
+      .catch(function(e) { alert('Erreur réseau : ' + e); });
+  }
+
+  // ---- Point d'entrée du bouton « choisir / modifier » ------------
+
+  function editer(btn) {
+    var li = btn.closest('.per-choix__item');
+    if (!li) return;
+    if (li.dataset.mode === 'don') {
+      _ouvrirDon(li);
+      return;
+    }
+    // Champ déjà ouvert : le bouton, devenu « Enregistrer », valide la saisie.
+    var champ = li.querySelector('.per-choix__champ');
+    if (champ) {
+      _enregistrerTexte(li, champ.value);
+    } else {
+      _editerTexte(li, btn);
+    }
+  }
+
+  // ---- Mode texte : champ inline ----------------------------------
+
+  function _editerTexte(li, btn) {
+    var val = li.querySelector('.per-choix__val');
+    if (!val || li.querySelector('.per-choix__champ')) return;
+
+    // Le bouton « choisir / modifier » devient « Enregistrer » le temps de la saisie.
+    btn.title     = 'Enregistrer ce choix';
+    btn.innerHTML = '<i class="fa fa-check"></i>';
+
+    var actuel = li.classList.contains('is-vide') ? '' : val.textContent.trim();
+
+    var champ = document.createElement('input');
+    champ.type      = 'text';
+    champ.className = 'per-choix__champ';
+    champ.maxLength = 255;
+    champ.value     = actuel;
+    champ.setAttribute('aria-label', 'Votre choix');
+
+    champ.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter')  { e.preventDefault(); _enregistrerTexte(li, champ.value); }
+      if (e.key === 'Escape') { window.location.reload(); }
+    });
+
+    val.style.display = 'none';
+    li.insertBefore(champ, val.nextSibling);
+    champ.focus();
+    champ.select();
+  }
+
+  function _enregistrerTexte(li, texte) {
+    texte = texte.trim();
+    if (!texte) { alert('Saisissez votre choix, ou utilisez la croix pour l\'effacer.'); return; }
+    var fd = _formData(li, 'enregistrerChoixCapacite');
+    fd.append('texte', texte);
+    _envoyer(fd);
+  }
+
+  // ---- Mode don : sélecteur dans #detail-pp ------------------------
+
+  function _panel()    { return document.getElementById('detail-pp'); }
+  function _backdrop() { return document.getElementById('detail-pp-backdrop'); }
+
+  function _ouvrirDon(li) {
+    var panel = _panel();
+    var bd    = _backdrop();
+    if (!panel) return;
+
+    _courant = li;
+    if (bd) bd.classList.remove('noDisplay');
+    panel.classList.remove('noDisplay');
+    panel.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
+
+    fetch(perUrlChoixDonPicker + '?pe_id=' + encodeURIComponent(perPeId)
+          + '&dado_id=' + encodeURIComponent(li.dataset.dadoId || 0)
+          + '&guerrier=' + encodeURIComponent(li.dataset.guerrier || 0)
+          + '&do_id=' + encodeURIComponent(li.dataset.doId || 0))
+      .then(function(r) { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
+      .then(function(html) {
+        panel.innerHTML =
+          '<button class="overlay-close" onclick="perChoix.fermerDon()" title="Fermer">'
+          + '<i class="fa fa-times"></i></button>'
+          + '<div class="overlay-panel__inner">' + html + '</div>';
+        filtrerDons();
+      })
+      .catch(function(e) { panel.innerHTML = '<p class="erreur">' + e + '</p>'; });
+  }
+
+  function fermerDon() {
+    var panel = _panel();
+    var bd    = _backdrop();
+    if (typeof fermerSubPanel === 'function') fermerSubPanel();
+    if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+    if (bd)    bd.classList.add('noDisplay');
+    _courant = null;
+  }
+
+  function filtrerDons() {
+    var champ = document.getElementById('choix-don-q');
+    var q     = champ ? champ.value.trim().toLowerCase() : '';
+    document.querySelectorAll('.choix-don-picker__item').forEach(function(li) {
+      li.classList.toggle('noDisplay', !!q && li.dataset.nom.indexOf(q) === -1);
+    });
+  }
+
+  function choisirDon(doId) {
+    if (!_courant) return;
+    var champ = document.getElementById('choix-don-precision');
+    var fd = _formData(_courant, 'enregistrerChoixCapacite');
+    fd.append('do_id', doId);
+    fd.append('precision', champ ? champ.value : '');
+    _envoyer(fd);
+  }
+
+  // ---- Précision d'un don déjà choisi (arme, école, compétence…) ----
+
+  function precision(btn) {
+    var li = btn.closest('.per-choix__item');
+    if (!li) return;
+
+    // Champ déjà ouvert : le bouton, devenu « Enregistrer », valide la saisie.
+    var champ = li.querySelector('.per-choix__champ');
+    if (champ) {
+      _enregistrerPrecision(li, champ.value);
+      return;
+    }
+
+    champ = document.createElement('input');
+    champ.type        = 'text';
+    champ.className   = 'per-choix__champ';
+    champ.maxLength   = 100;
+    champ.value       = btn.dataset.precision || '';
+    champ.placeholder = 'Précision (arme, école, compétence…)';
+    champ.setAttribute('aria-label', 'Précision du don');
+    champ.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter')  { e.preventDefault(); _enregistrerPrecision(li, champ.value); }
+      if (e.key === 'Escape') { window.location.reload(); }
+    });
+
+    btn.title     = 'Enregistrer la précision';
+    btn.innerHTML = '<i class="fa fa-check"></i>';
+    // Le champ prend la place du choix, à droite des actions.
+    var val = li.querySelector('.per-choix__val');
+    li.insertBefore(champ, val ? val.nextSibling : null);
+    champ.focus();
+    champ.select();
+  }
+
+  // Même don, précision remplacée (vide = précision retirée).
+  function _enregistrerPrecision(li, texte) {
+    var fd = _formData(li, 'enregistrerChoixCapacite');
+    fd.append('do_id', li.dataset.doId);
+    fd.append('precision', texte);
+    _envoyer(fd);
+  }
+
+  // ---- Effacement --------------------------------------------------
+
+  function effacer(btn) {
+    var li = btn.closest('.per-choix__item');
+    if (!li) return;
+    _envoyer(_formData(li, 'effacerChoixCapacite'));
+  }
+
+  // ---- Boutons de gestion : masqués par défaut, mémorisés ------------
+  // Chaque écriture recharge la fiche : sans mémoire, les boutons se masqueraient
+  // à chaque choix enregistré. Préférence du lecteur → localStorage, jamais bloquant.
+
+  var CLE_GESTION = 'perChoixGestion';
+
+  function _bloc() { return document.getElementById('bloc-capacites-classes'); }
+
+  function _appliquerGestion(actif) {
+    var bloc = _bloc();
+    var btn  = document.getElementById('per-choix-bascule');
+    if (!bloc) return;
+    bloc.classList.toggle('is-gestion', actif);
+    if (btn) {
+      btn.setAttribute('aria-pressed', actif ? 'true' : 'false');
+      btn.title = actif ? 'Masquer les boutons de gestion des choix' : 'Afficher les boutons de gestion des choix';
+    }
+  }
+
+  function basculerGestion() {
+    var bloc = _bloc();
+    if (!bloc) return;
+    var actif = !bloc.classList.contains('is-gestion');
+    _appliquerGestion(actif);
+    try { localStorage.setItem(CLE_GESTION, actif ? '1' : '0'); } catch (e) { /* stockage indisponible : sans conséquence */ }
+  }
+
+  function _initGestion() {
+    var actif = false;
+    try { actif = localStorage.getItem(CLE_GESTION) === '1'; } catch (e) { /* idem */ }
+    _appliquerGestion(actif);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initGestion);
+  } else {
+    _initGestion();
+  }
+
+  return { editer, effacer, precision, fermerDon, filtrerDons, choisirDon, basculerGestion };
 
 })();
 
@@ -1803,3 +2063,37 @@ const sortsPicker = (function() {
   return { ouvrir, fermer, filtrer, voir, basculer, ajouterUn, retirerUn,
            grimoire, reinitialiser };
 })();
+
+// ============================================================
+// NOTES DU PERSONNAGE (SP-NO4) — personnages/notes.php
+// Attendus inline : perPeId, perUrlEnreg
+// ============================================================
+
+// Portée de la page : 0 = campagne en cours, 1 = toutes. Mémorisée sur le
+// personnage (pe_notes_scope), puis rechargement sans les filtres : ceux de
+// l'autre portée n'ont plus de sens.
+async function perDefinirPorteeNotes(scope) {
+  try {
+    const data = await postAjax(perUrlEnreg, { action: 'definirPorteeNotes', pe_id: perPeId, scope: scope });
+    if (!data.ok) { notifier(data.erreur || 'Échec', 'erreur'); return; }
+    window.location.href = '?id=' + perPeId;
+  } catch (e) {
+    notifier('Erreur réseau', 'erreur');
+  }
+}
+
+// Ouvre la note dans #detail-pp ; le serveur la marque lue, la pastille
+// « Nouveau » de la carte disparaît sans recharger la liste.
+function perOuvrirNote(carte, noId) {
+  actualiserPage(BASE_URL + '/include/ajax/detail-pp/note-perso.php', { pe_id: perPeId, id: noId });
+  if (!carte.classList.contains('est-nouveau')) return;
+  carte.classList.remove('est-nouveau');
+  const pastille = carte.querySelector('.per-notes__nouveau');
+  if (pastille) pastille.remove();
+  // Compteur du titre : « n nouvelle(s) », retiré à zéro
+  const compte = document.querySelector('.per-notes__compte');
+  if (!compte) return;
+  const reste = parseInt(compte.textContent, 10) - 1;
+  if (reste > 0) compte.textContent = reste + ' nouvelle' + (reste > 1 ? 's' : '');
+  else compte.remove();
+}

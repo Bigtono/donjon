@@ -11,6 +11,7 @@
 //   - rattacherCampagne / detacherCampagne / definirCampagneCourante /
 //     basculerParticipationCampagne (SP-PE5 — écriture immédiate)
 //   - enregistrerNls          (SP-PE6 — affectation NLS prestige DD3.5)
+//   - definirPorteeNotes      (SP-NO4 — pe_notes_scope, écriture immédiate)
 //
 // Toutes les actions :
 //   - Vérifient le CSRF (verifyCsrf())
@@ -102,6 +103,10 @@ switch ($action):
       $db->prepare('DELETE FROM dd_personnages_dons WHERE ped_pe_id = ?')
          ->execute([$pe_id]);
 
+      // Choix de capacités de classe (SP-CH)
+      $db->prepare('DELETE FROM dd_personnages_choix WHERE pech_pe_id = ?')
+         ->execute([$pe_id]);
+
       // Notes connues par le perso (les notes elles-mêmes restent)
       $db->prepare('DELETE FROM dd_personnages_notes WHERE pno_pe_id = ?')
          ->execute([$pe_id]);
@@ -143,6 +148,15 @@ switch ($action):
     basculerDon($db, $is_ajax, $j_id, $action === 'ajouterDon');
     break;
 
+  // --- Choix liés aux capacités de classe (SP-CH) — écriture immédiate
+  case 'enregistrerChoixCapacite':
+    enregistrerChoixCapacite($db, $is_ajax);
+    break;
+
+  case 'effacerChoixCapacite':
+    effacerChoixCapacite($db, $is_ajax);
+    break;
+
   // --- Sorts du personnage (SP-PE7b) — écriture immédiate, portée par classe
   case 'ajouterSort':
   case 'retirerSort':
@@ -180,6 +194,10 @@ switch ($action):
 
   case 'basculerParticipationCampagne':
     basculerParticipationCampagne($db, $is_ajax);
+    break;
+
+  case 'definirPorteeNotes':
+    definirPorteeNotes($db, $is_ajax);
     break;
 
   default:
@@ -444,6 +462,26 @@ function enregistrerClasses(PDO $db, bool $is_ajax, int $j_id): void {
     ');
     foreach ($lignes as $l):
       $stmt_ins->execute([$pe_id, $l['cla_id'], $l['niveau'], $l['do_id_1'], $l['do_id_2']]);
+    endforeach;
+
+    // Choix de capacités (SP-CH) devenus sans objet : ceux d'une classe retirée
+    // du personnage, et ceux d'un niveau que la classe n'atteint plus. Ils sont
+    // effacés, avec les dons qu'ils avaient posés. Le niveau de référence est
+    // celui de getPersonnageClasses() relu après réinsertion (une sous-classe
+    // DD2024 suit sa classe porteuse).
+    $classes_apres = getPersonnageClasses($db, $pe_id);
+    $niveau_par_cla = [];
+    foreach ($classes_apres as $k):
+      $niveau_par_cla[(int)$k['pc_cla_id']] = niveauReferenceClasse($classes_apres, $k);
+    endforeach;
+
+    $stmt_choix = $db->prepare('SELECT pech_id, pech_cla_id, pech_niveau, pech_do_id FROM dd_personnages_choix WHERE pech_pe_id = ?');
+    $stmt_choix->execute([$pe_id]);
+    foreach ($stmt_choix->fetchAll() as $o):
+      $niv_max = $niveau_par_cla[(int)$o['pech_cla_id']] ?? 0; // 0 = classe retirée
+      if ((int)$o['pech_niveau'] <= $niv_max) continue;
+      $db->prepare('DELETE FROM dd_personnages_choix WHERE pech_id = ?')->execute([(int)$o['pech_id']]);
+      liberDonChoix($db, $pe_id, (int)$o['pech_id'], $o['pech_do_id'] !== null ? (int)$o['pech_do_id'] : null);
     endforeach;
 
     // Mettre à jour la date de modification du personnage
@@ -783,6 +821,16 @@ function basculerDon(PDO $db, bool $is_ajax, int $j_id, bool $ajouter): void {
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Ce don n\'appartient pas au ruleset du personnage.']);
   endif;
 
+  // Un don posé par un emplacement de capacité (SP-CH) se retire depuis cet
+  // emplacement, sinon le bloc Capacités afficherait un choix sans don.
+  if (!$ajouter):
+    $stmt = $db->prepare('SELECT 1 FROM dd_personnages_dons WHERE ped_pe_id = ? AND ped_do_id = ? AND ped_pech_id IS NOT NULL');
+    $stmt->execute([$pe_id, $do_id]);
+    if ($stmt->fetchColumn()):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Ce don vient d\'une capacité de classe : retirez-le depuis le bloc Capacités de classe.']);
+    endif;
+  endif;
+
   try {
     if ($ajouter):
       // INSERT IGNORE : la clé unique uk_ped (ped_pe_id, ped_do_id) rend
@@ -807,6 +855,199 @@ function basculerDon(PDO $db, bool $is_ajax, int $j_id, bool $ajouter): void {
   }
 
   repondre($is_ajax, ['ok' => true, 'possede' => $ajouter, 'total' => $total]);
+}
+
+// ============================================================
+// CHOIX LIÉS AUX CAPACITÉS DE CLASSE (SP-CH)
+// ============================================================
+// Reçoit en POST : pe_id, cla_id, cap_id, niveau, rang,
+//   puis texte (capacité en mode « texte ») ou do_id (mode « don »), avec en option precision
+//   (texte libre qui précise le don : l'arme d'une Spécialisation martiale, une école…).
+// Un emplacement = une ligne de dd_personnages_choix, identifiée par sa clé
+// naturelle (personnage, classe, capacité, niveau, rang) — pas par cc_id, que
+// l'enregistrement d'une classe dans le compendium régénère.
+// Un choix de don pose aussi le don dans dd_personnages_dons, marqué par
+// ped_pech_id ; un don que le joueur possédait déjà n'est ni marqué ni retiré.
+
+// Contrôle commun : propriétaire, clé d'emplacement. Renvoie le contexte.
+function choixCapaciteCle(PDO $db, bool $is_ajax): array {
+  $cle = [
+    'pe_id'  => intParam($_POST['pe_id']  ?? 0),
+    'cla_id' => intParam($_POST['cla_id'] ?? 0),
+    'cap_id' => intParam($_POST['cap_id'] ?? 0),
+    'niveau' => intParam($_POST['niveau'] ?? 0),
+    'rang'   => intParam($_POST['rang']   ?? 0),
+  ];
+  foreach ($cle as $v):
+    if ($v <= 0):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Identifiant manquant.']);
+    endif;
+  endforeach;
+
+  $stmt = $db->prepare('SELECT pe_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt->execute([$cle['pe_id']]);
+  $row = $stmt->fetch();
+  if (!$row || !canAccess((int)$row['pe_j_id'])):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
+  endif;
+  $cle['ruleset_id'] = (int)$row['pe_ruleset_var_id'];
+  return $cle;
+}
+
+// Libère le don posé par un emplacement. Si un autre emplacement désigne le
+// même don, la marque lui passe plutôt que de retirer le don.
+function liberDonChoix(PDO $db, int $pe_id, int $pech_id, ?int $do_id): void {
+  $db->prepare('DELETE FROM dd_personnages_dons WHERE ped_pe_id = ? AND ped_pech_id = ?')
+     ->execute([$pe_id, $pech_id]);
+  if ($do_id === null) return;
+
+  $stmt = $db->prepare('
+    SELECT pech_id FROM dd_personnages_choix
+     WHERE pech_pe_id = ? AND pech_do_id = ? AND pech_id <> ? LIMIT 1
+  ');
+  $stmt->execute([$pe_id, $do_id, $pech_id]);
+  $autre = $stmt->fetchColumn();
+  if ($autre):
+    $db->prepare('INSERT IGNORE INTO dd_personnages_dons (ped_pe_id, ped_do_id, ped_niveau, ped_pech_id) VALUES (?, ?, NULL, ?)')
+       ->execute([$pe_id, $do_id, (int)$autre]);
+  endif;
+}
+
+function enregistrerChoixCapacite(PDO $db, bool $is_ajax): void {
+  $c     = choixCapaciteCle($db, $is_ajax);
+  $pe_id = $c['pe_id'];
+
+  // La classe est bien celle du personnage et le niveau est atteint
+  $classes = getPersonnageClasses($db, $pe_id);
+  $classe  = null;
+  foreach ($classes as $k):
+    if ((int)$k['pc_cla_id'] === $c['cla_id']):
+      $classe = $k;
+    endif;
+  endforeach;
+  if (!$classe || $c['niveau'] > niveauReferenceClasse($classes, $classe)):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Ce choix n\'est pas (encore) accordé au personnage.']);
+  endif;
+
+  // L'emplacement existe dans le compendium
+  $stmt = $db->prepare('
+    SELECT cap.cap_choix_mode, cap.cap_choix_dado_id, cap.cap_choix_guerrier, cc.cc_nb_choix
+      FROM dd_classe_capacite cc
+      JOIN dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
+     WHERE cc.cc_cla_id = ? AND cc.cc_cap_id = ? AND cc.cc_niveau = ?
+     LIMIT 1
+  ');
+  $stmt->execute([$c['cla_id'], $c['cap_id'], $c['niveau']]);
+  $emp = $stmt->fetch();
+  if (!$emp || $emp['cap_choix_mode'] === '' || $c['rang'] > (int)$emp['cc_nb_choix']):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Emplacement de choix inexistant.']);
+  endif;
+
+  $do_id     = null;
+  $texte     = null;
+  $precision = null;   // texte libre qui accompagne un don (arme, école, compétence…) — mode don seulement
+  if ($emp['cap_choix_mode'] === 'texte'):
+    $texte = trim(strParam($_POST['texte'] ?? ''));
+    if ($texte === ''):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Saisissez votre choix, ou effacez-le.']);
+    endif;
+    $texte = mb_substr($texte, 0, 255);
+  else:
+    $do_id = intParam($_POST['do_id'] ?? 0);
+    $precision = mb_substr(trim(strParam($_POST['precision'] ?? '')), 0, 100);
+    $precision = $precision === '' ? null : $precision;
+    // Le don doit exister dans le ruleset du personnage (et dans la catégorie
+    // proposée, le cas échéant) — un id forgé ne passe pas.
+    $stmt = $db->prepare('SELECT do.do_id FROM dd_dons do WHERE do.do_id = ? AND do.do_ruleset_var_id = ?');
+    $stmt->execute([$do_id, $c['ruleset_id']]);
+    if ($stmt->fetchColumn() === false):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Ce don n\'appartient pas au ruleset du personnage.']);
+    endif;
+    // Restriction de la capacité : dons de guerrier et/ou catégorie (SP-DO)
+    [$sql_restriction, $params_restriction] = conditionDonsChoix((int)$emp['cap_choix_dado_id'], (int)$emp['cap_choix_guerrier'] === 1);
+    $stmt = $db->prepare('SELECT 1 FROM dd_dons do WHERE do.do_id = ?' . $sql_restriction);
+    $stmt->execute(array_merge([$do_id], $params_restriction));
+    if (!$stmt->fetchColumn()):
+      repondre($is_ajax, ['ok' => false, 'erreur' => ((int)$emp['cap_choix_guerrier'] === 1)
+        ? 'Ce don n\'est pas un don de guerrier.'
+        : 'Ce don n\'est pas dans la catégorie proposée.']);
+    endif;
+  endif;
+
+  try {
+    $db->beginTransaction();
+
+    $stmt = $db->prepare('
+      SELECT pech_id, pech_do_id FROM dd_personnages_choix
+       WHERE pech_pe_id = ? AND pech_cla_id = ? AND pech_cap_id = ? AND pech_niveau = ? AND pech_rang = ?
+    ');
+    $stmt->execute([$pe_id, $c['cla_id'], $c['cap_id'], $c['niveau'], $c['rang']]);
+    $ancien = $stmt->fetch();
+
+    if ($ancien):
+      $pech_id = (int)$ancien['pech_id'];
+      $db->prepare('UPDATE dd_personnages_choix SET pech_do_id = ?, pech_texte = ?, pech_precision = ? WHERE pech_id = ?')
+         ->execute([$do_id, $texte, $precision, $pech_id]);
+      $ancien_do = $ancien['pech_do_id'] !== null ? (int)$ancien['pech_do_id'] : null;
+      if ($ancien_do !== null && $ancien_do !== $do_id):
+        liberDonChoix($db, $pe_id, $pech_id, $ancien_do);
+      endif;
+    else:
+      $db->prepare('
+        INSERT INTO dd_personnages_choix (pech_pe_id, pech_cla_id, pech_cap_id, pech_niveau, pech_rang, pech_do_id, pech_texte, pech_precision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ')->execute([$pe_id, $c['cla_id'], $c['cap_id'], $c['niveau'], $c['rang'], $do_id, $texte, $precision]);
+      $pech_id = (int)$db->lastInsertId();
+    endif;
+
+    // Mode « don » : le don rejoint le bloc Dons, sauf s'il y figure déjà
+    // (saisi à la main ou posé par un autre emplacement).
+    if ($do_id !== null):
+      $db->prepare('
+        INSERT IGNORE INTO dd_personnages_dons (ped_pe_id, ped_do_id, ped_niveau, ped_pech_id)
+        VALUES (?, ?, ?, ?)
+      ')->execute([$pe_id, $do_id, $c['niveau'], $pech_id]);
+    endif;
+
+    $db->prepare('UPDATE dd_personnages SET pe_date_modif = NOW() WHERE pe_id = ?')->execute([$pe_id]);
+    $db->commit();
+  } catch (PDOException $e) {
+    $db->rollBack();
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  $ctx = getCapacitesClassesPersonnage($db, $pe_id, $classes);
+  repondre($is_ajax, ['ok' => true, 'restant' => $ctx['restant']]);
+}
+
+function effacerChoixCapacite(PDO $db, bool $is_ajax): void {
+  $c     = choixCapaciteCle($db, $is_ajax);
+  $pe_id = $c['pe_id'];
+
+  try {
+    $db->beginTransaction();
+
+    $stmt = $db->prepare('
+      SELECT pech_id, pech_do_id FROM dd_personnages_choix
+       WHERE pech_pe_id = ? AND pech_cla_id = ? AND pech_cap_id = ? AND pech_niveau = ? AND pech_rang = ?
+    ');
+    $stmt->execute([$pe_id, $c['cla_id'], $c['cap_id'], $c['niveau'], $c['rang']]);
+    $ancien = $stmt->fetch();
+
+    if ($ancien):
+      $db->prepare('DELETE FROM dd_personnages_choix WHERE pech_id = ?')->execute([(int)$ancien['pech_id']]);
+      liberDonChoix($db, $pe_id, (int)$ancien['pech_id'], $ancien['pech_do_id'] !== null ? (int)$ancien['pech_do_id'] : null);
+      $db->prepare('UPDATE dd_personnages SET pe_date_modif = NOW() WHERE pe_id = ?')->execute([$pe_id]);
+    endif;
+
+    $db->commit();
+  } catch (PDOException $e) {
+    $db->rollBack();
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  $ctx = getCapacitesClassesPersonnage($db, $pe_id, getPersonnageClasses($db, $pe_id));
+  repondre($is_ajax, ['ok' => true, 'restant' => $ctx['restant']]);
 }
 
 // ============================================================
@@ -1196,4 +1437,15 @@ function basculerParticipationCampagne(PDO $db, bool $is_ajax): void {
     'rattache' => true,
     'actif'    => $actif,
   ]));
+}
+
+/**
+ * Portée de la page Notes du personnage (SP-NO4) : 0 = campagne en cours,
+ * 1 = toutes les campagnes. Préférence d'affichage, aucune autre table touchée.
+ */
+function definirPorteeNotes(PDO $db, bool $is_ajax): void {
+  list($pe_id) = chargerPersonnagePourCampagne($db, $is_ajax);
+  $scope = intParam($_POST['scope'] ?? 0) === 1 ? 1 : 0;
+  $db->prepare('UPDATE dd_personnages SET pe_notes_scope = ? WHERE pe_id = ?')->execute([$scope, $pe_id]);
+  repondre($is_ajax, ['ok' => true, 'scope' => $scope]);
 }

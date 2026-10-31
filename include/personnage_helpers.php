@@ -100,6 +100,116 @@ function getPersonnageClasses(PDO $db, int $pe_id): array {
 }
 
 /**
+ * Niveau de référence d'une classe du personnage pour les capacités.
+ * Une sous-classe DD2024 n'a pas de niveau propre : elle suit celui de la classe qui la porte.
+ *
+ * @param  array  $classes  Résultat de getPersonnageClasses()
+ * @param  array  $c        Une ligne de $classes
+ */
+function niveauReferenceClasse(array $classes, array $c): int {
+  if ((int)$c['cla_clt_id'] === CLT_SOUS_CLASSE):
+    foreach ($classes as $parent):
+      if ((int)$parent['pc_cla_id'] === (int)($c['cla_cla_id'] ?? 0)):
+        return (int)$parent['pc_niveau'];
+      endif;
+    endforeach;
+  endif;
+  return (int)$c['pc_niveau'];
+}
+
+/**
+ * Fragment SQL restreignant les dons proposés par un emplacement de choix en mode « don » (SP-CH, SP-DO).
+ * À accoler à un WHERE portant sur dd_dons aliasée `do`.
+ *   - guerrier + catégorie : dons de guerrier OU de cette catégorie (Guerrier psychique : + dons psioniques)
+ *   - guerrier seul        : dons de guerrier
+ *   - catégorie seule      : dons de cette catégorie
+ *   - ni l'un ni l'autre   : aucune restriction
+ *
+ * @return array  [string $sql (commence par ' AND ' ou vide), array $params]
+ */
+function conditionDonsChoix(int $dado_id, bool $guerrier): array {
+  if ($guerrier && $dado_id > 0):
+    return [' AND (do.do_guerrier = 1 OR do.do_dado_id = ?)', [$dado_id]];
+  elseif ($guerrier):
+    return [' AND do.do_guerrier = 1', []];
+  elseif ($dado_id > 0):
+    return [' AND do.do_dado_id = ?', [$dado_id]];
+  endif;
+  return ['', []];
+}
+
+/**
+ * Capacités de classe d'un personnage, niveau d'obtention atteint (SP-CH).
+ *
+ * Chaque capacité porte ses emplacements de choix : 'choix' est une liste indexée par rang (1…N)
+ * dont chaque entrée vaut ['pech_id', 'pech_do_id', 'pech_texte', 'precision', 'libelle'] si l'emplacement est
+ * rempli, null sinon. 'cap_choix_mode' vaut '', 'texte' ou 'don'.
+ *
+ * @return array  ['groupes' => [['nom', 'cla_id', 'capacites' => [...]]], 'restant' => int]
+ *                restant = nombre d'emplacements encore vides, toutes classes confondues.
+ */
+function getCapacitesClassesPersonnage(PDO $db, int $pe_id, array $classes): array {
+  $stmt = $db->prepare('
+    SELECT pech.pech_id, pech.pech_cla_id, pech.pech_cap_id, pech.pech_niveau, pech.pech_rang,
+           pech.pech_do_id, pech.pech_texte, pech.pech_precision, do.do_nom
+      FROM dd_personnages_choix pech
+      LEFT JOIN dd_dons do ON do.do_id = pech.pech_do_id
+     WHERE pech.pech_pe_id = ?
+  ');
+  $stmt->execute([$pe_id]);
+  $saisis = [];
+  foreach ($stmt->fetchAll() as $r):
+    $cle = $r['pech_cla_id'] . '|' . $r['pech_cap_id'] . '|' . $r['pech_niveau'] . '|' . $r['pech_rang'];
+    $saisis[$cle] = $r;
+  endforeach;
+
+  $stmt_cap = $db->prepare('
+    SELECT cap.cap_id, cap.cap_nom, cap.cap_choix_mode, cap.cap_choix_dado_id, cap.cap_choix_guerrier,
+           cc.cc_niveau, cc.cc_precision, cc.cc_nb_choix
+      FROM dd_classe_capacite cc
+      JOIN dd_capacites_speciales cap ON cap.cap_id = cc.cc_cap_id
+     WHERE cc.cc_cla_id = ? AND cc.cc_niveau <= ?
+  ORDER BY cc.cc_niveau, cap.cap_nom
+  ');
+
+  $groupes = [];
+  $restant = 0;
+  foreach ($classes as $c):
+    $cla_id = (int)$c['pc_cla_id'];
+    $stmt_cap->execute([$cla_id, niveauReferenceClasse($classes, $c)]);
+    $lignes = $stmt_cap->fetchAll();
+    if (!$lignes) continue;
+
+    foreach ($lignes as &$l):
+      $l['choix'] = [];
+      if ($l['cap_choix_mode'] === ''):
+        continue;
+      endif;
+      for ($rang = 1; $rang <= (int)$l['cc_nb_choix']; $rang++):
+        $s = $saisis[$cla_id . '|' . $l['cap_id'] . '|' . $l['cc_niveau'] . '|' . $rang] ?? null;
+        if ($s && ($s['pech_do_id'] !== null || (string)$s['pech_texte'] !== '')):
+          $l['choix'][$rang] = [
+            'pech_id'    => (int)$s['pech_id'],
+            'pech_do_id' => $s['pech_do_id'] !== null ? (int)$s['pech_do_id'] : null,
+            'pech_texte' => $s['pech_texte'],
+            'precision'  => (string)$s['pech_precision'],
+            'libelle'    =>$s['pech_do_id'] !== null ? (string)$s['do_nom'] : (string)$s['pech_texte'],
+          ];
+        else:
+          $l['choix'][$rang] = null;
+          $restant++;
+        endif;
+      endfor;
+    endforeach;
+    unset($l);
+
+    $groupes[] = ['nom' => $c['cla_nom'], 'cla_id' => $cla_id, 'capacites' => $lignes];
+  endforeach;
+
+  return ['groupes' => $groupes, 'restant' => $restant];
+}
+
+/**
  * Campagne en cours + historique des campagnes traversées par le personnage.
  * La campagne en cours (`pe_camp_id`) est marquée par `est_courante = 1`.
  *
@@ -787,4 +897,288 @@ function bonusCompetence(int $maitrise, int $mod_carac, string $ruleset_rep, int
     return $mod_carac + ($bonus_maitrise * min(max($maitrise, 0), 2));
   endif;
   return $mod_carac + $maitrise;
+}
+
+/**
+ * Niveau global du personnage = somme des niveaux de ses classes, SOUS-CLASSES
+ * EXCLUES (SP-PE10h). Une sous-classe DD2024 (cla_clt_id = 5) est une ligne de
+ * dd_personnages_classes comme une autre, mais elle n'ajoute aucun niveau : le
+ * Domaine de la Vie d'Adon est une facette de son Clerc, pas une classe de
+ * plus. Les compter donnait 7 à un clerc 5 / guerrier 1 — et un bonus de
+ * maîtrise faux avec.
+ *
+ * @param  array  $classes  Retour de getPersonnageClasses()
+ * @return int
+ */
+function niveauGlobalPersonnage(array $classes): int {
+  $niveau = 0;
+  foreach ($classes as $c):
+    if ((int)$c['cla_clt_id'] !== CLT_SOUS_CLASSE) $niveau += (int)$c['pc_niveau'];
+  endforeach;
+  return $niveau;
+}
+
+/**
+ * Modificateur de caractéristique de chaque compétence, indexé par comp_car_id.
+ *
+ * car_diminutif ('for', 'dex', …) correspond au suffixe des champs pe_*.
+ * Certaines compétences n'ont pas de caractéristique (comp_car_id = 0,
+ * ex. « Langue » en DD3.5) : modificateur 0, aucun champ pe_* à lire.
+ *
+ * @param  array  $perso        Ligne dd_personnages (champs pe_for, pe_dex, …)
+ * @param  array  $competences  Retour de getPersonnageCompetences()
+ * @return array  [comp_car_id => modificateur]
+ */
+function modsCaracCompetences(array $perso, array $competences): array {
+  $mods = [];
+  foreach ($competences as $c):
+    $cid = (int)$c['comp_car_id'];
+    if (!isset($mods[$cid])):
+      $dim = $c['car_diminutif'] ?? '';
+      $mods[$cid] = ($dim !== '' && isset($perso['pe_' . $dim]))
+        ? modCarac((int)$perso['pe_' . $dim])
+        : 0;
+    endif;
+  endforeach;
+  return $mods;
+}
+
+/**
+ * Bonus total de chaque compétence du ruleset pour un personnage (SP-NO1).
+ *
+ * Même calcul que le bloc Compétences de la fiche (niveauGlobalPersonnage(),
+ * getBonusMaitrise(), modsCaracCompetences(), bonusCompetence()), donc mêmes
+ * limites : hors équipement, armure et bonus divers. Toutes les compétences du
+ * ruleset, sans filtre de sources : une condition de note peut viser une
+ * compétence qu'aucune source active ne propose.
+ *
+ * @param  PDO    $db
+ * @param  array  $perso  Ligne dd_personnages (pe_id, pe_ruleset_var_id, pe_for…)
+ * @return array  [comp_id => ['bonus' => int, 'maitrise' => int, 'formation' => int]]
+ */
+function bonusCompetencesPersonnage(PDO $db, array $perso): array {
+  $pe_id       = (int)$perso['pe_id'];
+  $ruleset_id  = (int)$perso['pe_ruleset_var_id'];
+  $ruleset_rep = ($ruleset_id === 2) ? 'DD2024' : 'DD3.5';
+
+  $competences    = getPersonnageCompetences($db, $pe_id, $ruleset_id, []);
+  $mods           = modsCaracCompetences($perso, $competences);
+  $bonus_maitrise = ($ruleset_rep === 'DD2024')
+    ? getBonusMaitrise($db, $ruleset_id, niveauGlobalPersonnage(getPersonnageClasses($db, $pe_id)))
+    : 0;
+
+  $resultat = [];
+  foreach ($competences as $c):
+    $maitrise = (int)$c['pec_maitrise'];
+    $resultat[(int)$c['comp_id']] = [
+      'bonus'     => bonusCompetence($maitrise, (int)($mods[(int)$c['comp_car_id']] ?? 0), $ruleset_rep, $bonus_maitrise),
+      'maitrise'  => $maitrise,
+      'formation' => (int)$c['comp_formation'],
+    ];
+  endforeach;
+  return $resultat;
+}
+
+// ============================================================
+// NOTES — ACCÈS DU PERSONNAGE (SP-NO1)
+// Une note = tronc commun (toujours lisible par ses destinataires) + sections.
+// Une section sans condition est libre ; sinon il suffit d'UNE condition
+// satisfaite (OU) : 10 + bonus total de compétence >= DD (« prendre 10 »).
+// Voir METIER_11_Notes.md et D-NO1 → D-NO3.
+// ============================================================
+
+/**
+ * Un texte TinyMCE est-il vide ? Ni texte ni image — une image seule est un
+ * contenu ; « <p>&nbsp;</p> », que TinyMCE laisse dans un champ vidé, ne l'est pas.
+ *
+ * @param  ?string  $html
+ * @return bool
+ */
+function texteRicheVide(?string $html): bool {
+  $texte = html_entity_decode(strip_tags((string)$html, '<img>'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+  return preg_replace('/[\s\x{00A0}]+/u', '', $texte) === '';
+}
+
+/**
+ * Une condition « compétence + DD » est-elle satisfaite ?
+ *
+ * En DD3.5, une compétence à formation requise sans rang ne satisfait jamais la
+ * condition : on ne peut pas « prendre 10 » sur une compétence inutilisable.
+ * Une compétence absente du ruleset du personnage n'est pas satisfaite.
+ *
+ * @param  int     $comp_id
+ * @param  int     $dd
+ * @param  array   $bonus        Retour de bonusCompetencesPersonnage()
+ * @param  string  $ruleset_rep  'DD3.5' ou 'DD2024'
+ * @return bool
+ */
+function conditionNoteSatisfaite(int $comp_id, int $dd, array $bonus, string $ruleset_rep): bool {
+  if (!isset($bonus[$comp_id])) return false;
+  $b = $bonus[$comp_id];
+  if ($ruleset_rep === 'DD3.5' && $b['formation'] && $b['maitrise'] <= 0) return false;
+  return 10 + $b['bonus'] >= $dd;
+}
+
+/**
+ * Une section de note est-elle accessible ?
+ *
+ * @param  array   $conditions   [['nocd_comp_id' => …, 'nocd_dd' => …], …] ; vide = libre
+ * @param  array   $bonus        Retour de bonusCompetencesPersonnage()
+ * @param  string  $ruleset_rep  'DD3.5' ou 'DD2024'
+ * @return bool
+ */
+function sectionNoteAccessible(array $conditions, array $bonus, string $ruleset_rep): bool {
+  if (empty($conditions)) return true;
+  foreach ($conditions as $cd):
+    if (conditionNoteSatisfaite((int)$cd['nocd_comp_id'], (int)$cd['nocd_dd'], $bonus, $ruleset_rep)) return true;
+  endforeach;
+  return false;
+}
+
+/**
+ * Sections de plusieurs notes, dans l'ordre, chacune avec ses conditions.
+ * Sert aussi à l'aperçu « vu par » du MJ (SP-NO3).
+ *
+ * @param  PDO    $db
+ * @param  array  $no_ids
+ * @return array  [no_id => [['noc_id', 'noc_titre', 'noc_texte',
+ *                            'conditions' => [['nocd_comp_id', 'nocd_dd', 'comp_nom'], …]], …]]
+ */
+function getSectionsNotes(PDO $db, array $no_ids): array {
+  $no_ids = array_values(array_unique(array_map('intval', $no_ids)));
+  if (empty($no_ids)) return [];
+  $ph = implode(',', array_fill(0, count($no_ids), '?'));
+
+  $stmt = $db->prepare("
+    SELECT noc_id, noc_no_id, noc_titre, noc_texte
+      FROM dd_notes_contenus
+     WHERE noc_no_id IN ($ph)
+  ORDER BY noc_no_id, noc_ordre, noc_id
+  ");
+  $stmt->execute($no_ids);
+  $sections = $stmt->fetchAll();
+  if (empty($sections)) return [];
+
+  $noc_ids = array_map(fn($s) => (int)$s['noc_id'], $sections);
+  $ph      = implode(',', array_fill(0, count($noc_ids), '?'));
+  $stmt    = $db->prepare("
+    SELECT nocd.nocd_noc_id, nocd.nocd_comp_id, nocd.nocd_dd, comp.comp_nom
+      FROM dd_notes_conditions nocd
+      LEFT JOIN dd_competences comp ON comp.comp_id = nocd.nocd_comp_id
+     WHERE nocd.nocd_noc_id IN ($ph)
+  ORDER BY nocd.nocd_dd, comp.comp_nom
+  ");
+  $stmt->execute($noc_ids);
+  $conditions = [];
+  foreach ($stmt->fetchAll() as $cd):
+    $conditions[(int)$cd['nocd_noc_id']][] = $cd;
+  endforeach;
+
+  $resultat = [];
+  foreach ($sections as $s):
+    $s['conditions'] = $conditions[(int)$s['noc_id']] ?? [];
+    $resultat[(int)$s['noc_no_id']][] = $s;
+  endforeach;
+  return $resultat;
+}
+
+/**
+ * Notes reçues par un personnage, réduites à ce qu'il peut lire (SP-NO1).
+ *
+ * Le filtrage des sections se fait ICI, côté serveur : une section
+ * inaccessible n'est jamais renvoyée — ni affichée, ni présente dans la page.
+ * Une note dont le tronc commun est vide et dont aucune section n'est
+ * accessible est écartée. La recherche texte porte sur le titre, le tronc et
+ * les seules sections accessibles (chercher dans une section cachée trahirait
+ * son contenu) ; elle est donc faite en PHP, après le filtrage.
+ *
+ * @param  PDO    $db
+ * @param  array  $perso    Ligne dd_personnages
+ * @param  array  $filtres  camp_id, sce_id, tyno_id, tag_id (int, 0 = tous),
+ *                          no_id (une seule note), q (texte),
+ *                          tri ('desc' par défaut | 'asc')
+ * @return array  [['no_id', 'no_nom', 'no_date', 'no_texte', 'no_camp_id', 'camp_nom',
+ *                  'no_sce_id', 'sce_nom', 'no_tyno_id', 'tyno_nom', 'pno_date',
+ *                  'pno_lu_date', 'tags' => [['tag_id', 'tag_nom'], …],
+ *                  'sections' => [['noc_id', 'noc_titre', 'noc_texte'], …]], …]
+ */
+function getNotesPersonnage(PDO $db, array $perso, array $filtres = []): array {
+  $pe_id       = (int)$perso['pe_id'];
+  $ruleset_rep = ((int)$perso['pe_ruleset_var_id'] === 2) ? 'DD2024' : 'DD3.5';
+
+  $where  = ['pno.pno_pe_id = ?', 'n.no_supprime = 0', 'camp.camp_supprime = 0'];
+  $params = [$pe_id];
+  foreach (['no_id' => 'n.no_id', 'camp_id' => 'n.no_camp_id', 'sce_id' => 'n.no_sce_id', 'tyno_id' => 'n.no_tyno_id'] as $cle => $col):
+    $val = (int)($filtres[$cle] ?? 0);
+    if ($val > 0):
+      $where[]  = "$col = ?";
+      $params[] = $val;
+    endif;
+  endforeach;
+  $tag_id = (int)($filtres['tag_id'] ?? 0);
+  if ($tag_id > 0):
+    $where[]  = 'EXISTS (SELECT 1 FROM dd_notes_tags nt WHERE nt.notag_no_id = n.no_id AND nt.notag_tag_id = ?)';
+    $params[] = $tag_id;
+  endif;
+  $sens = (($filtres['tri'] ?? 'desc') === 'asc') ? 'ASC' : 'DESC';
+
+  // Un scénario supprimé (suppression douce) ne s'affiche plus ; la note reste.
+  $stmt = $db->prepare('
+    SELECT n.no_id, n.no_nom, n.no_date, n.no_texte, n.no_camp_id, camp.camp_nom,
+           n.no_sce_id, sce.sce_nom, n.no_tyno_id, tyno.tyno_nom,
+           pno.pno_date, pno.pno_lu_date
+      FROM dd_personnages_notes pno
+      JOIN dd_notes n               ON n.no_id = pno.pno_no_id
+      JOIN dd_campagnes camp        ON camp.camp_id = n.no_camp_id
+      LEFT JOIN dd_scenarios sce    ON sce.sce_id = n.no_sce_id AND sce.sce_supprime = 0
+      LEFT JOIN dd_types_notes tyno ON tyno.tyno_id = n.no_tyno_id
+     WHERE ' . implode(' AND ', $where) . "
+  ORDER BY n.no_date $sens, n.no_id $sens
+  ");
+  $stmt->execute($params);
+  $notes = $stmt->fetchAll();
+  if (empty($notes)) return [];
+
+  $no_ids   = array_map(fn($n) => (int)$n['no_id'], $notes);
+  $sections = getSectionsNotes($db, $no_ids);
+  $bonus    = bonusCompetencesPersonnage($db, $perso);
+
+  $ph   = implode(',', array_fill(0, count($no_ids), '?'));
+  $stmt = $db->prepare("
+    SELECT nt.notag_no_id, t.tag_id, t.tag_nom
+      FROM dd_notes_tags nt
+      JOIN dd_tags t ON t.tag_id = nt.notag_tag_id
+     WHERE nt.notag_no_id IN ($ph)
+  ORDER BY t.tag_nom
+  ");
+  $stmt->execute($no_ids);
+  $tags = [];
+  foreach ($stmt->fetchAll() as $t):
+    $tags[(int)$t['notag_no_id']][] = ['tag_id' => (int)$t['tag_id'], 'tag_nom' => $t['tag_nom']];
+  endforeach;
+
+  $q        = trim((string)($filtres['q'] ?? ''));
+  $resultat = [];
+  foreach ($notes as $n):
+    $no_id    = (int)$n['no_id'];
+    $lisibles = [];
+    foreach ($sections[$no_id] ?? [] as $s):
+      if (sectionNoteAccessible($s['conditions'], $bonus, $ruleset_rep)):
+        $lisibles[] = ['noc_id' => (int)$s['noc_id'], 'noc_titre' => $s['noc_titre'], 'noc_texte' => $s['noc_texte']];
+      endif;
+    endforeach;
+    if (texteRicheVide($n['no_texte']) && empty($lisibles)) continue;
+
+    if ($q !== ''):
+      $texte = $n['no_nom'] . ' ' . $n['no_texte'];
+      foreach ($lisibles as $s) $texte .= ' ' . $s['noc_titre'] . ' ' . $s['noc_texte'];
+      $texte = html_entity_decode(strip_tags($texte), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+      if (mb_stripos($texte, $q) === false) continue;
+    endif;
+
+    $n['tags']     = $tags[$no_id] ?? [];
+    $n['sections'] = $lisibles;
+    $resultat[]    = $n;
+  endforeach;
+  return $resultat;
 }

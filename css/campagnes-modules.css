@@ -752,3 +752,259 @@ body.camp-plein .site-main {
   }
 
 }
+
+/* ============================================================
+   NOTES — formulaire du MJ (SP-NO2)
+   include/ajax/modifier/note.php
+   ============================================================ */
+
+.note-form__contexte,
+.note-form__aide {
+  margin: 0 0 var(--sp-sm);
+  color: var(--clr-text-muted);
+  font-size: 0.85rem;
+}
+
+/* Mots-clés : pastilles + champ de saisie dans un même cadre */
+.note-form__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding: var(--sp-xs);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+  cursor: text;
+}
+
+.note-form__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding: 1px var(--sp-sm);
+  border-radius: var(--radius-lg);
+  background: var(--clr-surface-alt);
+  font-size: 0.85rem;
+}
+
+.note-form__tag-x {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.note-form__tag-x:hover {
+  color: var(--clr-danger);
+}
+
+.note-form__tag-saisie {
+  flex: 1 1 8rem;
+  min-width: 8rem;
+  border: none !important;
+  background: transparent !important;
+  padding: 2px var(--sp-xs) !important;
+}
+
+/* Sections */
+.note-form__section {
+  margin-bottom: var(--sp-md);
+  padding: var(--sp-sm);
+  border: 1px solid var(--clr-border);
+  border-left: 3px solid var(--clr-accent);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+}
+
+.note-form__section-tete {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  margin-bottom: var(--sp-sm);
+}
+
+.note-form__section-titre {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-form__conditions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  margin-top: var(--sp-sm);
+}
+
+.note-form__condition {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.note-form__condition-comp {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-form__condition-dd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.note-form__condition-dd input {
+  width: 4.5rem;
+}
+
+/* Destinataires */
+.note-form__dests {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--sp-xs) var(--sp-md);
+  margin: var(--sp-sm) 0;
+}
+
+.note-form__dest {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin: 0;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.note-form__dest--tous {
+  font-weight: 600;
+}
+
+.note-form__dest-info {
+  color: var(--clr-text-muted);
+  font-size: 0.8rem;
+}
+
+.note-form__signaler {
+  margin-top: var(--sp-sm);
+  padding-top: var(--sp-sm);
+  border-top: 1px dashed var(--clr-border);
+}
+
+/* ============================================================
+   NOTES — liste, fiche du MJ, notes d'un scénario (SP-NO3)
+   ============================================================ */
+
+a.camp-outil {
+  text-decoration: none;
+}
+
+.note-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-xs);
+  margin: var(--sp-xs) 0 0;
+}
+
+.note-detail__tag {
+  padding: 1px var(--sp-sm);
+  border-radius: var(--radius-lg);
+  background: var(--clr-surface-alt);
+  font-size: 0.8rem;
+}
+
+.note-detail__section {
+  margin-top: var(--sp-md);
+  padding-left: var(--sp-sm);
+  border-left: 3px solid var(--clr-accent);
+}
+
+.note-detail__section-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+
+.note-detail__section-titre {
+  margin: 0 var(--sp-sm) 0 0;
+  font-size: 1rem;
+}
+
+.note-detail__cond {
+  padding: 1px var(--sp-sm);
+  border: 1px solid var(--clr-warning);
+  border-radius: var(--radius-sm);
+  color: var(--clr-warning);
+  font-size: 0.8rem;
+}
+
+.note-detail__cond--libre {
+  border-color: var(--clr-success);
+  color: var(--clr-success);
+}
+
+.note-detail__ou {
+  color: var(--clr-text-muted);
+  font-size: 0.8rem;
+}
+
+.note-detail__vu-par {
+  margin-top: var(--sp-lg);
+}
+
+.note-detail__table-wrap {
+  overflow-x: auto;
+}
+
+.table-dd .note-detail__col-nom {
+  text-align: left;
+}
+
+.note-detail__oui {
+  color: var(--clr-success);
+}
+
+.note-detail__non {
+  color: var(--clr-danger);
+}
+
+.note-detail__alerte {
+  color: var(--clr-warning);
+  font-size: 0.8rem;
+}
+
+.note-sce__liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note-sce__item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-xs) var(--sp-md);
+  padding: var(--sp-sm);
+  border-bottom: 1px solid var(--clr-border);
+  cursor: pointer;
+}
+
+.note-sce__item:hover {
+  background: var(--clr-surface-alt);
+}
+
+.note-sce__nom {
+  font-weight: 600;
+}
+
+.note-sce__meta {
+  color: var(--clr-text-muted);
+  font-size: 0.85rem;
+}
+
+/* Images TinyMCE (attributs width/height) : garder les proportions sous max-width (SP-NO5) */
+.note-detail { overflow-wrap: anywhere; }
+.note-detail img { height: auto; }

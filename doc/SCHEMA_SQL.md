@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-16 15:00 -->
+<!-- Mis à jour : 2026-11-01 14:00 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -28,6 +28,11 @@
 | 1.14 | 2026-10-07 | JM | **SP-DP5** — `dd_migrations` CRÉÉE : trace des migrations SQL appliquées à la base de chaque environnement. Pas de fichier SQL : la table est créée par le moteur (`include/migrations.php`, `migrationsAssurerTable()`) à son premier appel, qui y inscrit aussitôt les 37 migrations antérieures au statut `reference` sans les rejouer. Créée en dev le 2026-10-07 ; sera créée en prod au premier déploiement (SP-DP). Préfixe `dd_` confirmé en production — le renommage `dd2_` n'a jamais été appliqué |
 | 1.15 | 2026-10-11 | JM | **SP-PO0 / SP-PO2** — `dd_categorie_equipement` CRÉÉE (arbre de familles d'équipement par ruleset, colonnes de liste en JSON). `dd_equipements` (vide jusque-là) reçoit `eqt_cae_id`, `eqt_prix_pc`, `eqt_prix_txt`, `eqt_poids_g`, `eqt_poids_txt`, `eqt_attributs`, `eqt_ordre` et `eqt_public` (rejoint le mécanisme Supplément). `dd_categorie_objet_magique.com_slug` ajouté (clé du tag `[[liste:objet|famille=…]]`). Import de 269 articles du DRS 07. SQL committé : `sql/2026-10-11_equipements_00_schema_sp-po0.sql` (**NON IDEMPOTENT**, ALTER TABLE) et `sql/2026-10-11_equipements_dd35_drs07_sp-po2.sql` ; règles : `sql/2026-10-11_regles_dd35_drs07_sp-drs2.sql`, `…_drs23_sp-drs3.sql` (appliqués en dev le 2026-10-11 ; **restent à appliquer en prod OVH**, par le déploiement) |
 | 1.16 | 2026-10-16 | JM | **SP-PO5** — équipement DD2024, aucune évolution de structure : 28 familles `dd_categorie_equipement` (ruleset 2) et 238 articles `dd_equipements` (source « SRD 5.2.1 »), 13 règles et 3 tableaux. SQL committé : `sql/2026-10-16_equipements_dd2024_srd_sp-po5.sql`, `sql/2026-10-16_regles_dd2024_equipement_sp-po5.sql` (appliqués en dev le 2026-10-16 ; **restent à appliquer en prod OVH**) |
+| 1.17 | 2026-10-31 | JM | **SP-CH0** — choix liés aux capacités de classe : `dd_classe_capacite.cc_nb_choix`, `dd_capacites_speciales.cap_choix_mode` / `cap_choix_dado_id`, `dd_personnages_dons.ped_pech_id` AJOUTÉES ; `dd_personnages_choix` CRÉÉE. SQL : `sql/2026-10-31_choix_capacites_sp-ch0.sql` (appliqué en dev le 2026-10-31 ; **reste à appliquer en prod OVH**) |
+| 1.19 | 2026-10-31 | JM | **SP-CH8** — `dd_personnages_choix.pech_precision` AJOUTÉE (précision libre d'un don choisi). SQL : `sql/2026-10-31_choix_precision_sp-ch8.sql` (appliqué en dev le 2026-10-31 ; **reste à appliquer en prod OVH**) |
+| 1.18 | 2026-10-31 | JM | **SP-DO0** — dons DD3.5 : `dd_dons.do_guerrier`, `do_prereq_bba/for/dex/con/int/sag/cha`, `do_niv_lanceur` et `dd_capacites_speciales.cap_choix_guerrier` AJOUTÉES. 92 dons DD3.5 renseignés par appariement de nom avec une table tierce locale (46 dons de guerrier). SQL : `sql/2026-10-31_dons_techniques_dd35_sp-do0.sql` (appliqué en dev le 2026-10-31 ; **reste à appliquer en prod OVH**) |
+| 1.21 | 2026-11-01 | JM | **SP-NO7** — tables de transit `dd_v1_notes`, `dd_v1_notes_contenus`, `dd_v1_notes_tags` CRÉÉES (copie de l'export des notes v1 + `no_importe_no_id`), temporaires. SQL : `sql/2026-11-01_sp-no7_notes_v1_transit.sql` (appliqué en dev le 2026-11-01 ; **reste à appliquer en prod OVH**) |
+| 1.20 | 2026-11-01 | JM | **SP-NO0** — module Notes : `dd_notes`, `dd_notes_contenus`, `dd_types_notes`, `dd_personnages_notes` RECRÉÉES (tables vides jamais utilisées ; campagne, scénario facultatif, catégorie par ruleset, sections, destinataires et date de lecture) ; `dd_notes_conditions` CRÉÉE ; `dd_campagnes_notes` SUPPRIMÉE ; 11 catégories amorcées par ruleset. SQL : `sql/2026-11-01_sp-no0_notes.sql` (garde-fou : échoue sans rien modifier si une des tables supprimées contient une ligne ; appliqué en dev le 2026-11-01 ; **reste à appliquer en prod OVH**) |
 | 1.5 | 2026-07-01 | JM | Audit `SHOW CREATE TABLE` sur les 7 tables restantes du Supplément (SP-C5/C6, débloquant) : `_public`/`_visible` **existent déjà en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques` (+ `om_public` sur `dd_objets_magiques`, `om_visible` déjà documenté). Colonnes ajoutées à la doc ci-dessous. `sql/patch_004_supplements.sql` reste introuvable dans le dépôt (appliqué directement en base, jamais committé — même écart que l'incident `mo_j_id`). Écart noté au passage : `dd_dons.do_page_source` (int NOT NULL) présent en base, non documenté, sans rapport avec SP-C — non traité ici |
 
 ---
@@ -419,6 +424,7 @@ Affectation d'une capacité spéciale à un niveau de classe.
 | cc_cap_id | int unsigned | nn | -> dd_capacites_speciales |
 | cc_niveau | tinyint unsigned | nn | Niveau auquel la capacité est acquise |
 | cc_precision | varchar(255) | null | Précision contextuelle affichée entre parenthèses. Ex : 3/jour, humanoïdes uniquement |
+| cc_nb_choix | tinyint unsigned | nn, défaut 0 | *[SP-CH]* Nombre de choix que la capacité accorde à CE niveau (0 = aucun ; sans effet si `cap_choix_mode` est vide) |
 
 ---
 
@@ -464,6 +470,9 @@ Capacités spéciales attribuables aux classes.
 | cap_description | text | null | Description complète |
 | cap_type | varchar(50) | null | Ex : Ext, Mag, Sur |
 | cap_classe_initiale | int | null | -> dd_classes, classe d'origine de la capacité |
+| cap_choix_mode | varchar(10) | nn, défaut '' | *[SP-CH]* Nature du choix que le joueur saisit sur sa fiche : vide = aucun, `texte` ou `don` |
+| cap_choix_dado_id | int unsigned | null | *[SP-CH]* -> dd_data_don : catégorie de don proposée en mode `don` (NULL = toutes). Non transporté par l'export de classes |
+| cap_choix_guerrier | tinyint(1) | nn, défaut 0 | *[SP-DO]* Mode `don` : limite le choix aux dons de guerrier (`dd_dons.do_guerrier`) ; avec `cap_choix_dado_id`, dons de guerrier OU de cette catégorie (Guerrier psychique : + dons psioniques) |
 
 > `cap_categorie_var_id` **supprimée le 2026-08-28** (`sql/2026-08-28_capacites_drop_categorie.sql`).
 > Reliquat de la v1 : elle distinguait capacité de race (91) de capacité de classe (92), information
@@ -491,6 +500,10 @@ Capacités spéciales attribuables aux classes.
 | do_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | do_ruleset_var_id | int unsigned | nn | -> dd_variables |
 | do_page_source | int(11) | nn | ⚠️ Colonne présente en base, non documentée avant l'audit du 2026-07-01, usage à clarifier — sans rapport avec le mécanisme Supplément |
+| do_guerrier | tinyint(1) | nn, défaut 0 | *[DD3.5, SP-DO]* Don de guerrier : peut être choisi par le guerrier en tant que don supplémentaire. Filtre le choix de don des capacités `cap_choix_guerrier = 1` |
+| do_prereq_bba | tinyint unsigned | null | *[DD3.5, SP-DO]* Donnée technique : bonus de base à l'attaque minimal. NULL = aucun prérequis connu. **Non affichée par défaut** dans la fiche du don |
+| do_prereq_for / do_prereq_dex / do_prereq_con / do_prereq_int / do_prereq_sag / do_prereq_cha | tinyint unsigned | null | *[DD3.5, SP-DO]* Donnée technique : valeur minimale de la caractéristique (Force, Dextérité, Constitution, Intelligence, Sagesse, Charisme). Même règle que `do_prereq_bba` |
+| do_niv_lanceur | tinyint unsigned | null | *[DD3.5, SP-DO]* Donnée technique : niveau de lanceur de sorts minimal. Même règle |
 
 > `do_public`/`do_visible` confirmées en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5).
 
@@ -850,19 +863,37 @@ Liste des dons que possède le personnage
 | ped_pe_id | int unsigned | nn | -> dd_personnages |
 | ped_do_id | int unsigned | nn | -> dd_dons |
 | ped_niveau | tinyint unsigned | null | Niveau du personnage auquel le don a été pris |
+| ped_pech_id | int unsigned | null | *[SP-CH]* -> dd_personnages_choix : don posé par un emplacement de choix de capacité (NULL = saisi à la main). Le retrait passe par l'emplacement |
+
+---
+
+### dd_personnages_choix
+*[SP-CH]* Choix du joueur pour une capacité de classe qui en impose (Grand arcane, Don supplémentaire…). Une ligne par emplacement rempli. Indexée par **clé naturelle** et non par `cc_id`, que l'enregistrement d'une classe dans le compendium régénère.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| pech_id | int unsigned | PK | |
+| pech_pe_id | int unsigned | nn, UK(pech_pe_id, pech_cla_id, pech_cap_id, pech_niveau, pech_rang) | -> dd_personnages |
+| pech_cla_id | int unsigned | nn | -> dd_classes (classe ou sous-classe qui accorde le choix) |
+| pech_cap_id | int unsigned | nn | -> dd_capacites_speciales |
+| pech_niveau | tinyint unsigned | nn | Niveau de classe qui accorde le choix |
+| pech_rang | tinyint unsigned | nn, défaut 1 | Rang parmi les `cc_nb_choix` choix de ce niveau |
+| pech_do_id | int unsigned | null | -> dd_dons (capacité en mode `don`) |
+| pech_texte | varchar(255) | null | Choix saisi (capacité en mode `texte`) |
+| pech_precision | varchar(100) | null | *[SP-CH8]* Précision du don choisi (arme d'une Spécialisation martiale, école, compétence…), texte libre, mode `don` seulement. Affichée entre parenthèses à côté du don, dans le bloc Capacités et dans le bloc Dons |
 
 ---
 
 ### dd_personnages_notes
-Degré de connaissance d'une note par un personnage.
+*[SP-NO0]* Destinataires d’une note : une ligne par personnage à qui le MJ l’a diffusée.
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | pno_id | int unsigned | PK | |
-| pno_pe_id | int unsigned | nn, UK(pno_pe_id, pno_no_id) | -> dd_personnages |
-| pno_no_id | int unsigned | nn | -> dd_notes |
-| pno_dd | tinyint unsigned | nn, défaut 0 | Degré de connaissance du personnage (0 = aucun) |
-| pno_actif | tinyint(1) | nn, défaut 1 | 0 = lien désactivé |
+| pno_no_id | int unsigned | nn, UK(pno_no_id, pno_pe_id) | -> dd_notes |
+| pno_pe_id | int unsigned | nn, KEY | -> dd_personnages |
+| pno_date | datetime | nn | Date de diffusion au personnage |
+| pno_lu_date | datetime | null | Première lecture par le joueur ; NULL = non lue (pastille « nouveau ») |
 
 ---
 
@@ -1020,18 +1051,6 @@ Pièces jointes **PDF** génériques, rattachables à une campagne, un scénario
 
 ---
 
-### dd_campagnes_notes
-
-| Champ | Type | Null | Commentaire |
-|---|---|---|---|
-| cpno_id | int unsigned | PK | |
-| cpno_no_id | int unsigned | nn, UK(cpno_no_id, cpno_camp_id) | -> dd_notes |
-| cpno_camp_id | int unsigned | nn | -> dd_campagnes |
-
-> **RÉSERVÉ / hors UI v2** : système de notes non finalisé, dépend du module Notes/Personnages.
-
----
-
 ## 8. Wiki / Univers
 
 ### dd_univers
@@ -1086,38 +1105,73 @@ Délégation de droits d'édition sur un univers public (v1 : globale sur tout l
 
 ## 9. Notes
 
+*[SP-NO0]* Notes rédigées par le MJ et diffusées aux personnages d'une campagne. Une note = un tronc commun
+(`no_texte`), toujours lisible par ses destinataires, et des sections (`dd_notes_contenus`) dont l'accès
+peut dépendre de compétences (`dd_notes_conditions`). Règles fonctionnelles : `METIER_11_Notes.md`.
+
+### dd_types_notes
+Catégories de notes, propres à chaque ruleset.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| tyno_id | int unsigned | PK | |
+| tyno_nom | varchar(80) | nn, UK(tyno_ruleset_var_id, tyno_nom) | |
+| tyno_ruleset_var_id | int unsigned | nn | -> dd_variables (ruleset) |
+| tyno_ordre | smallint unsigned | nn, défaut 0 | Ordre d'affichage |
+
+> Amorçage (SP-NO0), identique pour les deux rulesets : Histoire, Géographie et lieux, Personnages,
+> Organisations et factions, Religions et divinités, Magie et arcanes, Créatures, Objets et artefacts,
+> Culture et société, Indices et documents, Divers.
+
+---
+
 ### dd_notes
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | no_id | int unsigned | PK | |
 | no_nom | varchar(200) | nn | Titre de la note |
-| no_tyno_id | int unsigned | null | Type de note -> dd_types_notes |
-| no_date | datetime | nn | Horodatage automatique |
+| no_camp_id | int unsigned | nn, KEY(no_camp_id, no_supprime, no_date) | -> dd_campagnes. Le ruleset de la note est celui de la campagne (pas de colonne propre) |
+| no_sce_id | int unsigned | null, KEY | -> dd_scenarios ; NULL = note valable pour toute la campagne |
+| no_tyno_id | int unsigned | nn, KEY | Catégorie -> dd_types_notes (du ruleset de la campagne) |
+| no_texte | longtext | null | Tronc commun (TinyMCE, images autorisées), toujours lisible par les destinataires |
 | no_j_id | int unsigned | nn | Rédacteur -> dd_joueurs |
-
----
-
-### dd_types_notes
-
-| Champ | Type | Null | Commentaire |
-|---|---|---|---|
-| tyno_id | int unsigned | PK | |
-| tyno_nom | varchar(80) | nn | |
+| no_date | datetime | nn | Date de la note, critère de tri, modifiable par le MJ |
+| no_date_maj | datetime | null | Dernière modification |
+| no_supprime | tinyint(1) | nn, défaut 0 | Suppression douce (posée aussi par la suppression de la campagne) |
+| no_date_supprime | datetime | null | |
 
 ---
 
 ### dd_notes_contenus
-Blocs de contenu d'une note, avec niveau de difficulté d'accès.
+Sections d'une note.
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | noc_id | int unsigned | PK | |
-| noc_no_id | int unsigned | nn | -> dd_notes |
-| noc_dd | tinyint unsigned | nn, défaut 0 | Degré de difficulté d'accès (0 = libre, plus élevé = plus restreint) |
-| noc_texte | longtext | null | Contenu du bloc |
+| noc_no_id | int unsigned | nn, KEY(noc_no_id, noc_ordre) | -> dd_notes |
+| noc_ordre | smallint unsigned | nn, défaut 0 | Ordre dans la note |
+| noc_titre | varchar(200) | null | Intertitre facultatif |
+| noc_texte | longtext | null | Contenu (TinyMCE, images autorisées) |
 
 ---
+
+### dd_notes_conditions
+Conditions d'accès à une section. Aucune ligne = section lisible par tous les destinataires ; plusieurs lignes
+= **OU** (une seule condition satisfaite suffit). Une condition est satisfaite si `10 + bonus total de
+compétence ≥ nocd_dd` ; en DD3.5, une compétence à formation requise sans rang ne la satisfait jamais.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| nocd_id | int unsigned | PK | |
+| nocd_noc_id | int unsigned | nn, UK(nocd_noc_id, nocd_comp_id) | -> dd_notes_contenus |
+| nocd_comp_id | int unsigned | nn, KEY | -> dd_competences |
+| nocd_dd | tinyint unsigned | nn | DD à atteindre en « prenant 10 » |
+
+---
+
+> `dd_personnages_notes` (destinataires) est décrite avec les tables du personnage. `dd_campagnes_notes`
+> a été **supprimée** par SP-NO0 : la note porte sa campagne.
 
 ### dd_tags
 
@@ -1138,6 +1192,14 @@ Blocs de contenu d'une note, avec niveau de difficulté d'accès.
 | notag_id | int unsigned | PK | |
 | notag_no_id | int unsigned | nn, UK(notag_no_id, notag_tag_id) | -> dd_notes |
 | notag_tag_id | int unsigned | nn | -> dd_tags |
+
+### dd_v1_notes, dd_v1_notes_contenus, dd_v1_notes_tags — transit (SP-NO7)
+
+Copie de l'export des notes de la v1, chargée par `sql/2026-11-01_sp-no7_notes_v1_transit.sql`, lue par
+`admin/import-notes-v1.php`. Colonnes de la v1 conservées telles quelles (`no_*`, `noc_*`, `notag_*`, d'où le
+recouvrement de préfixe avec `dd_notes`), en utf8mb4. Ajout : `dd_v1_notes.no_importe_no_id` (int unsigned, null) →
+`dd_notes` créée par l'import (NULL = pas encore importée). **Temporaires** : à supprimer après l'import en production
+(SP-NO8).
 
 ---
 

@@ -39,6 +39,37 @@ if ($id > 0):
   if ($row) $comp = $row;
 endif;
 
+// Compétences à domaines (SP-CD — DD3.5). Un domaine est une compétence fille :
+// on n'y saisit que la partie entre parenthèses, le reste vient de la mère.
+// Mères possibles : les compétences sans mère du ruleset. Une compétence qui a
+// déjà des domaines ne peut pas devenir elle-même un domaine.
+$comp_parent_id = (int)($comp['comp_parent_id'] ?? 0);
+$meres          = [];
+$a_domaines     = false;
+if ($ruleset_id === 1):
+  if ($id > 0):
+    $stmt = $db->prepare('SELECT COUNT(*) FROM dd_competences WHERE comp_parent_id = ?');
+    $stmt->execute([$id]);
+    $a_domaines = (int)$stmt->fetchColumn() > 0;
+  endif;
+  if (!$a_domaines):
+    $stmt = $db->prepare('
+      SELECT comp_id, comp_nom
+        FROM dd_competences
+       WHERE comp_ruleset_var_id = ? AND comp_parent_id IS NULL AND comp_id <> ?
+       ORDER BY comp_nom
+    ');
+    $stmt->execute([$ruleset_id, $id]);
+    $meres = $stmt->fetchAll();
+  endif;
+endif;
+
+// Nom saisi : pour un domaine, la partie entre parenthèses seulement
+$comp_nom_saisi = (string)$comp['comp_nom'];
+if ($comp_parent_id > 0 && preg_match('/\((.*)\)\s*$/u', $comp_nom_saisi, $m)):
+  $comp_nom_saisi = $m[1];
+endif;
+
 // Caractéristiques (dd_caracteristiques)
 $caracteristiques = $db->query(
   'SELECT car_id, car_nom FROM dd_caracteristiques ORDER BY car_nom'
@@ -98,17 +129,35 @@ $titre = $id > 0 ? 'Modifier ' . h($comp['comp_nom']) : 'Nouvelle compétence';
     <div class="modif-section">
       <div class="modif-grid">
 
+        <?php if (!empty($meres)): ?>
+          <!-- Domaine d'une compétence mère (SP-CD) -->
+          <div class="form-group modif-grid__full">
+            <label for="comp_parent_id">Domaine de</label>
+            <select id="comp_parent_id" name="comp_parent_id">
+              <option value="0">— Aucune (compétence à part entière) —</option>
+              <?php foreach ($meres as $mere): ?>
+                <option value="<?= (int)$mere['comp_id'] ?>"
+                  <?= $comp_parent_id === (int)$mere['comp_id'] ? 'selected' : '' ?>>
+                  <?= h($mere['comp_nom']) ?>
+                </option>
+              <?php endforeach ?>
+            </select>
+            <span class="form-hint">Pour un domaine (ex. Connaissances → « histoire »), la caractéristique,
+              la formation et le malus d'armure sont ceux de la compétence mère.</span>
+          </div>
+        <?php endif ?>
+
         <!-- Nom -->
         <div class="form-group modif-grid__full">
-          <label for="comp_nom">Nom <span class="required">*</span></label>
+          <label for="comp_nom"><span id="comp-nom-libelle"><?= $comp_parent_id > 0 ? 'Domaine' : 'Nom' ?></span> <span class="required">*</span></label>
           <input type="text" id="comp_nom" name="comp_nom"
-                 value="<?= h($comp['comp_nom']) ?>" required maxlength="100">
+                 value="<?= h($comp_nom_saisi) ?>" required maxlength="100">
         </div>
 
         <!-- Caractéristique associée -->
-        <div class="form-group">
+        <div class="form-group comp-champ-herite">
           <label for="comp_car_id">Caractéristique <span class="required">*</span></label>
-          <select id="comp_car_id" name="comp_car_id" required>
+          <select id="comp_car_id" name="comp_car_id">
             <option value="">— Choisir —</option>
             <?php foreach ($caracteristiques as $car): ?>
               <option value="<?= (int)$car['car_id'] ?>"
@@ -157,7 +206,7 @@ $titre = $id > 0 ? 'Modifier ' . h($comp['comp_nom']) : 'Nouvelle compétence';
         </div>
 
         <!-- Formation requise -->
-        <div class="form-group">
+        <div class="form-group comp-champ-herite">
           <label class="form-label--checkbox">
             <input type="checkbox" name="comp_formation" value="1"
               <?= $comp['comp_formation'] ? 'checked' : '' ?>>
@@ -166,7 +215,7 @@ $titre = $id > 0 ? 'Modifier ' . h($comp['comp_nom']) : 'Nouvelle compétence';
         </div>
 
         <!-- Malus d'armure -->
-        <div class="form-group">
+        <div class="form-group comp-champ-herite">
           <label for="comp_malusArmure">Malus d'armure</label>
           <input type="number" id="comp_malusArmure" name="comp_malusArmure"
                  value="<?= (int)$comp['comp_malusArmure'] ?>" min="0" max="99">
@@ -226,6 +275,19 @@ $titre = $id > 0 ? 'Modifier ' . h($comp['comp_nom']) : 'Nouvelle compétence';
   if (chkPublic) chkPublic.addEventListener('change', appliquerContrainte);
 
   actualiserAffichage();
+
+  // Domaine (SP-CD) : champs hérités de la mère masqués
+  var selectMere = document.getElementById('comp_parent_id');
+  var libelleNom = document.getElementById('comp-nom-libelle');
+  function actualiserDomaine() {
+    var estDomaine = selectMere && selectMere.value !== '0';
+    document.querySelectorAll('#form-competence .comp-champ-herite').forEach(function (el) {
+      el.style.display = estDomaine ? 'none' : '';
+    });
+    libelleNom.textContent = estDomaine ? 'Domaine' : 'Nom';
+  }
+  if (selectMere) selectMere.addEventListener('change', actualiserDomaine);
+  actualiserDomaine();
 }());
 </script>
 

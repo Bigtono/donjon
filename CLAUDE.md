@@ -131,6 +131,10 @@ Tous les fichiers dans `doc/` :
    déjà appliquée** — elle ne serait pas rejouée, seulement signalée comme retouchée : écrire une
    nouvelle migration. Pas de `DELIMITER`. Après l'avoir jouée en local à la main, la déclarer
    dans `admin/migrations.php` (« Marquer comme appliquée »), ou la jouer depuis cet écran.
+   **L'ordre de jeu est l'ordre alphabétique du nom de fichier COMPLET** : une migration qui dépend
+   d'une autre (colonne, table) doit porter un nom qui la suit — mettre le rang de la phase juste
+   après la date (`AAAA-MM-JJ_<phase>_<sujet>.sql`), pas le sujet d'abord. Avant de livrer une série
+   de migrations dépendantes, la rejouer dans l'ordre du moteur sur une copie de la base (D-CH5).
 
 ### Mise à jour de la documentation
 
@@ -153,7 +157,7 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
    compendium), `SP-MA` (référentiel de la magie), `SP-PE` (module Personnages), `SP-SC`
    (sous-classes DD2024), `SP-RS` (UI smartphone), `SP-CP` (refonte du module Campagnes), `SP-AD`
    (administration), `SP-RB` (bascule de ruleset depuis le header), `SP-DP` (déploiement en
-   production), `SP-XC` (export de classes vers la production), `SP-SY` (synchronisation du contenu
+   production), `SP-XC` (export de classes vers la production), `SP-CH` (choix liés aux capacités de classe), `SP-DO` (dons DD3.5 : dons de guerrier, données techniques), `SP-NO` (module Notes : diffusion d'informations aux joueurs), `SP-SY` (synchronisation du contenu
    local → production, en attente d'arbitrage).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
@@ -196,6 +200,9 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   règles Équipement et Objets magiques. **Tag `[[liste:equipement|famille=…|source=…]]` /
   `[[liste:objet|…]]`** : listes dynamiques dans les règles, `include/liste-parser.php`, chaîné dans
   `rendreTexteEnrichi()` (voir §9e). Journal des corrections de texte : `doc/LOG_CORRECTIONS_DRS07_DRS23.md`
+- Choix de capacités de classe SP-CH0→CH5 : `cc_nb_choix` / `cap_choix_mode` déclarés dans le formulaire de classe,
+  emplacements remplis sur la fiche (`dd_personnages_choix`, texte libre ou don lié au bloc Dons). Reste SP-CH6 :
+  déclarer les autres capacités à choix du compendium et rejouer `sql/2026-10-31_choix_capacites_sp-ch0.sql` en production
 - Aide à la saisie : `aideIcone()` sur les 13 champs soumis à un parser, contenu dans
   `include/aide-contextuelle.php` (une clé par jeu de parsers réellement appliqué)
 - Déploiement SP-DP0→DP6 : bouton du header (local seulement) qui envoie par SFTP les fichiers
@@ -215,6 +222,11 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - SP-PE8 : module Personnages (livrés : `SP-PE0→PE7` dont la vue Magie, `PE9→PE13` et la
   compaction `PE10a→s`). Reste : mode jeu (suivi PV et variables par ruleset) + passe responsive
   < 992px sur les blocs PE3→PE7
+- SP-NO8 : module Notes (arbitrage D-NO0 → D-NO4 ; SP-NO0 → NO7 livrés : schéma, moteur d'accès, formulaire,
+  interfaces du MJ `campagnes/notes.php` et du joueur `personnages/notes.php`, D-NO5 → D-NO14, `doc/METIER_11_Notes.md`) — notes
+  du MJ à tronc commun + sections conditionnées par compétence (DD en « prendre 10 », OU), diffusées aux personnages ;
+  outil d'import v1 prêt (`admin/import-notes-v1.php`). Restent en production : les migrations `2026-11-01_sp-no0_notes.sql` et
+  `2026-11-01_sp-no7_notes_v1_transit.sql`, puis l'import dans la campagne de la Trilogie
 - SP-SY0 : arbitrage de la synchronisation du contenu local → prod (non prioritaire, voir §6c) —
   ajouter en prod le contenu local absent, sans jamais rien écraser
 - SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)
