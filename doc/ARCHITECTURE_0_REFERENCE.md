@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-31 19:40 -->
+<!-- Mis à jour : 2026-11-01 20:30 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -455,6 +455,15 @@
 - [x] SP-PE15 — Éditeur de compétences sous 992px : colonne de saisie ramenée de 200 à 72px, nom autorisé à passer à la ligne (le `white-space: nowrap` de `.table-dd td` l'empêchait) — la table tient dans son cadre à 375px
 - [x] SP-PE16 — Éditeur de compétences : colonne Carac réduite à l'abréviation (DD3.5 et DD2024), le modificateur reste dans le Total ; la lecture n'est pas touchée
 - [x] SP-PE17 — Bloc Compétences en lecture : colonne Carac réduite à l'abréviation (comme l'éditeur, SP-PE16), les trois colonnes de valeurs à largeur égale (3,2rem ; 2,4rem sous 992px)
+- [ ] SP-PE18 — **Gestion d'un personnage par l'admin et le MJ** (D-PE18a → d, §7.5e)
+  - [x] SP-PE18a — Colonne `pe_affecte_par_j_id` (`sql/2026-11-01_sp-pe18_affectation_personnage.sql`) et helpers de droits `peutGererPersonnage()` & co. dans `personnage_helpers.php` ; `getPersonnageContext()` et `enregistrement.php` ouverts au MJ (suppression exceptée)
+  - [x] SP-PE18b — Rattachement par le MJ : la campagne n'accueille un personnage que par la main de son MJ ; ajout / retrait depuis `campagnes/campagne.php` (tous les personnages du ruleset), colonne Joueur
+  - [x] SP-PE18c — Affectation à un joueur : actions `affecterPersonnage` / `retirerAffectation`, ligne Joueur de l'en-tête de la fiche (`perAffectation`)
+  - [x] SP-PE18d — Liste : périmètre MJ dans `personnages/index.php`, colonne Joueur dès qu'elle mêle des personnages d'autrui, clé moteur `champ_proprietaire` (Supprimer réservé au propriétaire / admin)
+  - [ ] SP-PE18e — Contrôle visuel dans le navigateur (en-tête de la fiche et section Personnages de la campagne, ordinateur et < 992px) et migration à jouer en production
+- [x] SP-PE19 — **Actions groupées de la liste des personnages** (D-PE19a → c, §7.4)
+  - [x] SP-PE19a — Affecter à une campagne (rattachement + campagne en cours) et affecter à un joueur : panneau `include/ajax/modifier/personnages-groupe.php`, action `groupePersonnages`, appliquées aux seuls personnages éligibles ; barre réservée à l'admin et au MJ ; cases à cocher du moteur liées à la barre groupée
+  - [x] SP-PE19b — Contrôle visuel dans le navigateur (barre, panneaux campagne et joueur, message des personnages écartés) ; sous 992px le moteur masque les cases à cocher : actions groupées réservées à l'ordinateur, comme au compendium
 
 > Hors périmètre SP-PE : les **objets magiques du personnage** (`personnages/objets.php` reste un
 > placeholder, aucune table) — analyse métier non fiabilisée, cf. `DECISIONS_LOG.md` [2026-06-12] [D].
@@ -600,8 +609,10 @@
 - [x] SP-NO4 — Interface joueur : page `personnages/notes.php` (onglet Notes du sous-menu, cartes, bascule campagne en cours / toutes sur `pe_notes_scope`, filtres campagne, scénario, catégorie, mot-clé, recherche, tri par date, pastille « Nouveau »), lecture `detail-pp/note-perso.php` qui marque la note lue (D-NO11)
 - [x] SP-NO5 — Passe smartphone de l'interface joueur, contrôlée en 375 px dans les deux thèmes : images TinyMCE à proportions conservées (`height: auto`, aussi côté MJ), mots longs coupés, extrait limité à 3 lignes, bascule de portée à 44 px et contrastée, puces de mots-clés visibles, compteur « n nouvelles » mis à jour à la lecture (D-NO12)
 - [x] SP-NO6 — Écran admin `admin/categories-notes.php` (moteur `admin-liste.php`) : création, renommage, ordre, suppression des catégories de notes par ruleset ; nom unique par ruleset, ruleset figé et suppression refusée dès qu'une note (même supprimée) emploie la catégorie (D-NO13)
-- [x] SP-NO7 — Import v1 : migration de transit `sql/2026-11-01_sp-no7_notes_v1_transit.sql` (tables `dd_v1_*`, export repris à l'identique), écran `admin/import-notes-v1.php` (campagne cible, type v1 → catégorie + compétences, libellés des mots-clés), règles `include/notes-import-v1.php` : DD 10 → tronc, DD > 10 → sections au même DD, images retirées, entités converties, relance sans doublon (D-NO14). Transit appliquée en local, import **non lancé** (base locale remise à vide)
-- [ ] SP-NO8 — Production : jouer `2026-11-01_sp-no0_notes.sql` puis `2026-11-01_sp-no7_notes_v1_transit.sql`, lancer l'import depuis l'écran admin dans la campagne de la Trilogie, diffuser les notes aux personnages, puis supprimer les tables `dd_v1_*` par une migration
+- [x] SP-NO7 — Import v1 : migration de transit `sql/2026-11-01_sp-no7_notes_v1_transit.sql` (tables `dd_v1_*`, export repris à l'identique), écran `admin/import-notes-v1.php` (campagne cible, type v1 → catégorie + compétences, libellés des mots-clés), règles `include/notes-import-v1.php` : DD 10 → tronc, DD > 10 → sections au même DD, images retirées, entités converties, relance sans doublon (D-NO14). Import joué en local le 2026-11-01 dans « L'Empire des Anges » (DD3.5) : 57 notes, 39 sections, 9 mots-clés (D-NO15)
+- [ ] SP-NO8 — Production : jouer `2026-11-01_sp-no0_notes.sql` puis `2026-11-01_sp-no7_notes_v1_transit.sql`, lancer l'import depuis l'écran admin dans la campagne cible (en local : L'Empire des Anges), diffuser les notes aux personnages, puis supprimer les tables `dd_v1_*` par une migration
+- [x] SP-NO9 — Actions groupées de la liste du MJ : supprimer (écran de validation), changer de campagne (même ruleset ; scénario vidé, destinataires hors campagne retirés), changer de catégorie, ajouter ou retirer des destinataires ; panneau `include/ajax/modifier/notes-groupe.php`, action `notesGroupe`, clé `bulk_panneau` du moteur de liste (D-NO16)
+- [ ] SP-NO10 — Dupliquer une note d'une autre campagne du MJ dans la campagne courante (copie du tronc, des sections, des conditions et des mots-clés ; ni scénario ni destinataire)
 
 ---
 
@@ -786,7 +797,7 @@ dernier personnage du ruleset quitté au moment de la bascule.
 | Admin | j_admin = 1 | Tout le site, bypass filtres propriétaire |
 | Gestionnaire compendium | j_compendium_manager = 1 | Édition compendium global + propre supplément |
 | Utilisateur standard | par défaut | Ses propres données uniquement |
-| MJ | contextuel : camp_j_id = session j_id | Données de sa campagne + personnages invités |
+| MJ | contextuel : camp_j_id = session j_id | Données de sa campagne ; fiches des personnages qui y sont rattachés ou qu'il a affectés (hors suppression et notes privées) ; ajout / retrait des personnages de ses campagnes ; affectation de ses personnages à un joueur (SP-PE18, §7.5e) |
 
 Le rôle MJ est contextuel — tout utilisateur devient MJ dès qu'il crée une campagne ou un univers.
 
@@ -2279,8 +2290,27 @@ le mot entier restant dans le `title`.
 Depuis **SP-RS6b**, la page délègue au moteur partagé `compendium-liste.php` (§10) : elle ne fait plus que
 déclarer `$listConfig`. Pas de sources (`champ_res` absent), pas de filtre homebrew (`champ_camp => false`),
 clic de ligne vers la fiche (`url_ligne`), suppression AJAX vers l'action `supprimerPersonnage`.
-Filtrage par **ruleset actif en session** (`champ_ruleset`) et, pour un joueur, par propriétaire
-(`extra_where` = `pe.pe_j_id = ?`).
+Filtrage par **ruleset actif en session** (`champ_ruleset`) et, hors admin, par le périmètre de
+`peutGererPersonnage()` (SP-PE18) : `extra_where` = personnages dont l'utilisateur est propriétaire,
+qu'il a affectés (`pe_affecte_par_j_id`), ou rattachés à l'une de ses campagnes. La colonne **Joueur**
+est réservée à l'admin et au MJ (D-PE18f) : jamais pour un joueur ; pour un MJ (au moins une campagne),
+seulement si la liste contient un personnage d'autrui ; `champ_proprietaire` (`pe.pe_j_id`) borne
+l'entrée Supprimer du menu ⋮ à `canAccess()`.
+
+**Actions groupées (SP-PE19, D-PE19a → c)** — admin et MJ seulement (`bulk_actions` vide pour un joueur :
+ni barre ni cases à cocher). `bulk_panneau` → `include/ajax/modifier/personnages-groupe.php`, qui liste la
+sélection et porte le choix ; l'écriture est l'action `groupePersonnages` de `enregistrement.php`
+(une transaction pour toute la sélection) :
+
+| Action | Effet | Choix proposés | Écartés |
+|---|---|---|---|
+| `campagne` | rattache et fait campagne en cours (`ecrireCampagneCourante()`, partagée avec `definirCampagneCourante`) ; les autres liaisons restent | `getCampagnesRattachables()` : campagnes du MJ, toutes celles du ruleset pour l'admin | autre ruleset, déjà en cours dans cette campagne |
+| `joueur` | transfert avec trace (`ecrireAffectation()`, partagée avec `affecterPersonnage`, §7.5e) | tous les joueurs | `raisonNonAffectable()` (déjà affecté, personnage d'un autre joueur), déjà à ce joueur |
+
+La sélection doit être **entièrement gérée** par l'utilisateur (`personnagesGroupe()`, sinon refus en bloc —
+la liste ne propose que des personnages gérés). L'éligibilité, elle, se juge personnage par personnage :
+le panneau signale d'avance ceux qu'il sait écartés, le serveur rejuge tout et renvoie
+`{appliques, ecartes: [{nom, raison}]}`, que le panneau affiche avant de recharger la liste.
 
 **Portée admin (SP-PE9)** : un administrateur voit **tous les personnages du ruleset actif**, quel que soit
 leur propriétaire — `extra_where` n'est simplement pas posé pour lui. Aucun droit nouveau n'est introduit :
@@ -2381,11 +2411,12 @@ Toute action maintient les deux dans la **même transaction**, selon quatre règ
 3. Détacher la campagne en cours efface `pe_camp_id` : le raccourci ne survit pas à la liaison.
 4. `camp_id = 0` sur `definirCampagneCourante` signifie « aucune campagne en cours ».
 
-**Périmètre du rattachement** : uniquement les campagnes **du propriétaire du personnage**
-(`camp_j_id = pe_j_id`), dans **son ruleset** (`pe_ruleset_var_id`, jamais celui de la session).
-L'application n'a aucun mécanisme d'invitation : rattacher à la campagne d'un tiers n'a pas de
-sens tant que celui-ci n'existe pas. Le filtre porte sur `pe_j_id` et non sur l'utilisateur en
-session, pour qu'un admin consultant la fiche d'un autre joueur voie la même liste que lui.
+**Périmètre du rattachement** (refondu en SP-PE18, §7.5e) : une campagne n'accueille un personnage
+que **par la main de son MJ** (ou de l'admin) — `camp_j_id = session`, dans le **ruleset du
+personnage** (`pe_ruleset_var_id`, jamais celui de la session). L'éditeur de la fiche propose donc
+les campagnes de l'utilisateur en session (toutes celles du ruleset pour l'admin, suffixées du pseudo
+du MJ), plus les liaisons existantes qu'il a le droit de modifier. Retrait, participation et campagne
+en cours d'une liaison existante : admin, propriétaire du personnage, ou MJ de cette campagne.
 
 **Actions serveur** (`personnages/enregistrement.php`) : `rattacherCampagne`, `detacherCampagne`,
 `definirCampagneCourante`, `basculerParticipationCampagne`. Chacune renvoie l'état relu en base
@@ -2409,9 +2440,10 @@ ouvrages dans tout le compendium de la session (`$_SESSION['last_pe_id']`).
 - `.per-camp*` est dans `personnages-modules.css` (bloc rendu par `fiche.php`), **sauf**
   `.per-camp__badge`, placé dans `modules.css` : le panneau de campagne, fragment injecté en AJAX,
   l'utilise aussi (règle permanente du 2026-06-14).
-- Côté Campagnes, `detail-pp/campagne.php` reçoit une section **Personnages** en lecture seule
-  (nom, race, classes, statut). Les noms ne sont cliquables que pour les personnages accessibles
-  (`canAccess`) — `detail-pp/personnage.php` est réservé à leur propriétaire.
+- Côté Campagnes, `campagnes/campagne.php` porte une section **Personnages** (nom, joueur, race,
+  classes, statut). Depuis SP-PE18 tous les noms sont cliquables — le MJ gère les personnages de sa
+  campagne — et la section porte l'ajout (select de tous les personnages du ruleset non rattachés)
+  et le retrait, par les actions `rattacherCampagne` / `detacherCampagne` du module Personnages.
 - `cp_notes_mj` reste **non exposé** : `METIER_10` le déclare prévu mais non actif, dépendant du
   module Notes (chantier `SP-NO`).
 
@@ -2459,6 +2491,37 @@ Ruleset verrouillé : l'action refuse tout personnage non DD3.5.
   progression » : le bloc n'invente pas une affectation à faire.
 - `.per-nls*` vit dans `css/personnages-modules.css` (bloc rendu par `fiche.php`, jamais injecté
   en AJAX) ; le select d'édition réutilise `.per-comp-editor__select`.
+
+### 7.5e Droits de l'admin et du MJ — affectation à un joueur (SP-PE18)
+
+Le module n'est plus strictement personnel. Les droits se lisent dans `include/personnage_helpers.php`,
+sur une ligne portant `pe_id`, `pe_j_id` et `pe_affecte_par_j_id` :
+
+| Helper | Vrai pour |
+|---|---|
+| `peutGererPersonnage($db, $perso)` | propriétaire, admin (`canAccess`), MJ affecteur, MJ d'une campagne où le personnage est rattaché (`estMJDuPersonnage`) — consultation et modification de toute la fiche |
+| `canAccess(pe_j_id)` | propriétaire ou admin — **suppression** (et, à venir, notes privées `pe_notes`) |
+| `peutAffecterPersonnage($db, $perso)` | admin ; sinon un MJ (au moins une campagne) propriétaire d'un personnage pas encore affecté |
+| `peutRetirerAffectation($perso)` | trace posée, et admin ou MJ affecteur |
+| `peutRattacherACampagne($camp_j_id)` | admin, MJ de la campagne |
+| `peutModifierLiaisonCampagne($perso, $camp_j_id)` | admin, propriétaire du personnage, MJ de la campagne |
+
+`getPersonnageContext()` applique `peutGererPersonnage()` (toutes les pages et panneaux du module en
+héritent) et ajoute à la ligne `est_proprietaire`, `peut_supprimer`, `peut_affecter`,
+`peut_retirer_affect` pour l'interface.
+
+**Affecter = transférer** (D-PE18a). `affecterPersonnage` pose `pe_j_id` = joueur cible et garde dans
+`pe_affecte_par_j_id` le MJ qui a affecté — trace qui maintient son droit de gestion et lui permet,
+seul avec l'admin, de `retirerAffectation` : `pe_j_id` revient alors à ce MJ, trace à NULL. Une
+réaffectation par l'admin conserve la trace ; un admin qui déplace le personnage d'un tiers non affecté
+fait un simple transfert, sans trace ; rendre le personnage au MJ affecteur efface la trace. Les
+liaisons aux campagnes ne bougent pas.
+
+**Interface** : en-tête de la fiche, ligne « Joueur » (pseudo, « affecté par … », boutons
+Affecter / Retirer selon les droits), réservée au MJ et à l'admin : affichée à qui consulte la fiche sans
+en être propriétaire, ou peut changer le joueur — **jamais au joueur propriétaire**, même d'un personnage
+affecté (D-PE18e) ;
+module JS `perAffectation` (`js/personnage.js`), écriture immédiate puis rechargement.
 
 ### 7.6 Magie — vue dédiée
 
@@ -2834,6 +2897,15 @@ liens sont exclus de la zone.
   N-N n'a pas demandé de nouveau type de filtre). Recherche sur titre, tronc et sections concaténées (`GROUP_CONCAT`) ;
   le formulaire enregistre les accents en clair (`entity_encoding: 'raw'`) pour que `LIKE` les trouve. Tri par défaut
   `no_date` décroissant. « Nouvelle note » exige une campagne choisie.
+  **Actions groupées (SP-NO9, D-NO16)** : `bulk_actions` supprimer / campagne / catégorie / personnages et `bulk_panneau` →
+  `include/ajax/modifier/notes-groupe.php?action=…&ids=…`, panneau `#modification` qui liste la sélection, porte le choix
+  et sert d'écran de validation (bouton « Supprimer n notes »). Écriture : action `notesGroupe` de
+  `campagnes/enregistrement.php` (POST `operation`, `ids[]`, une transaction). `notesGroupeMJ()`
+  (`personnage_helpers.php`) charge la sélection et la refuse en bloc si une note manque, est supprimée ou relève d'une
+  campagne dont l'utilisateur n'est pas MJ. Campagne : même ruleset, notes déjà dans la cible ignorées, scénario remis
+  à vide, destinataires absents de la nouvelle campagne retirés. Catégorie : du ruleset des notes. Personnages : mode
+  `ajouter` (`INSERT IGNORE … SELECT` limité aux couples note × personnage de la campagne de la note) ou `retirer` (toutes
+  les notes sélectionnées). Bilan en message flash, la liste se recharge.
   Fiche `include/ajax/detail-pp/note.php` (MJ seul, `isMJ`) : métadonnées, mots-clés, tronc et sections passés par
   `rendreTexteEnrichi()` avec leurs conditions, puis tableau **« vu par »** — une ligne par destinataire, une colonne par
   section, ✓/✗ calculés par `sectionNoteAccessible()` (infobulle : 10 + bonus / DD par compétence), date de lecture, et
@@ -2869,14 +2941,14 @@ liens sont exclus de la zone.
   `migrationsInstructions()`, tables renommées `dd_v1_notes`, `dd_v1_notes_contenus`, `dd_v1_notes_tags`, colonnes v1
   conservées) et ajoute `dd_v1_notes.no_importe_no_id`. L'écran `admin/import-notes-v1.php` (carte du tableau de bord
   admin) choisit la campagne, puis pour chaque type v1 une catégorie et une ou deux compétences du ruleset de la
-  campagne (propositions `NOTES_V1_CATEGORIE` / `NOTES_V1_COMPETENCES`), et le libellé de chaque mot-clé v1 (vide =
+  campagne (propositions `NOTES_V1_CATEGORIE` / `NOTES_V1_COMPETENCES`, en DD3.5 les spécialités de Connaissances), et le libellé de chaque mot-clé v1 (vide =
   ignoré). `importerNotesV1()` (une transaction) : rédacteur = MJ de la campagne, date v1, pas de scénario ni de
   destinataire ; blocs DD ≤ 10 concaténés en tronc, blocs DD > 10 en sections conditionnées (OU des compétences du
   type) ; `nettoyerHtmlV1()` retire les images, déballe les liens relatifs de la v1, convertit les entités (sauf
   `&lt; &gt; &amp; &quot;`) et supprime les paragraphes vides ; un bloc vide après nettoyage est écarté. Seules les
   notes non marquées sont importées : relancer ne crée pas de doublon. Les colonnes `no_texte_basique … expert` de
   la v1 sont ignorées (copies anciennes et partielles des blocs).
-- **Phases à venir** : production (NO8). Voir §0.
+- **Phases à venir** : production (NO8), duplication d'une note d'une autre campagne (NO10). Voir §0.
 
 ---
 
@@ -3844,7 +3916,9 @@ optionnelles, toutes additives (absentes, comportement strictement inchangé) :
 | `champ_res` absent | aucun filtre sources ni bouton Sources — entités sans `dd_ressources` | SP-RS6b |
 | `extra_params` | valeurs des `?` de `extra_where`, ajoutées en fin de `$params` | SP-RS6b |
 | `url_ligne` | clic de ligne vers une page (`{id}` remplacé) au lieu d'ouvrir `#detail-pp` | SP-RS6b |
-| `edition_libre` | menu ⋮ ouvert sans passer par `canEditCompendium()` | SP-RS6b |
+| `edition_libre` | menu ⋮ ouvert sans passer par `canEditCompendium()` ; avec `bulk_actions`, la barre groupée aussi | SP-RS6b, SP-NO9 |
+| `bulk_actions` vide | ni barre groupée ni cases à cocher : une case sans action groupée n'aurait aucun effet | SP-PE19 |
+| `bulk_panneau` | URL d'un panneau `#modification` : « Appliquer » l'ouvre (GET `action`, `ids` séparés par des virgules) au lieu de confirmer et poster `#comp-bulk-form` | SP-NO9 |
 | `avec_ajout` | `false` masque les boutons Ajouter et Tableaux de la barre de filtre | SP-RS6b |
 | `suppression` | `{mode:'ajax', action, param}` : appel JSON au lieu du POST `ids[]` | SP-RS6b |
 | `champs_recherche` | colonnes SQL balayées par le filtre texte libre, en OU (défaut : la première colonne) | SP-TB10 |

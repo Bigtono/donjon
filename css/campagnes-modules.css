@@ -241,6 +241,21 @@ blockquote {
   margin-bottom: var(--sp-sm);
 }
 
+/* Ajout d'un personnage à la campagne (SP-PE18) */
+.camp-perso-ajout {
+  display: flex;
+  gap: var(--sp-xs);
+  align-items: center;
+  min-width: 0;
+}
+
+.camp-perso-ajout select {
+  width: auto;
+  max-width: 22rem;
+  min-width: 0;
+  padding: 3px 8px;
+}
+
 .camp-detail__section-title {
   font-size: 1em;
   text-transform: uppercase;
@@ -885,6 +900,39 @@ body.camp-plein .site-main {
 .note-form__dest-info {
   color: var(--clr-text-muted);
   font-size: 0.8rem;
+}
+
+/* Actions groupées (SP-NO9) — include/ajax/modifier/notes-groupe.php */
+.notes-groupe__liste {
+  max-height: 14rem;
+  overflow-y: auto;
+  margin: 0 0 var(--sp-md);
+  padding: var(--sp-sm) var(--sp-sm) var(--sp-sm) var(--sp-lg);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface-alt);
+  font-size: 0.9rem;
+}
+
+.notes-groupe__alerte {
+  padding: var(--sp-sm);
+  border-left: 3px solid var(--clr-danger);
+  background: var(--clr-surface-alt);
+}
+
+.notes-groupe__alerte .fa {
+  color: var(--clr-danger);
+}
+
+.notes-groupe__mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+}
+
+.notes-groupe__mode label {
+  font-weight: normal;
+  cursor: pointer;
 }
 
 .note-form__signaler {

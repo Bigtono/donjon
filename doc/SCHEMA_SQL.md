@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-01 14:00 -->
+<!-- Mis à jour : 2026-11-01 18:00 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -763,7 +763,8 @@ pilote la liste (tag `[[liste:equipement|…]]`, fiche détail) ET le formulaire
 | pe_id | int unsigned | PK | |
 | pe_nom | varchar(100) | nn | |
 | pe_sexe | varchar(20) | null | Libellé libre, descriptif (féminin, masculin, etc.) — *patch 2026-06-12* |
-| pe_j_id | int unsigned | nn | Propriétaire -> dd_joueurs |
+| pe_j_id | int unsigned | nn | Propriétaire -> dd_joueurs (le joueur, après affectation par un MJ) |
+| pe_affecte_par_j_id | int unsigned | null, index | MJ qui a affecté le personnage à son propriétaire actuel -> dd_joueurs ; NULL = jamais affecté. Seul ce MJ (ou l’admin) peut retirer l’affectation, qui rend `pe_j_id` au MJ — *SP-PE18, `sql/2026-11-01_sp-pe18_affectation_personnage.sql`* |
 | pe_ra_id | int unsigned | nn, défaut 0 | Race de base -> dd_races |
 | pe_arc_id | int unsigned | nn, défaut 0 | *[DD3.5]* Archétype racial -> dd_races (0 = aucun) |
 | pe_hi_id | int unsigned | null | *[DD2024]* Historique -> dd_historiques (NULL = aucun) — *patch 2026-06-12 (3.1)* |

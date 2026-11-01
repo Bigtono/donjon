@@ -12,10 +12,15 @@
 //     basculerParticipationCampagne (SP-PE5 — écriture immédiate)
 //   - enregistrerNls          (SP-PE6 — affectation NLS prestige DD3.5)
 //   - definirPorteeNotes      (SP-NO4 — pe_notes_scope, écriture immédiate)
+//   - affecterPersonnage / retirerAffectation (SP-PE18 — écriture immédiate)
+//   - groupePersonnages       (SP-PE19 — actions groupées de la liste :
+//                              campagne en cours, affectation à un joueur)
 //
 // Toutes les actions :
 //   - Vérifient le CSRF (verifyCsrf())
-//   - Vérifient la propriété du personnage (canAccess sur pe_j_id)
+//   - Vérifient le droit sur le personnage (peutGererPersonnage : propriétaire,
+//     admin ou MJ — SP-PE18) ; la suppression reste au propriétaire / admin
+//     (canAccess sur pe_j_id)
 //   - Sont exécutées dans une transaction PDO
 //   - Renvoient JSON {ok: bool, erreur?: string, id?: int, url_fiche?: string}
 //     en mode ajax ; redirection sinon.
@@ -200,6 +205,24 @@ switch ($action):
     definirPorteeNotes($db, $is_ajax);
     break;
 
+  // --------------------------------------------------------
+  // AFFECTATION À UN JOUEUR (SP-PE18 — écriture immédiate)
+  // --------------------------------------------------------
+  case 'affecterPersonnage':
+    affecterPersonnage($db, $is_ajax);
+    break;
+
+  case 'retirerAffectation':
+    retirerAffectation($db, $is_ajax);
+    break;
+
+  // --------------------------------------------------------
+  // ACTIONS GROUPÉES DE LA LISTE (SP-PE19)
+  // --------------------------------------------------------
+  case 'groupePersonnages':
+    groupePersonnages($db, $is_ajax);
+    break;
+
   default:
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Action inconnue.']);
 
@@ -269,10 +292,10 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
 
   // ----- Édition : contrôle propriétaire -------------------
   if (!$is_creation):
-    $stmt = $db->prepare('SELECT pe_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+    $stmt = $db->prepare('SELECT pe_id, pe_j_id, pe_affecte_par_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
     $stmt->execute([$pe_id]);
     $row = $stmt->fetch();
-    if (!$row || !canAccess((int)$row['pe_j_id'])):
+    if (!$row || !peutGererPersonnage($db, $row)):
       repondre($is_ajax, ['ok' => false, 'erreur' => 'Personnage introuvable ou accès refusé.']);
     endif;
     // Ruleset non modifiable
@@ -393,10 +416,10 @@ function enregistrerClasses(PDO $db, bool $is_ajax, int $j_id): void {
   endif;
 
   // Contrôle propriétaire
-  $stmt = $db->prepare('SELECT pe_j_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt = $db->prepare('SELECT pe_id, pe_j_id, pe_affecte_par_j_id FROM dd_personnages WHERE pe_id = ?');
   $stmt->execute([$pe_id]);
   $row = $stmt->fetch();
-  if (!$row || !canAccess((int)$row['pe_j_id'])):
+  if (!$row || !peutGererPersonnage($db, $row)):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
   endif;
 
@@ -520,10 +543,10 @@ function enregistrerCompetences(PDO $db, bool $is_ajax, int $j_id): void {
   endif;
 
   // Contrôle propriétaire + récupération du ruleset du personnage
-  $stmt = $db->prepare('SELECT pe_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt = $db->prepare('SELECT pe_id, pe_j_id, pe_affecte_par_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
   $stmt->execute([$pe_id]);
   $row = $stmt->fetch();
-  if (!$row || !canAccess((int)$row['pe_j_id'])):
+  if (!$row || !peutGererPersonnage($db, $row)):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
   endif;
   $ruleset_id = (int)$row['pe_ruleset_var_id'];
@@ -630,10 +653,10 @@ function gardeSortPersonnage(PDO $db, bool $is_ajax, bool $exigePc): array {
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Identifiant manquant.']);
   endif;
 
-  $stmt = $db->prepare('SELECT pe_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt = $db->prepare('SELECT pe_id, pe_j_id, pe_affecte_par_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
   $stmt->execute([$pe_id]);
   $perso = $stmt->fetch();
-  if (!$perso || !canAccess((int)$perso['pe_j_id'])):
+  if (!$perso || !peutGererPersonnage($db, $perso)):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
   endif;
 
@@ -806,10 +829,10 @@ function basculerDon(PDO $db, bool $is_ajax, int $j_id, bool $ajouter): void {
   endif;
 
   // Contrôle propriétaire + ruleset du personnage
-  $stmt = $db->prepare('SELECT pe_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt = $db->prepare('SELECT pe_id, pe_j_id, pe_affecte_par_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
   $stmt->execute([$pe_id]);
   $row = $stmt->fetch();
-  if (!$row || !canAccess((int)$row['pe_j_id'])):
+  if (!$row || !peutGererPersonnage($db, $row)):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
   endif;
 
@@ -884,10 +907,10 @@ function choixCapaciteCle(PDO $db, bool $is_ajax): array {
     endif;
   endforeach;
 
-  $stmt = $db->prepare('SELECT pe_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt = $db->prepare('SELECT pe_id, pe_j_id, pe_affecte_par_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
   $stmt->execute([$cle['pe_id']]);
   $row = $stmt->fetch();
-  if (!$row || !canAccess((int)$row['pe_j_id'])):
+  if (!$row || !peutGererPersonnage($db, $row)):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
   endif;
   $cle['ruleset_id'] = (int)$row['pe_ruleset_var_id'];
@@ -1079,10 +1102,10 @@ function enregistrerNls(PDO $db, bool $is_ajax): void {
   endif;
 
   // Contrôle propriétaire + ruleset (l'affectation NLS est du DD3.5 pur)
-  $stmt = $db->prepare('SELECT pe_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
+  $stmt = $db->prepare('SELECT pe_id, pe_j_id, pe_affecte_par_j_id, pe_ruleset_var_id FROM dd_personnages WHERE pe_id = ?');
   $stmt->execute([$pe_id]);
   $row = $stmt->fetch();
-  if (!$row || !canAccess((int)$row['pe_j_id'])):
+  if (!$row || !peutGererPersonnage($db, $row)):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Accès refusé.']);
   endif;
   if ((int)$row['pe_ruleset_var_id'] !== 1):
@@ -1206,23 +1229,26 @@ function enregistrerNls(PDO $db, bool $is_ajax): void {
 
 /**
  * Charge le personnage visé par une action campagne et contrôle l'accès.
- * Ne rend la main que si le personnage existe et appartient à l'utilisateur.
+ * Ne rend la main que si le personnage existe et que l'utilisateur le gère
+ * (peutGererPersonnage). `$exiger_gestion = false` pour le seul rattachement :
+ * le MJ ajoute à sa campagne un personnage qu'il ne gère pas encore, le droit
+ * se lit alors sur la campagne (verifierCampagne).
  */
-function chargerPersonnagePourCampagne(PDO $db, bool $is_ajax): array {
+function chargerPersonnagePourCampagne(PDO $db, bool $is_ajax, bool $exiger_gestion = true): array {
   $pe_id = intParam($_POST['pe_id'] ?? 0);
   if ($pe_id <= 0):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Identifiant manquant.']);
   endif;
 
   $stmt = $db->prepare('
-    SELECT pe_j_id, pe_camp_id, pe_ruleset_var_id
+    SELECT pe_id, pe_j_id, pe_affecte_par_j_id, pe_camp_id, pe_ruleset_var_id
       FROM dd_personnages
      WHERE pe_id = ?
   ');
   $stmt->execute([$pe_id]);
   $perso = $stmt->fetch();
 
-  if (!$perso || !canAccess((int)$perso['pe_j_id'])):
+  if (!$perso || ($exiger_gestion && !peutGererPersonnage($db, $perso))):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Personnage introuvable ou accès refusé.']);
   endif;
 
@@ -1230,32 +1256,51 @@ function chargerPersonnagePourCampagne(PDO $db, bool $is_ajax): array {
 }
 
 /**
- * Contrôle d'intégrité d'une campagne avant rattachement : elle doit exister,
- * appartenir au propriétaire du personnage (aucun mécanisme d'invitation dans
- * l'application) et partager son ruleset. Ne rend la main que si tout est vert.
+ * Contrôle d'une campagne avant écriture sur la liaison (SP-PE18).
  *
- * Volontairement non appelé au détachement : retirer une liaison devenue
- * incohérente (campagne d'un autre ruleset héritée d'un import) doit rester
- * possible.
+ * Nouvelle liaison : la campagne doit exister, partager le ruleset du
+ * personnage, et l'utilisateur en être le MJ (ou l'admin) — une campagne
+ * n'accueille un personnage que par la main de son MJ.
+ *
+ * Liaison existante (`$nouvelle = false` : retrait, participation, campagne en
+ * cours déjà liée) : seul le droit compte — admin, propriétaire du personnage
+ * ou MJ de cette campagne. Pas de contrôle d'intégrité : retirer une liaison
+ * devenue incohérente (campagne d'un autre ruleset héritée d'un import, campagne
+ * supprimée) doit rester possible.
  */
-function verifierCampagneRattachable(PDO $db, bool $is_ajax, int $camp_id, array $perso): void {
+function verifierCampagne(PDO $db, bool $is_ajax, int $camp_id, array $perso, bool $nouvelle): void {
   $stmt = $db->prepare('
-    SELECT camp_j_id, camp_ruleset_var_id
+    SELECT camp_j_id, camp_ruleset_var_id, camp_supprime
       FROM dd_campagnes
-     WHERE camp_id = ? AND camp_supprime = 0
+     WHERE camp_id = ?
   ');
   $stmt->execute([$camp_id]);
   $camp = $stmt->fetch();
 
-  if (!$camp):
+  if (!$camp || ($nouvelle && (int)$camp['camp_supprime'] !== 0)):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Campagne introuvable.']);
   endif;
-  if ((int)$camp['camp_j_id'] !== (int)$perso['pe_j_id']):
-    repondre($is_ajax, ['ok' => false, 'erreur' => 'Cette campagne n\'appartient pas au propriétaire du personnage.']);
+
+  if (!$nouvelle):
+    if (!peutModifierLiaisonCampagne($perso, (int)$camp['camp_j_id'])):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Seul le MJ de cette campagne peut modifier cette liaison.']);
+    endif;
+    return;
+  endif;
+
+  if (!peutRattacherACampagne((int)$camp['camp_j_id'])):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Seul le MJ de cette campagne peut y ajouter un personnage.']);
   endif;
   if ((int)$camp['camp_ruleset_var_id'] !== (int)$perso['pe_ruleset_var_id']):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Cette campagne n\'est pas dans le ruleset du personnage.']);
   endif;
+}
+
+/** Vrai si le personnage est déjà lié à la campagne. */
+function campagneDejaLiee(PDO $db, int $camp_id, int $pe_id): bool {
+  $stmt = $db->prepare('SELECT 1 FROM dd_campagnes_personnages WHERE cp_camp_id = ? AND cp_pe_id = ?');
+  $stmt->execute([$camp_id, $pe_id]);
+  return (bool)$stmt->fetchColumn();
 }
 
 /**
@@ -1277,16 +1322,14 @@ function etatCampagnesPersonnage(PDO $db, int $pe_id): array {
 
 /** Rattache / détache un personnage à une campagne. */
 function basculerRattachementCampagne(PDO $db, bool $is_ajax, bool $rattacher): void {
-  list($pe_id, $perso) = chargerPersonnagePourCampagne($db, $is_ajax);
+  list($pe_id, $perso) = chargerPersonnagePourCampagne($db, $is_ajax, !$rattacher);
 
   $camp_id = intParam($_POST['camp_id'] ?? 0);
   if ($camp_id <= 0):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Campagne manquante.']);
   endif;
 
-  if ($rattacher):
-    verifierCampagneRattachable($db, $is_ajax, $camp_id, $perso);
-  endif;
+  verifierCampagne($db, $is_ajax, $camp_id, $perso, $rattacher);
 
   try {
     $db->beginTransaction();
@@ -1342,25 +1385,14 @@ function definirCampagneCourante(PDO $db, bool $is_ajax): void {
   $camp_id = intParam($_POST['camp_id'] ?? 0);
 
   if ($camp_id > 0):
-    verifierCampagneRattachable($db, $is_ajax, $camp_id, $perso);
+    verifierCampagne($db, $is_ajax, $camp_id, $perso, !campagneDejaLiee($db, $camp_id, $pe_id));
   endif;
 
   try {
     $db->beginTransaction();
 
     if ($camp_id > 0):
-      $db->prepare('
-        INSERT IGNORE INTO dd_campagnes_personnages (cp_camp_id, cp_pe_id, cp_actif)
-        VALUES (?, ?, 1)
-      ')->execute([$camp_id, $pe_id]);
-
-      $db->prepare('
-        UPDATE dd_campagnes_personnages SET cp_actif = 1
-         WHERE cp_camp_id = ? AND cp_pe_id = ?
-      ')->execute([$camp_id, $pe_id]);
-
-      $db->prepare('UPDATE dd_personnages SET pe_camp_id = ?, pe_date_modif = NOW() WHERE pe_id = ?')
-         ->execute([$camp_id, $pe_id]);
+      ecrireCampagneCourante($db, $pe_id, $camp_id);
     else:
       $db->prepare('UPDATE dd_personnages SET pe_camp_id = NULL, pe_date_modif = NOW() WHERE pe_id = ?')
          ->execute([$pe_id]);
@@ -1382,6 +1414,26 @@ function definirCampagneCourante(PDO $db, bool $is_ajax): void {
 }
 
 /**
+ * Écriture de la campagne en cours, droits déjà contrôlés et transaction
+ * ouverte par l'appelant : liaison créée si elle manque, forcée active.
+ * Partagée par definirCampagneCourante() et l'action groupée (SP-PE19).
+ */
+function ecrireCampagneCourante(PDO $db, int $pe_id, int $camp_id): void {
+  $db->prepare('
+    INSERT IGNORE INTO dd_campagnes_personnages (cp_camp_id, cp_pe_id, cp_actif)
+    VALUES (?, ?, 1)
+  ')->execute([$camp_id, $pe_id]);
+
+  $db->prepare('
+    UPDATE dd_campagnes_personnages SET cp_actif = 1
+     WHERE cp_camp_id = ? AND cp_pe_id = ?
+  ')->execute([$camp_id, $pe_id]);
+
+  $db->prepare('UPDATE dd_personnages SET pe_camp_id = ?, pe_date_modif = NOW() WHERE pe_id = ?')
+     ->execute([$camp_id, $pe_id]);
+}
+
+/**
  * Bascule `cp_actif` : participation en cours (1) / terminée (0).
  *
  * Marquer une participation terminée sur la campagne en cours efface le
@@ -1394,6 +1446,8 @@ function basculerParticipationCampagne(PDO $db, bool $is_ajax): void {
   if ($camp_id <= 0):
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Campagne manquante.']);
   endif;
+
+  verifierCampagne($db, $is_ajax, $camp_id, $perso, false);
 
   $stmt = $db->prepare('
     SELECT cp_actif FROM dd_campagnes_personnages
@@ -1448,4 +1502,173 @@ function definirPorteeNotes(PDO $db, bool $is_ajax): void {
   $scope = intParam($_POST['scope'] ?? 0) === 1 ? 1 : 0;
   $db->prepare('UPDATE dd_personnages SET pe_notes_scope = ? WHERE pe_id = ?')->execute([$scope, $pe_id]);
   repondre($is_ajax, ['ok' => true, 'scope' => $scope]);
+}
+
+// ============================================================
+// AFFECTATION À UN JOUEUR (SP-PE18)
+//
+// Affecter transfère la propriété : pe_j_id devient le joueur, et
+// pe_affecte_par_j_id garde le MJ qui a affecté — c'est elle qui l'autorise,
+// lui seul avec l'admin, à retirer l'affectation (D-PE18a). Les liaisons aux
+// campagnes ne bougent pas.
+// ============================================================
+
+/** Affecte le personnage au joueur `j_id_cible`. */
+function affecterPersonnage(PDO $db, bool $is_ajax): void {
+  list($pe_id, $perso) = chargerPersonnagePourCampagne($db, $is_ajax);
+
+  if (!peutAffecterPersonnage($db, $perso)):
+    $erreur = empty($perso['pe_affecte_par_j_id'])
+      ? 'Seul un MJ peut affecter un personnage à un joueur, et seulement l\'un des siens.'
+      : 'Ce personnage a déjà été affecté : retirez d\'abord l\'affectation.';
+    repondre($is_ajax, ['ok' => false, 'erreur' => $erreur]);
+  endif;
+
+  $cible = intParam($_POST['j_id_cible'] ?? 0);
+  $stmt  = $db->prepare('SELECT j_id FROM dd_joueurs WHERE j_id = ?');
+  $stmt->execute([$cible]);
+  if ($cible <= 0 || !$stmt->fetchColumn()):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Joueur introuvable.']);
+  endif;
+  if ($cible === (int)$perso['pe_j_id']):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Le personnage appartient déjà à ce joueur.']);
+  endif;
+
+  try {
+    $db->beginTransaction();
+    ecrireAffectation($db, $perso, $cible);
+    $db->commit();
+  } catch (PDOException $e) {
+    $db->rollBack();
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  repondre($is_ajax, ['ok' => true, 'id' => $pe_id]);
+}
+
+/**
+ * Écriture de l'affectation, droits déjà contrôlés et transaction ouverte par
+ * l'appelant. Partagée par affecterPersonnage() et l'action groupée (SP-PE19).
+ *
+ * La trace désigne le MJ qui a affecté :
+ *   - déjà posée : une réaffectation par l'admin la conserve ;
+ *   - absente, personnage de l'utilisateur : elle le désigne (le MJ — admin
+ *     compris — qui affecte l'un de ses personnages) ;
+ *   - absente, personnage d'un tiers (admin seulement) : simple transfert de
+ *     propriété, sans trace (D-PE18d).
+ * Rendre le personnage au MJ affecteur efface la trace.
+ */
+function ecrireAffectation(PDO $db, array $perso, int $cible): void {
+  $affecte_par = (int)($perso['pe_affecte_par_j_id'] ?? 0);
+  if ($affecte_par <= 0):
+    $affecte_par = (int)$perso['pe_j_id'] === (int)$_SESSION['j_id'] ? (int)$_SESSION['j_id'] : null;
+  endif;
+  if ($cible === $affecte_par):
+    $affecte_par = null;
+  endif;
+
+  $db->prepare('
+    UPDATE dd_personnages
+       SET pe_j_id = ?, pe_affecte_par_j_id = ?, pe_date_modif = NOW()
+     WHERE pe_id = ?
+  ')->execute([$cible, $affecte_par, (int)$perso['pe_id']]);
+}
+
+// ============================================================
+// ACTIONS GROUPÉES DE LA LISTE (SP-PE19, D-PE19a → c)
+// Panneau : include/ajax/modifier/personnages-groupe.php. La sélection entière
+// doit être gérée par l'utilisateur ; l'action s'applique aux personnages
+// éligibles et la réponse liste ceux qui ont été écartés, avec la raison.
+// ============================================================
+
+function groupePersonnages(PDO $db, bool $is_ajax): void {
+  $persos    = personnagesGroupe($db, (array)($_POST['ids'] ?? []));
+  $operation = strParam($_POST['operation'] ?? '');
+  if ($persos === null || !in_array($operation, ['campagne', 'joueur'], true)):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Sélection invalide ou accès refusé.']);
+  endif;
+
+  $a_ecrire = [];
+  $ecartes  = [];
+
+  if ($operation === 'campagne'):
+    // Rattacher et faire campagne en cours (D-PE19a).
+    $camp_id = intParam($_POST['camp_id'] ?? 0);
+    $stmt    = $db->prepare('SELECT camp_j_id, camp_ruleset_var_id FROM dd_campagnes WHERE camp_id = ? AND camp_supprime = 0');
+    $stmt->execute([$camp_id]);
+    $camp = $stmt->fetch();
+    if (!$camp || !peutRattacherACampagne((int)$camp['camp_j_id'])):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Campagne introuvable, ou dont vous n\'êtes pas le MJ.']);
+    endif;
+    foreach ($persos as $pe_id => $pe):
+      if ((int)$pe['pe_ruleset_var_id'] !== (int)$camp['camp_ruleset_var_id']):
+        $ecartes[] = ['nom' => $pe['pe_nom'], 'raison' => 'autre ruleset que la campagne'];
+      elseif ((int)$pe['pe_camp_id'] === $camp_id):
+        $ecartes[] = ['nom' => $pe['pe_nom'], 'raison' => 'déjà en cours dans cette campagne'];
+      else:
+        $a_ecrire[] = $pe;
+      endif;
+    endforeach;
+
+  else:
+    $cible = intParam($_POST['j_id_cible'] ?? 0);
+    $stmt  = $db->prepare('SELECT j_id FROM dd_joueurs WHERE j_id = ?');
+    $stmt->execute([$cible]);
+    if ($cible <= 0 || !$stmt->fetchColumn()):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Joueur introuvable.']);
+    endif;
+    foreach ($persos as $pe_id => $pe):
+      $raison = raisonNonAffectable($db, $pe);
+      if ($raison === null && (int)$pe['pe_j_id'] === $cible):
+        $raison = 'appartient déjà à ce joueur';
+      endif;
+      if ($raison !== null):
+        $ecartes[] = ['nom' => $pe['pe_nom'], 'raison' => $raison];
+      else:
+        $a_ecrire[] = $pe;
+      endif;
+    endforeach;
+  endif;
+
+  try {
+    $db->beginTransaction();
+    foreach ($a_ecrire as $pe):
+      if ($operation === 'campagne'):
+        ecrireCampagneCourante($db, (int)$pe['pe_id'], $camp_id);
+      else:
+        ecrireAffectation($db, $pe, $cible);
+      endif;
+    endforeach;
+    $db->commit();
+  } catch (PDOException $e) {
+    $db->rollBack();
+    error_log('groupePersonnages : ' . $e->getMessage());
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur lors de l\'enregistrement.']);
+  }
+
+  repondre($is_ajax, ['ok' => true, 'appliques' => count($a_ecrire), 'ecartes' => $ecartes]);
+}
+
+/** Retire l'affectation : le personnage revient au MJ qui l'avait affecté. */
+function retirerAffectation(PDO $db, bool $is_ajax): void {
+  list($pe_id, $perso) = chargerPersonnagePourCampagne($db, $is_ajax);
+
+  if (!peutRetirerAffectation($perso)):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Seul le MJ qui a affecté ce personnage peut retirer l\'affectation.']);
+  endif;
+
+  try {
+    $db->beginTransaction();
+    $db->prepare('
+      UPDATE dd_personnages
+         SET pe_j_id = pe_affecte_par_j_id, pe_affecte_par_j_id = NULL, pe_date_modif = NOW()
+       WHERE pe_id = ?
+    ')->execute([$pe_id]);
+    $db->commit();
+  } catch (PDOException $e) {
+    $db->rollBack();
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  repondre($is_ajax, ['ok' => true, 'id' => $pe_id]);
 }

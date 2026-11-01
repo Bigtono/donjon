@@ -143,7 +143,15 @@ $listConfig = [
   'edition_libre' => true,
   // Bouton d'ajout dans la ligne de titre : il a besoin d'une campagne.
   'avec_ajout'    => false,
-  'bulk_actions'  => [],
+  // Actions groupées (SP-NO9) : chacune ouvre un panneau qui liste la sélection,
+  // porte le choix et sert d'écran de validation (include/ajax/modifier/notes-groupe.php).
+  'bulk_actions'  => [
+    ['valeur' => 'supprimer',   'label' => 'Supprimer'],
+    ['valeur' => 'campagne',    'label' => 'Changer de campagne'],
+    ['valeur' => 'categorie',   'label' => 'Changer de catégorie'],
+    ['valeur' => 'personnages', 'label' => 'Ajouter ou retirer des destinataires'],
+  ],
+  'bulk_panneau'  => BASE_URL . '/include/ajax/modifier/notes-groupe.php',
   'suppression'   => ['mode' => 'ajax', 'action' => 'supprimerNote', 'param' => 'id'],
 
   'extra_where'  => 'camp.camp_j_id = ? AND camp.camp_supprime = 0 AND n.no_supprime = 0',

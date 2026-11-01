@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-06-01 16:55 -->
+<!-- Mis à jour : 2026-11-01 18:00 -->
 
 # Règles métier — Module Campagnes
 
@@ -54,6 +54,12 @@ participer à plusieurs campagnes, une campagne accueille plusieurs personnages.
 La table de liaison est la **source de vérité** du rattachement. Par commodité, le personnage
 mémorise aussi sa **dernière campagne jouée** (campagne « en cours »), qui n'est qu'un raccourci
 de contexte et ne fait pas autorité sur le lien.
+
+Une campagne n'accueille un personnage que **par la main de son MJ** (ou de l'administrateur) : le
+MJ ajoute à sa campagne n'importe quel personnage du même ruleset, quel que soit son joueur, et l'en
+retire. Il gère ensuite la fiche de tout personnage rattaché à l'une de ses campagnes (sauf la
+supprimer). Le joueur peut quitter une campagne, mais n'inscrit son personnage que dans les siennes.
+Le MJ peut aussi préparer un personnage et l'**affecter** à un joueur (voir `METIER_1_Personnages.md`).
 
 > Les notes privées du MJ sur un personnage rattaché sont **prévues mais non actives** dans cette
 > version (le système de notes n'est pas finalisé et dépend du module Personnages).

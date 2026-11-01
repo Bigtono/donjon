@@ -9,6 +9,7 @@
 //           | 'enregistrerScenario' | 'supprimerScenario'
 //           | 'enregistrerChapitre' | 'supprimerChapitre'
 //           | 'enregistrerNote' | 'supprimerNote' (SP-NO2)
+//           | 'notesGroupe' (SP-NO9 : actions groupées de la liste des notes)
 
 require_once '../include/db.php';
 require_once '../include/auth.php';
@@ -132,6 +133,10 @@ switch ($action):
 
   case 'supprimerNote':
     supprimerNote($db, $is_ajax, $redirect);
+    break;
+
+  case 'notesGroupe':
+    notesGroupe($db, $is_ajax, $redirect);
     break;
 
   default:
@@ -1376,6 +1381,130 @@ function supprimerNote(PDO $db, bool $is_ajax, string $redirect): void
     exit;
   endif;
   $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Note supprimée.'];
+  header('Location: ' . $redirect);
+  exit;
+}
+
+// ============================================================
+// NOTES — Actions groupées (SP-NO9, D-NO16)
+// Panneau : include/ajax/modifier/notes-groupe.php. POST : operation, ids[] et
+//   'supprimer'   — suppression douce
+//   'campagne'    — camp_id : même ruleset ; scénario remis à vide, destinataires
+//                   absents de la nouvelle campagne retirés
+//   'categorie'   — tyno_id : catégorie du ruleset des notes
+//   'personnages' — mode ajouter|retirer, pe_ids[] ; un personnage n'est ajouté
+//                   qu'aux notes de ses campagnes
+// Le bilan va en message flash : la page se recharge après la réponse.
+// ============================================================
+
+function notesGroupe(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $operation = strParam($_POST['operation'] ?? '');
+  $notes     = notesGroupeMJ($db, (array)($_POST['ids'] ?? []));
+  if ($notes === null):
+    campErreur($is_ajax, 'Sélection invalide ou accès refusé.', $redirect);
+  endif;
+
+  $ids        = array_keys($notes);
+  $ph         = implode(',', array_fill(0, count($ids), '?'));
+  $rulesets   = array_unique(array_map('intval', array_column($notes, 'camp_ruleset_var_id')));
+  $ruleset_id = count($rulesets) === 1 ? reset($rulesets) : 0;
+  $maintenant = date('Y-m-d H:i:s');
+
+  try {
+    $db->beginTransaction();
+
+    switch ($operation):
+
+      case 'supprimer':
+        softDeleteIds($db, 'dd_notes', 'no_supprime', 'no_date_supprime', 'no_id', $ids);
+        $message = count($ids) . ' note(s) supprimée(s).';
+        break;
+
+      case 'campagne':
+        $camp_id = intParam($_POST['camp_id'] ?? 0);
+        $stmt = $db->prepare('SELECT camp_ruleset_var_id FROM dd_campagnes WHERE camp_id = ? AND camp_supprime = 0');
+        $stmt->execute([$camp_id]);
+        if (!$ruleset_id || (int)$stmt->fetchColumn() !== $ruleset_id || !isMJ($db, $camp_id)):
+          throw new InvalidArgumentException('Campagne invalide.');
+        endif;
+        $a_deplacer = array_keys(array_filter($notes, fn($n) => (int)$n['no_camp_id'] !== $camp_id));
+        $nb_retires = 0;
+        if ($a_deplacer):
+          $ph_d = implode(',', array_fill(0, count($a_deplacer), '?'));
+          $db->prepare("UPDATE dd_notes SET no_camp_id = ?, no_sce_id = NULL, no_date_maj = ? WHERE no_id IN ($ph_d)")
+             ->execute(array_merge([$camp_id, $maintenant], $a_deplacer));
+          $stmt = $db->prepare("
+            DELETE pno FROM dd_personnages_notes pno
+             WHERE pno.pno_no_id IN ($ph_d)
+               AND NOT EXISTS (SELECT 1 FROM dd_campagnes_personnages cp
+                                WHERE cp.cp_pe_id = pno.pno_pe_id AND cp.cp_camp_id = ?)
+          ");
+          $stmt->execute(array_merge($a_deplacer, [$camp_id]));
+          $nb_retires = $stmt->rowCount();
+        endif;
+        $message = count($a_deplacer) . ' note(s) déplacée(s)'
+                 . ($nb_retires ? ', ' . $nb_retires . ' destinataire(s) hors campagne retiré(s)' : '') . '.';
+        break;
+
+      case 'categorie':
+        $tyno_id = intParam($_POST['tyno_id'] ?? 0);
+        $stmt = $db->prepare('SELECT COUNT(*) FROM dd_types_notes WHERE tyno_id = ? AND tyno_ruleset_var_id = ?');
+        $stmt->execute([$tyno_id, $ruleset_id]);
+        if (!$ruleset_id || !(int)$stmt->fetchColumn()):
+          throw new InvalidArgumentException('Catégorie invalide.');
+        endif;
+        $stmt = $db->prepare("UPDATE dd_notes SET no_tyno_id = ?, no_date_maj = ? WHERE no_id IN ($ph) AND no_tyno_id <> ?");
+        $stmt->execute(array_merge([$tyno_id, $maintenant], $ids, [$tyno_id]));
+        $message = $stmt->rowCount() . ' note(s) changée(s) de catégorie.';
+        break;
+
+      case 'personnages':
+        $mode   = strParam($_POST['mode'] ?? '');
+        $pe_ids = array_values(array_unique(array_filter(array_map('intval', (array)($_POST['pe_ids'] ?? [])))));
+        if (empty($pe_ids) || !in_array($mode, ['ajouter', 'retirer'], true)):
+          throw new InvalidArgumentException('Choisissez au moins un personnage.');
+        endif;
+        $ph_p = implode(',', array_fill(0, count($pe_ids), '?'));
+        if ($mode === 'ajouter'):
+          // Couples note × personnage de la campagne de la note
+          $stmt = $db->prepare("
+            INSERT IGNORE INTO dd_personnages_notes (pno_no_id, pno_pe_id, pno_date)
+            SELECT n.no_id, cp.cp_pe_id, ?
+              FROM dd_notes n
+              JOIN dd_campagnes_personnages cp ON cp.cp_camp_id = n.no_camp_id
+             WHERE n.no_id IN ($ph) AND cp.cp_pe_id IN ($ph_p)
+          ");
+          $stmt->execute(array_merge([$maintenant], $ids, $pe_ids));
+          $message = $stmt->rowCount() . ' diffusion(s) ajoutée(s).';
+        else:
+          $stmt = $db->prepare("DELETE FROM dd_personnages_notes WHERE pno_no_id IN ($ph) AND pno_pe_id IN ($ph_p)");
+          $stmt->execute(array_merge($ids, $pe_ids));
+          $message = $stmt->rowCount() . ' diffusion(s) retirée(s).';
+        endif;
+        break;
+
+      default:
+        throw new InvalidArgumentException('Action groupée inconnue.');
+
+    endswitch;
+
+    $db->commit();
+  } catch (InvalidArgumentException $e) {
+    $db->rollBack();
+    campErreur($is_ajax, $e->getMessage(), $redirect);
+  } catch (Exception $e) {
+    if ($db->inTransaction()) $db->rollBack();
+    error_log('notesGroupe : ' . $e->getMessage());
+    campErreur($is_ajax, 'Erreur base de données.', $redirect);
+  }
+
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => $message];
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => true, 'message' => $message]);
+    exit;
+  endif;
   header('Location: ' . $redirect);
   exit;
 }

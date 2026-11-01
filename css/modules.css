@@ -3041,7 +3041,13 @@
 /* ============================================================
    LISTES — Barre bulk
    ============================================================ */
+/* Collante en bas de l'écran (SP-NO9) : elle n'apparaît qu'à la première case
+   cochée, souvent bien au-dessus de la fin d'une longue liste. */
 .comp-bulk-bar {
+  position: sticky;
+  bottom: var(--sp-sm);
+  z-index: 10;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   gap: var(--sp-sm);

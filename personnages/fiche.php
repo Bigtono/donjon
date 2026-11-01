@@ -30,6 +30,30 @@ endif;
 
 setLastPersonnage((int)$perso['pe_id'], (int)$perso['pe_ruleset_var_id']);
 
+// ------------------------------------------------------------
+// JOUEUR ET AFFECTATION (SP-PE18)
+// La ligne Joueur ne sert qu'au MJ et à l'admin : à qui consulte la fiche sans
+// en être le propriétaire, ou peut changer le joueur. Le joueur propriétaire —
+// y compris d'un personnage qu'un MJ lui a affecté — ne la voit jamais.
+// ------------------------------------------------------------
+$stmt = $db->prepare('SELECT j_id, j_pseudo FROM dd_joueurs WHERE j_id IN (?, ?)');
+$stmt->execute([(int)$perso['pe_j_id'], (int)($perso['pe_affecte_par_j_id'] ?? 0)]);
+$pseudos = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$joueur_pseudo  = $pseudos[(int)$perso['pe_j_id']] ?? '—';
+$affecte_pseudo = !empty($perso['pe_affecte_par_j_id'])
+  ? ($pseudos[(int)$perso['pe_affecte_par_j_id']] ?? '—')
+  : null;
+$afficher_joueur = !$perso['est_proprietaire'] || $perso['peut_affecter'] || $perso['peut_retirer_affect'];
+
+// Joueurs proposés à l'affectation : tous, sauf le propriétaire actuel
+$joueurs_affectation = [];
+if ($perso['peut_affecter']):
+  $stmt = $db->prepare('SELECT j_id, j_pseudo FROM dd_joueurs WHERE j_id <> ? ORDER BY j_pseudo');
+  $stmt->execute([(int)$perso['pe_j_id']]);
+  $joueurs_affectation = $stmt->fetchAll();
+endif;
+
 $ruleset_id  = (int)$perso['pe_ruleset_var_id'];
 $ruleset_rep = ($ruleset_id === 2) ? 'DD2024' : 'DD3.5';
 
@@ -280,6 +304,47 @@ require_once '../include/header.php';
         <span class="per-fiche__campagne">
           <i class="fa fa-map"></i> <?= h($perso['campagne_courante_nom']) ?>
         </span>
+      <?php endif ?>
+
+      <?php // Joueur et affectation (SP-PE18) — écriture immédiate ?>
+      <?php if ($afficher_joueur): ?>
+        <span class="per-fiche__joueur" id="per-joueur">
+          <i class="fa fa-user"></i> <?= h($joueur_pseudo) ?>
+          <?php if ($affecte_pseudo !== null): ?>
+            <span class="text-sm">(affecté par <?= h($affecte_pseudo) ?>)</span>
+          <?php endif ?>
+          <?php if ($perso['peut_affecter'] && $joueurs_affectation): ?>
+            <button type="button" class="btn btn-link btn-sm" title="Affecter à un joueur"
+                    onclick="perAffectation.ouvrir()">
+              <i class="fa fa-user-plus"></i>
+            </button>
+          <?php endif ?>
+          <?php if ($perso['peut_retirer_affect']): ?>
+            <button type="button" class="btn btn-link btn-sm"
+                    title="Retirer l'affectation (retour à <?= h($affecte_pseudo) ?>)"
+                    data-retour="<?= h($affecte_pseudo) ?>"
+                    onclick="perAffectation.retirer(this.dataset.retour)">
+              <i class="fa fa-user-times"></i>
+            </button>
+          <?php endif ?>
+        </span>
+
+        <?php if ($perso['peut_affecter'] && $joueurs_affectation): ?>
+          <span class="per-fiche__affectation noDisplay" id="per-affectation">
+            <select id="per-affectation-joueur" aria-label="Joueur">
+              <option value="">Choisir un joueur…</option>
+              <?php foreach ($joueurs_affectation as $jo): ?>
+                <option value="<?= (int)$jo['j_id'] ?>"><?= h($jo['j_pseudo']) ?></option>
+              <?php endforeach ?>
+            </select>
+            <button type="button" class="btn btn-primary btn-sm" onclick="perAffectation.valider()">
+              Affecter
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="perAffectation.fermer()">
+              Annuler
+            </button>
+          </span>
+        <?php endif ?>
       <?php endif ?>
     </div>
 

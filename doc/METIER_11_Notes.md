@@ -1,10 +1,10 @@
-<!-- Mis à jour : 2026-11-01 14:00 -->
+<!-- Mis à jour : 2026-11-01 19:00 -->
 
 # Règles métier — Module Notes
 
 > Règles fonctionnelles du module Notes (sans référence au code).
 > Suivi des phases : `ARCHITECTURE_0_REFERENCE.md` §0, chantier **SP-NO**.
-> Schéma des tables : `SCHEMA_SQL.md` (section 9). Décisions : `DECISIONS_LOG.md` (D-NO0 → D-NO14).
+> Schéma des tables : `SCHEMA_SQL.md` (section 9). Décisions : `DECISIONS_LOG.md` (D-NO0 → D-NO15).
 
 ---
 
@@ -79,6 +79,11 @@ modification qui compte, pas pour une coquille.
   destinataires.
 - Fiche de la note : toutes les sections avec leurs conditions, les destinataires et, pour chacun,
   les sections qu'il peut lire.
+- Actions groupées sur les notes cochées de la liste : supprimer, changer de campagne, changer de catégorie,
+  ajouter ou retirer des destinataires. Chacune ouvre un panneau qui rappelle les notes choisies ; la suppression
+  y demande une validation explicite. Une note qui change de campagne perd son scénario et les destinataires qui
+  ne font pas partie de la nouvelle campagne ; on ne propose que les campagnes du même ruleset. Un destinataire
+  n'est ajouté qu'aux notes de ses campagnes. Une note appartient toujours à une campagne.
 - Accès depuis l'outil « Notes » des pages de campagne, la section Notes d'un scénario (avec création d'une note
   déjà rattachée au scénario) et le lien « Notes » du menu. La liste s'ouvre sur la dernière campagne consultée.
 - Prévu pour ordinateur, comme le reste du module Campagnes.

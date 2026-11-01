@@ -44,12 +44,29 @@ foreach ($campagnes_perso as $c):
   $campagnes_liees[(int)$c['camp_id']] = $c;
 endforeach;
 
+// SP-PE18 : les campagnes rattachables sont celles dont l'utilisateur est MJ
+// (toutes pour l'admin) ; s'y ajoutent les liaisons existantes qu'il a le droit
+// de modifier — le joueur peut ainsi quitter la campagne d'un MJ qui l'y a ajouté.
+$candidates = getCampagnesRattachables($db, $ruleset_id);
+$deja_vues  = array_flip(array_map(fn($c) => (int)$c['camp_id'], $candidates));
+foreach ($campagnes_perso as $c):
+  if (!isset($deja_vues[(int)$c['camp_id']]) && (int)$c['est_liee'] === 1
+      && peutModifierLiaisonCampagne($perso, (int)$c['camp_j_id'])):
+    $candidates[] = $c;
+  endif;
+endforeach;
+
 $campagnes_editeur = [];
-foreach (getCampagnesRattachables($db, (int)$perso['pe_j_id'], $ruleset_id) as $c):
+foreach ($candidates as $c):
   $cid = (int)$c['camp_id'];
+  // Campagne d'un autre MJ que l'utilisateur : son pseudo départage les homonymes
+  $nom = $c['camp_nom'];
+  if (!empty($c['mj_pseudo']) && (int)$c['camp_j_id'] !== (int)$_SESSION['j_id']):
+    $nom .= ' (' . $c['mj_pseudo'] . ')';
+  endif;
   $campagnes_editeur[$cid] = [
     'id'       => $cid,
-    'nom'      => $c['camp_nom'],
+    'nom'      => $nom,
     'resume'   => $c['camp_resume'] ?? '',
     'univers'  => $c['univers_nom'] ?? '',
     'rattache' => isset($campagnes_liees[$cid]) && (int)$campagnes_liees[$cid]['est_liee'] === 1,
@@ -148,8 +165,9 @@ require_once '../include/header.php';
         </p>
       <?php else: ?>
         <p class="text-muted text-sm">
-          Chaque clic est enregistré immédiatement. Seules vos campagnes en
-          <?= h($ruleset_rep) ?> sont proposées.
+          Chaque clic est enregistré immédiatement. Seules les campagnes en
+          <?= h($ruleset_rep) ?> dont vous êtes MJ sont proposées, avec celles
+          auxquelles le personnage participe déjà.
         </p>
         <div id="campagnes-editor-lignes">
           <!-- Les lignes sont générées par campagnesEditor.init() en JS -->

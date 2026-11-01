@@ -203,6 +203,12 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - Choix de capacités de classe SP-CH0→CH5 : `cc_nb_choix` / `cap_choix_mode` déclarés dans le formulaire de classe,
   emplacements remplis sur la fiche (`dd_personnages_choix`, texte libre ou don lié au bloc Dons). Reste SP-CH6 :
   déclarer les autres capacités à choix du compendium et rejouer `sql/2026-10-31_choix_capacites_sp-ch0.sql` en production
+- Gestion d'un personnage par l'admin et le MJ SP-PE18a→d : helpers `peutGererPersonnage()` & co.
+  (`include/personnage_helpers.php`, §7.5e) ; le MJ gère les personnages de ses campagnes (hors suppression),
+  les y ajoute / retire depuis `campagnes/campagne.php`, et les affecte à un joueur (`pe_affecte_par_j_id`,
+  transfert avec trace). Reste SP-PE18e : contrôle visuel et `sql/2026-11-01_sp-pe18_affectation_personnage.sql`
+  à jouer en production. Actions groupées de la liste SP-PE19 (affecter à une campagne / à un joueur, panneau
+  `include/ajax/modifier/personnages-groupe.php`, admin et MJ seulement)
 - Aide à la saisie : `aideIcone()` sur les 13 champs soumis à un parser, contenu dans
   `include/aide-contextuelle.php` (une clé par jeu de parsers réellement appliqué)
 - Déploiement SP-DP0→DP6 : bouton du header (local seulement) qui envoie par SFTP les fichiers
@@ -222,11 +228,11 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - SP-PE8 : module Personnages (livrés : `SP-PE0→PE7` dont la vue Magie, `PE9→PE13` et la
   compaction `PE10a→s`). Reste : mode jeu (suivi PV et variables par ruleset) + passe responsive
   < 992px sur les blocs PE3→PE7
-- SP-NO8 : module Notes (arbitrage D-NO0 → D-NO4 ; SP-NO0 → NO7 livrés : schéma, moteur d'accès, formulaire,
-  interfaces du MJ `campagnes/notes.php` et du joueur `personnages/notes.php`, D-NO5 → D-NO14, `doc/METIER_11_Notes.md`) — notes
+- SP-NO8 : module Notes (arbitrage D-NO0 → D-NO4 ; SP-NO0 → NO7 et NO9 (actions groupées) livrés : schéma, moteur d'accès, formulaire,
+  interfaces du MJ `campagnes/notes.php` et du joueur `personnages/notes.php`, D-NO5 → D-NO16, `doc/METIER_11_Notes.md`) — notes
   du MJ à tronc commun + sections conditionnées par compétence (DD en « prendre 10 », OU), diffusées aux personnages ;
-  outil d'import v1 prêt (`admin/import-notes-v1.php`). Restent en production : les migrations `2026-11-01_sp-no0_notes.sql` et
-  `2026-11-01_sp-no7_notes_v1_transit.sql`, puis l'import dans la campagne de la Trilogie
+  import v1 (`admin/import-notes-v1.php`) joué en local dans L'Empire des Anges. Restent en production : les migrations `2026-11-01_sp-no0_notes.sql` et
+  `2026-11-01_sp-no7_notes_v1_transit.sql`, puis l'import dans la campagne cible ; SP-NO10 : dupliquer une note d'une autre campagne
 - SP-SY0 : arbitrage de la synchronisation du contenu local → prod (non prioritaire, voir §6c) —
   ajouter en prod le contenu local absent, sans jamais rien écraser
 - SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)

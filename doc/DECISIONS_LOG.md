@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-10-31 19:40 -->
+<!-- Mis à jour : 2026-11-01 20:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -7287,3 +7287,142 @@ comme les équipements.
   (pas du DRS) — `sql/2026-10-31_regles_dd35_drs04_sp-drs4c.sql`, rejouable, racine retrouvée par slug.
 → **Non fait** : le sélecteur d'éditeur (`listes-picker.php`) reste limité à équipement/objet ; `listeConstruireTag()`
   accepte déjà `competence`, il ne reste que l'interface.
+
+**[2026-11-01] D-NO15 — SP-NO7 : import v1 joué en local, spécialités de Connaissances**
+→ **Décision (utilisateur).** Les 57 notes v1 sont importées en local dans **L'Empire des Anges** (campagne 5, DD3.5)
+  et non dans la Trilogie des Avatars ; libellés des 9 mots-clés v1 retenus d'après leurs notes : 1 Valombre,
+  2 Augathra, 3 Magie, 4 Ménestrels, 5 Shar, 6 Toile d'ombre, 7 Prophéties, 8 Shadovars, 9 Elfes.
+→ **Ajustement.** DD3.5 compte désormais les dix spécialités de Connaissances (comp_id 112 → 121) à côté de la
+  compétence générique « Connaissances » (5). Les propositions `NOTES_V1_COMPETENCES['DD3.5']` les emploient, par
+  catégorie : indices → mystères OU Décryptage ; cultures → folklore local OU histoire ; lieux → géographie OU
+  folklore local ; histoire → histoire ; magie et objets → mystères OU Art de la magie ; personnages → folklore local
+  OU noblesse et royauté ; organisations → noblesse et royauté OU histoire ; religions → religion ; créatures →
+  nature OU mystères ; repli → histoire. La compétence générique n'est plus proposée.
+→ **Résultat.** Import lancé par l'écran admin avec ces propositions : 57 notes (16 magie et arcanes, 13 indices et
+  documents, 9 géographie et lieux, 6 cultures, 6 histoire, 5 organisations, 2 personnages), 39 sections, 73
+  conditions, 9 mots-clés et 22 liens, rédacteur unique (MJ), aucun destinataire, aucune image ni entité restante ;
+  plus aucune note v1 en attente. Contrôle au harnais (liste du MJ : 57 notes ; fiche « Thay » : sections à DD 20 et
+  30 sur Connaissances (géographie) OU (folklore local), sans alerte). Le navigateur de travail avait perdu sa
+  session : contrôle visuel non refait. Reste : diffuser les notes aux personnages de la campagne.
+
+
+**[2026-11-01] D-NO16 — SP-NO9 : actions groupées de la liste des notes du MJ**
+→ **Constat.** Aucune analyse propre aux notes n'existait. Seul le mécanisme générique est documenté : barre groupée
+  du moteur de liste, actions déclarées par `$listConfig['bulk_actions']` ([2025] Actions groupées), confirmation de
+  toutes les actions par `compSoumettreAction()` (D-RS31). La barre était réservée à `canEditCompendium()`, alors
+  qu'un MJ n'est pas forcément éditeur du compendium.
+→ **Décision (utilisateur).**
+  1. La campagne reste obligatoire : pas de « aucune campagne », pas de migration. Le besoin derrière, reprendre une
+     note d'une autre campagne, deviendra une duplication (SP-NO10).
+  2. Changer de campagne nettoie : le scénario est remis à vide et les destinataires absents de la nouvelle campagne
+     sont retirés. Seules les campagnes du MJ dans le même ruleset sont proposées, donc la catégorie reste valable.
+  3. Personnages : Ajouter ou Retirer. Les destinataires déjà en place restent. Un personnage n'est ajouté qu'aux
+     notes de ses campagnes ; Retirer s'applique à toutes les notes sélectionnées.
+  4. Panneau dédié : chaque action ouvre `#modification`, qui liste les notes sélectionnées et porte le choix. Pour
+     la suppression, c'est l'écran de validation (bouton « Supprimer n notes »).
+→ **Implémentation.** Deux clés du moteur de liste, rétro-compatibles :
+  – `edition_libre` ouvre aussi la barre groupée, sans `canEditCompendium()` ;
+  – `bulk_panneau` (URL) : « Appliquer » ouvre ce panneau au lieu de confirmer et poster `#comp-bulk-form`.
+  Le panneau est `include/ajax/modifier/notes-groupe.php`. L'écriture passe par l'action `notesGroupe` de
+  `campagnes/enregistrement.php`, en une transaction. `notesGroupeMJ()` refuse toute la sélection si une seule note
+  est hors de portée : une action groupée ne s'applique pas à moitié. Le bilan (« n note(s) déplacée(s), m
+  destinataire(s) hors campagne retiré(s) ») est mis en message flash avant le rechargement de la liste.
+→ **Vérification.**
+  – Harnais (`test-no9.php`, MJ non admin et non éditeur) : 27 contrôles sur 27 — barre et 4 actions, 4 panneaux,
+    refus (autre MJ, note inexistante, campagne ou catégorie d'un autre ruleset), ajout sans doublon, personnage hors
+    campagne ignoré, retrait, catégorie, déplacement avec scénario vidé et 2 destinataires retirés, suppression
+    douce ; base restaurée.
+  – Navigateur de travail : parcours sélection → panneau → Ajouter puis Retirer, message flash affiché, puis état
+    initial (0 destinataire).
+
+**[2026-11-01] D-NO17 — Barre groupée collante en bas de l'écran**
+→ **Constat (utilisateur).** Les actions groupées des notes semblaient absentes. Le serveur les rendait bien, mais la
+  barre n'apparaît qu'à la première case cochée, sous le tableau : sur 20 lignes, environ 800 px sous le bas de l'écran.
+→ **Correction.** `.comp-bulk-bar` (`css/modules.css`) passe en `position: sticky; bottom` : elle reste visible au bas
+  de l'écran tant que la liste défile, et reprend sa place sous le tableau à la fin. Toutes les listes en profitent
+  (compendium, administration, notes).
+→ **Rappel.** La règle des listes est maintenue hors compendium : sous 992 px, les cases et la barre groupée restent
+  masquées ([2025] Responsive listes compendium), les actions groupées sont donc réservées à l'ordinateur.
+
+**[2026-11-01] D-NO18 — Menu ⋮ de la liste des notes décalé en bas à droite**
+→ **Constat (utilisateur).** Sur `campagnes/notes.php`, le menu ⋮ d'une ligne s'ouvrait loin du bouton, en bas à droite.
+→ **Cause.** `compToggleMenu(id, btn)` place le menu en coordonnées d'écran, ce qui suppose `position: fixed`
+  (`css/modules.css`). Mais `css/campagnes-modules.css` redéfinit `.comp-menu-dropdown` en `absolute` pour les menus
+  propres aux pages de campagne, et cette feuille est chargée après : les coordonnées d'écran devenaient un décalage par
+  rapport à la cellule (bouton en x = 85, menu en x = 170, y = 674 au lieu de 348).
+→ **Correction.** `compToggleMenu()` impose `position: fixed` au menu quand il reçoit le bouton. Les menus des pages de
+  campagne, appelés sans bouton, restent en `absolute`. Vérifié en ligne haute (menu sous le bouton) et en bas d'écran
+  (menu au-dessus).
+
+**[2026-11-01] D-PE18a — SP-PE18 : affecter un personnage = transférer sa propriété, avec trace**
+→ **Décision (utilisateur).** Un MJ (ou l'admin) affecte un personnage à un joueur : `pe_j_id` devient le joueur,
+  la nouvelle colonne `pe_affecte_par_j_id` garde le MJ qui a affecté (`sql/2026-11-01_sp-pe18_affectation_personnage.sql`).
+  Le joueur retrouve le personnage dans sa liste et ses notes sans autre changement. Retirer l'affectation rend
+  `pe_j_id` au MJ affecteur et vide la trace ; seul ce MJ, ou l'admin, peut le faire. Écartée : propriétaire fixe
+  + colonne `pe_joueur_j_id`, qui obligeait toutes les requêtes « mes personnages » à tester deux colonnes.
+→ **Précision (implémentation).** Une réaffectation par l'admin conserve la trace ; un admin qui déplace le
+  personnage d'un tiers non affecté fait un simple transfert sans trace ; rendre le personnage au MJ affecteur
+  efface la trace. Hors admin, affecter suppose d'être MJ (au moins une campagne) et propriétaire d'un personnage
+  pas encore affecté — un joueur sans campagne ne cède pas son personnage.
+
+**[2026-11-01] D-PE18b — SP-PE18 : périmètre du MJ**
+→ **Décision (utilisateur).** Le MJ gère tout personnage rattaché à l'une de ses campagnes, plus ceux qu'il a
+  affectés. Il ajoute à sa campagne n'importe quel personnage du ruleset, quel que soit son joueur (select de la
+  section Personnages de `campagnes/campagne.php`), et l'en retire. Fin de la règle SP-PE5 « campagnes du
+  propriétaire du personnage seulement » : une campagne n'accueille un personnage que par la main de son MJ ou de
+  l'admin. Le joueur n'ajoute son personnage qu'à ses propres campagnes, mais peut quitter celle d'un MJ ou y
+  désigner sa campagne en cours. Un MJ ne touche jamais aux liaisons des campagnes d'un autre MJ.
+
+**[2026-11-01] D-PE18c — SP-PE18 : limites du MJ**
+→ **Décision (utilisateur).** Le MJ modifie toute la fiche, mais ne la supprime pas, et les notes privées du joueur
+  (`pe_notes`, aujourd'hui affichées nulle part) lui resteront fermées. Suppression et notes : `canAccess(pe_j_id)`,
+  propriétaire ou admin. La liste masque l'entrée Supprimer sur ces lignes (nouvelle clé moteur
+  `champ_proprietaire`), le serveur la refusait déjà.
+
+**[2026-11-01] D-PE18d — SP-PE18 : retrait d'une affectation par l'admin**
+→ **Décision (utilisateur).** S'il y a une trace, le personnage revient au MJ affecteur ; sinon l'admin le réaffecte
+  librement par « Affecter ».
+→ **Contrôle.** 24 scénarios joués par le vrai `enregistrement.php` au harnais CLI (joueur sans lien, MJ non admin,
+  joueur affecté, second joueur, admin) : tous conformes ; données remises dans leur état initial (seul
+  `pe_date_modif` d'Okko et de Telgar Weyr a bougé). Pages rendues sans alerte. **Contrôle visuel dans le navigateur
+  non fait** (SP-PE18e).
+→ **Numérotation.** Codes `SP-PE14` → `SP-PE17` déjà pris (éditeur de compétences) : le chantier prend `SP-PE18`.
+
+**[2026-11-01] D-PE18e — SP-PE18 : la ligne Joueur de la fiche est réservée au MJ et à l'admin**
+→ **Décision (utilisateur).** Le joueur propriétaire ne voit ni la mention d'appartenance ni les boutons
+  d'affectation, même sur un personnage qu'un MJ lui a affecté : l'information ne lui sert à rien. Condition
+  d'affichage : non propriétaire, ou droit d'affecter, ou droit de retirer l'affectation (`personnages/fiche.php`).
+  Contrôlé au rendu : joueur affecté et joueur sur son propre personnage (rien), MJ affecteur, admin et MJ
+  propriétaire (ligne affichée).
+
+**[2026-11-01] D-PE18f — SP-PE18 : la colonne Joueur de la liste est réservée au MJ et à l'admin**
+→ **Décision (utilisateur).** Même règle que la fiche (D-PE18e) : un joueur ne voit jamais la colonne « Joueur » de
+  `personnages/index.php`. Elle s'affiche pour l'admin, et pour un MJ (propriétaire d'au moins une campagne) dont la
+  liste mêle des personnages d'autres joueurs — sinon elle ne répéterait que son propre pseudo. La règle était déjà
+  tenue de fait par le périmètre de la liste ; elle est désormais explicite (test du rôle MJ avant la requête).
+  Contrôlé au rendu : joueur affecté, joueur sans personnage, MJ sans personnage d'autrui (pas de colonne) ; MJ
+  avec un personnage affecté, admin (colonne).
+
+**[2026-11-01] D-PE19a — SP-PE19 : « Affecter à une campagne » rattache et fait campagne en cours**
+→ **Décision (utilisateur).** L'action groupée de la liste des personnages ajoute la liaison à la campagne choisie et en
+  fait la campagne en cours (`pe_camp_id`, liaison forcée active), comme `definirCampagneCourante` : le résultat se lit
+  aussitôt dans la colonne « Campagne en cours ». Les autres liaisons du personnage ne bougent pas. Seules les campagnes
+  dont l'utilisateur est le MJ sont proposées (toutes celles du ruleset pour l'admin). L'écriture est factorisée dans
+  `ecrireCampagneCourante()` ; celle de l'affectation à un joueur dans `ecrireAffectation()`, partagée avec
+  `affecterPersonnage` (mêmes règles de trace, D-PE18a / d).
+
+**[2026-11-01] D-PE19b — SP-PE19 : une action groupée s'applique aux personnages éligibles et signale les autres**
+→ **Décision (utilisateur).** Contrairement aux notes (D-NO16, refus de toute la sélection), les personnages non
+  éligibles sont écartés et les autres modifiés : le panneau les signale d'avance quand il le peut (personnage déjà
+  affecté, personnage d'un autre joueur), le serveur rejuge tout et renvoie la liste des écartés avec leur raison
+  (autre ruleset, déjà en cours dans cette campagne, déjà à ce joueur…), affichée avant le rechargement. La sélection
+  doit en revanche être entièrement gérée par l'utilisateur (`personnagesGroupe()`) : un personnage hors de son
+  périmètre fait refuser toute la requête, la liste n'en propose jamais.
+
+**[2026-11-01] D-PE19c — SP-PE19 : les actions groupées des personnages sont réservées à l'admin et au MJ**
+→ **Décision (utilisateur).** Même règle que la colonne Joueur (D-PE18f) : un joueur sans campagne n'aurait aucun choix
+  à faire. Pour lui, `bulk_actions` est vide. Le moteur de liste lie désormais les cases à cocher à la barre groupée
+  (`$avec_bulk`) : sans action groupée, plus de cases inutiles — effet aussi sur `tableaux/index.php`, qui en affichait
+  sans barre. Contrôlé : joueur (Okko refusé, panneau « aucun personnage affectable »), MJ non admin (campagne, déjà en
+  cours, autre ruleset, affectation puis personnage déjà affecté écarté), admin (transfert sans trace d'un personnage
+  tiers) ; données restaurées.

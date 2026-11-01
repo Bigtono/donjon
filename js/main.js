@@ -928,6 +928,9 @@ function compToggleMenu(id, btn) {
   menu.classList.remove('noDisplay');
 
   if (btn) {
+    // Coordonnées d'écran : le menu doit être en fixed, même si la feuille du
+    // module le redéfinit en absolute (campagnes-modules.css, pour ses propres menus).
+    menu.style.position = 'fixed';
     const rect  = btn.getBoundingClientRect();
     const marge = 8;
     let left = rect.left;
@@ -1066,6 +1069,14 @@ function compSoumettreAction() {
   const checked = document.querySelectorAll('.comp-check:checked');
   if (checked.length === 0) {
     alert('Sélectionnez au moins un élément.');
+    return;
+  }
+
+  // Panneau dédié (bulk_panneau) : il porte lui-même le choix et la validation.
+  const panneau = document.getElementById('comp-bulk-bar')?.dataset.panneau;
+  if (panneau) {
+    const ids = Array.prototype.map.call(checked, cb => cb.dataset.id).join(',');
+    actualiserPageModif(panneau, { action: action, ids: ids });
     return;
   }
 

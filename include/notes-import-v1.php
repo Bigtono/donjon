@@ -42,11 +42,19 @@ const NOTES_V1_COMPETENCES = [
     'Objets et artefacts'       => ['Arcanes'],
     'Divers'                    => ['Histoire'],
   ],
+  // Spécialités de Connaissances (D-NO15) plutôt que la compétence générique
   'DD3.5' => [
-    'Indices et documents'      => ['Connaissances', 'Décryptage'],
-    'Magie et arcanes'          => ['Connaissances', 'Art de la magie'],
-    'Objets et artefacts'       => ['Connaissances', 'Art de la magie'],
-    'Personnages'               => ['Connaissances', 'Psychologie'],
+    'Indices et documents'      => ['Connaissances (mystères)', 'Décryptage'],
+    'Culture et société'        => ['Connaissances (folklore local)', 'Connaissances (histoire)'],
+    'Géographie et lieux'       => ['Connaissances (géographie)', 'Connaissances (folklore local)'],
+    'Histoire'                  => ['Connaissances (histoire)'],
+    'Magie et arcanes'          => ['Connaissances (mystères)', 'Art de la magie'],
+    'Personnages'               => ['Connaissances (folklore local)', 'Connaissances (noblesse et royauté)'],
+    'Organisations et factions' => ['Connaissances (noblesse et royauté)', 'Connaissances (histoire)'],
+    'Religions et divinités'    => ['Connaissances (religion)'],
+    'Créatures'                 => ['Connaissances (nature)', 'Connaissances (mystères)'],
+    'Objets et artefacts'       => ['Connaissances (mystères)', 'Art de la magie'],
+    'Divers'                    => ['Connaissances (histoire)'],
   ],
 ];
 
@@ -96,7 +104,7 @@ function propositionsImportV1(array $types, array $categories, array $competence
   $props = [];
   foreach (array_keys($types) as $t):
     $cat = NOTES_V1_CATEGORIE[$t] ?? 'Divers';
-    $noms_comp = NOTES_V1_COMPETENCES[$ruleset_rep][$cat] ?? ($ruleset_rep === 'DD3.5' ? ['Connaissances'] : ['Histoire']);
+    $noms_comp = NOTES_V1_COMPETENCES[$ruleset_rep][$cat] ?? ($ruleset_rep === 'DD3.5' ? ['Connaissances (histoire)'] : ['Histoire']);
     $props[$t] = [
       'tyno_id'  => (int)($par_nom_cat[$cat] ?? (array_key_first($categories) ?? 0)),
       'comp_ids' => array_values(array_filter(array_map(fn($n) => $par_nom_comp[$n] ?? 0, $noms_comp))),

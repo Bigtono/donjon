@@ -59,10 +59,136 @@ function getPersonnageContext(PDO $db, int $pe_id): ?array {
 
   if (!$perso) return null;
 
-  // Contrôle de propriété (le module Personnages est strictement personnel)
-  if (!canAccess((int)$perso['pe_j_id'])) return null;
+  // Contrôle d'accès (SP-PE18) : propriétaire, admin, MJ affecteur ou MJ d'une
+  // campagne où le personnage est rattaché.
+  if (!peutGererPersonnage($db, $perso)) return null;
+
+  // Rôle de l'utilisateur sur la fiche, pour l'interface
+  $perso['est_proprietaire']    = (int)$perso['pe_j_id'] === (int)$_SESSION['j_id'];
+  $perso['peut_supprimer']      = canAccess((int)$perso['pe_j_id']);
+  $perso['peut_affecter']       = peutAffecterPersonnage($db, $perso);
+  $perso['peut_retirer_affect'] = peutRetirerAffectation($perso);
 
   return $perso;
+}
+
+// ============================================================
+// DROITS SUR UN PERSONNAGE (SP-PE18)
+// ============================================================
+// Le propriétaire (pe_j_id) et l'admin ont tous les droits. Un MJ gère le
+// personnage — toute la fiche, sauf les notes privées et la suppression — dès
+// qu'il est rattaché à l'une de ses campagnes, ou qu'il l'a lui-même affecté au
+// joueur (pe_affecte_par_j_id). Les helpers attendent une ligne dd_personnages
+// portant au moins pe_id, pe_j_id et pe_affecte_par_j_id.
+
+/** Vrai si l'utilisateur courant est MJ d'une campagne où le personnage est rattaché. */
+function estMJDuPersonnage(PDO $db, int $pe_id): bool {
+  $stmt = $db->prepare('
+    SELECT 1
+      FROM dd_campagnes_personnages cp
+      JOIN dd_campagnes camp ON camp.camp_id = cp.cp_camp_id
+     WHERE cp.cp_pe_id = ? AND camp.camp_j_id = ? AND camp.camp_supprime = 0
+     LIMIT 1
+  ');
+  $stmt->execute([$pe_id, (int)$_SESSION['j_id']]);
+  return (bool)$stmt->fetchColumn();
+}
+
+/** Droit de consulter et de modifier la fiche. */
+function peutGererPersonnage(PDO $db, array $perso): bool {
+  if (canAccess((int)$perso['pe_j_id'])) return true;
+  if ((int)($perso['pe_affecte_par_j_id'] ?? 0) === (int)$_SESSION['j_id']) return true;
+  return estMJDuPersonnage($db, (int)$perso['pe_id']);
+}
+
+/**
+ * Droit d'affecter le personnage à un joueur : l'admin sans limite ; sinon un
+ * MJ (propriétaire d'au moins une campagne — le rôle est inféré, METIER_10),
+ * propriétaire d'un personnage qui n'a pas déjà été affecté.
+ */
+function peutAffecterPersonnage(PDO $db, array $perso): bool {
+  if (isAdmin()) return true;
+  if ((int)$perso['pe_j_id'] !== (int)$_SESSION['j_id'] || !empty($perso['pe_affecte_par_j_id'])) return false;
+  $stmt = $db->prepare('SELECT 1 FROM dd_campagnes WHERE camp_j_id = ? AND camp_supprime = 0 LIMIT 1');
+  $stmt->execute([(int)$_SESSION['j_id']]);
+  return (bool)$stmt->fetchColumn();
+}
+
+/** Droit de retirer une affectation : le MJ qui l'a posée, ou l'admin. */
+function peutRetirerAffectation(array $perso): bool {
+  $affecte_par = (int)($perso['pe_affecte_par_j_id'] ?? 0);
+  if ($affecte_par <= 0) return false;
+  return isAdmin() || $affecte_par === (int)$_SESSION['j_id'];
+}
+
+/**
+ * Droit d'ajouter le personnage à une campagne : l'admin, ou le MJ de cette
+ * campagne (le propriétaire qui rattache à sa propre campagne en est le MJ).
+ */
+function peutRattacherACampagne(int $camp_j_id): bool {
+  return isAdmin() || $camp_j_id === (int)$_SESSION['j_id'];
+}
+
+/**
+ * Droit de modifier une liaison existante (retrait, participation, campagne en
+ * cours) : l'admin, le propriétaire du personnage, ou le MJ de cette campagne.
+ * Un MJ ne touche jamais aux liaisons des campagnes d'un autre MJ.
+ */
+function peutModifierLiaisonCampagne(array $perso, int $camp_j_id): bool {
+  return canAccess((int)$perso['pe_j_id']) || $camp_j_id === (int)$_SESSION['j_id'];
+}
+
+/**
+ * Personnages d'une sélection groupée de la liste (SP-PE19). Un seul personnage
+ * introuvable ou que l'utilisateur ne gère pas fait refuser toute la sélection
+ * (null) : la liste ne propose que des personnages gérés, l'écart trahit une
+ * requête forgée. L'éligibilité à l'action, elle, se juge personnage par
+ * personnage (D-PE19b).
+ *
+ * @param  PDO    $db
+ * @param  array  $ids  pe_id
+ * @return array|null  [pe_id => ['pe_id', 'pe_nom', 'pe_j_id', 'pe_affecte_par_j_id',
+ *                     'pe_camp_id', 'pe_ruleset_var_id', 'joueur_pseudo',
+ *                     'affecte_pseudo', 'campagne_nom']]
+ */
+function personnagesGroupe(PDO $db, array $ids): ?array {
+  $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+  if (empty($ids) || count($ids) > 500) return null;
+  $ph   = implode(',', array_fill(0, count($ids), '?'));
+  $stmt = $db->prepare("
+    SELECT pe.pe_id, pe.pe_nom, pe.pe_j_id, pe.pe_affecte_par_j_id, pe.pe_camp_id,
+           pe.pe_ruleset_var_id,
+           jo.j_pseudo   AS joueur_pseudo,
+           jaf.j_pseudo  AS affecte_pseudo,
+           camp.camp_nom AS campagne_nom
+      FROM dd_personnages pe
+      LEFT JOIN dd_joueurs   jo   ON jo.j_id      = pe.pe_j_id
+      LEFT JOIN dd_joueurs   jaf  ON jaf.j_id     = pe.pe_affecte_par_j_id
+      LEFT JOIN dd_campagnes camp ON camp.camp_id = pe.pe_camp_id
+     WHERE pe.pe_id IN ($ph)
+  ORDER BY pe.pe_nom
+  ");
+  $stmt->execute($ids);
+  $persos = [];
+  foreach ($stmt->fetchAll() as $pe):
+    if (!peutGererPersonnage($db, $pe)) return null;
+    $persos[(int)$pe['pe_id']] = $pe;
+  endforeach;
+  return count($persos) === count($ids) ? $persos : null;
+}
+
+/**
+ * Raison pour laquelle l'utilisateur ne peut pas affecter ce personnage à un
+ * joueur, ou null s'il le peut — libellé affiché dans le panneau groupé.
+ * Mêmes règles que peutAffecterPersonnage().
+ */
+function raisonNonAffectable(PDO $db, array $perso): ?string {
+  if (peutAffecterPersonnage($db, $perso)) return null;
+  if (!empty($perso['pe_affecte_par_j_id'])):
+    return 'déjà affecté' . (!empty($perso['affecte_pseudo']) ? ' par ' . $perso['affecte_pseudo'] : '')
+         . ' : retirez d\'abord l\'affectation';
+  endif;
+  return 'personnage d\'un autre joueur';
 }
 
 /**
@@ -235,6 +361,7 @@ function getCampagnesPersonnage(PDO $db, int $pe_id, int $pe_camp_id): array {
     SELECT camp.camp_id,
            camp.camp_nom,
            camp.camp_resume,
+           camp.camp_j_id,
            un.un_nom AS univers_nom,
            COALESCE(cp.cp_actif, 1) AS cp_actif,
            (cp.cp_id IS NOT NULL)   AS est_liee,
@@ -255,34 +382,36 @@ function getCampagnesPersonnage(PDO $db, int $pe_id, int $pe_camp_id): array {
 /**
  * Campagnes proposées au rattachement d'un personnage (SP-PE5).
  *
- * Périmètre volontairement restreint aux campagnes **du propriétaire du
- * personnage** : l'application n'a aucun mécanisme d'invitation, un joueur ne
- * peut donc rattacher son personnage qu'à ses propres campagnes. Le filtre
- * porte sur `pe_j_id` et non sur l'utilisateur en session, pour que la liste
- * reste la même quand un admin consulte la fiche d'un autre joueur.
+ * Une campagne n'accueille un personnage que par la main de son MJ (SP-PE18) :
+ * la liste est donc celle des campagnes de l'utilisateur en session — le joueur
+ * y trouve les siennes, le MJ qui consulte la fiche d'un joueur les siennes
+ * aussi. L'admin voit toutes les campagnes du ruleset, `mj_pseudo` permettant
+ * de départager les homonymes.
  *
  * Le ruleset filtré est celui du **personnage** (figé à sa création), jamais
  * celui de la session — même règle que le reste du module (archi §7.7).
  *
  * @param  PDO  $db
- * @param  int  $j_id        Propriétaire du personnage (pe_j_id)
  * @param  int  $ruleset_id  Ruleset du personnage (pe_ruleset_var_id)
- * @return array  [{camp_id, camp_nom, camp_resume, univers_nom}, …]
+ * @return array  [{camp_id, camp_nom, camp_resume, univers_nom, camp_j_id, mj_pseudo}, …]
  */
-function getCampagnesRattachables(PDO $db, int $j_id, int $ruleset_id): array {
-  $stmt = $db->prepare('
+function getCampagnesRattachables(PDO $db, int $ruleset_id): array {
+  $sql = '
     SELECT camp.camp_id,
            camp.camp_nom,
            camp.camp_resume,
-           un.un_nom AS univers_nom
+           camp.camp_j_id,
+           un.un_nom    AS univers_nom,
+           jmj.j_pseudo AS mj_pseudo
       FROM dd_campagnes camp
-      LEFT JOIN dd_univers un ON un.un_id = camp.camp_un_id
-     WHERE camp.camp_j_id           = ?
-       AND camp.camp_ruleset_var_id = ?
-       AND camp.camp_supprime       = 0
-     ORDER BY camp.camp_nom
-  ');
-  $stmt->execute([$j_id, $ruleset_id]);
+      LEFT JOIN dd_univers un  ON un.un_id = camp.camp_un_id
+      LEFT JOIN dd_joueurs jmj ON jmj.j_id = camp.camp_j_id
+     WHERE camp.camp_ruleset_var_id = ?
+       AND camp.camp_supprime       = 0'
+    . (isAdmin() ? '' : ' AND camp.camp_j_id = ?') . '
+     ORDER BY camp.camp_nom';
+  $stmt = $db->prepare($sql);
+  $stmt->execute(isAdmin() ? [$ruleset_id] : [$ruleset_id, (int)$_SESSION['j_id']]);
   return $stmt->fetchAll();
 }
 
@@ -1181,4 +1310,34 @@ function getNotesPersonnage(PDO $db, array $perso, array $filtres = []): array {
     $resultat[]    = $n;
   endforeach;
   return $resultat;
+}
+
+/**
+ * Notes d'une sélection groupée (SP-NO9), si l'utilisateur est MJ de chacune.
+ * Une seule note introuvable, supprimée ou d'une campagne d'un autre MJ fait
+ * refuser toute la sélection (null) : une action groupée ne s'applique pas à moitié.
+ *
+ * @param  PDO    $db
+ * @param  array  $ids  no_id
+ * @return array|null  [no_id => ['no_id', 'no_nom', 'no_camp_id', 'camp_nom', 'camp_ruleset_var_id']]
+ */
+function notesGroupeMJ(PDO $db, array $ids): ?array {
+  $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+  if (empty($ids) || count($ids) > 500) return null;
+  $ph   = implode(',', array_fill(0, count($ids), '?'));
+  $stmt = $db->prepare("
+    SELECT n.no_id, n.no_nom, n.no_camp_id, camp.camp_nom, camp.camp_ruleset_var_id
+      FROM dd_notes n
+      JOIN dd_campagnes camp ON camp.camp_id = n.no_camp_id AND camp.camp_supprime = 0
+     WHERE n.no_id IN ($ph) AND n.no_supprime = 0
+  ORDER BY camp.camp_nom, n.no_nom
+  ");
+  $stmt->execute($ids);
+  $notes = [];
+  foreach ($stmt->fetchAll() as $n) $notes[(int)$n['no_id']] = $n;
+  if (count($notes) !== count($ids)) return null;
+  foreach (array_unique(array_column($notes, 'no_camp_id')) as $camp_id):
+    if (!isMJ($db, (int)$camp_id)) return null;
+  endforeach;
+  return $notes;
 }

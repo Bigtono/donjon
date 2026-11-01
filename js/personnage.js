@@ -2097,3 +2097,52 @@ function perOuvrirNote(carte, noId) {
   if (reste > 0) compte.textContent = reste + ' nouvelle' + (reste > 1 ? 's' : '');
   else compte.remove();
 }
+
+// ============================================================
+// AFFECTATION À UN JOUEUR (SP-PE18) — personnages/fiche.php
+// Attendus inline : perPeId, perUrlEnreg
+// Écriture immédiate, puis rechargement : la ligne Joueur et les droits
+// affichés (boutons d'affectation) dépendent du nouveau propriétaire.
+// ============================================================
+
+const perAffectation = (function() {
+
+  function ouvrir() {
+    document.getElementById('per-affectation').classList.remove('noDisplay');
+    document.getElementById('per-affectation-joueur').focus();
+  }
+
+  function fermer() {
+    document.getElementById('per-affectation').classList.add('noDisplay');
+  }
+
+  async function valider() {
+    const select = document.getElementById('per-affectation-joueur');
+    const cible  = parseInt(select.value, 10);
+    if (!cible) { notifier('Choisissez un joueur', 'erreur'); return; }
+    const pseudo = select.options[select.selectedIndex].text;
+    if (!confirm('Affecter ce personnage à ' + pseudo + ' ?')) return;
+    try {
+      const data = await postAjax(perUrlEnreg, {
+        action: 'affecterPersonnage', pe_id: perPeId, j_id_cible: cible
+      });
+      if (!data.ok) { notifier(data.erreur || 'Échec', 'erreur'); return; }
+      window.location.reload();
+    } catch (e) {
+      notifier('Erreur réseau', 'erreur');
+    }
+  }
+
+  async function retirer(pseudoRetour) {
+    if (!confirm('Retirer l\'affectation ? Le personnage revient à ' + pseudoRetour + '.')) return;
+    try {
+      const data = await postAjax(perUrlEnreg, { action: 'retirerAffectation', pe_id: perPeId });
+      if (!data.ok) { notifier(data.erreur || 'Échec', 'erreur'); return; }
+      window.location.reload();
+    } catch (e) {
+      notifier('Erreur réseau', 'erreur');
+    }
+  }
+
+  return { ouvrir, fermer, valider, retirer };
+})();

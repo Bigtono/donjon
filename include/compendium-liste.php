@@ -65,6 +65,14 @@
 //   suppression   array → {mode:'ajax', action:'...', param:'id'} : la
 //                       suppression appelle url_enreg en JSON au lieu de poster
 //                       ids[] dans #comp-bulk-form (défaut : formulaire)
+//   bulk_panneau  string → URL d'un panneau #modification : « Appliquer » de la
+//                       barre groupée l'ouvre (GET action, ids séparés par des
+//                       virgules) au lieu de confirmer et poster #comp-bulk-form.
+//                       Avec edition_libre, la barre groupée ne dépend plus de
+//                       canEditCompendium() (SP-NO9)
+//   champ_proprietaire string → colonne propriétaire ('pe.pe_j_id') : l'entrée
+//                       Supprimer du menu ⋮ n'est rendue que si canAccess() sur
+//                       cette valeur (SP-PE18 : le MJ modifie, ne supprime pas)
 //
 //   --- Filtre Campagne (optionnel) :
 //   camp_filtre  bool  — true active un select "Campagne" dans la barre de filtre (GET f_camp),
@@ -291,6 +299,10 @@ endforeach;
 // et le gating per-entry du menu ⋮ (canEditCompendiumEntry()).
 if ($gere_supplement):
   $select_parts[] = $listConfig['champ_res_owner'] . ' AS _res_j_id';
+endif;
+// Propriétaire de la ligne (SP-PE18) : borne la suppression à canAccess().
+if (!empty($listConfig['champ_proprietaire'])):
+  $select_parts[] = $listConfig['champ_proprietaire'] . ' AS _proprietaire_j_id';
 endif;
 // Colonnes supplémentaires déclarées (ex: nom ressource)
 if (!empty($listConfig['select_extra'])):
@@ -596,6 +608,9 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
   </div>
 
   <?php // ---- TABLEAU ---- 
+  // Cases à cocher et barre groupée vont ensemble : sans action groupée, une
+  // case n'aurait aucun effet (SP-PE19).
+  $avec_bulk = (canEditCompendium() || !empty($listConfig['edition_libre'])) && !empty($listConfig['bulk_actions']);
   ?>
   <div class="comp-liste-wrapper">
     <table class="table-std comp-liste" id="table-<?= h($entite) ?>">
@@ -604,7 +619,9 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
           <?php // Checkbox select-all — masqué sur mobile 
           ?>
           <th class="bulk-check">
-            <input type="checkbox" id="comp-select-all" title="Tout sélectionner">
+            <?php if ($avec_bulk): ?>
+              <input type="checkbox" id="comp-select-all" title="Tout sélectionner">
+            <?php endif ?>
           </th>
 
           <?php // Menu ligne — masqué sur mobile 
@@ -673,7 +690,7 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
               <?php // Checkbox — masquée si l'utilisateur ne peut pas agir sur cette ligne
               ?>
               <td class="bulk-check">
-                <?php if ($peut_modifier_ligne): ?>
+                <?php if ($avec_bulk && $peut_modifier_ligne): ?>
                   <input type="checkbox" class="comp-check" data-id="<?= $id ?>">
                 <?php endif ?>
               </td>
@@ -718,7 +735,8 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
                           </a>
                         <?php endif ?>
                       <?php endforeach ?>
-                      <?php if ($peut_modifier_ligne): ?>
+                      <?php if ($peut_modifier_ligne
+                                && (!isset($ligne['_proprietaire_j_id']) || canAccess((int)$ligne['_proprietaire_j_id']))): ?>
                         <button class="comp-menu-item comp-menu-item--danger"
                           onclick="compToggleMenu(<?= $id ?>); compDemanderSuppression(<?= $id ?>)">
                           <i class="fa fa-trash"></i> Supprimer
@@ -871,8 +889,9 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
 
   <?php // ---- BARRE BULK ---- 
   ?>
-  <?php if (canEditCompendium() && !empty($listConfig['bulk_actions'])): ?>
-    <div class="comp-bulk-bar" id="comp-bulk-bar" style="display:none;">
+  <?php if ($avec_bulk): ?>
+    <div class="comp-bulk-bar" id="comp-bulk-bar" style="display:none;"
+         <?php if (!empty($listConfig['bulk_panneau'])): ?>data-panneau="<?= h($listConfig['bulk_panneau']) ?>"<?php endif ?>>
       <span class="comp-bulk-info">
         <span id="comp-bulk-count">0</span> sélectionné(s)
       </span>

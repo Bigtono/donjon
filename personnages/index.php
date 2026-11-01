@@ -28,6 +28,35 @@ $j_id       = (int)$_SESSION['j_id'];
 $ruleset_id = (int)($_SESSION['ruleset_var_id'] ?? 1);
 $est_admin  = isAdmin();
 
+// SP-PE18 : hors admin, la liste couvre aussi les personnages que l'utilisateur
+// gère comme MJ — ceux qu'il a affectés à un joueur, et ceux rattachés à l'une
+// de ses campagnes. Même périmètre que peutGererPersonnage().
+$scope_where  = '(pe.pe_j_id = ?
+                  OR pe.pe_affecte_par_j_id = ?
+                  OR EXISTS (SELECT 1 FROM dd_campagnes_personnages cps
+                               JOIN dd_campagnes cmj ON cmj.camp_id = cps.cp_camp_id
+                              WHERE cps.cp_pe_id = pe.pe_id
+                                AND cmj.camp_j_id = ? AND cmj.camp_supprime = 0))';
+$scope_params = [$j_id, $j_id, $j_id];
+
+// La colonne « Joueur » est réservée à l'admin et au MJ (D-PE18f) : le joueur
+// n'en a pas l'usage. Pour le MJ — propriétaire d'au moins une campagne, le
+// rôle est inféré (METIER_10) — elle n'apparaît que si la liste mêle des
+// personnages d'autrui ; sinon elle ne répéterait que son propre pseudo.
+$avec_joueur = $est_admin;
+$est_mj      = false;
+if (!$est_admin):
+  $stmt = $db->prepare('SELECT 1 FROM dd_campagnes WHERE camp_j_id = ? AND camp_supprime = 0 LIMIT 1');
+  $stmt->execute([$j_id]);
+  $est_mj = (bool)$stmt->fetchColumn();
+endif;
+if ($est_mj):
+  $stmt = $db->prepare('SELECT 1 FROM dd_personnages pe
+                         WHERE pe.pe_ruleset_var_id = ? AND pe.pe_j_id <> ? AND ' . $scope_where . ' LIMIT 1');
+  $stmt->execute(array_merge([$ruleset_id, $j_id], $scope_params));
+  $avec_joueur = (bool)$stmt->fetchColumn();
+endif;
+
 require_once '../include/header.php';
 ?>
 
@@ -60,12 +89,14 @@ require_once '../include/header.php';
 // CONFIGURATION DU MOTEUR DE LISTE
 // ============================================================
 
-// Colonnes — « Joueur » n'est insérée (juste après le nom) que pour l'admin.
+// Colonnes — « Joueur » n'est insérée (juste après le nom) que pour l'admin,
+// ou pour le MJ dont la liste compte des personnages d'autres joueurs ;
+// jamais pour un joueur.
 $colonnes = [
   ['sql' => 'pe.pe_nom', 'champ' => 'pe_nom', 'label' => 'Nom', 'mobile' => true, 'tri' => true],
 ];
 
-if ($est_admin):
+if ($avec_joueur):
   $colonnes[] = [
     'sql'    => 'jo.j_pseudo',
     'champ'  => 'joueur_pseudo',
@@ -193,16 +224,27 @@ $listConfig = [
   'edition_libre' => true,
   // Le bouton d'ajout est déjà dans la ligne de titre.
   'avec_ajout'    => false,
-  'bulk_actions'  => [],
+  // Actions groupées (SP-PE19) : admin et MJ seulement (D-PE19c), un joueur
+  // n'aurait rien à choisir. Chacune ouvre un panneau qui liste la sélection,
+  // signale les personnages écartés et porte le choix.
+  'bulk_actions'  => ($est_admin || $est_mj)
+    ? [
+        ['valeur' => 'campagne', 'label' => 'Affecter à une campagne'],
+        ['valeur' => 'joueur',   'label' => 'Affecter à un joueur'],
+      ]
+    : [],
+  'bulk_panneau'  => BASE_URL . '/include/ajax/modifier/personnages-groupe.php',
   // enregistrement.php du module attend une action nommée en JSON.
   'suppression'   => ['mode' => 'ajax', 'action' => 'supprimerPersonnage', 'param' => 'id'],
+  // Le MJ modifie les personnages qu'il gère mais ne les supprime pas (D-PE18c).
+  'champ_proprietaire' => 'pe.pe_j_id',
 ];
 
-// Scope propriétaire — la liste ne montre que les personnages du joueur.
-// L'admin voit tout le ruleset : aucune clause propriétaire n'est posée.
+// Scope — personnages du joueur et ceux qu'il gère comme MJ (SP-PE18).
+// L'admin voit tout le ruleset : aucune clause n'est posée.
 if (!$est_admin):
-  $listConfig['extra_where']  = 'pe.pe_j_id = ?';
-  $listConfig['extra_params'] = [$j_id];
+  $listConfig['extra_where']  = $scope_where;
+  $listConfig['extra_params'] = $scope_params;
 endif;
 
 require_once '../include/compendium-liste.php';

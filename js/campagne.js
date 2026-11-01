@@ -328,3 +328,38 @@ function campFermerTransfertPopup() {
   _transfertOppId  = null;
   _transfertAction = null;
 }
+
+// ============================================================
+// PERSONNAGES DE LA CAMPAGNE (SP-PE18)
+// Le MJ ajoute ou retire un personnage depuis la page de la campagne. Les
+// écritures passent par les actions existantes du module Personnages
+// (rattacherCampagne / detacherCampagne), qui contrôlent le droit du MJ.
+// ============================================================
+
+function campPersoAjouter(campId) {
+  const select = document.getElementById('camp-perso-ajout');
+  const peId   = select ? parseInt(select.value, 10) : 0;
+  if (!peId) return;
+  postAjax(campUrlEnregPer, { action: 'rattacherCampagne', pe_id: peId, camp_id: campId })
+    .then(data => {
+      if (data.ok) {
+        window.location.reload();
+      } else {
+        alert(data.erreur || 'Erreur.');
+      }
+    })
+    .catch(err => alert('Erreur : ' + err));
+}
+
+function campPersoRetirer(campId, peId, peNom) {
+  if (!confirm('Retirer « ' + peNom + ' » de la campagne ?')) return;
+  postAjax(campUrlEnregPer, { action: 'detacherCampagne', pe_id: peId, camp_id: campId })
+    .then(data => {
+      if (data.ok) {
+        window.location.reload();
+      } else {
+        alert(data.erreur || 'Erreur.');
+      }
+    })
+    .catch(err => alert('Erreur : ' + err));
+}

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-05-30 -->
+<!-- Mis à jour : 2026-11-01 20:00 -->
 
 # Règles métiers générales concernant les personnages
 ---------------------------------------------------------
@@ -9,6 +9,20 @@
    - une race et au moins une classe de base (voir METIER_2_Classes.md)
    - si le personnage possède au moins deux classes
    - un alignement (choisi parmi les neufs possibles)
+
+### Qui gère un personnage
+
+* Le **joueur** propriétaire a tous les droits sur son personnage.
+* L'**administrateur** a tous les droits sur tous les personnages, y compris les affecter à un joueur ou leur
+  retirer une affectation, sans limitation.
+* Le **MJ** gère un personnage rattaché à l'une de ses campagnes, ou qu'il a lui-même affecté à un joueur :
+   - il modifie tout le contenu de la fiche, mais ne peut ni la supprimer, ni lire les notes privées du joueur ;
+   - il ajoute à ses campagnes n'importe quel personnage, quel que soit son joueur, et l'en retire ;
+   - il affecte l'un de ses personnages à un joueur, qui en devient propriétaire ; il est le seul (avec
+     l'administrateur) à pouvoir retirer cette affectation, et le personnage lui revient alors.
+* Depuis la liste des personnages, l'administrateur et le MJ affectent **plusieurs personnages à la fois** à une
+  campagne (qui devient leur campagne en cours) ou à un joueur. Les personnages qui ne s'y prêtent pas (déjà affectés
+  par un autre MJ, d'un autre ruleset…) sont écartés et signalés ; les autres sont modifiés.
 
 ### Races
 
