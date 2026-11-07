@@ -28,13 +28,11 @@ endif;
 // ============================================================
 $stmt = $db->prepare('
   SELECT so.*, co.co_nom, res.res_nom, res.res_j_id,
-         camp.camp_nom,
-         var.var_valeur AS ruleset_label
+         camp.camp_nom
   FROM   dd_sorts so
   LEFT JOIN dd_colleges   co   ON co.co_id     = so.so_co_id
   LEFT JOIN dd_ressources res  ON res.res_id    = so.so_res_id
   LEFT JOIN dd_campagnes  camp ON camp.camp_id  = so.so_camp_id
-  LEFT JOIN dd_variables  var  ON var.var_id    = so.so_ruleset_var_id
   WHERE  so.so_id = ?
 ');
 $stmt->execute([$id]);
@@ -271,9 +269,6 @@ endif;
         <i class="fa fa-flask"></i> <?= h($so['camp_nom']) ?>
       </span>
     <?php endif ?>
-    <span class="sort-detail__ruleset">
-      <?= h($so['ruleset_label']) ?>
-    </span>
   </div>
 
 </div>

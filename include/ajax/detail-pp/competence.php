@@ -24,13 +24,11 @@ $stmt = $db->prepare('
          mere.comp_nom AS mere_nom,
          car.car_nom,
          res.res_nom,
-         res.res_j_id,
-         var.var_valeur AS ruleset_label
+         res.res_j_id
   FROM   dd_competences comp
   LEFT JOIN dd_competences      mere ON mere.comp_id = comp.comp_parent_id
   LEFT JOIN dd_caracteristiques car ON car.car_id = comp.comp_car_id
   LEFT JOIN dd_ressources       res ON res.res_id  = comp.comp_res_id
-  LEFT JOIN dd_variables        var ON var.var_id  = comp.comp_ruleset_var_id
   WHERE  comp.comp_id = ?
 ');
 $stmt->execute([$id]);
@@ -55,6 +53,24 @@ if ($competence['comp_parent_id'] === null):
   $stmt = $db->prepare($sql . ' ORDER BY comp_nom');
   $stmt->execute($params);
   $domaines = $stmt->fetchAll();
+endif;
+
+// Synergies (SP-PE21 — DD3.5) : accordées par cette compétence, et reçues
+$synergies = ['accordees' => [], 'recues' => []];
+if ((int)$competence['comp_ruleset_var_id'] === 1):
+  $stmt = $db->prepare('
+    SELECT syn.syn_comp_source_id, syn.syn_comp_cible_id, syn.syn_seuil, syn.syn_bonus, syn.syn_condition,
+           src.comp_nom AS source_nom, cib.comp_nom AS cible_nom
+      FROM dd_competences_synergies syn
+      JOIN dd_competences src ON src.comp_id = syn.syn_comp_source_id
+      JOIN dd_competences cib ON cib.comp_id = syn.syn_comp_cible_id
+     WHERE syn.syn_comp_source_id = ? OR syn.syn_comp_cible_id = ?
+  ORDER BY src.comp_nom, cib.comp_nom
+  ');
+  $stmt->execute([$id, $id]);
+  foreach ($stmt->fetchAll() as $s):
+    $synergies[(int)$s['syn_comp_source_id'] === $id ? 'accordees' : 'recues'][] = $s;
+  endforeach;
 endif;
 ?>
 
@@ -114,6 +130,24 @@ endif;
     </div>
   <?php endif ?>
 
+  <?php foreach (['accordees' => 'Synergie accordée', 'recues' => 'Synergie reçue'] as $sens => $libelle): ?>
+    <?php if (!empty($synergies[$sens])): ?>
+      <div class="sort-detail__row">
+        <span class="sort-detail__label"><?= $libelle ?></span>
+        <span class="sort-detail__value">
+          <?php foreach ($synergies[$sens] as $i => $s): ?>
+            <?php $autre_id = $sens === 'accordees' ? (int)$s['syn_comp_cible_id'] : (int)$s['syn_comp_source_id'] ?>
+            <?= $i > 0 ? '<br>' : '' ?>
+            <?= h(formatMod((int)$s['syn_bonus'])) ?> <?= $sens === 'accordees' ? 'à' : 'de' ?>
+            <span class="lien-sub"
+                  onclick="naviguerDetailPP('<?= BASE_URL ?>/include/ajax/detail-pp/competence.php', {id:<?= $autre_id ?>})"><?= h(trim($sens === 'accordees' ? $s['cible_nom'] : $s['source_nom'])) ?></span>
+            (<?= (int)$s['syn_seuil'] ?> rangs<?= $s['syn_condition'] !== null && $s['syn_condition'] !== '' ? ', ' . h($s['syn_condition']) : '' ?>)
+          <?php endforeach ?>
+        </span>
+      </div>
+    <?php endif ?>
+  <?php endforeach ?>
+
   <!-- Description -->
   <?php if ($competence['comp_description']): ?>
     <div class="sort-detail__description">
@@ -126,7 +160,6 @@ endif;
     <span class="sort-detail__source">
       <i class="fa fa-book"></i> <?= h($competence['res_nom']) ?>
     </span>
-    <span class="sort-detail__ruleset"><?= h($competence['ruleset_label']) ?></span>
   </div>
 
 </div>

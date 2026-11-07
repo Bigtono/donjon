@@ -6,6 +6,10 @@
 // GET q        : chaîne de recherche (min 2 caractères)
 // GET ruleset  : ruleset_var_id courant (entier)
 // GET res_ids  : ids de sources actives séparés par virgule (optionnel)
+// GET limite   : nombre de résultats, 5 par défaut, 15 au plus (compositeur SP-PO11)
+//
+// Visibilité : listeClauseVisibilite() (règle des listes, SP-PO11) — un sort du supplément privé
+// d’un autre utilisateur n’est plus proposé ; un éditeur du compendium voit aussi les sorts masqués.
 //
 // Réponse JSON :
 // [ { "id": 12, "label": "Boule de feu — Niv. 3 (Manuel des joueurs)" }, ... ]
@@ -13,6 +17,7 @@
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../helpers.php';
+require_once __DIR__ . '/../liste-parser.php';
 
 requireAuth();
 
@@ -21,6 +26,7 @@ header('Content-Type: application/json; charset=utf-8');
 $q          = trim($_GET['q'] ?? '');
 $ruleset_id = intParam($_GET['ruleset'] ?? 0);
 $res_raw    = $_GET['res_ids'] ?? '';
+$limite     = max(1, min(15, intParam($_GET['limite'] ?? 5) ?: 5));
 
 if (mb_strlen($q) < 2 || $ruleset_id === 0):
   echo json_encode([]);
@@ -44,6 +50,9 @@ endif;
 // Niveau unifié :
 //   DD3.5 (ruleset_var_id = 1) : MIN(sc_niveau) via dd_sortclasse
 //   DD2024                     : so_niveau directement
+$params = array_merge([$ruleset_id, '%' . $q . '%'], $res_ids);
+$vis    = listeClauseVisibilite('res.res_j_id', 'so.so_public', 'so.so_visible', $params);
+
 $sql = "
   SELECT
     so.so_id,
@@ -60,11 +69,11 @@ $sql = "
     AND so.so_nom LIKE ?
     AND so.so_camp_id IS NULL
     $where_res
+    AND $vis
   ORDER BY so.so_nom
-  LIMIT 5
+  LIMIT $limite
 ";
 
-$params = array_merge([$ruleset_id, '%' . $q . '%'], $res_ids);
 
 $stmt = $db->prepare($sql);
 $stmt->execute($params);

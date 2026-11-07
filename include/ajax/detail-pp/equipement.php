@@ -23,12 +23,10 @@ $stmt = $db->prepare('
   SELECT eqt.*,
          res.res_nom,
          res.res_j_id,
-         camp.camp_nom,
-         var.var_valeur AS ruleset_label
+         camp.camp_nom
   FROM   dd_equipements eqt
   LEFT JOIN dd_ressources res  ON res.res_id   = eqt.eqt_res_id
   LEFT JOIN dd_campagnes  camp ON camp.camp_id = eqt.eqt_camp_id
-  LEFT JOIN dd_variables  var  ON var.var_id   = eqt.eqt_ruleset_var_id
   WHERE  eqt.eqt_id = ?
 ');
 $stmt->execute([$id]);
@@ -117,7 +115,6 @@ endforeach;
         <i class="fa fa-flask"></i> <?= h($equipement['camp_nom']) ?>
       </span>
     <?php endif ?>
-    <span class="sort-detail__ruleset"><?= h($equipement['ruleset_label']) ?></span>
   </div>
 
 </div>

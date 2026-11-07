@@ -8,6 +8,8 @@ require_once __DIR__ . '/../../auth.php';
 require_once __DIR__ . '/../../helpers.php';
 // Tag [[tab:slug]] dans les champs texte du compendium (SP-TB7)
 require_once __DIR__ . '/../../tableau-parser.php';
+// Prix des potions, baguettes et parchemins à sort lié (SP-PO7)
+require_once __DIR__ . '/../../objet-compose.php';
 
 requireAuth();
 
@@ -24,15 +26,14 @@ $stmt = $db->prepare('
     om.*,
     com.com_nom,
     com.com_est_calcule,
+    com.com_slug,
     res.res_nom,
     res.res_j_id,
-    var.var_valeur AS ruleset_label,
     omr.omr_nom AS rarete_nom,
     camp.camp_nom
   FROM   dd_objets_magiques            om
   LEFT JOIN dd_categorie_objet_magique com  ON com.com_id  = om.om_com_id
   LEFT JOIN dd_ressources              res  ON res.res_id  = om.om_res_id
-  LEFT JOIN dd_variables               var  ON var.var_id  = om.om_ruleset_var_id
   LEFT JOIN dd_objets_magiques_rarete  omr  ON omr.omr_id  = om.om_rarete
   LEFT JOIN dd_campagnes               camp ON camp.camp_id = om.om_camp_id
   WHERE  om.om_id = ?
@@ -58,16 +59,20 @@ endif;
 $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
 
 // Le calcul auto NLS/prix est DD3.5 uniquement, pour les catégories marquées
-// com_est_calcule=1 et avec le format "auto" (om_fom_id=1)
+// com_est_calcule=1 et avec le format "auto" (om_fom_id=1) : potion, baguette ou parchemin
+// à sort lié. Le prix vient du moteur de composition (SP-PO7, include/objet-compose.php),
+// le même que celui du compositeur de possessions. Les armes et armures magiques ne passent
+// plus par ici : leurs catégories ne sont pas calculées, elles se composent depuis l'inventaire.
+$cat_compose = ['potions-et-huiles' => 'potion', 'baguettes' => 'baguette', 'parchemins' => 'parchemin'];
 $calcule = $ruleset_rep === 'DD3.5'
   && (int)$om['com_est_calcule'] === 1
-  && (int)$om['om_fom_id'] === 1;
+  && (int)$om['om_fom_id'] === 1
+  && isset($cat_compose[$om['com_slug'] ?? ''])
+  && $om['om_so_id'];
 
-// Préparation du contenu de description
-$contenu_description = '';
+$contenu_description = $om['om_description'] ?? '';
 
-if ($calcule && $om['om_so_id']):
-  // ---- Objets à sort lié : baguettes, parchemins, potions ----
+if ($calcule):
   $stmt_so = $db->prepare('
     SELECT so.so_id, so.so_nom, co.co_nom AS college
     FROM   dd_sorts   so
@@ -76,117 +81,45 @@ if ($calcule && $om['om_so_id']):
   ');
   $stmt_so->execute([(int)$om['om_so_id']]);
   $so = $stmt_so->fetch();
+  // Liste de classe la plus avantageuse (niveau le plus bas) ; NLS saisi, relevé au minimum
+  $listes = $so ? sortListesClasses($db, (int)$so['so_id']) : [];
 
-  if ($so):
-    // Calcul NLS : MIN niveau mage (cla_id=6) ou prêtre (cla_id=9)
-    $stmt_sc = $db->prepare('
-      SELECT sc_cla_id, sc_niveau
-      FROM   dd_sortclasse
-      WHERE  sc_so_id = ?
-        AND  sc_cla_id IN (6, 9)
-    ');
-    $stmt_sc->execute([(int)$om['om_so_id']]);
-    $niveaux = $stmt_sc->fetchAll();
+  if ($so && $listes):
+    $cat = $cat_compose[$om['com_slug']];
+    $nls = max((int)$om['om_so_niveau'], $listes[0]['nls_min']);
+    $calc = composerObjet($db, ['cat' => $cat, 'sorts' => [[
+      'so_id' => (int)$so['so_id'], 'cla_id' => $listes[0]['cla_id'], 'nls' => $nls,
+    ]]]);
 
-    $niv_mage = $niv_pretre = null;
-    foreach ($niveaux as $sc):
-      if ((int)$sc['sc_cla_id'] === 6) $niv_mage   = (int)$sc['sc_niveau'];
-      if ((int)$sc['sc_cla_id'] === 9) $niv_pretre = (int)$sc['sc_niveau'];
-    endforeach;
-
-    $niveau_base = $niv_mage ?? $niv_pretre ?? 0;
-    $nls_auto    = $niveau_base > 0 ? (2 * $niveau_base) - 1 : 0;
-    $nls         = (int)$om['om_so_niveau'] > $nls_auto
-      ? (int)$om['om_so_niveau']
-      : $nls_auto;
-    $nls = max($nls, 1);
-
-    $college  = h($so['college'] ?? '');
-    $so_nom   = h($so['so_nom'] ?? '');
-    $so_id    = (int)$so['so_id'];
+    $college   = h($so['college'] ?? '');
+    $so_nom    = h($so['so_nom']);
     $lien_sort = '<span class="om-lien-sort"'
       . ' onclick="actualiserPageSub(\''
-      . BASE_URL . '/include/ajax/detail-pp/sort.php\', {id:' . $so_id . '})">'
+      . BASE_URL . '/include/ajax/detail-pp/sort.php\', {id:' . (int)$so['so_id'] . '})">'
       . $so_nom . '</span>';
+    $phrase = [
+      'potion'    => 'Cette potion ou huile reproduit les effets du sort ' . $lien_sort . '.',
+      'baguette'  => 'Cette baguette possède 50 charges du sort ' . $lien_sort . ', lancé au niveau ' . $nls . ' de lanceur de sorts.',
+      'parchemin' => 'Ce parchemin permet de lancer le sort ' . $lien_sort . ' au niveau ' . $nls . ' de lanceur de sorts.',
+    ][$cat];
+    $don = [
+      'potion' => 'Préparation de potions', 'baguette' => 'Création de baguettes magiques', 'parchemin' => 'Écriture de parchemins',
+    ][$cat];
 
-    $com_id = (int)$om['om_com_id'];
-
-    ob_start();
-    if ($com_id === 15):
-      // Potion / Huile
-      $prix = 50 * $niveau_base * $nls;
-      $cout = (int)round($prix / 2);
-      $xp   = (int)round($prix / 25);
-      echo '<p>Cette potion ou huile reproduit les effets du sort ' . $lien_sort . '.</p>';
-      echo '<p>' . ($college ? $college . ' ; ' : '');
-      echo 'NLS ' . $nls . ' ; Préparation de potions, ' . $so_nom . ' ; ';
-      echo 'Prix ' . number_format($prix, 0, ',', ' ') . ' po ; ';
-      echo 'Coût ' . number_format($cout, 0, ',', ' ') . ' po, ' . $xp . ' PX.</p>';
-    elseif ($com_id === 4):
-      // Baguette
-      $prix = 750 * $niveau_base * $nls;
-      $cout = (int)round($prix / 2);
-      $xp   = (int)round($prix / 25);
-      echo '<p>Cette baguette possède 50 charges du sort ' . $lien_sort
-        . ', lancé au niveau ' . $nls . ' de lanceur de sorts.</p>';
-      echo '<p>' . ($college ? $college . ' ; ' : '');
-      echo 'NLS ' . $nls . ' ; Création de baguettes magiques, ' . $so_nom . ' ; ';
-      echo 'Prix ' . number_format($prix, 0, ',', ' ') . ' po ; ';
-      echo 'Coût ' . number_format($cout, 0, ',', ' ') . ' po, ' . $xp . ' PX.</p>';
-    elseif ($com_id === 14):
-      // Parchemin
-      $prix = 25 * $niveau_base * $nls;
-      $cout = (int)round($prix / 2);
-      $xp   = (int)round($prix / 25);
-      echo '<p>Ce parchemin permet de lancer le sort ' . $lien_sort
-        . ' au niveau ' . $nls . ' de lanceur de sorts.</p>';
-      echo '<p>' . ($college ? $college . ' ; ' : '');
-      echo 'NLS ' . $nls . ' ; Écriture de parchemins, ' . $so_nom . ' ; ';
-      echo 'Prix ' . number_format($prix, 0, ',', ' ') . ' po ; ';
-      echo 'Coût ' . number_format($cout, 0, ',', ' ') . ' po, ' . $xp . ' PX.</p>';
-    else:
-      // Autre catégorie est_calcule=1 avec sort → description libre
-      if ($om['om_description']) echo $om['om_description'];
+    $contenu_description = '<p>' . $phrase . '</p>'
+      . '<p>' . ($college ? $college . ' ; ' : '')
+      . 'NLS ' . $nls . ' ; ' . $don . ', ' . $so_nom . ' ; '
+      . 'Prix ' . h(formaterPrixPo($calc['prix_pc'])) . ' ; '
+      . 'Coût ' . h(formaterPrixPo($calc['cout_pc'])) . ', ' . (int)$calc['cout_px'] . ' PX.</p>';
+    if (!$calc['ok']):
+      // Objet hérité qui enfreint les règles (sort trop puissant pour une potion…) : signalé, pas masqué
+      $contenu_description .= '<p class="form-hint">' . h(implode(' ', $calc['erreurs'])) . '</p>';
     endif;
-    $contenu_description = ob_get_clean();
-
-  else:
-    // Sort introuvable → repli sur description libre
-    $contenu_description = $om['om_description'] ?? '';
+  elseif ($so && trim((string)$contenu_description) === ''):
+    // Sort rattaché à aucune liste de classe : niveau inconnu, prix incalculable
+    $contenu_description = '<p class="form-hint">Sort lié : ' . h($so['so_nom'])
+      . '. Il ne figure dans aucune liste de classe : prix et NLS ne peuvent pas être calculés.</p>';
   endif;
-
-elseif ($calcule && !$om['om_so_id'] && in_array((int)$om['om_com_id'], [2, 3])):
-  // ---- Armes et armures : calcul via modificateur ----
-  $mod = (int)$om['om_modificateurs'];
-  $nls = 3 * max($mod, 1);
-
-  ob_start();
-  if ((int)$om['om_com_id'] === 2):
-    // Arme
-    $prix = match ($mod) {
-      2 => 8000, 3 => 18000, 4 => 32000, 5 => 50000, default => 2000,
-    };
-    $cout = (int)round($prix / 2);
-    $xp   = (int)round($prix / 25);
-    echo '<p>Cette arme possède un modificateur au toucher et aux dégâts de +' . $mod . '.</p>';
-    echo '<p>NLS ' . $nls . ' ; Création d\'armes et armures magiques ; ';
-    echo 'Prix ' . number_format($prix, 0, ',', ' ') . ' po ; ';
-    echo 'Coût ' . number_format($cout, 0, ',', ' ') . ' po, ' . $xp . ' PX.</p>';
-  else:
-    // Armure / Bouclier
-    $prix = 1000 * $mod * $mod;
-    $cout = (int)round($prix / 2);
-    $xp   = (int)round($prix / 25);
-    echo '<p>Cette armure ou ce bouclier possède un bonus magique de +' . $mod . '.</p>';
-    echo '<p>NLS ' . $nls . ' ; Création d\'armes et armures magiques ; ';
-    echo 'Prix ' . number_format($prix, 0, ',', ' ') . ' po ; ';
-    echo 'Coût ' . number_format($cout, 0, ',', ' ') . ' po, ' . $xp . ' PX.</p>';
-  endif;
-  $contenu_description = ob_get_clean();
-
-else:
-  // ---- Format libre (tous rulesets, toutes catégories non calculées) ----
-  $contenu_description = $om['om_description'] ?? '';
 endif;
 ?>
 
@@ -243,7 +176,6 @@ endif;
         <i class="fa fa-flask"></i> <?= h($om['camp_nom']) ?>
       </span>
     <?php endif ?>
-    <span class="sort-detail__ruleset"><?= h($om['ruleset_label']) ?></span>
   </div>
 
 </div>

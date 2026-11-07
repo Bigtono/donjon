@@ -216,7 +216,20 @@ Deux groupes : 2-3 et 5-6
       <p>Les noms de sorts, dons et objets connus du compendium sont aussi
       liés automatiquement sans tag, dès qu\'ils apparaissent tels quels
       dans le texte.</p>
-
+      ' . ($ruleset_id === 1 ? '
+      <p><strong>Libellés</strong> — une ligne <code>Libellé : valeur</code> met le
+      libellé en gras s\'il est connu : ceux du Manuel des Monstres (Classe d\'armure,
+      Dés de vie, Initiative, Vitesse de déplacement, Attaque, Attaque à outrance,
+      Attaque de base/lutte, Espace occupé/allonge, Attaques spéciales, Particularités,
+      Jets de sauvegarde, Caractéristiques, Compétences, Dons, Environnement,
+      Organisation sociale, Facteur de puissance, Trésor, Alignement, Évolution
+      possible, Ajustement de niveau, Type) et ceux du format court (PV, Sens, Langues,
+      Aura, Immunités, Résistances, Vulnérabilités, RM, RD, Faiblesse, Mêlée,
+      Distance, Espace, Allonge, Lutte, Options d\'attaque, Options de combat,
+      Actions spéciales, Capacités magiques, Pouvoirs magiques, Capacités de type
+      sort, Sorts … préparés / connus, Possessions, Équipement de combat,
+      Équipement). Sur la ligne <code>Dons :</code>, les dons sont liés par nom.</p>
+      ' : '') . '
       <p><strong>Insérer un tableau</strong></p>
       <ul>
         <li><code>[[tab:slug]]</code> — affiche un tableau de la bibliothèque.</li>

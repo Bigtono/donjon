@@ -46,7 +46,6 @@ require_once '../include/header.php';
     <div class="regles-toolbar">
       <h1 class="regles-titre">
         Règles de jeu
-        <span class="site-header__ruleset"><?= h($ruleset_rep) ?></span>
       </h1>
 
       <?php // ---- Barre de recherche ---- ?>

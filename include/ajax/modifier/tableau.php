@@ -34,6 +34,7 @@ $tab = [
   'tab_align'       => '',
   'tab_note'        => '',
   'tab_res_id'      => 0,
+  'tab_tabc_id'     => 0,
   'tab_ecran_mj'    => 0,
   'tab_ecran_ordre' => 0,
   'tab_visible'     => 1,
@@ -57,6 +58,8 @@ $stmt = $db->prepare('
 ');
 $stmt->execute([$ruleset_id]);
 $ressources = $stmt->fetchAll();
+
+$categories = chargerCategoriesTableaux($db);
 
 $est_creation = $id === 0;
 $titre = $est_creation ? 'Nouveau tableau' : 'Modifier — ' . h($tab['tab_nom']);
@@ -125,6 +128,19 @@ $uid   = 'tab_' . ($id ?: 'new');
       <label for="<?= $uid ?>_note">Note de bas de tableau</label>
       <input type="text" id="<?= $uid ?>_note" class="form-control"
              value="<?= h($tab['tab_note']) ?>" maxlength="500" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label for="<?= $uid ?>_categorie">Catégorie</label>
+      <select id="<?= $uid ?>_categorie" class="form-control">
+        <option value="0">— Aucune —</option>
+        <?php foreach ($categories as $tabc_id => $tabc_nom): ?>
+          <option value="<?= (int)$tabc_id ?>"
+            <?= (int)$tab['tab_tabc_id'] === (int)$tabc_id ? ' selected' : '' ?>>
+            <?= h($tabc_nom) ?>
+          </option>
+        <?php endforeach ?>
+      </select>
     </div>
 
     <div class="form-group">
@@ -201,6 +217,7 @@ $uid   = 'tab_' . ($id ?: 'new');
         tab_align:       val('_align'),
         tab_note:        val('_note'),
         tab_res_id:      val('_res'),
+        tab_tabc_id:     val('_categorie'),
         tab_ecran_mj:    val('_ecran'),
         tab_ecran_ordre: val('_ordre'),
         tab_visible:     val('_visible')

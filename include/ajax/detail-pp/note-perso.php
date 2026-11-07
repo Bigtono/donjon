@@ -27,8 +27,13 @@ if (!$note):
 endif;
 
 if ((int)$perso['pe_j_id'] === (int)$_SESSION['j_id'] && $note['pno_lu_date'] === null):
-  $db->prepare('UPDATE dd_personnages_notes SET pno_lu_date = NOW() WHERE pno_no_id = ? AND pno_pe_id = ?')
-     ->execute([$id, $pe_id]);
+  // Une note « toute la campagne » n'a de ligne de suivi qu'après sa première
+  // lecture (SP-NO11) : elle est créée ici, avec la date de lecture.
+  $db->prepare('
+    INSERT INTO dd_personnages_notes (pno_no_id, pno_pe_id, pno_date, pno_lu_date)
+    VALUES (?, ?, NOW(), NOW())
+    ON DUPLICATE KEY UPDATE pno_lu_date = COALESCE(pno_lu_date, VALUES(pno_lu_date))
+  ')->execute([$id, $pe_id]);
 endif;
 
 $ruleset_id = (int)$perso['pe_ruleset_var_id'];
@@ -71,7 +76,6 @@ $ruleset_id = (int)$perso['pe_ruleset_var_id'];
 
   <div class="sort-detail__footer">
     <span class="sort-detail__source"><i class="fa fa-feather"></i> Reçue le <?= h(date('d/m/Y', strtotime($note['pno_date']))) ?></span>
-    <span class="sort-detail__ruleset"><?= $ruleset_id === 2 ? 'DD2024' : 'DD3.5' ?></span>
   </div>
 
 </div>

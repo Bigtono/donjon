@@ -29,16 +29,16 @@ $nav_items = [
   'campagnes'   => ['campagnes.php',   'fa-map',           'Campagnes'],
 ];
 ?>
-<nav class="per-nav" aria-label="Sections du personnage">
+<nav class="page-nav" aria-label="Sections du personnage">
   <?php foreach ($nav_items as $cle => [$page, $icone, $libelle]): ?>
     <?php if ($cle === 'magie' && !$nav_lanceur) continue; ?>
     <?php $actif = ($cle === ($nav_courante ?? 'fiche')); ?>
     <a href="<?= BASE_URL ?>/personnages/<?= $page ?>?id=<?= $nav_pe_id ?>"
-       class="per-nav__item<?= $actif ? ' est-actif' : '' ?>"
+       class="page-nav__item<?= $actif ? ' est-actif' : '' ?>"
        <?= $actif ? 'aria-current="page"' : '' ?>
        title="<?= h($libelle) ?>">
       <i class="fa <?= $icone ?>"></i>
-      <span class="per-nav__lbl"><?= h($libelle) ?></span>
+      <span class="page-nav__lbl"><?= h($libelle) ?></span>
     </a>
   <?php endforeach ?>
 </nav>

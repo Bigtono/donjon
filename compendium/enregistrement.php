@@ -1093,6 +1093,43 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
       endif;
     endif;
 
+    // Synergies accordées (SP-PE21 — DD3.5) : remplacées en bloc. Une cible
+    // doit être une autre compétence du même ruleset.
+    if ((int)$ruleset_id === 1 && !empty($_POST['synergies_envoyees'])):
+      $lignes_syn = [];
+      foreach ((array)($_POST['synergies'] ?? []) as $s):
+        if (!is_array($s)) continue;
+        $cible = (int)($s['cible'] ?? 0);
+        if ($cible <= 0 || $cible === $comp_id) continue;
+        $condition    = mb_substr(trim((string)($s['condition'] ?? '')), 0, 200);
+        $lignes_syn[] = [
+          $cible,
+          max(1, min((int)($s['seuil'] ?? 5), 99)),
+          max(-20, min((int)($s['bonus'] ?? 2), 20)),
+          $condition !== '' ? $condition : null,
+        ];
+      endforeach;
+
+      if (!empty($lignes_syn)):
+        $cibles = array_values(array_unique(array_column($lignes_syn, 0)));
+        $stmt   = $db->prepare('SELECT comp_id FROM dd_competences WHERE comp_ruleset_var_id = ? AND comp_id IN ('
+          . resIdsPlaceholders($cibles) . ')');
+        $stmt->execute(array_merge([$ruleset_id], $cibles));
+        $valides    = array_flip(array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN)));
+        $lignes_syn = array_filter($lignes_syn, fn($l) => isset($valides[$l[0]]));
+      endif;
+
+      $db->prepare('DELETE FROM dd_competences_synergies WHERE syn_comp_source_id = ?')->execute([$comp_id]);
+      $stmt = $db->prepare('
+        INSERT INTO dd_competences_synergies
+          (syn_comp_source_id, syn_comp_cible_id, syn_seuil, syn_bonus, syn_condition)
+        VALUES (?, ?, ?, ?, ?)
+      ');
+      foreach ($lignes_syn as $l):
+        $stmt->execute(array_merge([$comp_id], $l));
+      endforeach;
+    endif;
+
     $db->commit();
     repondreOk($is_ajax, $comp_id, 'competence', $redirect);
   } catch (Exception $e) {
@@ -1142,6 +1179,10 @@ function supprimerCompetence($db, bool $is_ajax, string $redirect): void
     $ph2  = resIdsPlaceholders($ids_autorises);
     $stmt = $db->prepare("DELETE FROM dd_competences WHERE comp_id IN ($ph2)");
     $stmt->execute($ids_autorises);
+
+    // Synergies dont la compétence était source ou cible (SP-PE21)
+    $stmt = $db->prepare("DELETE FROM dd_competences_synergies WHERE syn_comp_source_id IN ($ph2) OR syn_comp_cible_id IN ($ph2)");
+    $stmt->execute(array_merge($ids_autorises, $ids_autorises));
 
     $db->commit();
 
@@ -2194,6 +2235,34 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
         $camp_id,
         $om_id,
       ]);
+    endif;
+
+    // ---- Propriété spéciale DD3.5 (SP-PO6) : équivalence, prix fixe, NLS, restrictions ----
+    // La catégorie est relue en base (com_est_propriete) : le POST ne décide pas du type.
+    // Hors propriété, les trois colonnes sont vidées et om_prix n'est pas touché.
+    $stmt = $db->prepare('SELECT com_est_propriete FROM dd_categorie_objet_magique WHERE com_id = ? AND com_ruleset_var_id = ?');
+    $stmt->execute([$com_id, $ruleset_id]);
+    if ((int)$stmt->fetchColumn() === 1):
+      $bonus_equiv = intParam($_POST['om_bonus_equiv'] ?? 0);
+      $bonus_equiv = ($bonus_equiv >= 1 && $bonus_equiv <= 5) ? $bonus_equiv : null;
+      $prix_fixe   = trim((string)($_POST['om_prix_fixe'] ?? ''));
+      $prix_fixe   = ($bonus_equiv === null && ctype_digit($prix_fixe)) ? (int)$prix_fixe : null;
+      $nls         = intParam($_POST['om_nls'] ?? 0);
+      $nls         = ($nls >= 1 && $nls <= 20) ? $nls : null;
+      $restriction = proprieteRestrictionNormaliser((array)($_POST['om_restriction'] ?? []));
+      $stmt = $db->prepare('
+        UPDATE dd_objets_magiques
+        SET om_bonus_equiv = ?, om_prix = ?, om_nls = ?, om_restriction = ?
+        WHERE om_id = ?
+      ');
+      $stmt->execute([$bonus_equiv, $prix_fixe, $nls, $restriction, $om_id]);
+    else:
+      $stmt = $db->prepare('
+        UPDATE dd_objets_magiques
+        SET om_bonus_equiv = NULL, om_nls = NULL, om_restriction = NULL
+        WHERE om_id = ?
+      ');
+      $stmt->execute([$om_id]);
     endif;
 
     $db->commit();

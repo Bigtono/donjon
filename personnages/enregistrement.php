@@ -15,6 +15,10 @@
 //   - affecterPersonnage / retirerAffectation (SP-PE18 — écriture immédiate)
 //   - groupePersonnages       (SP-PE19 — actions groupées de la liste :
 //                              campagne en cours, affectation à un joueur)
+//   - ajouterPossession / modifierPossession / retirerPossession
+//                             (SP-PO8 — inventaire, écriture immédiate)
+//   - enregistrerCompose      (SP-PO10 — objet composé DD3.5, recalcul serveur)
+//   - consommerPossession, utiliserSortParchemin (SP-PO11 — potion bue, charge, sort lu)
 //
 // Toutes les actions :
 //   - Vérifient le CSRF (verifyCsrf())
@@ -28,6 +32,10 @@ require_once '../include/db.php';
 require_once '../include/auth.php';
 require_once '../include/helpers.php';
 require_once '../include/personnage_helpers.php';
+// Formatage des prix et poids des possessions (SP-PO8)
+require_once '../include/liste-parser.php';
+// Moteur de composition des objets magiques DD3.5 (SP-PO10)
+require_once '../include/objet-compose.php';
 
 requireAuth();
 
@@ -110,6 +118,15 @@ switch ($action):
 
       // Choix de capacités de classe (SP-CH)
       $db->prepare('DELETE FROM dd_personnages_choix WHERE pech_pe_id = ?')
+         ->execute([$pe_id]);
+
+      // Possessions (SP-PO6) : éléments des objets composés, puis l'inventaire
+      $db->prepare('
+        DELETE ppe FROM dd_personnages_possessions_elements ppe
+          JOIN dd_personnages_possessions pp ON pp.pp_id = ppe.ppe_pp_id
+         WHERE pp.pp_pe_id = ?
+      ')->execute([$pe_id]);
+      $db->prepare('DELETE FROM dd_personnages_possessions WHERE pp_pe_id = ?')
          ->execute([$pe_id]);
 
       // Notes connues par le perso (les notes elles-mêmes restent)
@@ -221,6 +238,33 @@ switch ($action):
   // --------------------------------------------------------
   case 'groupePersonnages':
     groupePersonnages($db, $is_ajax);
+    break;
+
+  // --------------------------------------------------------
+  // POSSESSIONS (SP-PO8 — écriture immédiate)
+  // --------------------------------------------------------
+  case 'ajouterPossession':
+    ajouterPossession($db, $is_ajax);
+    break;
+
+  case 'modifierPossession':
+    modifierPossession($db, $is_ajax);
+    break;
+
+  case 'retirerPossession':
+    retirerPossession($db, $is_ajax);
+    break;
+
+  case 'enregistrerCompose':
+    enregistrerCompose($db, $is_ajax);
+    break;
+
+  case 'consommerPossession':
+    consommerPossession($db, $is_ajax);
+    break;
+
+  case 'utiliserSortParchemin':
+    utiliserSortParchemin($db, $is_ajax);
     break;
 
   default:
@@ -557,13 +601,21 @@ function enregistrerCompetences(PDO $db, bool $is_ajax, int $j_id): void {
     repondre($is_ajax, ['ok' => false, 'erreur' => 'Format de données invalide.']);
   endif;
 
-  // Lecture, bornage et dédoublonnage
+  // Lecture, bornage et dédoublonnage. Une ligne sans rang est gardée si elle
+  // porte un modificateur divers (SP-PE20) ; sinon elle est ignorée.
   $lignes = [];
   foreach ($comp_post as $row_post):
-    $comp_id  = intParam($row_post['comp_id']  ?? 0);
-    $maitrise = intParam($row_post['maitrise'] ?? 0);
-    if ($comp_id <= 0 || $maitrise <= 0) continue; // ligne non maîtrisée : ignorée
-    $lignes[$comp_id] = min($maitrise, $max_saisie);
+    if (!is_array($row_post)) continue;
+    $comp_id  = (int)($row_post['comp_id']  ?? 0);
+    $maitrise = max(0, min((int)($row_post['maitrise'] ?? 0), $max_saisie));
+    $divers   = max(-99, min((int)($row_post['divers'] ?? 0), 99));
+    if ($comp_id <= 0 || ($maitrise === 0 && $divers === 0)) continue;
+    $libelle  = ($divers !== 0) ? mb_substr(trim((string)($row_post['libelle'] ?? '')), 0, 200) : '';
+    $lignes[$comp_id] = [
+      'maitrise' => $maitrise,
+      'divers'   => $divers,
+      'libelle'  => $libelle !== '' ? $libelle : null,
+    ];
   endforeach;
 
   // Intégrité : ne garder que les compétences existant réellement dans le
@@ -591,11 +643,12 @@ function enregistrerCompetences(PDO $db, bool $is_ajax, int $j_id): void {
 
     if (!empty($lignes)):
       $stmt_ins = $db->prepare('
-        INSERT INTO dd_personnages_competences (pec_pe_id, pec_comp_id, pec_maitrise)
-        VALUES (?, ?, ?)
+        INSERT INTO dd_personnages_competences
+          (pec_pe_id, pec_comp_id, pec_maitrise, pec_mod_divers, pec_mod_libelle)
+        VALUES (?, ?, ?, ?, ?)
       ');
-      foreach ($lignes as $comp_id => $maitrise):
-        $stmt_ins->execute([$pe_id, $comp_id, $maitrise]);
+      foreach ($lignes as $comp_id => $l):
+        $stmt_ins->execute([$pe_id, $comp_id, $l['maitrise'], $l['divers'], $l['libelle']]);
       endforeach;
     endif;
 
@@ -1671,4 +1724,409 @@ function retirerAffectation(PDO $db, bool $is_ajax): void {
   }
 
   repondre($is_ajax, ['ok' => true, 'id' => $pe_id]);
+}
+
+// ============================================================
+// POSSESSIONS (SP-PO8)
+//
+// Écriture immédiate, une ligne à la fois (pattern D-PE4a). Droit : peutGererPersonnage
+// (propriétaire, MJ des campagnes du personnage, admin — D-PO18). Chaque réponse renvoie les
+// totaux recalculés de l'inventaire, que la page affiche sans se recharger.
+// Les objets composés (pp_type = compose) naissent par le compositeur (SP-PO10 / PO11),
+// jamais par ajouterPossession.
+// ============================================================
+
+/** Charge la possession `pp_id` et contrôle le droit sur son personnage. */
+function chargerPossession(PDO $db, bool $is_ajax): array {
+  $pp_id = intParam($_POST['pp_id'] ?? 0);
+  $stmt = $db->prepare('
+    SELECT pp.*, pe.pe_id, pe.pe_j_id, pe.pe_affecte_par_j_id, pe.pe_ruleset_var_id
+      FROM dd_personnages_possessions pp
+      JOIN dd_personnages pe ON pe.pe_id = pp.pp_pe_id
+     WHERE pp.pp_id = ?
+  ');
+  $stmt->execute([$pp_id]);
+  $pp = $stmt->fetch();
+  if (!$pp || !peutGererPersonnage($db, $pp)):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Possession introuvable ou accès refusé.']);
+  endif;
+  return $pp;
+}
+
+/** Marque le personnage modifié et renvoie les totaux de son inventaire. */
+function apresPossession(PDO $db, int $pe_id): array {
+  $db->prepare('UPDATE dd_personnages SET pe_date_modif = NOW() WHERE pe_id = ?')->execute([$pe_id]);
+  return possessionsTotaux(getPersonnagePossessions($db, $pe_id));
+}
+
+/**
+ * Ajoute un équipement ou un objet magique simple. POST : pe_id, type (equipement | objet),
+ * id (eqt_id ou om_id), quantite (défaut 1).
+ * Une ligne identique, sans nom libre ni notes et non équipée, voit sa quantité augmentée
+ * plutôt que d'être doublée (un double clic ne crée pas deux lignes).
+ */
+function ajouterPossession(PDO $db, bool $is_ajax): void {
+  list($pe_id, $perso) = chargerPersonnagePourCampagne($db, $is_ajax);
+  $ruleset = (int)$perso['pe_ruleset_var_id'];
+  $type    = strParam($_POST['type'] ?? '');
+  $id      = intParam($_POST['id'] ?? 0);
+  $qte     = max(1, min(9999, intParam($_POST['quantite'] ?? 1, 1)));
+
+  // Même ruleset que le personnage, hors homebrew de campagne, et visible pour l'utilisateur
+  // selon la règle des listes du compendium (global visible, supplément propre ou partagé ;
+  // l'éditeur du compendium voit aussi les entrées masquées) — celle du sélecteur (SP-PO9).
+  $params = [$id, $ruleset];
+  if ($type === 'equipement'):
+    $vis = listeClauseVisibilite('res.res_j_id', 'eqt.eqt_public', 'eqt.eqt_visible', $params);
+    $stmt = $db->prepare("
+      SELECT eqt.eqt_id
+        FROM dd_equipements eqt
+        LEFT JOIN dd_ressources res ON res.res_id = eqt.eqt_res_id
+       WHERE eqt.eqt_id = ? AND eqt.eqt_ruleset_var_id = ? AND eqt.eqt_camp_id IS NULL AND $vis
+    ");
+  elseif ($type === 'objet'):
+    $vis = listeClauseVisibilite('res.res_j_id', 'om.om_public', 'om.om_visible', $params);
+    $stmt = $db->prepare("
+      SELECT om.om_id, com.com_est_propriete, com.com_est_calcule
+        FROM dd_objets_magiques om
+        LEFT JOIN dd_categorie_objet_magique com ON com.com_id = om.om_com_id
+        LEFT JOIN dd_ressources res ON res.res_id = om.om_res_id
+       WHERE om.om_id = ? AND om.om_ruleset_var_id = ? AND om.om_camp_id IS NULL AND $vis
+    ");
+  else:
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Type de possession inconnu.']);
+  endif;
+  $stmt->execute($params);
+  $ent = $stmt->fetch();
+
+  if (!$ent):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Cet objet n\'existe pas dans le ruleset du personnage.']);
+  endif;
+  if ($type === 'objet' && (int)$ent['com_est_propriete'] === 1):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Une propriété spéciale ne se possède pas seule : elle se pose sur une arme ou une armure composée.']);
+  endif;
+  if ($type === 'objet' && $ruleset === 1 && (int)$ent['com_est_calcule'] === 1):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Potions, baguettes et parchemins se composent depuis l\'inventaire (sort et NLS).']);
+  endif;
+
+  $col = $type === 'equipement' ? 'pp_eqt_id' : 'pp_om_id';
+  $stmt = $db->prepare("
+    SELECT pp_id FROM dd_personnages_possessions
+     WHERE pp_pe_id = ? AND pp_type = ? AND $col = ?
+       AND (pp_nom IS NULL OR pp_nom = '') AND (pp_notes IS NULL OR pp_notes = '') AND pp_equipe = 0
+     ORDER BY pp_id LIMIT 1
+  ");
+  $stmt->execute([$pe_id, $type, $id]);
+  $existant = (int)$stmt->fetchColumn();
+
+  try {
+    if ($existant > 0):
+      $db->prepare('UPDATE dd_personnages_possessions SET pp_quantite = LEAST(pp_quantite + ?, 9999), pp_date_maj = NOW() WHERE pp_id = ?')
+         ->execute([$qte, $existant]);
+      $pp_id = $existant;
+    else:
+      $stmt = $db->prepare('SELECT COALESCE(MAX(pp_ordre), 0) + 1 FROM dd_personnages_possessions WHERE pp_pe_id = ?');
+      $stmt->execute([$pe_id]);
+      $ordre = min(65535, (int)$stmt->fetchColumn());
+      $db->prepare("INSERT INTO dd_personnages_possessions (pp_pe_id, pp_type, $col, pp_quantite, pp_ordre) VALUES (?, ?, ?, ?, ?)")
+         ->execute([$pe_id, $type, $id, $qte, $ordre]);
+      $pp_id = (int)$db->lastInsertId();
+    endif;
+    $totaux = apresPossession($db, $pe_id);
+  } catch (PDOException $e) {
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  repondre($is_ajax, ['ok' => true, 'pp_id' => $pp_id, 'fusion' => $existant > 0, 'totaux' => $totaux]);
+}
+
+/**
+ * Modifie un champ d'une possession. POST : pp_id, champ, valeur.
+ *   quantite  1 à 9999          equipe   0 | 1
+ *   charges   0 à 999, vide = aucune (baguette)
+ *   nom       nom libre (200 car.), vide = nom du compendium — obligatoire pour un composé
+ *   notes     texte libre, vide = aucune
+ */
+function modifierPossession(PDO $db, bool $is_ajax): void {
+  $pp    = chargerPossession($db, $is_ajax);
+  $champ = strParam($_POST['champ'] ?? '');
+  $brut  = (string)($_POST['valeur'] ?? '');
+
+  $erreur = null;
+  if ($champ === 'quantite'):
+    $col = 'pp_quantite';
+    $val = intParam($brut);
+    $erreur = $val < 1 || $val > 9999 ? 'Quantité de 1 à 9 999 (pour retirer l\'objet, utilisez Retirer).' : null;
+  elseif ($champ === 'equipe'):
+    $col = 'pp_equipe';
+    $val = intParam($brut) === 1 ? 1 : 0;
+  elseif ($champ === 'charges'):
+    $col = 'pp_charges';
+    $val = trim($brut) === '' ? null : intParam($brut);
+    $erreur = $val !== null && ($val < 0 || $val > 999) ? 'Charges de 0 à 999.' : null;
+  elseif ($champ === 'nom'):
+    $col = 'pp_nom';
+    $val = mb_substr(trim($brut), 0, 200);
+    $erreur = $val === '' && $pp['pp_type'] === 'compose' ? 'Un objet composé garde un nom.' : null;
+    $val = $val === '' ? null : $val;
+  elseif ($champ === 'harmonise'):
+    // DD2024 (SP-PO12) : seulement un objet magique qui requiert l'harmonisation. Plus de 3 objets
+    // harmonisés est signalé sur la page, pas refusé (la fiche reste déclarative).
+    $col = 'pp_harmonise';
+    $val = intParam($brut) === 1 ? 1 : 0;
+    $stmt = $db->prepare('SELECT om_harmonisation FROM dd_objets_magiques WHERE om_id = ?');
+    $stmt->execute([(int)$pp['pp_om_id']]);
+    $erreur = (int)$pp['pe_ruleset_var_id'] !== 2 || $pp['pp_type'] !== 'objet' || (int)$stmt->fetchColumn() !== 1
+      ? 'Cet objet ne requiert pas d\'harmonisation.' : null;
+  elseif ($champ === 'notes'):
+    $col = 'pp_notes';
+    $val = trim($brut) === '' ? null : mb_substr(trim($brut), 0, 5000);
+  else:
+    $erreur = 'Champ inconnu.';
+  endif;
+  if ($erreur !== null):
+    repondre($is_ajax, ['ok' => false, 'erreur' => $erreur]);
+  endif;
+
+  try {
+    // $col vient de la liste fermée ci-dessus, jamais de la saisie
+    $db->prepare("UPDATE dd_personnages_possessions SET $col = ?, pp_date_maj = NOW() WHERE pp_id = ?")
+       ->execute([$val, (int)$pp['pp_id']]);
+    $totaux = apresPossession($db, (int)$pp['pe_id']);
+  } catch (PDOException $e) {
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  repondre($is_ajax, ['ok' => true, 'champ' => $champ, 'valeur' => $val, 'totaux' => $totaux]);
+}
+
+/** Retire une possession, et les éléments d'un objet composé. POST : pp_id. */
+function retirerPossession(PDO $db, bool $is_ajax): void {
+  $pp = chargerPossession($db, $is_ajax);
+  try {
+    $db->beginTransaction();
+    $db->prepare('DELETE FROM dd_personnages_possessions_elements WHERE ppe_pp_id = ?')->execute([(int)$pp['pp_id']]);
+    $db->prepare('DELETE FROM dd_personnages_possessions WHERE pp_id = ?')->execute([(int)$pp['pp_id']]);
+    $db->commit();
+    $totaux = apresPossession($db, (int)$pp['pe_id']);
+  } catch (PDOException $e) {
+    if ($db->inTransaction()) $db->rollBack();
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+  repondre($is_ajax, ['ok' => true, 'totaux' => $totaux]);
+}
+
+// ============================================================
+// OBJETS COMPOSÉS (SP-PO10) — compositeur DD3.5
+//
+// Le serveur recalcule tout par le moteur (include/objet-compose.php, D-PO19) : rien de ce que
+// le formulaire affiche n'est repris tel quel. Une composition qui enfreint une règle est
+// refusée (D-PO20). Prix, coût et PX sont figés dans la ligne (photo) ; pp_prix_pc est le prix
+// d'UNE pièce (lot de munitions : prix du lot ÷ quantité, D-PO23).
+// ============================================================
+
+/** Objet de base, propriétés et sorts d'une spec : tous visibles pour l'utilisateur ? Message sinon. */
+function composeVisibiliteErreur(PDO $db, array $spec): ?string {
+  $controles = [];
+  if ((int)($spec['eqt_id'] ?? 0) > 0):
+    $controles[] = ['dd_equipements eqt LEFT JOIN dd_ressources res ON res.res_id = eqt.eqt_res_id',
+                    'eqt.eqt_id', 'eqt.eqt_camp_id', ['res.res_j_id', 'eqt.eqt_public', 'eqt.eqt_visible'],
+                    (int)$spec['eqt_id'], 'Objet de base indisponible.'];
+  endif;
+  foreach ($spec['proprietes'] ?? [] as $p):
+    $controles[] = ['dd_objets_magiques om LEFT JOIN dd_ressources res ON res.res_id = om.om_res_id',
+                    'om.om_id', 'om.om_camp_id', ['res.res_j_id', 'om.om_public', 'om.om_visible'],
+                    (int)$p['om_id'], 'Propriété spéciale indisponible.'];
+  endforeach;
+  foreach ($spec['sorts'] ?? [] as $s):
+    $controles[] = ['dd_sorts so LEFT JOIN dd_ressources res ON res.res_id = so.so_res_id',
+                    'so.so_id', 'so.so_camp_id', ['res.res_j_id', 'so.so_public', 'so.so_visible'],
+                    (int)$s['so_id'], 'Sort indisponible.'];
+  endforeach;
+
+  foreach ($controles as [$from, $col_id, $col_camp, $vis, $id, $message]):
+    $params = [$id];
+    $clause = listeClauseVisibilite($vis[0], $vis[1], $vis[2], $params);
+    // $from, $col_id et $col_camp viennent de la liste fermée ci-dessus
+    $stmt = $db->prepare("SELECT 1 FROM $from WHERE $col_id = ? AND $col_camp IS NULL AND $clause");
+    $stmt->execute($params);
+    if (!$stmt->fetchColumn()) return $message;
+  endforeach;
+  return null;
+}
+
+/**
+ * Crée ou recompose un objet composé. POST : pe_id, pp_id (0 = nouveau), nom (vide = nom généré),
+ * puis les champs du moteur (composeSpecDepuisPost : cat, eqt_id, bonus, bonus_tete2, prop_*[], sort_*[]).
+ * Recomposer garde la quantité, l'état « équipé », les charges restantes et les notes.
+ */
+function enregistrerCompose(PDO $db, bool $is_ajax): void {
+  list($pe_id, $perso) = chargerPersonnagePourCampagne($db, $is_ajax);
+  if ((int)$perso['pe_ruleset_var_id'] !== OC_RULESET):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'La composition d\'objets magiques concerne les personnages DD3.5.']);
+  endif;
+
+  $pp_id = intParam($_POST['pp_id'] ?? 0);
+  $existant = null;
+  if ($pp_id > 0):
+    $stmt = $db->prepare('SELECT * FROM dd_personnages_possessions WHERE pp_id = ? AND pp_pe_id = ? AND pp_type = \'compose\'');
+    $stmt->execute([$pp_id, $pe_id]);
+    $existant = $stmt->fetch();
+    if (!$existant):
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Objet composé introuvable.']);
+    endif;
+  endif;
+
+  $spec = composeSpecDepuisPost($_POST);
+  $r    = composerObjet($db, $spec);
+  if (!$r['ok']):
+    repondre($is_ajax, ['ok' => false, 'erreur' => implode(' ', $r['erreurs'])]);
+  endif;
+  $err = composeVisibiliteErreur($db, $spec);
+  if ($err !== null):
+    repondre($is_ajax, ['ok' => false, 'erreur' => $err]);
+  endif;
+
+  $nom      = mb_substr(trim(strParam($_POST['nom'] ?? '')), 0, 200);
+  $nom      = $nom !== '' ? $nom : $r['nom'];
+  $quantite = $existant ? (int)$existant['pp_quantite'] : (int)$r['quantite'];
+  $charges  = $r['charges'] === null ? null : ($existant && $existant['pp_charges'] !== null ? (int)$existant['pp_charges'] : (int)$r['charges']);
+  $prix_u   = composeArrondi($r['prix_pc'] / max(1, (int)$r['quantite']));
+  $eqt_id   = in_array($r['cat'], ['arme', 'armure', 'bouclier'], true) ? (int)$spec['eqt_id'] : null;
+
+  $champs = [
+    'pp_eqt_id' => $eqt_id, 'pp_nom' => $nom, 'pp_charges' => $charges, 'pp_compose_cat' => $r['cat'],
+    'pp_maitre' => (int)$r['maitre'], 'pp_bonus' => $r['bonus'], 'pp_bonus_tete2' => $r['bonus_tete2'],
+    'pp_nls' => $r['nls'], 'pp_prix_pc' => $prix_u, 'pp_cout_pc' => (int)$r['cout_pc'], 'pp_cout_px' => (int)$r['cout_px'],
+  ];
+
+  try {
+    $db->beginTransaction();
+    if ($existant):
+      $sets = implode(', ', array_map(fn($c) => "$c = ?", array_keys($champs)));
+      $db->prepare("UPDATE dd_personnages_possessions SET $sets, pp_date_maj = NOW() WHERE pp_id = ?")
+         ->execute(array_merge(array_values($champs), [$pp_id]));
+      $db->prepare('DELETE FROM dd_personnages_possessions_elements WHERE ppe_pp_id = ?')->execute([$pp_id]);
+    else:
+      $stmt = $db->prepare('SELECT COALESCE(MAX(pp_ordre), 0) + 1 FROM dd_personnages_possessions WHERE pp_pe_id = ?');
+      $stmt->execute([$pe_id]);
+      $champs = array_merge(['pp_pe_id' => $pe_id, 'pp_type' => 'compose', 'pp_quantite' => $quantite,
+                             'pp_ordre' => min(65535, (int)$stmt->fetchColumn())], $champs);
+      $cols = implode(', ', array_keys($champs));
+      $ph   = implode(', ', array_fill(0, count($champs), '?'));
+      $db->prepare("INSERT INTO dd_personnages_possessions ($cols) VALUES ($ph)")->execute(array_values($champs));
+      $pp_id = (int)$db->lastInsertId();
+    endif;
+
+    $ins = $db->prepare('
+      INSERT INTO dd_personnages_possessions_elements
+        (ppe_pp_id, ppe_type, ppe_tete, ppe_om_id, ppe_so_id, ppe_cla_id, ppe_niveau, ppe_nls,
+         ppe_parametre, ppe_suppl_pc, ppe_suppl_px, ppe_ordre)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ');
+    foreach ($r['elements'] as $e):
+      $ins->execute([$pp_id, $e['ppe_type'], $e['ppe_tete'], $e['ppe_om_id'], $e['ppe_so_id'], $e['ppe_cla_id'],
+                     $e['ppe_niveau'], $e['ppe_nls'], $e['ppe_parametre'], $e['ppe_suppl_pc'], $e['ppe_suppl_px'], $e['ppe_ordre']]);
+    endforeach;
+    $db->commit();
+    $totaux = apresPossession($db, $pe_id);
+  } catch (PDOException $e) {
+    if ($db->inTransaction()) $db->rollBack();
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  repondre($is_ajax, ['ok' => true, 'pp_id' => $pp_id, 'nom' => $nom, 'totaux' => $totaux]);
+}
+
+// ============================================================
+// CONSOMMABLES COMPOSÉS (SP-PO11) — utilisation en jeu
+//
+// Potion ou huile bue : un exemplaire de moins, la ligne disparaît au dernier.
+// Baguette : une charge de moins (jamais sous 0 ; une baguette vide reste dans l'inventaire).
+// Parchemin : chaque sort se coche « lu » (ppe_utilise). Quand tous les sorts d'un parchemin
+// en plusieurs exemplaires sont lus, l'exemplaire est consommé et les cases reviennent à zéro.
+// ============================================================
+
+/** POST pp_id : boire une potion / huile, ou utiliser une charge de baguette. */
+function consommerPossession(PDO $db, bool $is_ajax): void {
+  $pp    = chargerPossession($db, $is_ajax);
+  $pp_id = (int)$pp['pp_id'];
+  $cat   = $pp['pp_type'] === 'compose' ? (string)$pp['pp_compose_cat'] : '';
+  $retire = false;
+
+  try {
+    if ($cat === 'potion' || $cat === 'huile'):
+      if ((int)$pp['pp_quantite'] <= 1):
+        $db->beginTransaction();
+        $db->prepare('DELETE FROM dd_personnages_possessions_elements WHERE ppe_pp_id = ?')->execute([$pp_id]);
+        $db->prepare('DELETE FROM dd_personnages_possessions WHERE pp_id = ?')->execute([$pp_id]);
+        $db->commit();
+        $retire = true;
+      else:
+        $db->prepare('UPDATE dd_personnages_possessions SET pp_quantite = pp_quantite - 1, pp_date_maj = NOW() WHERE pp_id = ?')
+           ->execute([$pp_id]);
+      endif;
+    elseif ($cat === 'baguette'):
+      if ((int)$pp['pp_charges'] <= 0):
+        repondre($is_ajax, ['ok' => false, 'erreur' => 'Cette baguette n\'a plus de charge.']);
+      endif;
+      $db->prepare('UPDATE dd_personnages_possessions SET pp_charges = pp_charges - 1, pp_date_maj = NOW() WHERE pp_id = ?')
+         ->execute([$pp_id]);
+    else:
+      repondre($is_ajax, ['ok' => false, 'erreur' => 'Seules les potions, huiles et baguettes composées se consomment ainsi.']);
+    endif;
+    $totaux = apresPossession($db, (int)$pp['pe_id']);
+  } catch (PDOException $e) {
+    if ($db->inTransaction()) $db->rollBack();
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+  }
+
+  repondre($is_ajax, [
+    'ok'       => true,
+    'retire'   => $retire,
+    'quantite' => $retire ? 0 : (int)$pp['pp_quantite'] - (($cat === 'potion' || $cat === 'huile') ? 1 : 0),
+    'charges'  => $cat === 'baguette' ? (int)$pp['pp_charges'] - 1 : null,
+    'totaux'   => $totaux,
+  ]);
+}
+
+/** POST pp_id, ppe_id, valeur (0 | 1) : sort d'un parchemin lu ou non. */
+function utiliserSortParchemin(PDO $db, bool $is_ajax): void {
+  $pp    = chargerPossession($db, $is_ajax);
+  $pp_id = (int)$pp['pp_id'];
+  if ($pp['pp_type'] !== 'compose' || $pp['pp_compose_cat'] !== 'parchemin'):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Ce n\'est pas un parchemin composé.']);
+  endif;
+  $ppe_id = intParam($_POST['ppe_id'] ?? 0);
+  $valeur = intParam($_POST['valeur'] ?? 0) === 1 ? 1 : 0;
+
+  $stmt = $db->prepare('UPDATE dd_personnages_possessions_elements SET ppe_utilise = ? WHERE ppe_id = ? AND ppe_pp_id = ? AND ppe_type = \'sort\'');
+  $stmt->execute([$valeur, $ppe_id, $pp_id]);
+  $stmt = $db->prepare('SELECT COUNT(*) FROM dd_personnages_possessions_elements WHERE ppe_id = ? AND ppe_pp_id = ?');
+  $stmt->execute([$ppe_id, $pp_id]);
+  if (!$stmt->fetchColumn()):
+    repondre($is_ajax, ['ok' => false, 'erreur' => 'Sort introuvable sur ce parchemin.']);
+  endif;
+
+  // Tous les sorts lus et d'autres exemplaires en réserve : un parchemin de moins, cases remises à zéro
+  $consomme = false;
+  if ($valeur === 1 && (int)$pp['pp_quantite'] > 1):
+    $stmt = $db->prepare('SELECT COUNT(*) FROM dd_personnages_possessions_elements WHERE ppe_pp_id = ? AND ppe_type = \'sort\' AND ppe_utilise = 0');
+    $stmt->execute([$pp_id]);
+    if ((int)$stmt->fetchColumn() === 0):
+      try {
+        $db->beginTransaction();
+        $db->prepare('UPDATE dd_personnages_possessions SET pp_quantite = pp_quantite - 1, pp_date_maj = NOW() WHERE pp_id = ?')->execute([$pp_id]);
+        $db->prepare('UPDATE dd_personnages_possessions_elements SET ppe_utilise = 0 WHERE ppe_pp_id = ?')->execute([$pp_id]);
+        $db->commit();
+        $consomme = true;
+      } catch (PDOException $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        repondre($is_ajax, ['ok' => false, 'erreur' => 'Erreur SQL : ' . $e->getMessage()]);
+      }
+    endif;
+  endif;
+
+  $totaux = apresPossession($db, (int)$pp['pe_id']);
+  repondre($is_ajax, ['ok' => true, 'consomme' => $consomme, 'totaux' => $totaux]);
 }

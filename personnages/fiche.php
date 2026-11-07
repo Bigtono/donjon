@@ -157,9 +157,24 @@ $bonus_maitrise = ($ruleset_rep === 'DD2024')
 // Modificateur de la caractéristique associée, indexé par comp_car_id.
 $mod_par_carac = modsCaracCompetences($perso, $competences);
 
-// Mode lecture : compétences maîtrisées uniquement
-$competences_maitrisees = array_values(array_filter($competences, function($c) {
-  return (int)$c['pec_maitrise'] > 0;
+// Synergies (SP-PE21 — DD3.5) : celles que les rangs actuels ont acquises,
+// indexées par compétence cible. Les règles de synergie elles-mêmes vont à
+// l'éditeur, qui recalcule le total pendant la saisie des rangs.
+$synergies = synergiesCompetences($db, $competences, $ruleset_rep);
+$regles_synergies = [];
+if ($ruleset_rep === 'DD3.5'):
+  $regles_synergies = $db->query('
+    SELECT syn_comp_source_id, syn_comp_cible_id, syn_seuil, syn_bonus, syn_condition
+      FROM dd_competences_synergies
+  ')->fetchAll();
+endif;
+
+// Mode lecture : compétences maîtrisées, ou portées par un modificateur divers
+// (SP-PE20) ou une synergie acquise sans condition (SP-PE21)
+$competences_maitrisees = array_values(array_filter($competences, function($c) use ($synergies) {
+  return (int)$c['pec_maitrise'] > 0
+    || (int)$c['pec_mod_divers'] !== 0
+    || !empty($synergies[(int)$c['comp_id']]['bonus']);
 }));
 
 // ------------------------------------------------------------
@@ -259,8 +274,21 @@ require_once '../include/header.php';
       'malusArmure'  => (bool)$c['comp_malusArmure'],
       'classe'       => isset($comp_classe_ids[(int)$c['comp_id']]),
       'maitrise'     => (int)$c['pec_maitrise'],
+      'divers'       => (int)$c['pec_mod_divers'],
+      'libelle'      => (string)($c['pec_mod_libelle'] ?? ''),
     ];
   }, $competences), JSON_UNESCAPED_UNICODE) ?>;
+
+  // Règles de synergie DD3.5 (SP-PE21) — vide en DD2024
+  var perSynergies = <?= json_encode(array_map(function($s) {
+    return [
+      'source'    => (int)$s['syn_comp_source_id'],
+      'cible'     => (int)$s['syn_comp_cible_id'],
+      'seuil'     => (int)$s['syn_seuil'],
+      'bonus'     => (int)$s['syn_bonus'],
+      'condition' => $s['syn_condition'] !== null && trim($s['syn_condition']) !== '',
+    ];
+  }, $regles_synergies)) ?>;
 
   // Bonus de maîtrise DD2024 au niveau global (0 en DD3.5) — calcul du total live
   var perBonusMaitrise = <?= (int)$bonus_maitrise ?>;
@@ -730,14 +758,32 @@ require_once '../include/header.php';
               <span class="per-comp__nom">Compétence</span>
               <span class="per-comp__val per-comp__val--carac">Carac</span>
               <span class="per-comp__val"><?= $ruleset_rep === 'DD2024' ? 'Maîtrise' : 'Rangs' ?></span>
+              <span class="per-comp__val" title="Modificateur divers et synergies">Div.</span>
               <span class="per-comp__val">Total</span>
             </li>
 
             <?php foreach ($competences_maitrisees as $c): ?>
               <?php
+                $comp_id  = (int)$c['comp_id'];
                 $maitrise = (int)$c['pec_maitrise'];
-                $mod      = (int)($mod_par_carac[(int)$c['comp_car_id']] ?? 0);
-                $total    = bonusCompetence($maitrise, $mod, $ruleset_rep, $bonus_maitrise);
+                $divers   = (int)$c['pec_mod_divers'];
+                $syn      = $synergies[$comp_id] ?? ['bonus' => 0, 'acquises' => [], 'conditionnelles' => []];
+                $total    = totalCompetence($c, $mod_par_carac, $ruleset_rep, $bonus_maitrise, $synergies);
+
+                // Détail sous le nom (SP-PE20, SP-PE21) : origine du modificateur
+                // divers, synergies acquises, puis synergies conditionnelles —
+                // celles-ci hors total, le joueur les ajoute au cas par cas.
+                $details = [];
+                if ($divers !== 0):
+                  $details[] = 'Divers ' . formatMod($divers)
+                    . (trim((string)$c['pec_mod_libelle']) !== '' ? ' : ' . trim($c['pec_mod_libelle']) : '');
+                endif;
+                foreach ($syn['acquises'] as $s):
+                  $details[] = 'Synergie ' . formatMod($s['bonus']) . ' : ' . $s['source'];
+                endforeach;
+                foreach ($syn['conditionnelles'] as $s):
+                  $details[] = formatMod($s['bonus']) . ' ' . $s['condition'] . ' (' . $s['source'] . ', hors total)';
+                endforeach;
               ?>
               <li class="per-comp__item">
                 <span class="per-comp__nom">
@@ -750,6 +796,9 @@ require_once '../include/header.php';
                   <?php endif ?>
                   <?php if ((int)$c['comp_malusArmure'] === 1): ?>
                     <span class="per-comp__flag" title="Soumise au malus d'armure">A</span>
+                  <?php endif ?>
+                  <?php if ($details): ?>
+                    <span class="per-comp__detail"><?= h(implode(' · ', $details)) ?></span>
                   <?php endif ?>
                 </span>
                 <span class="per-comp__val per-comp__val--carac">
@@ -769,6 +818,13 @@ require_once '../include/header.php';
                     <?= $maitrise ?>
                   <?php endif ?>
                 </span>
+                <span class="per-comp__val">
+                  <?php if ($divers + $syn['bonus'] !== 0): ?>
+                    <?= formatMod($divers + $syn['bonus']) ?>
+                  <?php else: ?>
+                    <span class="text-muted">—</span>
+                  <?php endif ?>
+                </span>
                 <span class="per-comp__val per-comp__val--total"><?= formatMod($total) ?></span>
               </li>
             <?php endforeach ?>
@@ -786,6 +842,7 @@ require_once '../include/header.php';
             <?= $ruleset_rep === 'DD2024'
               ? 'Aucune / Maîtrise / Expertise'
               : 'Nombre de rangs (0 = non maîtrisée)' ?>
+            · Divers : bonus de dons, capacités ou objets
           </span>
           <?php if ($ruleset_rep === 'DD3.5'): ?>
             <?php // Légende de l'étoile posée sur les compétences de classe par l'éditeur ?>

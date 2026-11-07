@@ -437,6 +437,20 @@ function chargerTableauParId(PDO $db, int $id, int $ruleset_id): ?array
   return $row ?: null;
 }
 
+// Catégories de tableaux (SP-TB12), communes aux deux rulesets : [tabc_id => tabc_nom],
+// dans l'ordre d'affichage. Sert au formulaire, au sélecteur et à la fiche ; le filtre
+// de la liste interroge la même table par la clé 'query' du moteur.
+function chargerCategoriesTableaux(PDO $db): array
+{
+  static $cache = null;
+  if ($cache !== null) return $cache;
+  $cache = $db->query('
+    SELECT tabc_id, tabc_nom FROM dd_tableaux_categories
+    ORDER  BY tabc_ordre, tabc_nom
+  ')->fetchAll(PDO::FETCH_KEY_PAIR);
+  return $cache;
+}
+
 // ============================================================
 // 6. CHAMPS HÔTES DU TAG — source de vérité unique (SP-TB10)
 // ============================================================

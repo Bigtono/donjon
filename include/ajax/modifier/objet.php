@@ -30,6 +30,10 @@ $om = [
   'om_so_niveau'    => 0,
   'om_modificateurs'=> 0,
   'om_variantes'    => '',
+  'om_prix'         => null,
+  'om_bonus_equiv'  => null,
+  'om_nls'          => null,
+  'om_restriction'  => null,
   'om_description'  => '',
   'om_harmonisation'=> 0,
   'om_rarete'       => 0,
@@ -48,7 +52,7 @@ endif;
 
 // Catégories (filtrées par ruleset)
 $categories = $db->prepare('
-  SELECT com_id, com_nom, com_est_calcule
+  SELECT com_id, com_nom, com_est_calcule, com_est_propriete
   FROM   dd_categorie_objet_magique
   WHERE  com_ruleset_var_id = ?
   ORDER  BY com_nom
@@ -56,11 +60,17 @@ $categories = $db->prepare('
 $categories->execute([$ruleset_id]);
 $categories = $categories->fetchAll();
 
-// Map com_id → com_est_calcule pour injecter en JS
-$cat_calcule_map = [];
+// Map com_id → com_est_calcule / com_est_propriete pour injecter en JS
+$cat_calcule_map   = [];
+$cat_propriete_map = [];
 foreach ($categories as $cat):
-  $cat_calcule_map[(int)$cat['com_id']] = (int)$cat['com_est_calcule'];
+  $cat_calcule_map[(int)$cat['com_id']]   = (int)$cat['com_est_calcule'];
+  $cat_propriete_map[(int)$cat['com_id']] = (int)$cat['com_est_propriete'];
 endforeach;
+
+// Propriété spéciale DD3.5 (SP-PO6) : jetons de restriction cochés
+$restrictions_jetons = proprieteRestrictionsJetons();
+$restriction_cochees = preg_split('/\s+/', (string)($om['om_restriction'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
 
 // Formats d'objet
 $formats = $db->query('SELECT fom_id, fom_nom FROM dd_format_objet_magique ORDER BY fom_id')
@@ -325,6 +335,63 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
 
       </div><!-- .modif-grid -->
     </div><!-- #section-dd35-auto -->
+
+    <!-- ===== Section DD3.5 : propriété spéciale d'arme ou d'armure (SP-PO6) ===== -->
+    <div class="modif-section" id="section-dd35-propriete" hidden>
+
+      <div class="modif-section__header">
+        <span class="modif-section__label">Propriété spéciale</span>
+      </div>
+
+      <div class="modif-grid">
+
+        <div class="form-group">
+          <label for="om_bonus_equiv">Équivalence en bonus
+            <span class="form-hint">(s'ajoute au bonus d'altération)</span>
+          </label>
+          <select id="om_bonus_equiv" name="om_bonus_equiv">
+            <option value="">— Prix fixe —</option>
+            <?php for ($i = 1; $i <= 5; $i++): ?>
+              <option value="<?= $i ?>"
+                <?= (int)($om['om_bonus_equiv'] ?? 0) === $i ? 'selected' : '' ?>>+<?= $i ?></option>
+            <?php endfor ?>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="om_prix_fixe">Prix fixe (po)
+            <span class="form-hint">(si pas d'équivalence)</span>
+          </label>
+          <input type="number" id="om_prix_fixe" name="om_prix_fixe" min="0" step="1"
+                 value="<?= $om['om_prix'] !== null && $om['om_prix'] !== '' ? (int)$om['om_prix'] : '' ?>">
+        </div>
+
+        <div class="form-group">
+          <label for="om_nls">NLS</label>
+          <input type="number" id="om_nls" name="om_nls" min="1" max="20"
+                 value="<?= !empty($om['om_nls']) ? (int)$om['om_nls'] : '' ?>">
+        </div>
+
+        <div class="form-group modif-grid__full">
+          <label>Restrictions
+            <span class="form-hint">(aucune case = tout objet de la catégorie)</span>
+          </label>
+          <?php foreach ($restrictions_jetons as $groupe => $jetons): ?>
+            <div class="om-restrictions">
+              <span class="form-hint"><?= $groupe === 'emploi' ? 'Emploi :' : 'Type de dégâts :' ?></span>
+              <?php foreach ($jetons as $jeton => $libelle): ?>
+                <label class="form-label--checkbox">
+                  <input type="checkbox" name="om_restriction[]" value="<?= h($jeton) ?>"
+                    <?= in_array($jeton, $restriction_cochees, true) ? 'checked' : '' ?>>
+                  <?= h($libelle) ?>
+                </label>
+              <?php endforeach ?>
+            </div>
+          <?php endforeach ?>
+        </div>
+
+      </div><!-- .modif-grid -->
+    </div><!-- #section-dd35-propriete -->
     <?php elseif ($ruleset_rep === 'DD2024'): ?>
     <!-- ===== Section DD2024 uniquement : rareté + harmonisation + campagne ===== -->
     <div class="modif-section" id="section-dd2024">
@@ -434,6 +501,7 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
 // Données contextuelles pour omToggleSections() et initSortAutocomplete()
 // var (pas const) : réexécuté à chaque ouverture — const provoquerait SyntaxError
 var OM_CAT_CALCULE = <?= json_encode($cat_calcule_map) ?>;
+var OM_CAT_PROPRIETE = <?= json_encode($cat_propriete_map) ?>;
 var OM_RULESET_ID  = <?= $ruleset_id ?>;
 var BASE_URL = <?= json_encode(BASE_URL) ?>;
 

@@ -62,7 +62,24 @@ function labelsDD35(): array
     'Jets de sauvegarde', 'Caracteristiques', 'Competences', 'Dons',
     'Environnement', 'Organisation sociale', 'Facteur de puissance', 'Tresor',
     'Alignement', 'Evolution possible', 'Ajustement de niveau', 'Type',
+    // SP-MO2 — libellés du format court (fiches de l'ancienne application, D-MO2)
+    'PV', 'Sens', 'Langues', 'Aura', 'Immunites', 'Resistances', 'Vulnerabilites',
+    'RM', 'RD', 'Faiblesse', 'Faiblesses', 'Melee', 'Distance', 'Espace', 'Allonge', 'Lutte',
+    'Attaque de base', "Options d'attaque", 'Options de combat', 'Actions speciales',
+    'Capacites magiques', 'Pouvoirs magiques', 'Capacites de type sort',
+    'Possessions', 'Equipement de combat', 'Equipement',
   ];
+}
+
+// SP-MO2 — Libellé DD3.5 reconnu : liste fixe, plus les lignes de sorts dont
+// l'intitulé varie avec la classe (« Sorts de prêtre préparés », « Sorts
+// d'ensorceleur connus »…). $gNorm est déjà passé par normaliserNomMonstre().
+function estLabelDD35(string $gNorm, array $labelSet): bool
+{
+  // précision finale entre parenthèses : « Capacités de type sort (NLS 6e) »
+  $gNorm = trim(preg_replace('/\s*\([^)]*\)$/u', '', $gNorm));
+  if (isset($labelSet[$gNorm])) return true;
+  return (bool)preg_match('/^sorts\b.{0,40}\b(prepares|connus)$/u', $gNorm);
 }
 
 function labelsInlineDD2024(): array
@@ -719,32 +736,95 @@ function formaterBlocDD2024(
 // 9. RENDU DD3.5
 // ============================================================
 
+// Titres de section du Manuel des Monstres, seuls sur leur ligne (« Combat »).
+function sectionsTitresDD35(): array
+{
+  return ['Combat', 'Description', 'Ecologie', 'Societe', 'Tactique', 'Strategie'];
+}
+
+// SP-MO2 — Ligne d'une liste de sorts ou de pouvoirs : « 1er — … », « 5ème - … »,
+// « 0 - … », « À volonté — … », « 3/jour — … », « 1 fois par jour — … ».
+// Retour : [préfixe, reste] ou null.
+function sousListeDD35(string $ligne): ?array
+{
+  if (!preg_match('/^(.{1,40}?)\s*[—–-]\s+(.+)$/u', $ligne, $m)) return null;
+  $pref = normaliserNomMonstre($m[1]);
+  $motif = '/^(\d+(er|re|e|eme|nd|nde)?'
+         . '|a volonte|constant|permanent'
+         . '|\d+\s*(\/|fois par\s*)(jour|round|semaine|heure|mois)s?)'
+         . '(\s+chacun[e]?)?(\s*\([^)]{0,30}\))?$/u';
+  return preg_match($motif, $pref) ? [trim($m[1]), trim($m[2])] : null;
+}
+
+// SP-MO2 — Nom d'une capacité spéciale en tête de ligne, à la façon du MM :
+// « Étreinte (Ext). … », « Vision lucide (Sur). … », ou un libellé connu suivi
+// d'un point (« Pouvoirs magiques. … », « Compétences. … »).
+// Retour : [nom sans le point final, description] ou null.
+function pouvoirDD35(string $ligne, array $labelSet): ?array
+{
+  if (preg_match('/^(.{2,80}?\((?:Ext|Sur|Mag|Psi|Ex|Su|Ma)\))\s*\.?\s*(.*)$/u', $ligne, $m)):
+    return [trim($m[1]), trim($m[2])];
+  endif;
+  if (preg_match('/^([^.:]{2,40})\.\s+(.+)$/u', $ligne, $m)
+      && estLabelDD35(normaliserNomMonstre($m[1]), $labelSet)):
+    return [trim($m[1]), trim($m[2])];
+  endif;
+  return null;
+}
+
+// Rendu d'une ligne DD3.5 : renvoie le bloc HTML complet de la ligne.
 function formaterLigneDD35(
   string $ligne, array $labelSet, array $index, array $indexAuto,
   PDO $db, array &$rapport
 ): string {
+  $label = static fn(string $txt): string =>
+    '<strong class="mo-stat-label mo-stat-label--dd35">' . h($txt) . '</strong>';
+
+  // Titre de section (« Combat »)
+  $titres = array_map('normaliserNomMonstre', sectionsTitresDD35());
+  if (in_array(normaliserNomMonstre($ligne), $titres, true)):
+    return '<div class="mo-section-titre">' . h(trim($ligne)) . '</div>';
+  endif;
+
+  // « Libellé : valeur »
   $pos = mb_strpos($ligne, ':');
   if ($pos !== false):
     $gauche = trim(mb_substr($ligne, 0, $pos));
     $droite = trim(mb_substr($ligne, $pos + 1));
     $gNorm  = normaliserNomMonstre($gauche);
-    if ($gauche !== '' && isset($labelSet[$gNorm])):
-      $labelHtml = '<strong class="mo-stat-label">' . h($gauche) . '</strong>';
-      if ($droite === '') return $labelHtml . ' :';
+    if ($gauche !== '' && estLabelDD35($gNorm, $labelSet)):
+      if ($droite === '') return '<div class="mo-stat-ligne">' . $label($gauche) . ' :</div>';
       // Dons : liaison par tags # + liaison auto dons
-      // Sorts : liaison par tags $ + liaison auto sorts
-      // Autres : tags explicites + liaison auto (sorts + glossaire)
+      // Autres : tags explicites + liaison auto (sorts + objets + glossaire)
       $droite = resoudreTagsExplicites($droite, $db, $index, 0, $rapport);
       if ($gNorm === 'dons'):
         $valeur = lierDons($droite, $index, $rapport);
       else:
         $valeur = lierAuto($droite, $indexAuto, $rapport);
       endif;
-      return $labelHtml . ' : ' . exposantEtoiles($valeur);
+      return '<div class="mo-stat-ligne">' . $label($gauche) . ' : ' . exposantEtoiles($valeur) . '</div>';
     endif;
   endif;
+
+  // Ligne d'une liste de sorts ou de pouvoirs : décalée, liaison aux sorts seulement
+  $sous = sousListeDD35($ligne);
+  if ($sous !== null):
+    $val = resoudreTagsExplicites($sous[1], $db, $index, 0, $rapport);
+    $val = exposantEtoiles(lierSorts($val, $index, $rapport));
+    return '<div class="mo-sous-liste mo-sous-liste--dd35">'
+         . '<span class="mo-sous-liste-label">' . h($sous[0]) . ' —</span> ' . $val . '</div>';
+  endif;
+
+  // Capacité spéciale : nom en libellé, description liée
+  $pouvoir = pouvoirDD35($ligne, $labelSet);
+  if ($pouvoir !== null):
+    $desc = resoudreTagsExplicites($pouvoir[1], $db, $index, 0, $rapport);
+    $desc = exposantEtoiles(lierAuto($desc, $indexAuto, $rapport));
+    return '<div class="mo-pouvoir">' . $label($pouvoir[0] . '.') . ($pouvoir[1] !== '' ? ' ' . $desc : '') . '</div>';
+  endif;
+
   $ligne = resoudreTagsExplicites($ligne, $db, $index, 0, $rapport);
-  return exposantEtoiles(lierAuto($ligne, $indexAuto, $rapport));
+  return '<div class="mo-stat-ligne">' . exposantEtoiles(lierAuto($ligne, $indexAuto, $rapport)) . '</div>';
 }
 
 // ============================================================
@@ -798,9 +878,7 @@ function rendreStatsMonstre(PDO $db, ?string $texte, int $ruleset_id, array $res
         $out[] = '<hr class="mo-stat-hr">';
         continue;
       endif;
-      $out[] = '<div class="mo-stat-ligne">'
-             . formaterLigneDD35($ligne, $labelSet, $index, $indexAuto, $db, $rapport)
-             . '</div>';
+      $out[] = formaterLigneDD35(trim($ligne), $labelSet, $index, $indexAuto, $db, $rapport);
     endforeach;
     $html = implode("\n", $out);
   endif;

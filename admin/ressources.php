@@ -17,18 +17,11 @@ $css_module = 'admin';
 // Message de confirmation de suppression : affiche les compteurs
 function confirmerRessource(array $ligne): string
 {
-  $nb_classes = (int)($ligne['nb_classes'] ?? 0);
-  $nb_races   = (int)($ligne['nb_races']   ?? 0);
-  $nb_sorts   = (int)($ligne['nb_sorts']   ?? 0);
-  $total      = $nb_classes + $nb_races + $nb_sorts;
+  $details = decrireContenuRessource($ligne);
 
-  if ($total > 0):
-    $details = [];
-    if ($nb_classes) $details[] = $nb_classes . ' classe' . ($nb_classes > 1 ? 's' : '');
-    if ($nb_races)   $details[] = $nb_races   . ' race'   . ($nb_races   > 1 ? 's' : '');
-    if ($nb_sorts)   $details[] = $nb_sorts   . ' sort'   . ($nb_sorts   > 1 ? 's' : '');
+  if ($details !== ''):
     return '<span class="text-danger"><i class="fa fa-exclamation-triangle"></i> '
-      . 'Cette ressource contient ' . implode(', ', $details)
+      . 'Cette ressource contient ' . h($details)
       . ' — la suppression sera refusée.</span>';
   endif;
 
@@ -46,6 +39,8 @@ function renderNbAvecBadge(array $ligne, string $champ): string
 function renderNbClasses(array $ligne): string  { return renderNbAvecBadge($ligne, 'nb_classes'); }
 function renderNbRaces(array $ligne): string    { return renderNbAvecBadge($ligne, 'nb_races');   }
 function renderNbSorts(array $ligne): string    { return renderNbAvecBadge($ligne, 'nb_sorts');   }
+function renderNbDons(array $ligne): string     { return renderNbAvecBadge($ligne, 'nb_dons');    }
+function renderNbObjets(array $ligne): string   { return renderNbAvecBadge($ligne, 'nb_objets');  }
 
 // ============================================================
 // Configuration de la liste
@@ -79,8 +74,7 @@ $adminListConfig = [
       'tri'    => true,
     ],
     [
-      'sql'    => '(SELECT COUNT(*) FROM dd_classes
-                    WHERE cla_res_id = res.res_id AND cla_camp_id IS NULL)',
+      'sql'    => contenuRessourceSql('nb_classes'),
       'champ'  => 'nb_classes',
       'label'  => 'Classes',
       'mobile' => false,
@@ -88,7 +82,7 @@ $adminListConfig = [
       'render' => 'renderNbClasses',
     ],
     [
-      'sql'    => '(SELECT COUNT(*) FROM dd_races WHERE ra_res_id = res.res_id)',
+      'sql'    => contenuRessourceSql('nb_races'),
       'champ'  => 'nb_races',
       'label'  => 'Races',
       'mobile' => false,
@@ -96,15 +90,35 @@ $adminListConfig = [
       'render' => 'renderNbRaces',
     ],
     [
-      'sql'    => '(SELECT COUNT(*) FROM dd_sorts
-                    WHERE so_res_id = res.res_id AND so_camp_id IS NULL)',
+      'sql'    => contenuRessourceSql('nb_sorts'),
       'champ'  => 'nb_sorts',
       'label'  => 'Sorts',
       'mobile' => false,
       'tri'    => false,
       'render' => 'renderNbSorts',
     ],
+    [
+      'sql'    => contenuRessourceSql('nb_dons'),
+      'champ'  => 'nb_dons',
+      'label'  => 'Dons',
+      'mobile' => false,
+      'tri'    => false,
+      'render' => 'renderNbDons',
+    ],
+    [
+      'sql'    => contenuRessourceSql('nb_objets'),
+      'champ'  => 'nb_objets',
+      'label'  => 'Objets magiques',
+      'mobile' => false,
+      'tri'    => false,
+      'render' => 'renderNbObjets',
+    ],
   ],
+  // Compteurs sans colonne, lus par confirmerRessource()
+  'select_extra' => array_map(
+    fn($cle) => contenuRessourceSql($cle) . ' AS ' . $cle,
+    ['nb_comp', 'nb_hist', 'nb_monstres', 'nb_equipements', 'nb_regles', 'nb_tableaux']
+  ),
   'filtres'  => [
     [
       'type'        => 'select_static',

@@ -17,8 +17,8 @@ SET @ddver := (SELECT var_id FROM dd_variables
 SET @ddver := IFNULL(@ddver, (SELECT var_id FROM dd_variables WHERE var_cat='ruleset' AND var_valeur LIKE 'DD2024%' LIMIT 1));
 
 -- Ressource d'attribution SRD 5.2.1 (idempotente).
-INSERT INTO dd_ressources (res_nom, res_abreviation, res_selection, res_ruleset_var_id, res_j_id, res_editeur, res_pages, res_description)
-SELECT 'System Reference Document 5.2.1', 'SRD 5.2.1', 1, @ddver, NULL, 'Wizards of the Coast LLC', 360,
+INSERT INTO dd_ressources (res_nom, res_abreviation, res_selection, res_ruleset_var_id, res_j_id, res_editeur, res_description)
+SELECT 'System Reference Document 5.2.1', 'SRD 5.2.1', 1, @ddver, NULL, 'Wizards of the Coast LLC',
        'Contenu issu du System Reference Document 5.2.1 (SRD 5.2.1) de Wizards of the Coast LLC, sous licence CC-BY-4.0.'
 WHERE @ddver IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM dd_ressources WHERE res_abreviation = 'SRD 5.2.1' AND res_ruleset_var_id = @ddver);

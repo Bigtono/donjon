@@ -198,11 +198,6 @@ blockquote {
   color: var(--clr-text-muted);
 }
 
-.camp-detail__ruleset {
-  font-weight: 600;
-  color: var(--clr-accent);
-}
-
 .camp-detail__resume {
   font-style: italic;
   color: var(--clr-text-muted);
@@ -614,22 +609,6 @@ body.camp-plein .site-main {
   width: 18px;
   text-align: center;
   color: var(--clr-accent);
-}
-
-/* Outil annoncé mais pas encore développé (écran du MJ — SP-TB8). Visible,
-   inerte, et qui le dit : mieux qu'un bouton absent, qui ne promet rien. */
-.camp-outil--inactif {
-  opacity: .5;
-  cursor: not-allowed;
-}
-
-.camp-outil--inactif:hover {
-  background: var(--clr-surface);
-  border-color: var(--clr-border);
-}
-
-.camp-outil--inactif i {
-  color: var(--clr-text-muted);
 }
 
 .camp-outils__titre {
@@ -1056,3 +1035,352 @@ a.camp-outil {
 /* Images TinyMCE (attributs width/height) : garder les proportions sous max-width (SP-NO5) */
 .note-detail { overflow-wrap: anywhere; }
 .note-detail img { height: auto; }
+
+/* ============================================================
+   ÉCRAN DU MJ — surcouche plein écran (SP-TB8)
+   ============================================================
+   z-index 190 : au-dessus de la page et du header (100), sous
+   #detail-pp-backdrop (199) — un lien de cellule ouvre sa fiche par-dessus.
+   Les éléments sont positionnés en absolu par js/ecran-mj.js (placer()).
+   Pas de passe smartphone : le module Campagnes vise l'ordinateur. */
+
+body.ecran-mj-ouvert {
+  overflow: hidden;
+}
+
+.ecran-mj {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  display: flex;
+  flex-direction: column;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+}
+
+.ecran-mj.noDisplay {
+  display: none;
+}
+
+.ecran-mj > .loading,
+.ecran-mj > .erreur {
+  margin: var(--sp-xl);
+}
+
+/* --- Barre du haut ----------------------------------------- */
+.ecran-mj__barre {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--clr-surface);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.ecran-mj__titre {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.ecran-mj__titre i {
+  color: var(--clr-accent);
+}
+
+.ecran-mj__campagne {
+  font-size: .9rem;
+  font-weight: 400;
+  color: var(--clr-text-muted);
+}
+
+.ecran-mj__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin-left: auto;
+}
+
+.ecran-mj__actions--orga,
+.ecran-mj--orga .ecran-mj__actions--consult {
+  display: none;
+}
+
+.ecran-mj--orga .ecran-mj__actions--orga {
+  display: flex;
+}
+
+.ecran-mj__colonnes {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  margin: 0;
+  font-size: .85rem;
+  color: var(--clr-text-muted);
+}
+
+.ecran-mj__colonnes select {
+  width: auto;
+  padding: 2px var(--sp-sm);
+}
+
+.ecran-mj__fermer {
+  border: none;
+  background: none;
+  color: var(--clr-text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: var(--sp-xs) var(--sp-sm);
+}
+
+.ecran-mj__fermer:hover {
+  color: var(--clr-accent);
+}
+
+/* --- Corps et grille --------------------------------------- */
+.ecran-mj__corps {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-md);
+}
+
+.ecran-mj__vide {
+  display: none;
+  margin: var(--sp-xl) auto;
+  max-width: 640px;
+  text-align: center;
+  color: var(--clr-text-muted);
+}
+
+.ecran-mj--vide .ecran-mj__vide {
+  display: block;
+}
+
+.ecran-mj__vide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-sm);
+}
+
+.ecran-mj__grille {
+  position: relative;
+  min-height: 200px;
+}
+
+.ecran-mj--vide .ecran-mj__grille {
+  min-height: 0;
+}
+
+/* Bandes de colonnes : cibles de dépôt, visibles en organisation seulement */
+.ecran-mj__bande {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: none;
+  border: 1px dashed var(--clr-border);
+  border-radius: var(--radius-md);
+}
+
+.ecran-mj--orga .ecran-mj__bande {
+  display: block;
+}
+
+.ecran-mj__bande--survol {
+  border-color: var(--clr-accent);
+  background: var(--clr-surface-2);
+}
+
+/* --- Un tableau sur l'écran -------------------------------- */
+.ecran-mj__item {
+  position: absolute;
+  box-sizing: border-box;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: top .15s ease, left .15s ease;
+}
+
+.ecran-mj__item-barre {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding: var(--sp-xs) var(--sp-sm);
+  background: var(--clr-surface-2);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.ecran-mj__item--replie .ecran-mj__item-barre {
+  border-bottom: none;
+}
+
+.ecran-mj__item-titre {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--clr-text);
+  font-family: var(--font-main);
+  font-size: .95rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ecran-mj__chevron {
+  color: var(--clr-text-muted);
+  font-size: .75rem;
+  transition: transform .15s ease;
+}
+
+.ecran-mj__item--replie .ecran-mj__chevron {
+  transform: rotate(-90deg);
+}
+
+.ecran-mj__item--replie .ecran-mj__item-corps {
+  display: none;
+}
+
+.ecran-mj__item-corps {
+  padding: var(--sp-xs) var(--sp-sm);
+}
+
+.ecran-mj__item-corps .reg-tab {
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Poignée et réglages : mode organisation seulement */
+.ecran-mj__poignee,
+.ecran-mj__item-outils {
+  display: none;
+}
+
+.ecran-mj--orga .ecran-mj__poignee {
+  display: inline-block;
+  padding: 0 var(--sp-xs);
+  color: var(--clr-text-muted);
+  cursor: grab;
+}
+
+.ecran-mj--orga .ecran-mj__item-outils {
+  display: flex;
+  gap: var(--sp-xs);
+}
+
+.ecran-mj__item-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px var(--sp-xs);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+  color: var(--clr-text-muted);
+  font-size: .75rem;
+  cursor: pointer;
+}
+
+.ecran-mj__item-btn:hover {
+  color: var(--clr-accent);
+  border-color: var(--clr-accent);
+}
+
+.ecran-mj__item--glisse {
+  opacity: .4;
+}
+
+.ecran-mj__cible--avant {
+  box-shadow: 0 -3px 0 var(--clr-accent);
+}
+
+.ecran-mj__cible--apres {
+  box-shadow: 0 3px 0 var(--clr-accent);
+}
+
+/* --- Sous-panneaux : ajout et duplication ------------------ */
+.ecran-mj-picker__filtres {
+  display: flex;
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-sm);
+}
+
+.ecran-mj-picker__liste,
+.ecran-mj-dupliquer__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ecran-mj-picker__liste {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.ecran-mj-picker__item label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-xs) var(--sp-sm);
+  border-bottom: 1px solid var(--clr-border);
+  cursor: pointer;
+}
+
+.ecran-mj-picker__item label:hover {
+  background: var(--clr-surface-2);
+}
+
+.ecran-mj-picker__nom {
+  flex: 1;
+}
+
+.ecran-mj-picker__propose {
+  color: var(--clr-accent-2);
+}
+
+.ecran-mj-picker__meta,
+.ecran-mj-dupliquer__meta {
+  font-size: .8rem;
+  color: var(--clr-text-muted);
+}
+
+.ecran-mj-picker__pied {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-md);
+}
+
+.ecran-mj-picker__compte {
+  margin-right: auto;
+  font-size: .85rem;
+  color: var(--clr-text-muted);
+}
+
+.ecran-mj-dupliquer__btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+  margin-bottom: var(--sp-xs);
+  padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  font-family: var(--font-main);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ecran-mj-dupliquer__btn:hover {
+  border-color: var(--clr-accent);
+  background: var(--clr-surface-2);
+}

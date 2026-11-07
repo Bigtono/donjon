@@ -32,13 +32,11 @@ $stmt = $db->prepare('
          rat.rat_nom,
          res.res_nom,
          res.res_j_id,
-         camp.camp_nom,
-         var.var_valeur AS ruleset_label
+         camp.camp_nom
   FROM   dd_races ra
   LEFT JOIN dd_race_type  rat  ON rat.rat_id   = ra.ra_rat_id
   LEFT JOIN dd_ressources res  ON res.res_id   = ra.ra_res_id
   LEFT JOIN dd_campagnes  camp ON camp.camp_id = ra.ra_camp_id
-  LEFT JOIN dd_variables  var  ON var.var_id   = ra.ra_ruleset_var_id
   WHERE  ra.ra_id = ?
 ');
 $stmt->execute([$id]);
@@ -140,9 +138,6 @@ $capacites = $stmt_cap->fetchAll();
         <i class="fa fa-flask"></i> <?= h($ra['camp_nom']) ?>
       </span>
     <?php endif ?>
-    <span class="sort-detail__ruleset">
-      <?= h($ra['ruleset_label']) ?>
-    </span>
   </div>
 
 </div>

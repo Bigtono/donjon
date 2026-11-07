@@ -889,7 +889,10 @@ function releveDevice() {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(donnees).toString()
   })
-    .then(() => { RELEVE_DEVICE = false; })
+    .then((reponse) => {
+      if (reponse.ok) RELEVE_DEVICE = false;
+      else console.warn('Relevé d\'affichage non enregistré : erreur ' + reponse.status);
+    })
     .catch(() => {});
 }
 

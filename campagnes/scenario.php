@@ -50,7 +50,7 @@ $chapitres = $stmt_scc->fetchAll();
 
 // Notes rattachées au scénario (SP-NO3), les plus récentes d'abord.
 $stmt_no = $db->prepare('
-  SELECT n.no_id, n.no_nom, n.no_date, tyno.tyno_nom,
+  SELECT n.no_id, n.no_nom, n.no_date, n.no_diffusion_campagne, tyno.tyno_nom,
          (SELECT COUNT(*) FROM dd_personnages_notes pno WHERE pno.pno_no_id = n.no_id) AS nb_dest
   FROM   dd_notes n
   LEFT JOIN dd_types_notes tyno ON tyno.tyno_id = n.no_tyno_id
@@ -97,7 +97,7 @@ require_once '../include/header.php';
         </h1>
       </div>
       <div class="camp-page__titre-actions">
-        <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/campagnes/campagne.php?id=<?= $camp_id ?>">
+        <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/campagnes/campagne-scenarios.php?id=<?= $camp_id ?>">
           <i class="fa fa-arrow-left"></i> <?= h($sce['camp_nom']) ?>
         </a>
       </div>
@@ -221,7 +221,11 @@ require_once '../include/header.php';
               <span class="note-sce__nom"><?= h($no['no_nom']) ?></span>
               <span class="note-sce__meta">
                 <?= h($no['tyno_nom'] ?? '') ?> · <?= h(date('d/m/Y', strtotime($no['no_date']))) ?>
-                · <?= (int)$no['nb_dest'] ?> destinataire<?= (int)$no['nb_dest'] > 1 ? 's' : '' ?>
+                <?php if ((int)$no['no_diffusion_campagne'] === 1): ?>
+                  · toute la campagne
+                <?php else: ?>
+                  · <?= (int)$no['nb_dest'] ?> destinataire<?= (int)$no['nb_dest'] > 1 ? 's' : '' ?>
+                <?php endif ?>
               </span>
             </li>
           <?php endforeach ?>

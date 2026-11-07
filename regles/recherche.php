@@ -142,7 +142,6 @@ require_once '../include/header.php';
     <div class="regles-toolbar">
       <h1 class="regles-titre">
         Recherche
-        <span class="site-header__ruleset"><?= h($ruleset_rep) ?></span>
       </h1>
 
       <form class="regles-recherche-form" action="<?= BASE_URL ?>/regles/recherche.php" method="get"

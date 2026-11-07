@@ -113,6 +113,32 @@ if ($comp_supplement_res_id !== null && (int)$comp['comp_res_id'] === $comp_supp
   $comp_res_id_select = 'supplement';
 endif;
 
+// Synergies accordées par cette compétence (SP-PE21 — DD3.5) : cible, seuil,
+// bonus, condition facultative. Cibles possibles : les compétences du ruleset
+// (sauf elle-même), sans filtre de sources — comme les conditions de notes.
+$synergies    = [];
+$cibles_synergie = [];
+if ($ruleset_id === 1):
+  if ($id > 0):
+    $stmt = $db->prepare('
+      SELECT syn_comp_cible_id, syn_seuil, syn_bonus, syn_condition
+        FROM dd_competences_synergies
+       WHERE syn_comp_source_id = ?
+    ORDER BY syn_id
+    ');
+    $stmt->execute([$id]);
+    $synergies = $stmt->fetchAll();
+  endif;
+  $stmt = $db->prepare('
+    SELECT comp_id, comp_nom
+      FROM dd_competences
+     WHERE comp_ruleset_var_id = ? AND comp_id <> ?
+     ORDER BY comp_nom
+  ');
+  $stmt->execute([$ruleset_id, $id]);
+  $cibles_synergie = $stmt->fetchAll();
+endif;
+
 $titre = $id > 0 ? 'Modifier ' . h($comp['comp_nom']) : 'Nouvelle compétence';
 ?>
 
@@ -224,6 +250,83 @@ $titre = $id > 0 ? 'Modifier ' . h($comp['comp_nom']) : 'Nouvelle compétence';
       </div><!-- .modif-grid -->
     </div><!-- .modif-section -->
 
+    <?php if ($ruleset_id === 1): ?>
+      <!-- Synergies accordées (SP-PE21 — DD3.5) -->
+      <div class="modif-section">
+        <div class="form-group">
+          <?php // Présent même sans ligne : une liste vide efface les synergies ?>
+          <input type="hidden" name="synergies_envoyees" value="1">
+          <label>Synergies accordées</label>
+          <span class="form-hint">Rangs minimum dans cette compétence pour donner le bonus à la compétence cible.
+            Une condition (« parchemins ») réserve le bonus à certains tests : il est alors affiché sur la fiche,
+            mais pas compté dans le total.</span>
+          <table class="table-dd comp-synergies">
+            <thead>
+              <tr>
+                <th class="comp-synergies__cible">Compétence cible</th>
+                <th class="col-stat">Rangs</th>
+                <th class="col-stat">Bonus</th>
+                <th class="comp-synergies__condition">Condition (facultative)</th>
+                <th class="col-stat"></th>
+              </tr>
+            </thead>
+            <tbody id="comp-synergies-lignes">
+              <?php foreach ($synergies as $i => $s): ?>
+                <tr class="comp-synergies__ligne">
+                  <td class="comp-synergies__cible">
+                    <select name="synergies[<?= $i ?>][cible]">
+                      <option value="0">— Choisir —</option>
+                      <?php foreach ($cibles_synergie as $cb): ?>
+                        <option value="<?= (int)$cb['comp_id'] ?>"
+                          <?= (int)$s['syn_comp_cible_id'] === (int)$cb['comp_id'] ? 'selected' : '' ?>>
+                          <?= h($cb['comp_nom']) ?>
+                        </option>
+                      <?php endforeach ?>
+                    </select>
+                  </td>
+                  <td><input type="number" name="synergies[<?= $i ?>][seuil]" value="<?= (int)$s['syn_seuil'] ?>" min="1" max="99"></td>
+                  <td><input type="number" name="synergies[<?= $i ?>][bonus]" value="<?= (int)$s['syn_bonus'] ?>" min="-20" max="20"></td>
+                  <td class="comp-synergies__condition">
+                    <input type="text" name="synergies[<?= $i ?>][condition]" value="<?= h($s['syn_condition'] ?? '') ?>" maxlength="200">
+                  </td>
+                  <td>
+                    <button type="button" class="btn btn-link btn-sm comp-synergies__retirer" title="Retirer cette synergie">
+                      <i class="fa fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+              <?php endforeach ?>
+            </tbody>
+          </table>
+          <button type="button" class="btn btn-secondary btn-sm" id="comp-synergies-ajouter">
+            <i class="fa fa-plus"></i> Ajouter une synergie
+          </button>
+          <template id="comp-synergies-modele">
+            <tr class="comp-synergies__ligne">
+              <td class="comp-synergies__cible">
+                <select name="synergies[__i__][cible]">
+                  <option value="0">— Choisir —</option>
+                  <?php foreach ($cibles_synergie as $cb): ?>
+                    <option value="<?= (int)$cb['comp_id'] ?>"><?= h($cb['comp_nom']) ?></option>
+                  <?php endforeach ?>
+                </select>
+              </td>
+              <td><input type="number" name="synergies[__i__][seuil]" value="5" min="1" max="99"></td>
+              <td><input type="number" name="synergies[__i__][bonus]" value="2" min="-20" max="20"></td>
+              <td class="comp-synergies__condition">
+                <input type="text" name="synergies[__i__][condition]" value="" maxlength="200">
+              </td>
+              <td>
+                <button type="button" class="btn btn-link btn-sm comp-synergies__retirer" title="Retirer cette synergie">
+                  <i class="fa fa-times"></i>
+                </button>
+              </td>
+            </tr>
+          </template>
+        </div>
+      </div>
+    <?php endif ?>
+
     <!-- Description TinyMCE -->
     <div class="modif-section">
       <div class="form-group">
@@ -288,6 +391,24 @@ $titre = $id > 0 ? 'Modifier ' . h($comp['comp_nom']) : 'Nouvelle compétence';
   }
   if (selectMere) selectMere.addEventListener('change', actualiserDomaine);
   actualiserDomaine();
+
+  // Synergies accordées (SP-PE21) : ajout depuis le modèle, retrait par ligne.
+  // L'indice ne sert qu'à grouper les champs d'une ligne : il croît sans se
+  // réutiliser, les trous laissés par un retrait sont sans effet.
+  var corpsSyn  = document.getElementById('comp-synergies-lignes');
+  var modeleSyn = document.getElementById('comp-synergies-modele');
+  var btnSyn    = document.getElementById('comp-synergies-ajouter');
+  if (corpsSyn && modeleSyn && btnSyn) {
+    var indiceSyn = corpsSyn.querySelectorAll('.comp-synergies__ligne').length;
+    btnSyn.addEventListener('click', function () {
+      var html = modeleSyn.innerHTML.replace(/__i__/g, String(indiceSyn++));
+      corpsSyn.insertAdjacentHTML('beforeend', html);
+    });
+    corpsSyn.addEventListener('click', function (e) {
+      var btn = e.target.closest('.comp-synergies__retirer');
+      if (btn) btn.closest('tr').remove();
+    });
+  }
 }());
 </script>
 

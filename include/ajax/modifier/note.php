@@ -25,6 +25,7 @@ $note = [
   'no_tyno_id' => 0,
   'no_texte'   => '',
   'no_date'    => date('Y-m-d'),
+  'no_diffusion_campagne' => 0,
 ];
 
 if ($id > 0):
@@ -193,7 +194,7 @@ $date_note = substr((string)$note['no_date'], 0, 10);
       </div>
       <p class="note-form__aide">
         Sans condition, une section est lisible par tous les destinataires. Avec des conditions, il suffit d'en
-        remplir une : 10 + bonus total dans la compétence ≥ DD.
+        remplir une : score (bonus total) dans la compétence ≥ DD.
       </p>
       <div id="note-sections"></div>
       <button type="button" class="btn btn-secondary btn-sm" id="note-ajout-section">
@@ -205,35 +206,52 @@ $date_note = substr((string)$note['no_date'], 0, 10);
       <div class="modif-section__header">
         <span class="modif-section__label">Destinataires</span>
       </div>
+      <?php
+        // Diffusion (SP-NO11) : toute la campagne — membres actuels et futurs,
+        // inactifs compris — ou personnages choisis. En mode campagne, les cases
+        // ne font que montrer les membres actuels ; elles ne sont pas envoyées.
+        $diff_campagne = (int)$note['no_diffusion_campagne'] === 1;
+      ?>
+      <div class="note-form__diffusion">
+        <label class="note-form__dest note-form__dest--tous">
+          <input type="radio" name="no_diffusion_campagne" value="1" class="note-diffusion" <?= $diff_campagne ? 'checked' : '' ?>>
+          Toute la campagne <span class="note-form__dest-info">(y compris les personnages ajoutés plus tard)</span>
+        </label>
+        <label class="note-form__dest note-form__dest--tous">
+          <input type="radio" name="no_diffusion_campagne" value="0" class="note-diffusion" <?= $diff_campagne ? '' : 'checked' ?>>
+          Personnages choisis
+        </label>
+      </div>
       <?php if (empty($personnages)): ?>
         <p class="note-form__aide">Aucun personnage n'est rattaché à cette campagne.</p>
       <?php else: ?>
-        <label class="note-form__dest note-form__dest--tous">
-          <input type="checkbox" id="note-dest-tous"> Tous les personnages de la campagne
-        </label>
         <div class="note-form__dests">
           <?php foreach ($personnages as $pe): ?>
+            <?php
+              $recoit = $diff_campagne ? (bool)$pe['dans_campagne'] : (bool)$pe['destinataire'];
+            ?>
             <label class="note-form__dest">
               <input type="checkbox" name="pe_ids[]" value="<?= (int)$pe['pe_id'] ?>" class="note-dest"
-                     data-campagne="<?= (int)$pe['dans_campagne'] ?>" <?= $pe['destinataire'] ? 'checked' : '' ?>>
+                     data-campagne="<?= (int)$pe['dans_campagne'] ?>"
+                     <?= $recoit ? 'checked' : '' ?> <?= $diff_campagne ? 'disabled' : '' ?>>
               <?= h($pe['pe_nom']) ?>
               <?php if (!$pe['dans_campagne']): ?>
                 <span class="note-form__dest-info">(a quitté la campagne)</span>
               <?php elseif (!$pe['cp_actif']): ?>
                 <span class="note-form__dest-info">(inactif)</span>
               <?php endif; ?>
-              <?php if ($pe['destinataire']): ?>
+              <?php if ($recoit): ?>
                 <span class="note-form__dest-info"><?= $pe['pno_lu_date'] ? '· lue' : '· non lue' ?></span>
               <?php endif; ?>
             </label>
           <?php endforeach; ?>
         </div>
-        <?php if ($id > 0): ?>
-          <label class="note-form__dest note-form__signaler">
-            <input type="checkbox" name="signaler_maj" value="1">
-            Signaler la mise à jour aux destinataires (la note redevient « nouvelle » pour eux)
-          </label>
-        <?php endif; ?>
+      <?php endif; ?>
+      <?php if ($id > 0): ?>
+        <label class="note-form__dest note-form__signaler">
+          <input type="checkbox" name="signaler_maj" value="1">
+          Signaler la mise à jour aux destinataires (la note redevient « nouvelle » pour eux)
+        </label>
       <?php endif; ?>
     </div>
 
@@ -426,19 +444,18 @@ $date_note = substr((string)$note['no_date'], 0, 10);
     else if (e.target === zoneTags) saisieTag.focus();
   });
 
-  // Destinataires : « Tous » coche ou décoche les personnages de la campagne.
-  var tous = document.getElementById('note-dest-tous');
-  if (tous) {
-    var dests = document.querySelectorAll('.note-dest[data-campagne="1"]');
-    var majTous = function() {
-      tous.checked = dests.length > 0 && Array.prototype.every.call(dests, function(c) { return c.checked; });
-    };
-    tous.addEventListener('change', function() {
-      Array.prototype.forEach.call(dests, function(c) { c.checked = tous.checked; });
+  // Diffusion (SP-NO11) : « Toute la campagne » coche et fige les membres
+  // actuels ; « Personnages choisis » rend la main, membres pré-cochés — passer
+  // d'un mode à l'autre ne retire la note à personne sans décision du MJ.
+  var radiosDiff = document.querySelectorAll('.note-diffusion');
+  var majDiffusion = function() {
+    var campagne = document.querySelector('.note-diffusion:checked').value === '1';
+    Array.prototype.forEach.call(document.querySelectorAll('.note-dest'), function(c) {
+      if (campagne) c.checked = c.getAttribute('data-campagne') === '1';
+      c.disabled = campagne;
     });
-    Array.prototype.forEach.call(dests, function(c) { c.addEventListener('change', majTous); });
-    majTous();
-  }
+  };
+  Array.prototype.forEach.call(radiosDiff, function(r) { r.addEventListener('change', majDiffusion); });
 
   function collecterSections() {
     return Array.prototype.map.call(conteneur.querySelectorAll('.note-form__section'), function(section) {

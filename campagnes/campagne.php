@@ -1,41 +1,15 @@
 <?php
-// campagnes/campagne.php — Page d'une campagne (SP-CP).
+// campagnes/campagne.php — Page d'une campagne, onglet Description (SP-CP, SP-CP9).
 // Remplace include/ajax/detail-pp/campagne.php : le module a quitté le
 // panneau #detail-pp pour une navigation pleine page (une URL par niveau).
+//
+// SP-CP9 : la page est découpée en sous-pages, sur le modèle du module
+// Personnages — Description (ici), Personnages (campagne-personnages.php),
+// Scénarios (campagne-scenarios.php). Socle commun : include/campagne-contexte.php
+// et include/campagne-entete.php.
 // Paramètre GET : id (int) — camp_id
 
-require_once '../include/db.php';
-require_once '../include/auth.php';
-require_once '../include/helpers.php';
-
-requireAuth();
-
-$id = intParam($_GET['id'] ?? 0);
-if (!$id):
-  $_SESSION['flash_message'] = ['type' => 'error', 'text' => 'Identifiant manquant.'];
-  header('Location: ' . BASE_URL . '/campagnes/index.php');
-  exit;
-endif;
-
-$stmt = $db->prepare('
-  SELECT camp.*, var.var_valeur AS ruleset_label, un.un_nom AS univers_nom
-  FROM   dd_campagnes camp
-  LEFT JOIN dd_variables var ON var.var_id = camp.camp_ruleset_var_id
-  LEFT JOIN dd_univers   un  ON un.un_id   = camp.camp_un_id
-  WHERE  camp.camp_id = ? AND camp.camp_supprime = 0
-');
-$stmt->execute([$id]);
-$camp = $stmt->fetch();
-
-if (!$camp || !isMJ($db, $id)):
-  $_SESSION['flash_message'] = ['type' => 'error', 'text' => 'Campagne introuvable ou accès refusé.'];
-  header('Location: ' . BASE_URL . '/campagnes/index.php');
-  exit;
-endif;
-
-// Contexte de navigation du header (cf. §12) — écrit ici désormais, et non
-// plus depuis un handler detail-pp : la page EST le point de consultation.
-setLastCampagne($id, $camp['camp_nom']);
+require_once __DIR__ . '/../include/campagne-contexte.php';
 
 // Sources
 $stmt_src = $db->prepare('
@@ -46,111 +20,11 @@ $stmt_src = $db->prepare('
 $stmt_src->execute([$id]);
 $sources = $stmt_src->fetchAll(PDO::FETCH_COLUMN);
 
-// Scénarios avec compteurs — ordre manuel (glisser-déposer, SP-CP).
-$stmt_sce = $db->prepare('
-  SELECT sce.sce_id, sce.sce_nom,
-         COUNT(DISTINCT scc.scc_id) AS nb_chapitres,
-         COUNT(DISTINCT re.re_id)   AS nb_rencontres
-  FROM   dd_scenarios sce
-  LEFT JOIN dd_scenarios_chapitres scc ON scc.scc_sce_id = sce.sce_id AND scc.scc_supprime = 0
-  LEFT JOIN dd_rencontres re ON re.re_scc_id = scc.scc_id AND re.re_supprime = 0
-  WHERE  sce.sce_camp_id = ? AND sce.sce_supprime = 0
-  GROUP  BY sce.sce_id
-  ORDER  BY sce.sce_ordre ASC, sce.sce_nom ASC
-');
-$stmt_sce->execute([$id]);
-$scenarios = $stmt_sce->fetchAll();
-
-// Personnages rattachés (SP-PE5). La source de vérité du rattachement est
-// dd_campagnes_personnages ; le marqueur « en cours » se lit sur le raccourci
-// pe_camp_id du personnage. SP-PE18 : le MJ ajoute et retire lui-même les
-// personnages, et tous ceux qui sont rattachés lui sont ouverts.
-$stmt_per = $db->prepare('
-  SELECT pe.pe_id,
-         pe.pe_nom,
-         pe.pe_j_id,
-         jo.j_pseudo AS joueur_pseudo,
-         ra.ra_nom,
-         cp.cp_actif,
-         (pe.pe_camp_id = ?) AS est_courante,
-         (SELECT GROUP_CONCAT(CONCAT(cla.cla_nom, \' \', pc.pc_niveau)
-                   ORDER BY cla.cla_nom SEPARATOR \' / \')
-            FROM dd_personnages_classes pc
-            JOIN dd_classes cla ON cla.cla_id = pc.pc_cla_id
-           WHERE pc.pc_pe_id = pe.pe_id) AS classes_txt
-  FROM   dd_campagnes_personnages cp
-  JOIN   dd_personnages pe ON pe.pe_id = cp.cp_pe_id
-  LEFT JOIN dd_joueurs jo ON jo.j_id = pe.pe_j_id
-  LEFT JOIN dd_races ra ON ra.ra_id = pe.pe_ra_id
-  WHERE  cp.cp_camp_id = ?
-  ORDER  BY est_courante DESC, pe.pe_nom ASC
-');
-$stmt_per->execute([$id, $id]);
-$personnages = $stmt_per->fetchAll();
-
-// Personnages proposés à l'ajout : tous ceux du ruleset de la campagne, quel
-// que soit leur joueur, hormis ceux déjà rattachés (SP-PE18, D-PE18b).
-$stmt_ajout = $db->prepare('
-  SELECT pe.pe_id, pe.pe_nom, jo.j_pseudo AS joueur_pseudo
-  FROM   dd_personnages pe
-  LEFT JOIN dd_joueurs jo ON jo.j_id = pe.pe_j_id
-  WHERE  pe.pe_ruleset_var_id = ?
-    AND  NOT EXISTS (SELECT 1 FROM dd_campagnes_personnages cp
-                      WHERE cp.cp_camp_id = ? AND cp.cp_pe_id = pe.pe_id)
-  ORDER  BY pe.pe_nom ASC, jo.j_pseudo ASC
-');
-$stmt_ajout->execute([(int)$camp['camp_ruleset_var_id'], $id]);
-$personnages_ajout = $stmt_ajout->fetchAll();
-
-$page_title      = $camp['camp_nom'];
-$js_module       = 'campagne';
-$css_module      = 'campagnes';
-$body_class      = 'camp-plein';
-$outils_camp_id  = $id;
-
-$base_modifier = BASE_URL . '/include/ajax/modifier';
-$url_enreg     = BASE_URL . '/campagnes/enregistrement.php?ajax=1';
-
 require_once '../include/header.php';
+
+$nav_courante = 'description';
+require __DIR__ . '/../include/campagne-entete.php';
 ?>
-
-<script>
-  var campUrlModifier = <?= json_encode($base_modifier . '/campagne.php') ?>;
-  var campUrlEnreg    = <?= json_encode($url_enreg) ?>;
-  var campUrlEnregPer = <?= json_encode(BASE_URL . '/personnages/enregistrement.php?ajax=1') ?>;
-</script>
-
-<div class="camp-page">
-
-  <aside class="camp-page__outils">
-    <?php include __DIR__ . '/../include/campagne-outils.php'; ?>
-  </aside>
-
-  <section class="camp-page__contenu" data-camp-id="<?= $id ?>">
-
-    <div class="camp-page__titre-bar">
-      <div>
-        <h1 class="camp-page__titre">
-          <?= h($camp['camp_nom']) ?>
-          <button class="sort-detail__edit-btn"
-                  onclick="actualiserPageModif('<?= $base_modifier ?>/campagne.php', {id:<?= $id ?>})"
-                  title="Modifier cette campagne">
-            <i class="fa fa-edit"></i>
-          </button>
-        </h1>
-        <div class="camp-page__meta">
-          <span class="camp-detail__ruleset"><?= h($camp['ruleset_label'] ?? '') ?></span>
-          <?php if ($camp['univers_nom']): ?>
-            <span><i class="fa fa-globe"></i> <?= h($camp['univers_nom']) ?></span>
-          <?php endif ?>
-        </div>
-      </div>
-      <div class="camp-page__titre-actions">
-        <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/campagnes/index.php">
-          <i class="fa fa-arrow-left"></i> Campagnes
-        </a>
-      </div>
-    </div>
 
     <?php if (!empty($camp['camp_resume'])): ?>
       <p class="camp-detail__resume"><?= h($camp['camp_resume']) ?></p>
@@ -160,161 +34,9 @@ require_once '../include/header.php';
       <div class="camp-detail__description"><?= $camp['camp_description'] ?></div>
     <?php endif ?>
 
-    <!-- Scénarios -->
-    <div class="camp-detail__section">
-      <div class="camp-section__header">
-        <h2 class="camp-detail__section-title">Scénarios</h2>
-        <button class="btn btn-primary btn-sm"
-                onclick="actualiserPageModif('<?= $base_modifier ?>/scenario.php', {id:0, camp_id:<?= $id ?>})">
-          <i class="fa fa-plus"></i> Nouveau
-        </button>
-      </div>
-
-      <?php if (empty($scenarios)): ?>
-        <p class="text-muted">Aucun scénario pour le moment.</p>
-      <?php else: ?>
-        <table class="camp-sous-liste">
-          <thead>
-            <tr>
-              <th class="camp-sous-liste__col-poignee"></th>
-              <th class="col-action"></th>
-              <th>Scénario</th>
-              <th class="camp-liste__col-num">Chapitres</th>
-              <th class="camp-liste__col-num">Rencontres</th>
-            </tr>
-          </thead>
-          <tbody class="tri-liste"
-                 data-tri-url="<?= h($url_enreg) ?>"
-                 data-tri-action="reordonnerScenarios"
-                 data-tri-parent="<?= $id ?>">
-            <?php foreach ($scenarios as $sce): ?>
-              <?php
-                $sid     = (int)$sce['sce_id'];
-                $url_sce = BASE_URL . '/campagnes/scenario.php?id=' . $sid;
-              ?>
-
-              <tr id="camp-sce-row-<?= $sid ?>" data-tri-id="<?= $sid ?>"
-                  data-href="<?= h($url_sce) ?>">
-
-                <td class="tri-poignee" title="Glisser pour réordonner">
-                  <i class="fa fa-grip-vertical" aria-hidden="true"></i>
-                </td>
-
-                <!-- Menu contextuel -->
-                <td class="col-action">
-                  <div class="comp-menu-ligne">
-                    <button class="btn btn-icon btn-sm comp-menu-btn"
-                            onclick="campToggleMenu('sce-<?= $sid ?>')"
-                            title="Actions">⋮</button>
-                    <div id="comp-menu-sce-<?= $sid ?>" class="comp-menu-dropdown noDisplay">
-                      <button class="comp-menu-item"
-                              onclick="campToggleMenu('sce-<?= $sid ?>');
-                                       actualiserPageModif('<?= $base_modifier ?>/scenario.php', {id:<?= $sid ?>, camp_id:<?= $id ?>})">
-                        <i class="fa fa-edit"></i> Modifier
-                      </button>
-                      <button class="comp-menu-item comp-menu-item--danger"
-                              onclick="campToggleMenu('sce-<?= $sid ?>');
-                                       campSceDemanderSuppression(<?= $sid ?>)">
-                        <i class="fa fa-trash"></i> Supprimer
-                      </button>
-                    </div>
-                  </div>
-                  <!-- Template confirmation -->
-                  <div id="camp-sce-confirm-<?= $sid ?>" class="comp-confirm-suppr noDisplay">
-                    <span>Supprimer « <?= h($sce['sce_nom']) ?> » ?</span>
-                    <button class="btn btn-danger btn-sm"
-                            onclick="campSceConfirmerSuppression(<?= $sid ?>)">Oui</button>
-                    <button class="btn btn-secondary btn-sm"
-                            onclick="campSceAnnulerSuppression(<?= $sid ?>)">Non</button>
-                  </div>
-                </td>
-
-                <td><a href="<?= h($url_sce) ?>"><?= h($sce['sce_nom']) ?></a></td>
-                <td class="camp-liste__col-num"><?= (int)$sce['nb_chapitres'] ?></td>
-                <td class="camp-liste__col-num"><?= (int)$sce['nb_rencontres'] ?></td>
-
-              </tr>
-
-            <?php endforeach ?>
-          </tbody>
-        </table>
-      <?php endif ?>
-    </div>
-
-    <!-- Personnages (SP-PE5, ajout / retrait par le MJ SP-PE18) -->
-    <div class="camp-detail__section">
-      <div class="camp-section__header">
-        <h2 class="camp-detail__section-title">Personnages</h2>
-        <?php if (!empty($personnages_ajout)): ?>
-          <div class="camp-perso-ajout">
-            <select id="camp-perso-ajout" aria-label="Personnage à ajouter">
-              <option value="">Ajouter un personnage…</option>
-              <?php foreach ($personnages_ajout as $pa): ?>
-                <option value="<?= (int)$pa['pe_id'] ?>">
-                  <?= h($pa['pe_nom']) ?><?= $pa['joueur_pseudo'] ? ' (' . h($pa['joueur_pseudo']) . ')' : '' ?>
-                </option>
-              <?php endforeach ?>
-            </select>
-            <button class="btn btn-primary btn-sm" title="Ajouter à la campagne"
-                    onclick="campPersoAjouter(<?= $id ?>)">
-              <i class="fa fa-plus"></i>
-            </button>
-          </div>
-        <?php endif ?>
-      </div>
-
-      <?php if (empty($personnages)): ?>
-        <p class="text-muted">Aucun personnage rattaché.</p>
-      <?php else: ?>
-        <table class="camp-sous-liste">
-          <thead>
-            <tr>
-              <th class="col-action"></th>
-              <th>Personnage</th>
-              <th>Joueur</th>
-              <th>Classes</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($personnages as $p): ?>
-              <?php
-                // Tout personnage rattaché s'ouvre au MJ (peutGererPersonnage).
-                $url_per = BASE_URL . '/personnages/fiche.php?id=' . (int)$p['pe_id'];
-              ?>
-              <tr>
-                <td class="col-action">
-                  <button class="btn btn-icon btn-sm" title="Retirer de la campagne"
-                          data-pe-nom="<?= h($p['pe_nom']) ?>"
-                          onclick="campPersoRetirer(<?= $id ?>, <?= (int)$p['pe_id'] ?>, this.dataset.peNom)">
-                    <i class="fa fa-times"></i>
-                  </button>
-                </td>
-                <td>
-                  <a href="<?= h($url_per) ?>"><?= h($p['pe_nom']) ?></a>
-                  <?php if (!empty($p['ra_nom'])): ?>
-                    <span class="text-muted text-sm"><?= h($p['ra_nom']) ?></span>
-                  <?php endif ?>
-                </td>
-                <td class="text-muted"><?= h($p['joueur_pseudo'] ?? '—') ?></td>
-                <td class="text-muted">
-                  <?= $p['classes_txt'] ? h($p['classes_txt']) : '—' ?>
-                </td>
-                <td>
-                  <?php if ((int)$p['est_courante'] === 1): ?>
-                    <span class="per-camp__badge per-camp__badge--courante">En cours</span>
-                  <?php elseif ((int)$p['cp_actif'] !== 1): ?>
-                    <span class="per-camp__badge">Terminée</span>
-                  <?php else: ?>
-                    <span class="text-muted">—</span>
-                  <?php endif ?>
-                </td>
-              </tr>
-            <?php endforeach ?>
-          </tbody>
-        </table>
-      <?php endif ?>
-    </div>
+    <?php if (empty($camp['camp_resume']) && empty($camp['camp_description'])): ?>
+      <p class="text-muted">Aucune description pour le moment.</p>
+    <?php endif ?>
 
     <!-- Sources -->
     <div class="camp-detail__section">

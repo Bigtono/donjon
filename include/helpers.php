@@ -106,6 +106,12 @@ function getActiveResIds($db, ?int $ruleset_var_id = null): array {
     // La liaison doit exister ET être active (cp_actif = 1, « participation en
     // cours ») — la table de liaison reste la source de vérité du rattachement,
     // pe_camp_id n'en est que le raccourci (cf. METIER_10 et SP-PE5).
+    //
+    // Seules les sources du ruleset DEMANDÉ comptent (D-PO29) : le dernier
+    // personnage ouvert peut être d'un autre ruleset que l'entité affichée
+    // (sélecteur d'un personnage DD3.5 ouvert après un personnage DD2024) ;
+    // ses sources renvoyaient alors des listes vides. Aucune source du bon
+    // ruleset : on passe à la priorité 2.
     $stmt = $db->prepare('
       SELECT cs.cs_res_id
       FROM   dd_personnages pe
@@ -113,9 +119,11 @@ function getActiveResIds($db, ?int $ruleset_var_id = null): array {
                                         AND cp.cp_pe_id   = pe.pe_id
                                         AND cp.cp_actif   = 1
       JOIN   dd_campagnes_sources cs ON cs.cs_camp_id = cp.cp_camp_id
+      JOIN   dd_ressources res ON res.res_id = cs.cs_res_id
+                              AND res.res_ruleset_var_id = ?
       WHERE  pe.pe_id = ?
     ');
-    $stmt->execute([$pe_id]);
+    $stmt->execute([$ruleset_var_id, $pe_id]);
     $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
     if (!empty($ids)) {
@@ -194,8 +202,14 @@ function getActiveResIdsCampagne(PDO $db, int $camp_id, int $ruleset_var_id): ar
     ? getUserSupplementResId($db, $camp_j_id, $ruleset_var_id)
     : null;
 
-  $stmt = $db->prepare('SELECT cs_res_id FROM dd_campagnes_sources WHERE cs_camp_id = ?');
-  $stmt->execute([$camp_id]);
+  // Sources du ruleset demandé seulement (même règle que getActiveResIds, D-PO29)
+  $stmt = $db->prepare('
+    SELECT cs.cs_res_id
+      FROM dd_campagnes_sources cs
+      JOIN dd_ressources res ON res.res_id = cs.cs_res_id AND res.res_ruleset_var_id = ?
+     WHERE cs.cs_camp_id = ?
+  ');
+  $stmt->execute([$ruleset_var_id, $camp_id]);
   $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
   if (!empty($ids)):
@@ -739,7 +753,11 @@ function pageEquivalenteRuleset(string $retour, int $ruleset_var_id): string {
   // Campagne : même niveau dans la chaîne mémorisée, ou le plus profond des
   // ancêtres disponibles, ou la liste.
   if ($module === 'campagnes' && $page !== 'index.php'):
-    $niveaux = ['rencontre.php' => 're', 'chapitre.php' => 'scc', 'scenario.php' => 'sce', 'campagne.php' => 'camp'];
+    // Sous-pages de la campagne (SP-CP9) : même niveau que campagne.php,
+    // placées avant elle pour que le repli tombe sur l'onglet Description.
+    $niveaux = ['rencontre.php' => 're', 'chapitre.php' => 'scc', 'scenario.php' => 'sce',
+                'campagne-personnages.php' => 'camp', 'campagne-scenarios.php' => 'camp',
+                'campagne.php' => 'camp'];
     $depart  = array_search($page, array_keys($niveaux), true);
     if ($depart !== false):
       foreach (array_slice($niveaux, $depart, null, true) as $fichier => $prefixe_niv):
@@ -864,4 +882,94 @@ function canEditCompendiumEntry($db, ?int $res_j_id): bool {
   }
   // Entrée officielle : réservée aux gestionnaires du compendium
   return !empty($_SESSION['j_compendium_manager']);
+}
+
+
+// ============================================================
+// Contenu rattaché à une ressource (SP-AD3)
+// Une ressource ne peut être supprimée que si toutes ces tables sont vides
+// pour elle, contenu propre à une campagne compris. Liste unique, reprise par
+// le contrôle de suppression, le panneau de détail et la liste admin.
+// ============================================================
+
+function contenuRessourceTables(): array {
+  return [
+    'nb_classes'     => ['table' => 'dd_classes',         'champ' => 'cla_res_id',  'label' => 'Classes',         'singulier' => 'classe',        'pluriel' => 'classes'],
+    'nb_races'       => ['table' => 'dd_races',           'champ' => 'ra_res_id',   'label' => 'Races',           'singulier' => 'race',          'pluriel' => 'races'],
+    'nb_sorts'       => ['table' => 'dd_sorts',           'champ' => 'so_res_id',   'label' => 'Sorts',           'singulier' => 'sort',          'pluriel' => 'sorts'],
+    'nb_dons'        => ['table' => 'dd_dons',            'champ' => 'do_res_id',   'label' => 'Dons',            'singulier' => 'don',           'pluriel' => 'dons'],
+    'nb_comp'        => ['table' => 'dd_competences',     'champ' => 'comp_res_id', 'label' => 'Compétences',     'singulier' => 'compétence',    'pluriel' => 'compétences'],
+    'nb_hist'        => ['table' => 'dd_historiques',     'champ' => 'hi_res_id',   'label' => 'Historiques',     'singulier' => 'historique',    'pluriel' => 'historiques'],
+    'nb_objets'      => ['table' => 'dd_objets_magiques', 'champ' => 'om_res_id',   'label' => 'Objets magiques', 'singulier' => 'objet magique', 'pluriel' => 'objets magiques'],
+    'nb_monstres'    => ['table' => 'dd_monstres',        'champ' => 'mo_res_id',   'label' => 'Monstres',        'singulier' => 'monstre',       'pluriel' => 'monstres'],
+    'nb_equipements' => ['table' => 'dd_equipements',     'champ' => 'eqt_res_id',  'label' => 'Équipements',     'singulier' => 'équipement',    'pluriel' => 'équipements'],
+    'nb_regles'      => ['table' => 'dd_regles',          'champ' => 'reg_res_id',  'label' => 'Règles',          'singulier' => 'règle',         'pluriel' => 'règles'],
+    'nb_tableaux'    => ['table' => 'dd_tableaux',        'champ' => 'tab_res_id',  'label' => 'Tableaux',        'singulier' => 'tableau',       'pluriel' => 'tableaux'],
+  ];
+}
+
+// Sous-requête de comptage pour une liste dont dd_ressources porte l'alias res.
+function contenuRessourceSql(string $cle): string {
+  $t = contenuRessourceTables()[$cle];
+  return '(SELECT COUNT(*) FROM ' . $t['table'] . ' WHERE ' . $t['champ'] . ' = res.res_id)';
+}
+
+// Retourne [cle => nombre]. Une erreur SQL remonte à l'appelant : un comptage
+// impossible ne doit jamais passer pour une ressource vide.
+function compterContenuRessource($db, int $res_id): array {
+  $compteurs = [];
+  foreach (contenuRessourceTables() as $cle => $t):
+    $stmt = $db->prepare('SELECT COUNT(*) FROM ' . $t['table'] . ' WHERE ' . $t['champ'] . ' = ?');
+    $stmt->execute([$res_id]);
+    $compteurs[$cle] = (int)$stmt->fetchColumn();
+  endforeach;
+  return $compteurs;
+}
+
+// « 1 classe, 2 sorts » à partir de [cle => nombre] ; '' si tout est à zéro.
+function decrireContenuRessource(array $compteurs): string {
+  $details = [];
+  foreach (contenuRessourceTables() as $cle => $t):
+    $nb = (int)($compteurs[$cle] ?? 0);
+    if ($nb > 0) $details[] = $nb . ' ' . ($nb > 1 ? $t['pluriel'] : $t['singulier']);
+  endforeach;
+  return implode(', ', $details);
+}
+
+// ============================================================
+// Propriétés spéciales DD3.5 — jetons de restriction (SP-PO6)
+// ============================================================
+// om_restriction : jetons séparés par des espaces (sql/2026-11-06_sp-po6b_proprietes_speciales.sql).
+// Emploi : l'objet de base doit satisfaire l'un des jetons présents ; dégâts : l'arme doit avoir
+// au moins un des types cités. Lu par le formulaire d'objet et par le moteur de composition (SP-PO7).
+
+function proprieteRestrictionsJetons(): array {
+  return [
+    'emploi' => [
+      'cac'      => 'Arme de corps à corps',
+      'distance' => 'Arme à distance',
+      'jet'      => 'Arme de jet',
+      'armure'   => 'Armure',
+      'bouclier' => 'Bouclier',
+      'ecu'      => 'Écu ou rondache',
+    ],
+    'degats' => [
+      'tranchant'  => 'Tranchante',
+      'perforant'  => 'Perforante',
+      'contondant' => 'Contondante',
+    ],
+  ];
+}
+
+// Normalise une liste de jetons (tableau ou chaîne) : jetons connus seulement, ordre canonique.
+// Retour : chaîne pour om_restriction, ou null si aucun jeton.
+function proprieteRestrictionNormaliser($jetons): ?string {
+  if (!is_array($jetons)) $jetons = preg_split('/\s+/', (string)$jetons, -1, PREG_SPLIT_NO_EMPTY);
+  $retenus = [];
+  foreach (proprieteRestrictionsJetons() as $groupe):
+    foreach (array_keys($groupe) as $jeton):
+      if (in_array($jeton, $jetons, true)) $retenus[] = $jeton;
+    endforeach;
+  endforeach;
+  return $retenus ? implode(' ', $retenus) : null;
 }

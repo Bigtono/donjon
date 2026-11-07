@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-01 18:00 -->
+<!-- Mis à jour : 2026-11-07 11:40 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -33,6 +33,12 @@
 | 1.18 | 2026-10-31 | JM | **SP-DO0** — dons DD3.5 : `dd_dons.do_guerrier`, `do_prereq_bba/for/dex/con/int/sag/cha`, `do_niv_lanceur` et `dd_capacites_speciales.cap_choix_guerrier` AJOUTÉES. 92 dons DD3.5 renseignés par appariement de nom avec une table tierce locale (46 dons de guerrier). SQL : `sql/2026-10-31_dons_techniques_dd35_sp-do0.sql` (appliqué en dev le 2026-10-31 ; **reste à appliquer en prod OVH**) |
 | 1.21 | 2026-11-01 | JM | **SP-NO7** — tables de transit `dd_v1_notes`, `dd_v1_notes_contenus`, `dd_v1_notes_tags` CRÉÉES (copie de l'export des notes v1 + `no_importe_no_id`), temporaires. SQL : `sql/2026-11-01_sp-no7_notes_v1_transit.sql` (appliqué en dev le 2026-11-01 ; **reste à appliquer en prod OVH**) |
 | 1.20 | 2026-11-01 | JM | **SP-NO0** — module Notes : `dd_notes`, `dd_notes_contenus`, `dd_types_notes`, `dd_personnages_notes` RECRÉÉES (tables vides jamais utilisées ; campagne, scénario facultatif, catégorie par ruleset, sections, destinataires et date de lecture) ; `dd_notes_conditions` CRÉÉE ; `dd_campagnes_notes` SUPPRIMÉE ; 11 catégories amorcées par ruleset. SQL : `sql/2026-11-01_sp-no0_notes.sql` (garde-fou : échoue sans rien modifier si une des tables supprimées contient une ligne ; appliqué en dev le 2026-11-01 ; **reste à appliquer en prod OVH**) |
+| 1.22 | 2026-11-01 | JM | **SP-PE20 / SP-PE21** — `dd_personnages_competences.pec_mod_divers` / `pec_mod_libelle` AJOUTÉES ; `dd_competences_synergies` CRÉÉE (28 synergies DD3.5). SQL : `sql/2026-11-01_sp-pe20_competences_mod_divers.sql`, `sql/2026-11-01_sp-pe21_synergies_competences.sql` (appliqués en dev le 2026-11-01 ; **restent à appliquer en prod OVH**) |
+| 1.23 | 2026-11-06 | JM | **SP-NO11** — `dd_notes.no_diffusion_campagne` AJOUTÉE (diffusion à toute la campagne) ; `dd_personnages_notes` ne sert plus qu'au suivi de lecture pour ces notes. SQL : `sql/2026-11-06_sp-no11_notes_diffusion_campagne.sql` (appliqué en dev le 2026-11-06 ; **reste à appliquer en prod OVH**) |
+| 1.24 | 2026-11-06 | JM | **SP-PO6** — possessions du personnage : `dd_personnages_possessions` et `dd_personnages_possessions_elements` CRÉÉES ; `dd_objets_magiques.om_bonus_equiv` / `om_nls` / `om_restriction` AJOUTÉES (propriétés spéciales DD3.5, 94 valeurs chargées, `om_ajustement_prix` des propriétés remis à 0, déclinaisons Défense et Résistance à la magie créées, doublon « Sombre » supprimé) ; potions et baguettes DD3.5 masquées (`om_visible` = 0). SQL : `sql/2026-11-06_sp-po6a_possessions.sql`, `…_sp-po6b_proprietes_speciales.sql`, `…_sp-po6c_masquage_potions_baguettes.sql` (appliqués en dev le 2026-11-06 ; **restent à appliquer en prod OVH**) |
+| 1.25 | 2026-11-07 | JM | Base locale **rechargée depuis le dump de production** du 2026-11-07 : toutes les migrations antérieures (1.17 → 1.24 comprises) y étaient jouées, les mentions « reste à appliquer en prod » de ces lignes sont donc soldées. **SP-TB12** — `dd_tableaux_categories` CRÉÉE (8 catégories communes aux rulesets), `dd_tableaux.tab_tabc_id` AJOUTÉE (FK, `ON DELETE SET NULL`) ; les 113 tableaux classés. SQL : `sql/2026-11-07_sp-tb12a_categories_tableaux.sql`, `…_sp-tb12b_tableaux_upsert.sql` (renvoi de toute la table, appliqués en dev le 2026-11-07 ; **restent à appliquer en prod OVH**) |
+| 1.26 | 2026-11-07 | JM | **SP-TB8** — écran du MJ : `dd_campagnes_ecran` CRÉÉE (tableaux posés sur l'écran d'une campagne, FK en cascade), `dd_campagnes.camp_ecran_colonnes` AJOUTÉE. SQL : `sql/2026-11-07_sp-tb8b_ecran_mj.sql` (appliqué en dev le 2026-11-07 ; **reste à appliquer en prod OVH**) |
+| 1.27 | 2026-11-07 | JM | **SP-DRS4b / SP-TB13** — données seulement, aucune colonne : `dd_tableaux_categories` reçoit la catégorie 9 « Compétence » ; 40 tableaux `competence-*` ajoutés à `dd_tableaux` (DD3.5) ; `dd_competences.comp_description` réécrite pour les 36 compétences mères DD3.5 ; deux `comp_nom` débarrassés d'un blanc final. SQL : `sql/2026-11-08_sp-drs4b_competences_dd35.sql` (appliqué en dev le 2026-11-07 ; **reste à appliquer en prod OVH**) |
 | 1.5 | 2026-07-01 | JM | Audit `SHOW CREATE TABLE` sur les 7 tables restantes du Supplément (SP-C5/C6, débloquant) : `_public`/`_visible` **existent déjà en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques` (+ `om_public` sur `dd_objets_magiques`, `om_visible` déjà documenté). Colonnes ajoutées à la doc ci-dessous. `sql/patch_004_supplements.sql` reste introuvable dans le dépôt (appliqué directement en base, jamais committé — même écart que l'incident `mo_j_id`). Écart noté au passage : `dd_dons.do_page_source` (int NOT NULL) présent en base, non documenté, sans rapport avec SP-C — non traité ici |
 
 ---
@@ -541,6 +547,21 @@ Catégories de dons (Combat, Métamagie, Création d'objets...).
 
 ---
 
+### dd_competences_synergies
+Synergies entre compétences, DD3.5 (SP-PE21, D-PE21a → c). Une compétence source ayant au moins `syn_seuil` rangs donne `syn_bonus` aux tests de la cible.
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| syn_id | int unsigned | PK | |
+| syn_comp_source_id | int unsigned | nn, index | -> dd_competences (compétence dont les rangs donnent le bonus) |
+| syn_comp_cible_id | int unsigned | nn, index | -> dd_competences (compétence qui reçoit le bonus) |
+| syn_seuil | tinyint unsigned | nn, défaut 5 | Rangs minimum dans la source |
+| syn_bonus | tinyint | nn, défaut 2 | Bonus accordé |
+| syn_condition | varchar(200) | NULL | NULL = toujours (compté dans le total) ; sinon cas d'application (affiché, hors total) |
+
+> Chargée par `sql/2026-11-01_sp-pe21_synergies_competences.sql` (28 lignes), maintenue depuis le formulaire de compétence ; lignes supprimées avec la compétence source ou cible.
+
+---
+
 ### dd_races
 
 | Champ | Type | Null | Commentaire |
@@ -648,7 +669,10 @@ Objets magiques du compendium.
 | om_modificateurs | tinyint | nn, défaut 0 | *[DD3.5]*, Bonus magique +1 à +5 (armes/armures) |
 | om_variantes | varchar(255) | null | Variantes textuelles (mineur, majeur…) |
 | om_prix | int | null | *[DD3.5]*, prix de l'objet |
-| om_ajustement_prix | int | nn, defaut 0 | *[DD3.5]*, ajustement de prix de l'objet |
+| om_ajustement_prix | int | nn, defaut 0 | *[DD3.5]*, ajustement de prix de l'objet — lu par aucun code ; remis à 0 sur les propriétés spéciales (SP-PO6) |
+| om_bonus_equiv | tinyint unsigned | null | *[DD3.5, SP-PO6]* Propriété spéciale : équivalence en bonus (+1 à +5), ajoutée au bonus d'altération pour le prix ; NULL = prix fixe dans `om_prix` (po) |
+| om_nls | tinyint unsigned | null | *[DD3.5, SP-PO6]* Propriété spéciale : NLS |
+| om_restriction | varchar(60) | null | *[DD3.5, SP-PO6]* Propriété spéciale : jetons séparés par des espaces — emploi `cac` / `distance` / `jet` / `armure` / `bouclier` / `ecu` (l'objet de base doit satisfaire l'un d'eux), dégâts `tranchant` / `perforant` / `contondant` (au moins un). NULL = aucune restriction. Liste : `proprieteRestrictionsJetons()` (`include/helpers.php`) |
 | om_description | text | null | Description HTML TinyMCE (format libre) |
 | om_harmonisation | tinyint(4) | nn, défaut 0 | *[DD2024]*, 1 : harmonisation requise |
 | om_rarete | int(10) | null | *[DD2024]*, -> dd_objets_magiques_rarete |
@@ -750,6 +774,41 @@ pilote la liste (tag `[[liste:equipement|…]]`, fiche détail) ET le formulaire
 | mogr_nom | varchar(150) | nn | |
 | mogr_description | text | null | Description de la catégorie |
 | mogr_ruleset_var_id | int unsigned | nn | -> dd_variables |
+
+### dd_tableaux
+
+Tableaux de données insérés par le tag `[[tab:slug]]` (SP-TB). Détail du module :
+`doc/ARCHITECTURE_0_REFERENCE.md` §9c.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| tab_id | int unsigned | PK | |
+| tab_slug | varchar(120) | nn, UK(tab_slug, tab_ruleset_var_id) | Clé du tag |
+| tab_nom | varchar(200) | nn | Titre affiché |
+| tab_contenu | text | nn | Convention texte (`!` en-tête, `#` section, `>` note, `\|` séparateur) |
+| tab_align | varchar(40) | null | Une lettre par colonne (`l` / `c` / `r`) |
+| tab_note | varchar(500) | null | Note de bas de tableau |
+| tab_tabc_id | int unsigned | null | -> dd_tableaux_categories (`fk_tab_categorie`, ON DELETE SET NULL), NULL = sans catégorie — SP-TB12 |
+| tab_ruleset_var_id | int unsigned | nn | -> dd_variables |
+| tab_res_id | int unsigned | null | -> dd_ressources |
+| tab_camp_id | int unsigned | null | Réservé house rules -> dd_campagnes |
+| tab_ecran_mj | tinyint(1) | nn, défaut 0 | Proposé pour l'écran du MJ : préremplit un écran vide (SP-TB8) |
+| tab_ecran_ordre | smallint unsigned | nn, défaut 0 | Ordre de ce préremplissage |
+| tab_visible | tinyint(1) | nn, défaut 1 | 0 = brouillon |
+| tab_date_creation / tab_date_modif | datetime | nn | |
+
+### dd_tableaux_categories
+
+Catégories des tableaux, **communes aux deux rulesets** (pas de `_ruleset_var_id`) — SP-TB12.
+Ids figés : 1 Classe, 2 Race, 3 Don, 4 Sort, 5 Monstre, 6 Objet magique, 7 Règle, 8 Équipement,
+9 Compétence (SP-TB13, ordre 35).
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| tabc_id | int unsigned | PK | |
+| tabc_slug | varchar(40) | nn, UK | Clé stable entre environnements |
+| tabc_nom | varchar(80) | nn | Libellé |
+| tabc_ordre | smallint unsigned | nn, défaut 0 | Ordre des listes déroulantes |
 
 
 ---
@@ -853,6 +912,10 @@ Liste des compétences que possède le personnage
 | pec_pe_id | int unsigned | nn, UK(pec_pe_id, pec_comp_id) | -> dd_personnages |
 | pec_comp_id | int unsigned | nn | -> dd_competences |
 | pec_maitrise | tinyint | nn, défaut 0 | *[DD3.5]* Nombre de rangs ; *[DD2024]* 0=aucune, 1=maîtrise, 2=expertise |
+| pec_mod_divers | smallint | nn, défaut 0 | Modificateur divers saisi par le joueur (dons, capacités, objets) — SP-PE20 |
+| pec_mod_libelle | varchar(200) | NULL | Origine du modificateur divers, texte libre — SP-PE20 |
+
+> Une ligne existe si `pec_maitrise > 0` ou `pec_mod_divers <> 0` (SP-PE20).
 
 ---
 
@@ -885,8 +948,56 @@ Liste des dons que possède le personnage
 
 ---
 
+### dd_personnages_possessions
+*[SP-PO6]* Inventaire d'un personnage : une ligne par objet (D-PO15 → D-PO20). FK logiques. Purge dans `supprimerPersonnage`.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| pp_id | int unsigned | PK | |
+| pp_pe_id | int unsigned | nn | -> dd_personnages |
+| pp_type | enum('equipement','objet','compose') | nn | `equipement` → `pp_eqt_id` ; `objet` (objet magique simple) → `pp_om_id` ; `compose` : objet magique complexe DD3.5 composé pour ce personnage |
+| pp_eqt_id | int unsigned | null | -> dd_equipements : l'équipement, ou l'objet de base d'un composé (arme, armure, bouclier) |
+| pp_om_id | int unsigned | null | -> dd_objets_magiques (objet simple) |
+| pp_nom | varchar(200) | null | Nom libre ; composé : nom généré, modifiable |
+| pp_quantite | smallint unsigned | nn, défaut 1 | |
+| pp_equipe | tinyint(1) | nn, défaut 0 | 1 = porté / en main |
+| pp_harmonise | tinyint(1) | nn, défaut 0 | *[DD2024]* objet harmonisé (SP-PO12) |
+| pp_charges | smallint unsigned | null | Charges restantes (baguette) |
+| pp_notes | text | null | |
+| pp_compose_cat | enum('arme','armure','bouclier','potion','huile','baguette','parchemin') | null | Composé seulement |
+| pp_maitre | tinyint(1) | nn, défaut 0 | Composé : qualité de maître |
+| pp_bonus | tinyint unsigned | null | Composé : bonus d'altération |
+| pp_bonus_tete2 | tinyint unsigned | null | Composé : bonus de la seconde tête d'une arme double |
+| pp_nls | tinyint unsigned | null | Composé : NLS calculé |
+| pp_prix_pc / pp_cout_pc | int unsigned | null | Composé : prix de vente / coût de création, en pc — **photo** du calcul serveur (`include/objet-compose.php`, SP-PO7) |
+| pp_cout_px | int unsigned | null | Composé : coût de création en PX (photo) |
+| pp_ordre | smallint unsigned | nn, défaut 0 | |
+| pp_date_creation / pp_date_maj | datetime | nn / null | |
+
+### dd_personnages_possessions_elements
+*[SP-PO6]* Éléments d'un objet composé : propriétés spéciales (armes, armures, boucliers) ou sorts (potion, baguette, parchemin).
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| ppe_id | int unsigned | PK | |
+| ppe_pp_id | int unsigned | nn | -> dd_personnages_possessions (`pp_type` = `compose`) |
+| ppe_type | enum('propriete','sort') | nn | |
+| ppe_tete | tinyint unsigned | nn, défaut 1 | Arme double : tête 1 ou 2 |
+| ppe_om_id | int unsigned | null | -> dd_objets_magiques (propriété spéciale) |
+| ppe_so_id | int unsigned | null | -> dd_sorts |
+| ppe_cla_id | int unsigned | null | -> dd_classes : liste de classe qui fixe le niveau du sort |
+| ppe_niveau / ppe_nls | tinyint unsigned | null | Niveau du sort dans cette liste (photo) / NLS du sort |
+| ppe_parametre | varchar(150) | null | Paramètre libre (Tueuse : créature ; Stockage de sort : sort ; Aura élémentaire : énergie) |
+| ppe_suppl_pc / ppe_suppl_px | int unsigned | nn, défaut 0 | Composantes coûteuses (pc) et coût en PX du sort, saisis à la main |
+| ppe_utilise | tinyint(1) | nn, défaut 0 | Parchemin : sort déjà lu |
+| ppe_ordre | smallint unsigned | nn, défaut 0 | |
+
+---
+
 ### dd_personnages_notes
 *[SP-NO0]* Destinataires d’une note : une ligne par personnage à qui le MJ l’a diffusée.
+*[SP-NO11]* Pour une note diffusée à toute la campagne (`no_diffusion_campagne` = 1), la ligne n’ouvre aucun accès :
+elle ne fait que suivre la lecture, et n’est créée qu’à la première ouverture.
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
@@ -911,6 +1022,7 @@ Liste des dons que possède le personnage
 | camp_un_id | int unsigned | null | Univers de la campagne -> dd_univers ; NULL = aucun. **1 campagne = au plus 1 univers**. Les univers sont agnostiques du ruleset. |
 | camp_resume | text | null | Résumé court (texte simple) |
 | camp_description | longtext | null | Description complète (HTML TinyMCE, images uploadées autorisées) |
+| camp_ecran_colonnes | tinyint unsigned | nn, défaut 3 | Écran du MJ : nombre de colonnes, 2 à 6 (SP-TB8) |
 | camp_date_creation | datetime | nn | Horodatage automatique |
 
 > **Ruleset hérité** : le ruleset n'est stocké QUE sur la campagne (`camp_ruleset_var_id`).
@@ -918,6 +1030,21 @@ Liste des dons que possède le personnage
 > colonne `_ruleset_var_id` redondante sur les entités filles.
 > **Univers 1-1** : la liaison N-N `dd_campagnes_univers` de l'ébauche précédente est **abandonnée**
 > au profit de `camp_un_id`.
+
+---
+
+### dd_campagnes_ecran
+Écran du MJ (SP-TB8) : tableaux posés sur l'écran d'une campagne. UK (`ce_camp_id`, `ce_tab_id`).
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| ce_id | int unsigned | PK | |
+| ce_camp_id | int unsigned | nn | -> dd_campagnes (FK, `ON DELETE CASCADE`) |
+| ce_tab_id | int unsigned | nn | -> dd_tableaux (FK, `ON DELETE CASCADE`) |
+| ce_colonne | tinyint unsigned | nn, défaut 0 | Colonne de départ, 0 = gauche |
+| ce_ordre | smallint unsigned | nn, défaut 0 | Ordre **global** de placement (ARCHITECTURE §9c) |
+| ce_largeur | tinyint unsigned | nn, défaut 1 | 1 ou 2 colonnes |
+| ce_replie | tinyint(1) | nn, défaut 0 | 1 = réduit à son titre |
 
 ---
 
@@ -1135,6 +1262,7 @@ Catégories de notes, propres à chaque ruleset.
 | no_camp_id | int unsigned | nn, KEY(no_camp_id, no_supprime, no_date) | -> dd_campagnes. Le ruleset de la note est celui de la campagne (pas de colonne propre) |
 | no_sce_id | int unsigned | null, KEY | -> dd_scenarios ; NULL = note valable pour toute la campagne |
 | no_tyno_id | int unsigned | nn, KEY | Catégorie -> dd_types_notes (du ruleset de la campagne) |
+| no_diffusion_campagne | tinyint(1) | nn, défaut 0 | 1 = lue par tout personnage rattaché à la campagne (inactifs compris, y compris ceux ajoutés plus tard) ; 0 = destinataires de `dd_personnages_notes` — SP-NO11 |
 | no_texte | longtext | null | Tronc commun (TinyMCE, images autorisées), toujours lisible par les destinataires |
 | no_j_id | int unsigned | nn | Rédacteur -> dd_joueurs |
 | no_date | datetime | nn | Date de la note, critère de tri, modifiable par le MJ |
@@ -1159,15 +1287,15 @@ Sections d'une note.
 
 ### dd_notes_conditions
 Conditions d'accès à une section. Aucune ligne = section lisible par tous les destinataires ; plusieurs lignes
-= **OU** (une seule condition satisfaite suffit). Une condition est satisfaite si `10 + bonus total de
-compétence ≥ nocd_dd` ; en DD3.5, une compétence à formation requise sans rang ne la satisfait jamais.
+= **OU** (une seule condition satisfaite suffit). Une condition est satisfaite si `bonus total de
+compétence ≥ nocd_dd` (score, sans « prendre 10 » depuis D-NO23) ; en DD3.5, une compétence à formation requise sans rang ne la satisfait jamais.
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|
 | nocd_id | int unsigned | PK | |
 | nocd_noc_id | int unsigned | nn, UK(nocd_noc_id, nocd_comp_id) | -> dd_notes_contenus |
 | nocd_comp_id | int unsigned | nn, KEY | -> dd_competences |
-| nocd_dd | tinyint unsigned | nn | DD à atteindre en « prenant 10 » |
+| nocd_dd | tinyint unsigned | nn | Score de compétence (bonus total) à atteindre |
 
 ---
 

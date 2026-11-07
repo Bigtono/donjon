@@ -2,7 +2,7 @@
 // include/ajax/modifier/notes-groupe.php
 // Panneau des actions groupées de la liste des notes du MJ (SP-NO9, D-NO16).
 // Ouvert par « Appliquer » de la barre groupée (clé bulk_panneau de campagnes/notes.php).
-// Paramètres GET : action — 'supprimer' | 'campagne' | 'categorie' | 'personnages'
+// Paramètres GET : action — 'supprimer' | 'campagne' | 'categorie' | 'personnages' | 'diffusion' (SP-NO11)
 //                  ids    — no_id séparés par des virgules
 // Le panneau liste les notes sélectionnées et porte le choix ; l'écriture est faite
 // par l'action notesGroupe de campagnes/enregistrement.php.
@@ -19,6 +19,7 @@ $actions = [
   'campagne'    => 'Changer de campagne',
   'categorie'   => 'Changer de catégorie',
   'personnages' => 'Destinataires',
+  'diffusion'   => 'Diffusion',
 ];
 $action = strParam($_GET['action'] ?? '');
 $notes  = notesGroupeMJ($db, explode(',', (string)($_GET['ids'] ?? '')));
@@ -138,7 +139,26 @@ endif;
           </select>
         </div>
 
+      <?php elseif ($action === 'diffusion'): ?>
+        <?php $nb_camp = count(array_filter($notes, fn($n) => (int)$n['no_diffusion_campagne'] === 1)); ?>
+        <p class="note-form__aide">Actuellement : <?= $nb_camp ?> diffusée<?= $nb_camp > 1 ? 's' : '' ?> à toute la campagne,
+          <?= $nb - $nb_camp ?> aux personnages choisis.</p>
+        <div class="notes-groupe__mode">
+          <label><input type="radio" name="diffusion" value="1"> Toute la campagne (y compris les personnages ajoutés plus tard)</label>
+          <label><input type="radio" name="diffusion" value="0"> Personnages choisis</label>
+        </div>
+        <p class="note-form__aide">Vers « Personnages choisis », les personnages actuellement rattachés à la campagne
+          deviennent les destinataires de la note. L'état de lecture est conservé dans les deux sens.</p>
+
       <?php else: ?>
+        <?php $nb_camp = count(array_filter($notes, fn($n) => (int)$n['no_diffusion_campagne'] === 1)); ?>
+        <?php if ($nb_camp > 0): ?>
+          <p class="notes-groupe__alerte">
+            <i class="fa fa-info-circle"></i>
+            <?= $nb_camp ?> note<?= $nb_camp > 1 ? 's' : '' ?> diffusée<?= $nb_camp > 1 ? 's' : '' ?> à toute la campagne :
+            écartée<?= $nb_camp > 1 ? 's' : '' ?> de cette opération.
+          </p>
+        <?php endif ?>
         <div class="notes-groupe__mode">
           <label><input type="radio" name="mode" value="ajouter" checked> Ajouter aux destinataires</label>
           <label><input type="radio" name="mode" value="retirer"> Retirer des destinataires</label>
@@ -186,6 +206,10 @@ endif;
     if (!form) return;
     var champ = form.querySelector('select');
     if (champ && !champ.value) { alert('Faites un choix dans la liste.'); return; }
+    if (form.querySelector('input[name="diffusion"]') && !form.querySelector('input[name="diffusion"]:checked')) {
+      alert('Choisissez un mode de diffusion.');
+      return;
+    }
     if (form.querySelector('input[name="pe_ids[]"]') && !form.querySelector('input[name="pe_ids[]"]:checked')) {
       alert('Cochez au moins un personnage.');
       return;

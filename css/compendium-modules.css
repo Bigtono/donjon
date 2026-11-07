@@ -485,3 +485,25 @@
   color: var(--clr-text-muted);
   font-style: italic;
 }
+/* ============================================================
+   Synergies accordées — formulaire de compétence (SP-PE21, DD3.5)
+   ============================================================ */
+.comp-synergies {
+  width: 100%;
+  margin: var(--sp-xs) 0 var(--sp-sm);
+}
+
+.table-dd .comp-synergies__cible,
+.table-dd .comp-synergies__condition {
+  text-align: left;
+}
+
+.comp-synergies select,
+.comp-synergies input {
+  width: 100%;
+}
+
+.comp-synergies input[type="number"] {
+  min-width: 56px;
+  text-align: center;
+}

@@ -49,7 +49,7 @@ require_once '../include/header.php';
 </script>
 
 <div class="flex-between mb-md">
-  <h1>Campagnes <span class="text-muted text-sm">(<?= h($ruleset_rep) ?>)</span></h1>
+  <h1>Campagnes</h1>
   <div class="flex flex-gap">
     <?php // Gestionnaire de tableaux — accessible depuis chaque module
     // (SP-TB10) : un tableau se réutilise partout, il n'appartient plus aux

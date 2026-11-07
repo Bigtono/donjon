@@ -42,6 +42,7 @@ Deux rulesets : **DD3.5** (id 1) et **DD2024** (id 2).
 | Ruleset DD2024 | id = 2 |
 | Spécificités ruleset | Gérées **inline** (`if ($ruleset_rep === 'DD3.5')`, filtre `_ruleset_var_id`) — pas de dossier de templates par ruleset (`include/insert/DD*/` abandonné le 2026-06-12, voir `DECISIONS_LOG.md`) |
 | `dd_historiques` | DD2024 uniquement — jamais exposé en DD3.5 |
+| Affichage du ruleset | **Jamais rappelé dans les pages** (titre, badge, méta) — c'est le contexte du header (D-CP11) |
 
 ---
 
@@ -69,6 +70,7 @@ Deux rulesets : **DD3.5** (id 1) et **DD2024** (id 2).
 
 | Élément | z-index | Rôle |
 |---|---|---|
+| `#ecran-mj` | 190 | Écran du MJ, surcouche plein écran (SP-TB8) |
 | `#detail-pp-backdrop` | 199 | Backdrop detail principal |
 | `#detail-pp` | 200 | Panneau détail (lecture) |
 | `#modification-backdrop` | 249 | Backdrop formulaire |
@@ -157,13 +159,13 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
    compendium), `SP-MA` (référentiel de la magie), `SP-PE` (module Personnages), `SP-SC`
    (sous-classes DD2024), `SP-RS` (UI smartphone), `SP-CP` (refonte du module Campagnes), `SP-AD`
    (administration), `SP-RB` (bascule de ruleset depuis le header), `SP-DP` (déploiement en
-   production), `SP-XC` (export de classes vers la production), `SP-CH` (choix liés aux capacités de classe), `SP-DO` (dons DD3.5 : dons de guerrier, données techniques), `SP-NO` (module Notes : diffusion d'informations aux joueurs), `SP-SY` (synchronisation du contenu
+   production), `SP-XC` (export de classes vers la production), `SP-CH` (choix liés aux capacités de classe), `SP-DO` (dons DD3.5 : dons de guerrier, données techniques), `SP-NO` (module Notes : diffusion d'informations aux joueurs), `SP-MO` (import des monstres DD3.5 de l'ancienne application), `SP-SY` (synchronisation du contenu
    local → production, en attente d'arbitrage).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
    ```markdown
    - [x] SP-TB1 — Moteur de rendu des tableaux
-   - [ ] SP-TB8 — Écran du MJ
+   - [ ] SP-TB8g — Contrôle visuel de l'écran du MJ
    ```
 3. **Les phases non livrées y figurent explicitement**, avec un libellé qui suffit à
    reprendre le travail plus tard. Une phase abandonnée est retirée, pas laissée décochée.
@@ -189,7 +191,14 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - Tableaux de règles SP-TB0→TB7 : table `dd_tableaux`, convention texte, tag `[[tab:slug]]`,
   UI de gestion, migration des tableaux HTML existants. Portée du tag : `reg_texte`, définitions
   de glossaire, `mo_stats` et les champs description du compendium. Composant CSS `.reg-tab*`
-  dans `css/modules.css` (chargé partout) — voir §9c
+  dans `css/modules.css` (chargé partout) — voir §9c. **Catégories SP-TB12** : `dd_tableaux_categories`
+  (9 catégories communes aux rulesets, dont « Compétence » ajoutée par SP-TB13) + `tab_tabc_id`, filtre de la liste et du sélecteur ; les deux
+  migrations `sql/2026-11-07_sp-tb12*.sql` (dont le renvoi de toute la table) restent à jouer en production
+- Écran du MJ SP-TB8a→f : surcouche plein écran `#ecran-mj` ouverte depuis la colonne d'outils des Campagnes,
+  tableaux disposés **par campagne** (`dd_campagnes_ecran`, `camp_ecran_colonnes`) en 2 à 6 colonnes virtuelles,
+  glisser-déposer, largeur 1 ou 2, repliage ; ajout, sélection proposée (`tab_ecran_mj`) et duplication d'une
+  autre campagne du même ruleset (`include/ecran-mj.php`, `js/ecran-mj.js`, §9c). Reste SP-TB8g : contrôle
+  visuel et `sql/2026-11-07_sp-tb8b_ecran_mj.sql` à jouer en production
 - Liaison auto du glossaire SP-GL0→GL3 : `include/glossaire-parser.php`, renvois produits au
   rendu dans `reg_texte`, les définitions de glossaire et les descriptions du compendium.
   Point de passage unique : `rendreTexteEnrichi()` — glossaire puis tableaux (voir §9d)
@@ -202,13 +211,15 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   `rendreTexteEnrichi()` (voir §9e). Journal des corrections de texte : `doc/LOG_CORRECTIONS_DRS07_DRS23.md`
 - Choix de capacités de classe SP-CH0→CH5 : `cc_nb_choix` / `cap_choix_mode` déclarés dans le formulaire de classe,
   emplacements remplis sur la fiche (`dd_personnages_choix`, texte libre ou don lié au bloc Dons). Reste SP-CH6 :
-  déclarer les autres capacités à choix du compendium et rejouer `sql/2026-10-31_choix_capacites_sp-ch0.sql` en production
+  déclarer les autres capacités à choix du compendium
 - Gestion d'un personnage par l'admin et le MJ SP-PE18a→d : helpers `peutGererPersonnage()` & co.
   (`include/personnage_helpers.php`, §7.5e) ; le MJ gère les personnages de ses campagnes (hors suppression),
   les y ajoute / retire depuis `campagnes/campagne.php`, et les affecte à un joueur (`pe_affecte_par_j_id`,
-  transfert avec trace). Reste SP-PE18e : contrôle visuel et `sql/2026-11-01_sp-pe18_affectation_personnage.sql`
-  à jouer en production. Actions groupées de la liste SP-PE19 (affecter à une campagne / à un joueur, panneau
+  transfert avec trace). Reste SP-PE18e : contrôle visuel. Actions groupées de la liste SP-PE19 (affecter à une campagne / à un joueur, panneau
   `include/ajax/modifier/personnages-groupe.php`, admin et MJ seulement)
+- Total de compétence SP-PE20 / PE21 : modificateur divers par compétence (`pec_mod_divers` + origine) et synergies DD3.5
+  (`dd_competences_synergies`, 28 chargées, saisie au formulaire de compétence ; conditionnelles affichées hors total).
+  Calcul unique `totalCompetence()`, repris par l'accès aux notes
 - Aide à la saisie : `aideIcone()` sur les 13 champs soumis à un parser, contenu dans
   `include/aide-contextuelle.php` (une clé par jeu de parsers réellement appliqué)
 - Déploiement SP-DP0→DP6 : bouton du header (local seulement) qui envoie par SFTP les fichiers
@@ -219,8 +230,9 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 
 ### À faire (priorités)
 
-- SP-PO3e (modifier un tag de liste déjà posé), SP-PO4 (écran des familles d'équipement), SP-PO6 (possessions du personnage).
-  Les migrations `sql/2026-10-11_*`, `2026-10-15_*` et `2026-10-16_*` (dont les deux `…_sp-po5b.sql`) restent à jouer en production
+- SP-PO3e (modifier un tag de liste déjà posé), SP-PO4 (écran des familles d'équipement), SP-PO13 (matériaux spéciaux), SP-PO14 (suppression des potions / baguettes DD3.5 masquées). Possessions livrées le 2026-11-06/07 (SP-PO6 → PO11 pour DD3.5 : schéma, moteur `include/objet-compose.php`, page Possessions, sélecteur, compositeur des sept types, usage en jeu ; SP-PO12 pour DD2024 : valeur par rareté, harmonisation).
+  **Toutes les migrations jusqu'aux `2026-11-06_*` comprises sont jouées en production** (constaté sur le dump
+  de production du 2026-11-07, qui a servi à recharger la base locale — D-TB23)
 - SP-IM6 : **seule phase du cycle d'import encore ouverte** — les descriptions des 8 classes
   DD2024, absentes du SRD, à saisir depuis le MdJ 2024. Tout le reste est livré le 2026-08-28 :
   classes complètes, 9 espèces, 38 options de classe en dons, et les 356 objets magiques du SRD
@@ -230,17 +242,21 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   < 992px sur les blocs PE3→PE7
 - SP-NO8 : module Notes (arbitrage D-NO0 → D-NO4 ; SP-NO0 → NO7 et NO9 (actions groupées) livrés : schéma, moteur d'accès, formulaire,
   interfaces du MJ `campagnes/notes.php` et du joueur `personnages/notes.php`, D-NO5 → D-NO16, `doc/METIER_11_Notes.md`) — notes
-  du MJ à tronc commun + sections conditionnées par compétence (DD en « prendre 10 », OU), diffusées aux personnages ;
-  import v1 (`admin/import-notes-v1.php`) joué en local dans L'Empire des Anges. Restent en production : les migrations `2026-11-01_sp-no0_notes.sql` et
-  `2026-11-01_sp-no7_notes_v1_transit.sql`, puis l'import dans la campagne cible ; SP-NO10 : dupliquer une note d'une autre campagne
+  du MJ à tronc commun + sections conditionnées par compétence (score de compétence ≥ DD, OU), diffusées aux personnages ;
+  import v1 (`admin/import-notes-v1.php`) joué en local dans L'Empire des Anges (migrations jouées en production) ;
+  SP-NO10 : dupliquer une note d'une autre campagne ;
+  SP-NO11a livré (diffusion à toute la campagne, `no_diffusion_campagne`, D-NO19 → D-NO22, migration jouée en production)
 - SP-SY0 : arbitrage de la synchronisation du contenu local → prod (non prioritaire, voir §6c) —
   ajouter en prod le contenu local absent, sans jamais rien écraser
-- SP-TB8 : écran du MJ (alimenté par `tab_ecran_mj` / `tab_ecran_ordre`)
+- SP-TB8g : contrôle visuel de l'écran du MJ, migration `2026-11-07_sp-tb8b_ecran_mj.sql` à jouer en production
 - SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
 - SP-C6 : profil "Mes sources" — suppléments publics tiers
 - SP-E4 : `monstre-parser.php`, type liable `equipement` (SP-E5 soldée par SP-PO0)
 - SP-T1 : Transférer/Dupliquer vers une autre campagne
-- Autres phases ouvertes (détail dans §0) : SP-MA4c / MA5 / MA6e (magie), SP-DRS4 et SP-GL4 (lots
+- Compétences DD3.5 SP-DRS4b (2026-11-07) : texte intégral du DRS 04 pour les 36 fiches mères et 40 tableaux
+  `competence-*` (catégorie Compétence) — `sql/2026-11-08_sp-drs4b_competences_dd35.sql`, **à jouer en production**
+  (SP-DRS4d) ; journal `doc/LOG_CORRECTIONS_DRS04.md` §5
+- Autres phases ouvertes (détail dans §0) : SP-MA4c / MA5 / MA6e (magie), SP-DRS4d / DRS4e, SP-DRS5 et SP-GL4 (lots
   suivants du DRS), SP-RS5 / RS6c (UI smartphone), SP-CP8 (outils de partie), SP-XC4 (premier export
   de classes joué en production)
 

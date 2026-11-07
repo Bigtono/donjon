@@ -122,7 +122,6 @@ require_once '../include/header.php';
 
 <div class="flex-between mb-md">
   <h1>Monstres
-    <span class="site-header__ruleset"><?= h($ruleset_rep) ?></span>
   </h1>
 </div>
 

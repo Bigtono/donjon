@@ -3,7 +3,8 @@
 // campUrlModifier / campUrlEnreg injectés en inline par chaque page.
 //
 // SP-CP : le module a quitté #detail-pp pour une navigation pleine page
-// (campagnes/campagne.php, scenario.php, chapitre.php, rencontre.php). Toutes
+// (campagnes/campagne.php et ses sous-pages campagne-personnages.php /
+// campagne-scenarios.php — SP-CP9 —, scenario.php, chapitre.php, rencontre.php). Toutes
 // les écritures se concluent donc par un rechargement de la page courante —
 // et non plus par un rechargement de panneau. Une seule règle, valable partout :
 // on reste sur la page d'où l'action est partie.

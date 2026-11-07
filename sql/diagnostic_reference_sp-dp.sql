@@ -12,6 +12,7 @@ UNION ALL SELECT '2026-06-20_oppositions_monstre_optionnel', (SELECT COUNT(*) FR
 UNION ALL SELECT '2026-08-10_tableaux_sp-tb0', (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dd_tableaux')
 UNION ALL SELECT '2026-08-15_dons_dd2024_mdj (dons DD2024)', (SELECT COUNT(*) FROM dd_dons WHERE do_ruleset_var_id = 2)
 UNION ALL SELECT '2026-08-22_releves_device_sp-rs5', (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dd_connexions')
+UNION ALL SELECT '2026-08-22_releves_device_sp-rs5 (colonnes j_last_* : 10)', (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dd_joueurs' AND COLUMN_NAME LIKE 'j\_last\_%')
 UNION ALL SELECT '2026-08-24_ordre_sp-cp', (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dd_rencontres' AND COLUMN_NAME = 're_ordre')
 UNION ALL SELECT '2026-08-25_regles_dd35_socle (ressource DRS)', (SELECT COUNT(*) FROM dd_ressources WHERE res_abreviation = 'DRS 3.5')
 UNION ALL SELECT '2026-08-25_regles_dd35_drs* (règles DD3.5)', (SELECT COUNT(*) FROM dd_regles WHERE reg_ruleset_var_id = 1)

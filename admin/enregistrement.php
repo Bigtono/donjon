@@ -300,7 +300,6 @@ function sauvegarderRessource($db, bool $is_ajax, string $redirect): void
   $ruleset_id    = intParam($_POST['res_ruleset_var_id'] ?? 0);
   $selection     = isset($_POST['res_selection'])   ? 1 : 0;
   $editeur       = strParam($_POST['res_editeur']        ?? '');
-  $pages         = intParam($_POST['res_pages']          ?? 0);
   $description   = $_POST['res_description'] ?? ''; // HTML TinyMCE
 
   if (!$nom):
@@ -329,12 +328,12 @@ function sauvegarderRessource($db, bool $is_ajax, string $redirect): void
       $stmt = $db->prepare('
         INSERT INTO dd_ressources
           (res_nom, res_abreviation, res_ruleset_var_id, res_selection,
-           res_editeur, res_pages, res_description)
-        VALUES (?,?,?,?,?,?,?)
+           res_editeur, res_description)
+        VALUES (?,?,?,?,?,?)
       ');
       $stmt->execute([
         $nom, $abreviation, $ruleset_id, $selection,
-        $editeur, $pages ?: null, $description,
+        $editeur, $description,
       ]);
       $res_id = (int)$db->lastInsertId();
 
@@ -346,13 +345,12 @@ function sauvegarderRessource($db, bool $is_ajax, string $redirect): void
           res_ruleset_var_id   = ?,
           res_selection        = ?,
           res_editeur          = ?,
-          res_pages            = ?,
           res_description      = ?
         WHERE res_id = ?
       ');
       $stmt->execute([
         $nom, $abreviation, $ruleset_id, $selection,
-        $editeur, $pages ?: null, $description,
+        $editeur, $description,
         $res_id,
       ]);
     endif;
@@ -380,21 +378,15 @@ function supprimerRessource($db, bool $is_ajax, string $redirect): void
     adminErreur($is_ajax, 'Aucune ressource sélectionnée.', $redirect);
   endif;
 
-  // Vérification des dépendances pour chaque ressource
-  // Périmètre complet du compendium (7 tables)
-  $tables_compendium = [
-    ['table' => 'dd_classes',        'champ' => 'cla_res_id', 'label' => 'classes',        'camp' => 'cla_camp_id'],
-    ['table' => 'dd_races',          'champ' => 'ra_res_id',  'label' => 'races',           'camp' => null],
-    ['table' => 'dd_sorts',          'champ' => 'so_res_id',  'label' => 'sorts',           'camp' => 'so_camp_id'],
-    ['table' => 'dd_dons',           'champ' => 'do_res_id',  'label' => 'dons',            'camp' => 'do_camp_id'],
-    ['table' => 'dd_competences',    'champ' => 'comp_res_id','label' => 'compétences',     'camp' => null],
-    ['table' => 'dd_historiques',    'champ' => 'hi_res_id',  'label' => 'historiques',     'camp' => null],
-    ['table' => 'dd_objets_magiques','champ' => 'om_res_id',  'label' => 'objets magiques', 'camp' => null],
-  ];
-
+  // Refus dès qu'une ressource porte du contenu (contenuRessourceTables())
   foreach ($ids as $res_id):
-    $detail_erreur = verifierDependancesRessource($db, $res_id, $tables_compendium);
-    if ($detail_erreur):
+    try {
+      $detail_erreur = decrireContenuRessource(compterContenuRessource($db, $res_id));
+    } catch (Exception $e) {
+      error_log('supprimerRessource : ' . $e->getMessage());
+      adminErreur($is_ajax, 'Erreur lors de la vérification du contenu : suppression annulée.', $redirect);
+    }
+    if ($detail_erreur !== ''):
       adminErreur(
         $is_ajax,
         'Impossible de supprimer : cette ressource contient ' . $detail_erreur
@@ -428,31 +420,6 @@ function supprimerRessource($db, bool $is_ajax, string $redirect): void
     error_log('supprimerRessource : ' . $e->getMessage());
     adminErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
   }
-}
-
-// Retourne null si aucune dépendance, sinon un texte descriptif des compteurs
-function verifierDependancesRessource($db, int $res_id, array $tables): ?string
-{
-  $compteurs = [];
-  foreach ($tables as $t):
-    $cond = 'WHERE ' . $t['champ'] . ' = ?';
-    if ($t['camp']):
-      $cond .= ' AND ' . $t['camp'] . ' IS NULL'; // compendium global uniquement
-    endif;
-    try {
-      $stmt = $db->prepare('SELECT COUNT(*) FROM ' . $t['table'] . ' ' . $cond);
-      $stmt->execute([$res_id]);
-      $nb = (int)$stmt->fetchColumn();
-      if ($nb > 0):
-        $compteurs[] = $nb . ' ' . $t['label'];
-      endif;
-    } catch (Exception $e) {
-      // Table absente (ex: dd_historiques non encore créée) — on passe
-      error_log('verifierDependancesRessource — table manquante: ' . $t['table']);
-    }
-  endforeach;
-
-  return empty($compteurs) ? null : implode(', ', $compteurs);
 }
 
 // ============================================================

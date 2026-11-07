@@ -42,15 +42,13 @@ function getPersonnageContext(PDO $db, int $pe_id): ?array {
            hi.hi_nom         AS historique_nom,
            al.al_nom         AS alignement_nom,
            al.al_abreviation AS alignement_abr,
-           camp.camp_nom     AS campagne_courante_nom,
-           var.var_valeur    AS ruleset_label
+           camp.camp_nom     AS campagne_courante_nom
       FROM dd_personnages pe
       LEFT JOIN dd_races       ra_base ON ra_base.ra_id = pe.pe_ra_id
       LEFT JOIN dd_races       ra_arc  ON ra_arc.ra_id  = pe.pe_arc_id AND pe.pe_arc_id > 0
       LEFT JOIN dd_historiques hi      ON hi.hi_id      = pe.pe_hi_id
       LEFT JOIN dd_alignements al      ON al.al_id      = pe.pe_al_id
       LEFT JOIN dd_campagnes   camp    ON camp.camp_id  = pe.pe_camp_id
-      LEFT JOIN dd_variables   var     ON var.var_id    = pe.pe_ruleset_var_id
      WHERE pe.pe_id = ?
      LIMIT 1
   ');
@@ -437,7 +435,8 @@ function getCampagnesRattachables(PDO $db, int $ruleset_id): array {
  * @param  int    $ruleset_id
  * @param  array  $res_ids     Sources actives ; si vide, aucun filtre de source
  * @return array  [{comp_id, comp_nom, comp_car_id, comp_formation,
- *                  comp_malusArmure, car_nom, car_diminutif, pec_maitrise}, …]
+ *                  comp_malusArmure, car_nom, car_diminutif, pec_maitrise,
+ *                  pec_mod_divers, pec_mod_libelle}, …]
  */
 function getPersonnageCompetences(PDO $db, int $pe_id, int $ruleset_id, array $res_ids): array {
   $filtre_res = !empty($res_ids);
@@ -451,7 +450,9 @@ function getPersonnageCompetences(PDO $db, int $pe_id, int $ruleset_id, array $r
            comp.comp_malusArmure,
            car.car_nom,
            car.car_diminutif,
-           COALESCE(pec.pec_maitrise, 0) AS pec_maitrise
+           COALESCE(pec.pec_maitrise, 0) AS pec_maitrise,
+           COALESCE(pec.pec_mod_divers, 0) AS pec_mod_divers,
+           pec.pec_mod_libelle
       FROM dd_competences comp
       LEFT JOIN dd_caracteristiques car ON car.car_id = comp.comp_car_id
       LEFT JOIN dd_personnages_competences pec
@@ -1011,9 +1012,9 @@ function getBonusMaitrise(PDO $db, int $ruleset_id, int $niveau): int {
  * DD2024  : modificateur de caractéristique + bonus de maîtrise
  *           (×1 si maîtrise, ×2 si expertise, rien sinon).
  *
- * Volontairement **hors équipement, armure et bonus divers** : ces données ne
- * sont pas saisies dans le module (cf. archi §7.1). Le total est une aide de
- * calcul, pas une valeur de fiche opposable — la fiche l'annonce explicitement.
+ * Base du total, **hors modificateur divers et synergies** : totalCompetence()
+ * les ajoute (SP-PE20, SP-PE21). Équipement et armure ne sont pas saisis dans
+ * le module (cf. archi §7.1).
  *
  * @param  int     $maitrise        pec_maitrise (rangs DD3.5 / 0-1-2 DD2024)
  * @param  int     $mod_carac       Modificateur de la caractéristique associée
@@ -1026,6 +1027,79 @@ function bonusCompetence(int $maitrise, int $mod_carac, string $ruleset_rep, int
     return $mod_carac + ($bonus_maitrise * min(max($maitrise, 0), 2));
   endif;
   return $mod_carac + $maitrise;
+}
+
+/**
+ * Synergies reçues par chaque compétence du personnage (SP-PE21 — DD3.5 seulement).
+ *
+ * Une synergie est acquise quand la compétence source atteint son seuil de rangs
+ * (5 en règle générale). Sans condition, son bonus entre dans le total ; avec
+ * une condition (« parchemins »), elle est seulement listée : elle ne vaut que
+ * pour certains tests, le joueur l'ajoute lui-même (D-PE21a). Les synergies
+ * d'une même cible venant de sources différentes se cumulent.
+ *
+ * @param  PDO     $db
+ * @param  array   $competences  Retour de getPersonnageCompetences()
+ * @param  string  $ruleset_rep  'DD3.5' ou 'DD2024'
+ * @return array   [comp_id cible => ['bonus' => int,
+ *                   'acquises'        => [['source' => nom, 'bonus' => int], …],
+ *                   'conditionnelles' => [['source' => nom, 'bonus' => int, 'condition' => texte], …]]]
+ */
+function synergiesCompetences(PDO $db, array $competences, string $ruleset_rep): array {
+  if ($ruleset_rep !== 'DD3.5') return [];
+
+  $rangs = [];
+  foreach ($competences as $c):
+    if ((int)$c['pec_maitrise'] > 0) $rangs[(int)$c['comp_id']] = (int)$c['pec_maitrise'];
+  endforeach;
+  if (empty($rangs)) return [];
+
+  $ids  = array_keys($rangs);
+  $stmt = $db->prepare('
+    SELECT syn.syn_comp_source_id, syn.syn_comp_cible_id, syn.syn_seuil, syn.syn_bonus,
+           syn.syn_condition, src.comp_nom AS source_nom
+      FROM dd_competences_synergies syn
+      JOIN dd_competences src ON src.comp_id = syn.syn_comp_source_id
+     WHERE syn.syn_comp_source_id IN (' . resIdsPlaceholders($ids) . ')
+  ORDER BY src.comp_nom, syn.syn_id
+  ');
+  $stmt->execute($ids);
+
+  $resultat = [];
+  foreach ($stmt->fetchAll() as $s):
+    if ($rangs[(int)$s['syn_comp_source_id']] < (int)$s['syn_seuil']) continue;
+    $cible = (int)$s['syn_comp_cible_id'];
+    $resultat[$cible] = $resultat[$cible] ?? ['bonus' => 0, 'acquises' => [], 'conditionnelles' => []];
+    $source = trim($s['source_nom']);
+    if ($s['syn_condition'] === null || trim($s['syn_condition']) === ''):
+      $resultat[$cible]['bonus']     += (int)$s['syn_bonus'];
+      $resultat[$cible]['acquises'][] = ['source' => $source, 'bonus' => (int)$s['syn_bonus']];
+    else:
+      $resultat[$cible]['conditionnelles'][] = [
+        'source' => $source, 'bonus' => (int)$s['syn_bonus'], 'condition' => $s['syn_condition'],
+      ];
+    endif;
+  endforeach;
+  return $resultat;
+}
+
+/**
+ * Total d'une compétence tel que la fiche l'affiche : base (bonusCompetence()),
+ * modificateur divers saisi par le joueur (SP-PE20) et synergies sans
+ * condition (SP-PE21). Un seul calcul pour la fiche et l'accès aux notes.
+ *
+ * @param  array   $c               Ligne de getPersonnageCompetences()
+ * @param  array   $mods            Retour de modsCaracCompetences()
+ * @param  string  $ruleset_rep     'DD3.5' ou 'DD2024'
+ * @param  int     $bonus_maitrise  Bonus de maîtrise DD2024 (0 en DD3.5)
+ * @param  array   $synergies       Retour de synergiesCompetences()
+ * @return int
+ */
+function totalCompetence(array $c, array $mods, string $ruleset_rep, int $bonus_maitrise, array $synergies): int {
+  $comp_id = (int)$c['comp_id'];
+  return bonusCompetence((int)$c['pec_maitrise'], (int)($mods[(int)$c['comp_car_id']] ?? 0), $ruleset_rep, $bonus_maitrise)
+    + (int)($c['pec_mod_divers'] ?? 0)
+    + (int)($synergies[$comp_id]['bonus'] ?? 0);
 }
 
 /**
@@ -1076,8 +1150,9 @@ function modsCaracCompetences(array $perso, array $competences): array {
  * Bonus total de chaque compétence du ruleset pour un personnage (SP-NO1).
  *
  * Même calcul que le bloc Compétences de la fiche (niveauGlobalPersonnage(),
- * getBonusMaitrise(), modsCaracCompetences(), bonusCompetence()), donc mêmes
- * limites : hors équipement, armure et bonus divers. Toutes les compétences du
+ * getBonusMaitrise(), modsCaracCompetences(), synergiesCompetences(),
+ * totalCompetence()) : modificateur divers et synergies sans condition compris,
+ * hors équipement et armure. Toutes les compétences du
  * ruleset, sans filtre de sources : une condition de note peut viser une
  * compétence qu'aucune source active ne propose.
  *
@@ -1096,11 +1171,13 @@ function bonusCompetencesPersonnage(PDO $db, array $perso): array {
     ? getBonusMaitrise($db, $ruleset_id, niveauGlobalPersonnage(getPersonnageClasses($db, $pe_id)))
     : 0;
 
+  $synergies = synergiesCompetences($db, $competences, $ruleset_rep);
+
   $resultat = [];
   foreach ($competences as $c):
     $maitrise = (int)$c['pec_maitrise'];
     $resultat[(int)$c['comp_id']] = [
-      'bonus'     => bonusCompetence($maitrise, (int)($mods[(int)$c['comp_car_id']] ?? 0), $ruleset_rep, $bonus_maitrise),
+      'bonus'     => totalCompetence($c, $mods, $ruleset_rep, $bonus_maitrise, $synergies),
       'maitrise'  => $maitrise,
       'formation' => (int)$c['comp_formation'],
     ];
@@ -1112,7 +1189,8 @@ function bonusCompetencesPersonnage(PDO $db, array $perso): array {
 // NOTES — ACCÈS DU PERSONNAGE (SP-NO1)
 // Une note = tronc commun (toujours lisible par ses destinataires) + sections.
 // Une section sans condition est libre ; sinon il suffit d'UNE condition
-// satisfaite (OU) : 10 + bonus total de compétence >= DD (« prendre 10 »).
+// satisfaite (OU) : bonus total de compétence >= DD (score de la compétence,
+// sans « prendre 10 » depuis D-NO23).
 // Voir METIER_11_Notes.md et D-NO1 → D-NO3.
 // ============================================================
 
@@ -1132,7 +1210,7 @@ function texteRicheVide(?string $html): bool {
  * Une condition « compétence + DD » est-elle satisfaite ?
  *
  * En DD3.5, une compétence à formation requise sans rang ne satisfait jamais la
- * condition : on ne peut pas « prendre 10 » sur une compétence inutilisable.
+ * condition : une compétence inutilisable ne donne accès à rien.
  * Une compétence absente du ruleset du personnage n'est pas satisfaite.
  *
  * @param  int     $comp_id
@@ -1145,7 +1223,7 @@ function conditionNoteSatisfaite(int $comp_id, int $dd, array $bonus, string $ru
   if (!isset($bonus[$comp_id])) return false;
   $b = $bonus[$comp_id];
   if ($ruleset_rep === 'DD3.5' && $b['formation'] && $b['maitrise'] <= 0) return false;
-  return 10 + $b['bonus'] >= $dd;
+  return $b['bonus'] >= $dd;
 }
 
 /**
@@ -1213,6 +1291,9 @@ function getSectionsNotes(PDO $db, array $no_ids): array {
 
 /**
  * Notes reçues par un personnage, réduites à ce qu'il peut lire (SP-NO1).
+ * Reçue : destinataire nommé, ou membre de la campagne d'une note diffusée à
+ * toute la campagne (SP-NO11). Sans ligne de suivi, pno_date vaut la date de
+ * la note et pno_lu_date NULL : la note est « nouvelle ».
  *
  * Le filtrage des sections se fait ICI, côté serveur : une section
  * inaccessible n'est jamais renvoyée — ni affichée, ni présente dans la page.
@@ -1235,8 +1316,17 @@ function getNotesPersonnage(PDO $db, array $perso, array $filtres = []): array {
   $pe_id       = (int)$perso['pe_id'];
   $ruleset_rep = ((int)$perso['pe_ruleset_var_id'] === 2) ? 'DD2024' : 'DD3.5';
 
-  $where  = ['pno.pno_pe_id = ?', 'n.no_supprime = 0', 'camp.camp_supprime = 0'];
-  $params = [$pe_id];
+  // Reçue = destinataire nommé (mode « personnages choisis »), ou rattaché à la
+  // campagne de la note, inactif compris, en mode « toute la campagne »
+  // (SP-NO11, D-NO19 → D-NO21). Dans ce mode, la ligne pno ne fait que suivre
+  // la lecture : elle n'ouvre aucun accès à un ancien membre.
+  $where  = [
+    '((n.no_diffusion_campagne = 0 AND pno.pno_id IS NOT NULL)
+      OR (n.no_diffusion_campagne = 1 AND EXISTS (
+            SELECT 1 FROM dd_campagnes_personnages cp WHERE cp.cp_pe_id = ? AND cp.cp_camp_id = n.no_camp_id)))',
+    'n.no_supprime = 0', 'camp.camp_supprime = 0',
+  ];
+  $params = [$pe_id, $pe_id];
   foreach (['no_id' => 'n.no_id', 'camp_id' => 'n.no_camp_id', 'sce_id' => 'n.no_sce_id', 'tyno_id' => 'n.no_tyno_id'] as $cle => $col):
     $val = (int)($filtres[$cle] ?? 0);
     if ($val > 0):
@@ -1255,9 +1345,9 @@ function getNotesPersonnage(PDO $db, array $perso, array $filtres = []): array {
   $stmt = $db->prepare('
     SELECT n.no_id, n.no_nom, n.no_date, n.no_texte, n.no_camp_id, camp.camp_nom,
            n.no_sce_id, sce.sce_nom, n.no_tyno_id, tyno.tyno_nom,
-           pno.pno_date, pno.pno_lu_date
-      FROM dd_personnages_notes pno
-      JOIN dd_notes n               ON n.no_id = pno.pno_no_id
+           COALESCE(pno.pno_date, n.no_date) AS pno_date, pno.pno_lu_date
+      FROM dd_notes n
+      LEFT JOIN dd_personnages_notes pno ON pno.pno_no_id = n.no_id AND pno.pno_pe_id = ?
       JOIN dd_campagnes camp        ON camp.camp_id = n.no_camp_id
       LEFT JOIN dd_scenarios sce    ON sce.sce_id = n.no_sce_id AND sce.sce_supprime = 0
       LEFT JOIN dd_types_notes tyno ON tyno.tyno_id = n.no_tyno_id
@@ -1313,20 +1403,54 @@ function getNotesPersonnage(PDO $db, array $perso, array $filtres = []): array {
 }
 
 /**
+ * Personnages qui reçoivent une note, avec leur suivi de lecture (SP-NO11).
+ * Mode « toute la campagne » : les membres de la campagne, inactifs compris ;
+ * mode « personnages choisis » : les destinataires nommés. Sert à l'aperçu
+ * « Vu par » du MJ.
+ *
+ * @param  PDO    $db
+ * @param  array  $note  Ligne dd_notes (no_id, no_camp_id, no_diffusion_campagne)
+ * @return array  Lignes dd_personnages complétées de pno_date, pno_lu_date
+ */
+function destinatairesNote(PDO $db, array $note): array {
+  if ((int)$note['no_diffusion_campagne'] === 1):
+    $stmt = $db->prepare('
+      SELECT pe.*, pno.pno_date, pno.pno_lu_date
+        FROM dd_campagnes_personnages cp
+        JOIN dd_personnages pe ON pe.pe_id = cp.cp_pe_id
+        LEFT JOIN dd_personnages_notes pno ON pno.pno_pe_id = pe.pe_id AND pno.pno_no_id = ?
+       WHERE cp.cp_camp_id = ?
+    ORDER BY pe.pe_nom
+    ');
+    $stmt->execute([(int)$note['no_id'], (int)$note['no_camp_id']]);
+  else:
+    $stmt = $db->prepare('
+      SELECT pe.*, pno.pno_date, pno.pno_lu_date
+        FROM dd_personnages_notes pno
+        JOIN dd_personnages pe ON pe.pe_id = pno.pno_pe_id
+       WHERE pno.pno_no_id = ?
+    ORDER BY pe.pe_nom
+    ');
+    $stmt->execute([(int)$note['no_id']]);
+  endif;
+  return $stmt->fetchAll();
+}
+
+/**
  * Notes d'une sélection groupée (SP-NO9), si l'utilisateur est MJ de chacune.
  * Une seule note introuvable, supprimée ou d'une campagne d'un autre MJ fait
  * refuser toute la sélection (null) : une action groupée ne s'applique pas à moitié.
  *
  * @param  PDO    $db
  * @param  array  $ids  no_id
- * @return array|null  [no_id => ['no_id', 'no_nom', 'no_camp_id', 'camp_nom', 'camp_ruleset_var_id']]
+ * @return array|null  [no_id => ['no_id', 'no_nom', 'no_camp_id', 'no_diffusion_campagne', 'camp_nom', 'camp_ruleset_var_id']]
  */
 function notesGroupeMJ(PDO $db, array $ids): ?array {
   $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
   if (empty($ids) || count($ids) > 500) return null;
   $ph   = implode(',', array_fill(0, count($ids), '?'));
   $stmt = $db->prepare("
-    SELECT n.no_id, n.no_nom, n.no_camp_id, camp.camp_nom, camp.camp_ruleset_var_id
+    SELECT n.no_id, n.no_nom, n.no_camp_id, n.no_diffusion_campagne, camp.camp_nom, camp.camp_ruleset_var_id
       FROM dd_notes n
       JOIN dd_campagnes camp ON camp.camp_id = n.no_camp_id AND camp.camp_supprime = 0
      WHERE n.no_id IN ($ph) AND n.no_supprime = 0
@@ -1340,4 +1464,145 @@ function notesGroupeMJ(PDO $db, array $ids): ?array {
     if (!isMJ($db, (int)$camp_id)) return null;
   endforeach;
   return $notes;
+}
+
+// ============================================================
+// POSSESSIONS (SP-PO8) — inventaire du personnage
+// ============================================================
+// Une ligne de dd_personnages_possessions (D-PO15 → D-PO22) : équipement, objet magique
+// simple, ou objet composé (prix « photo » calculé par include/objet-compose.php).
+// Prix unitaire en pc : le total d'une ligne vaut prix unitaire × quantité — un lot de
+// 50 flèches composées porte donc le prix d'UNE flèche (SP-PO10 enregistre prix / quantité).
+// Formatage : include/liste-parser.php (formaterPrixPc, formaterPrixPo, formaterPoidsG).
+
+/** Libellés des catégories d'objet composé. */
+function possessionComposeCategories(): array {
+  return [
+    'arme' => 'Arme magique', 'armure' => 'Armure magique', 'bouclier' => 'Bouclier magique',
+    'potion' => 'Potion', 'huile' => 'Huile', 'baguette' => 'Baguette', 'parchemin' => 'Parchemin',
+  ];
+}
+
+/**
+ * Inventaire d'un personnage, prêt à afficher. Chaque ligne ajoute :
+ *   nom (nom libre, sinon celui du compendium), nom_origine (nom du compendium quand un nom
+ *   libre le masque), famille, prix_unit_pc (null = pas de prix chiffré), prix_txt (prix en
+ *   texte : « spécial », rareté DD2024…), magique (prix affiché en po), poids_unit_g, poids_txt,
+ *   lien ['url', 'id'] vers la fiche, manquant (entrée retirée du compendium).
+ * Le droit de consultation est celui de la page appelante (peutGererPersonnage).
+ */
+function getPersonnagePossessions(PDO $db, int $pe_id): array {
+  $stmt = $db->prepare('
+    SELECT pp.*,
+           eqt.eqt_nom, eqt.eqt_prix_pc, eqt.eqt_prix_txt, eqt.eqt_poids_g, eqt.eqt_poids_txt,
+           cae.cae_nom,
+           om.om_nom, om.om_prix, om.om_ruleset_var_id, om.om_harmonisation,
+           com.com_nom, com.com_slug, omr.omr_prix
+      FROM dd_personnages_possessions pp
+      LEFT JOIN dd_equipements              eqt ON eqt.eqt_id = pp.pp_eqt_id
+      LEFT JOIN dd_categorie_equipement     cae ON cae.cae_id = eqt.eqt_cae_id
+      LEFT JOIN dd_objets_magiques          om  ON om.om_id   = pp.pp_om_id
+      LEFT JOIN dd_categorie_objet_magique  com ON com.com_id = om.om_com_id
+      LEFT JOIN dd_objets_magiques_rarete   omr ON omr.omr_id = om.om_rarete
+     WHERE pp.pp_pe_id = ?
+     ORDER BY pp.pp_ordre, pp.pp_id
+  ');
+  $stmt->execute([$pe_id]);
+
+  $cats = possessionComposeCategories();
+  $res  = [];
+  foreach ($stmt->fetchAll() as $p):
+    $libre = trim((string)$p['pp_nom']);
+    $p['prix_unit_pc'] = null;
+    $p['prix_txt']     = null;
+    $p['magique']      = $p['pp_type'] !== 'equipement';
+    $p['poids_unit_g'] = $p['eqt_poids_g'] !== null ? (int)$p['eqt_poids_g'] : null;
+    $p['poids_txt']    = $p['eqt_poids_txt'];
+    $p['manquant']     = false;
+
+    if ($p['pp_type'] === 'equipement'):
+      $origine = $p['eqt_nom'];
+      $p['famille'] = $p['cae_nom'];
+      $p['prix_unit_pc'] = $p['eqt_prix_pc'] !== null ? (int)$p['eqt_prix_pc'] : null;
+      $p['prix_txt'] = $p['eqt_prix_txt'];
+      $p['lien'] = ['url' => BASE_URL . '/include/ajax/detail-pp/equipement.php', 'id' => (int)$p['pp_eqt_id']];
+      $p['manquant'] = $origine === null;
+    elseif ($p['pp_type'] === 'objet'):
+      $origine = $p['om_nom'];
+      $p['famille'] = $p['com_nom'];
+      $p['prix_unit_pc'] = $p['om_prix'] !== null ? (int)$p['om_prix'] * 100 : null;
+      if ($p['prix_unit_pc'] === null && (int)$p['om_ruleset_var_id'] === 2):
+        // DD2024 : valeur tirée de la rareté (SP-PO12)
+        $p['prix_unit_pc'] = objetValeurRareteDd2024($p['omr_prix'], $p['com_slug'], (string)$p['om_nom']);
+      endif;
+      $p['prix_txt'] = $p['prix_unit_pc'] === null && $p['omr_prix'] !== null ? $p['omr_prix'] : null;
+      // Un objet magique n'a pas de poids au compendium
+      $p['poids_unit_g'] = null;
+      $p['poids_txt'] = null;
+      $p['lien'] = ['url' => BASE_URL . '/include/ajax/detail-pp/objet.php', 'id' => (int)$p['pp_om_id']];
+      $p['manquant'] = $origine === null;
+    else:
+      // Composé : nom généré à la composition ; poids de l'objet de base (arme, armure…)
+      $origine = null;
+      $p['famille'] = $cats[$p['pp_compose_cat']] ?? 'Objet composé';
+      $p['prix_unit_pc'] = $p['pp_prix_pc'] !== null ? (int)$p['pp_prix_pc'] : null;
+      $p['lien'] = ['url' => BASE_URL . '/include/ajax/detail-pp/possession.php', 'id' => (int)$p['pp_id']];
+      // Munitions : l'objet de base est un lot (« Flèches (20) ») — poids d'une pièce
+      if ($p['poids_unit_g'] !== null && preg_match('/\((\d+)\)\s*$/u', (string)$p['eqt_nom'], $m) && (int)$m[1] > 0):
+        $p['poids_unit_g'] = (int)round($p['poids_unit_g'] / (int)$m[1]);
+      endif;
+    endif;
+
+    $p['nom']         = $libre !== '' ? $libre : ($origine ?? 'Objet retiré du compendium');
+    $p['nom_origine'] = $libre !== '' && $origine !== null && $origine !== $libre ? $origine : null;
+    $res[] = $p;
+  endforeach;
+  return $res;
+}
+
+/**
+ * Valeur d'un objet magique DD2024 sans prix propre, en pc (SRD 5.2.1, « Rareté et valeur des objets
+ * magiques ») : valeur de la rareté (omr_prix, en po) ; moitié pour une potion (objet à utilisation unique) ;
+ * parchemin de sort = double du coût d'écriture de son niveau (« Coût des parchemins de sort »), niveau lu
+ * dans le nom (« Parchemin de sort (3e niveau) », « (sort mineur) »). null : rareté non chiffrée (artefact).
+ * Les autres objets à usage unique (munitions, poussières…) ne sont pas repérables : valeur pleine.
+ */
+function objetValeurRareteDd2024(?string $omr_prix, ?string $com_slug, string $om_nom): ?int {
+  if ($com_slug === 'parchemins' && preg_match('/\((?:(\d)\s*(?:er|e)\s+niveau|sort mineur)\)/iu', $om_nom, $m)):
+    $couts = [0 => 15, 1 => 25, 2 => 100, 3 => 150, 4 => 1000, 5 => 1500, 6 => 10000, 7 => 12500, 8 => 15000, 9 => 50000];
+    $niv = isset($m[1]) && $m[1] !== '' ? (int)$m[1] : 0;
+    return 2 * $couts[$niv] * 100;
+  endif;
+  $po = $omr_prix !== null ? preg_replace('/[\s\x{00A0}\x{202F}]/u', '', $omr_prix) : '';
+  if ($po === '' || !ctype_digit($po)) return null;
+  $pc = (int)$po * 100;
+  return $com_slug === 'potions' ? intdiv($pc, 2) : $pc;
+}
+
+/** Prix unitaire affiché d'une possession : po pour un objet magique, po / pa / pc pour l'équipement. */
+function possessionPrixTexte(array $p): string {
+  if ($p['prix_unit_pc'] === null) return $p['prix_txt'] !== null && $p['prix_txt'] !== '' ? $p['prix_txt'] : '—';
+  return $p['magique'] ? formaterPrixPo($p['prix_unit_pc']) : formaterPrixPc($p['prix_unit_pc']);
+}
+
+/**
+ * Totaux de l'inventaire : valeur (pc) et poids (g) des lignes chiffrées, et nombre de lignes
+ * sans prix chiffré (prix en texte ou inconnu), signalé à côté du total.
+ */
+function possessionsTotaux(array $possessions): array {
+  $valeur = 0; $poids = 0; $sans_prix = 0; $pese = false;
+  foreach ($possessions as $p):
+    $q = (int)$p['pp_quantite'];
+    if ($p['prix_unit_pc'] !== null) $valeur += $p['prix_unit_pc'] * $q;
+    else $sans_prix++;
+    if ($p['poids_unit_g'] !== null):
+      $poids += $p['poids_unit_g'] * $q;
+      $pese = true;
+    endif;
+  endforeach;
+  return [
+    'valeur_pc' => $valeur, 'poids_g' => $poids, 'sans_prix' => $sans_prix,
+    // Aucune ligne pesée (objets magiques seuls) : « — » plutôt que « 0 g »
+    'valeur'    => formaterPrixPo($valeur), 'poids' => $pese ? formaterPoidsG($poids) : '—',
+  ];
 }

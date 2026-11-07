@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-01 19:00 -->
+<!-- Mis à jour : 2026-11-06 11:15 -->
 
 # Règles métier — Module Notes
 
@@ -44,13 +44,14 @@ Une section peut être rattachée à **une ou plusieurs compétences**, chacune 
 
 - **Sans condition**, la section est lisible par tous les destinataires.
 - **Avec conditions**, le personnage la lit s'il satisfait **au moins une** d'entre elles (OU).
-- Une condition est satisfaite si **10 + bonus total du personnage dans la compétence ≥ DD**
-  (le personnage « prend 10 »). La règle est la même en DD3.5 et en DD2024.
+- Une condition est satisfaite si **le score du personnage dans la compétence (son bonus total) ≥ DD**.
+  On ne « prend » plus 10 : le DD se lit directement contre le score affiché sur la fiche. La règle est la
+  même en DD3.5 et en DD2024.
 - En DD3.5, une compétence qui exige une formation ne satisfait jamais la condition si le personnage
   n'y a aucun rang.
 
-Le bonus total est celui du bloc Compétences de la fiche (rangs ou maîtrise, et modificateur de caractéristique ;
-hors équipement et bonus divers). Le contrôle est recalculé à chaque consultation : un personnage qui progresse découvre de nouvelles
+Le bonus total est celui du bloc Compétences de la fiche (rangs ou maîtrise, modificateur de caractéristique,
+modificateur divers et, en DD3.5, synergies sans condition ; hors équipement). Le contrôle est recalculé à chaque consultation : un personnage qui progresse découvre de nouvelles
 sections sans intervention du MJ. Une section inaccessible n'est jamais transmise au joueur — ni affichée,
 ni présente dans la page — et la recherche par mots du joueur n'y regarde pas.
 
@@ -59,7 +60,21 @@ dans la liste du personnage.
 
 # Diffusion
 
-Le MJ choisit les destinataires parmi les personnages rattachés à la campagne (raccourci « tous »).
+Le MJ choisit l'un des deux modes de diffusion d'une note :
+
+- **Toute la campagne** : tout personnage rattaché à la campagne la lit, inactif compris, y compris ceux qui la
+  rejoignent plus tard. Un personnage qui quitte la campagne la perd ; s'il revient, il la retrouve, lue ou non lue
+  comme il l'avait laissée.
+- **Personnages choisis** : le MJ coche les destinataires parmi les personnages rattachés à la campagne.
+
+Les notes existantes ne changent pas de mode d'elles-mêmes : une action groupée de la liste les bascule. Repasser
+une note en « personnages choisis » en fait les destinataires de tous les membres actuels de la campagne.
+
+Dans les deux modes, un personnage ne voit que les notes dont il peut lire quelque chose (voir plus haut) : une note
+sans tronc commun reste absente de sa liste tant qu'aucune section ne lui est accessible, et y apparaît, marquée
+« nouvelle », dès que ses compétences progressent assez, sans que le MJ intervienne.
+
+En mode « personnages choisis » :
 Un personnage qui a quitté la campagne garde les notes reçues ; il reste proposé, coché, dans le formulaire
 de la note, et le décocher les lui retire. Retirer un destinataire lui retire la note. La date de diffusion
 et la première lecture sont conservées : le joueur voit une pastille « nouveau » sur une note qu'il n'a pas
@@ -81,7 +96,8 @@ modification qui compte, pas pour une coquille.
   les sections qu'il peut lire.
 - Actions groupées sur les notes cochées de la liste : supprimer, changer de campagne, changer de catégorie,
   ajouter ou retirer des destinataires. Chacune ouvre un panneau qui rappelle les notes choisies ; la suppression
-  y demande une validation explicite. Une note qui change de campagne perd son scénario et les destinataires qui
+  y demande une validation explicite. L'action « Diffusion » fait passer les notes cochées en « toute la campagne » ou en
+  « personnages choisis » ; ajouter ou retirer des destinataires ne concerne que les notes en « personnages choisis ». Une note qui change de campagne perd son scénario et les destinataires qui
   ne font pas partie de la nouvelle campagne ; on ne propose que les campagnes du même ruleset. Un destinataire
   n'est ajouté qu'aux notes de ses campagnes. Une note appartient toujours à une campagne.
 - Accès depuis l'outil « Notes » des pages de campagne, la section Notes d'un scénario (avec création d'une note

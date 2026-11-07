@@ -9,7 +9,8 @@
 // « Gérer les tableaux » ouvre donc tableaux/index.php dans un nouvel onglet.
 //
 // Paramètres GET :
-//   q (string) — filtre optionnel
+//   q    (string) — filtre optionnel
+//   tabc (int)    — catégorie (dd_tableaux_categories), 0 = toutes (SP-TB12)
 //
 // Référence : doc/ARCHITECTURE_0_REFERENCE.md §9c
 
@@ -26,7 +27,12 @@ if (!canEditCompendium()):
 endif;
 
 $q          = strParam($_GET['q'] ?? '');
+$tabc       = intParam($_GET['tabc'] ?? 0);
 $ruleset_id = (int)($_SESSION['ruleset_var_id'] ?? 1);
+$categories = chargerCategoriesTableaux($db);
+if (!array_key_exists($tabc, $categories)):
+  $tabc = 0;
+endif;
 
 $where  = ['tab_ruleset_var_id = ?'];
 $params = [$ruleset_id];
@@ -35,9 +41,14 @@ if ($q !== ''):
   $params[] = '%' . $q . '%';
   $params[] = '%' . $q . '%';
 endif;
+// Catégorie (SP-TB12)
+if ($tabc > 0):
+  $where[]  = 'tab_tabc_id = ?';
+  $params[] = $tabc;
+endif;
 
 $stmt = $db->prepare('
-  SELECT tab_id, tab_slug, tab_nom, tab_contenu, tab_visible
+  SELECT tab_id, tab_slug, tab_nom, tab_contenu, tab_visible, tab_tabc_id
   FROM   dd_tableaux
   WHERE  ' . implode(' AND ', $where) . '
   ORDER  BY tab_nom ASC
@@ -54,6 +65,15 @@ $tableaux = $stmt->fetchAll();
   <div class="tableaux-picker__recherche">
     <input type="text" class="form-control" id="tab-picker-q"
            placeholder="Filtrer…" value="<?= h($q) ?>" autocomplete="off">
+    <select class="form-control tableaux-picker__categorie" id="tab-picker-tabc"
+            aria-label="Catégorie">
+      <option value="0">Toutes catégories</option>
+      <?php foreach ($categories as $tabc_id => $tabc_nom): ?>
+        <option value="<?= (int)$tabc_id ?>"<?= $tabc === (int)$tabc_id ? ' selected' : '' ?>>
+          <?= h($tabc_nom) ?>
+        </option>
+      <?php endforeach ?>
+    </select>
     <a class="btn btn-sm btn-secondary"
        href="<?= BASE_URL ?>/tableaux/index.php" target="_blank" rel="noopener"
        title="Ouvrir la gestion des tableaux dans un nouvel onglet">
@@ -63,7 +83,7 @@ $tableaux = $stmt->fetchAll();
 
   <?php if (empty($tableaux)): ?>
     <p class="text-muted">
-      Aucun tableau pour ce ruleset<?= $q !== '' ? ' avec ce filtre' : '' ?>.
+      Aucun tableau pour ce ruleset<?= ($q !== '' || $tabc > 0) ? ' avec ce filtre' : '' ?>.
     </p>
   <?php else: ?>
     <ul class="tableaux-picker__liste">
@@ -79,6 +99,9 @@ $tableaux = $stmt->fetchAll();
               <?php endif ?>
             </span>
             <span class="tableaux-picker__meta">
+              <?php if (isset($categories[(int)$t['tab_tabc_id']])): ?>
+                <?= h($categories[(int)$t['tab_tabc_id']]) ?> ·
+              <?php endif ?>
               <?= $struct['nb_cols'] ?> col. · <?= count($struct['lignes']) ?> lignes
             </span>
             <code class="tableaux-picker__tag">[[tab:<?= h($t['tab_slug']) ?>]]</code>
@@ -106,17 +129,27 @@ $tableaux = $stmt->fetchAll();
       }
     });
 
-    // Filtre : recharge le picker sur Entrée
-    var champ = document.getElementById('tab-picker-q');
+    // Filtres : texte sur Entrée, catégorie au changement (SP-TB12). Les deux
+    // critères voyagent ensemble pour qu'aucun ne se perde au rechargement.
+    var champ     = document.getElementById('tab-picker-q');
+    var categorie = document.getElementById('tab-picker-tabc');
+
+    function recharger() {
+      actualiserPageSub(
+        BASE_URL + '/include/ajax/detail-pp-sub/tableaux-picker.php',
+        { q: champ ? champ.value : '', tabc: categorie ? categorie.value : '0' }
+      );
+    }
+
     if (champ) {
       champ.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter') return;
         e.preventDefault();
-        actualiserPageSub(
-          BASE_URL + '/include/ajax/detail-pp-sub/tableaux-picker.php',
-          { q: champ.value }
-        );
+        recharger();
       });
+    }
+    if (categorie) {
+      categorie.addEventListener('change', recharger);
     }
   }());
 </script>

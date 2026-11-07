@@ -88,7 +88,8 @@ function _tabSauvegarder(PDO $db, bool $is_ajax, string $redirect): void
   $align       = strParam($_POST['tab_align']       ?? '');
   $note        = strParam($_POST['tab_note']        ?? '');
   $res_id      = intParam($_POST['tab_res_id']      ?? 0);
-  $ecran_mj    = intParam($_POST['tab_ecran_mj']    ?? 0) ? 1 : 0;
+  $tabc_id     = intParam($_POST['tab_tabc_id']     ?? 0);
+  $ecran_mj   = intParam($_POST['tab_ecran_mj']    ?? 0) ? 1 : 0;
   $ecran_ordre = intParam($_POST['tab_ecran_ordre'] ?? 0);
   $visible     = intParam($_POST['tab_visible']     ?? 1) ? 1 : 0;
   $ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
@@ -98,6 +99,12 @@ function _tabSauvegarder(PDO $db, bool $is_ajax, string $redirect): void
   endif;
   if (trim($contenu) === ''):
     _tabRepondreErreur($is_ajax, 'Le contenu est obligatoire.');
+  endif;
+
+  // Catégorie (SP-TB12) : facultative ; une valeur inconnue est refusée plutôt
+  // que de faire échouer la contrainte fk_tab_categorie.
+  if ($tabc_id > 0 && !array_key_exists($tabc_id, chargerCategoriesTableaux($db))):
+    _tabRepondreErreur($is_ajax, 'Catégorie inconnue.');
   endif;
 
   // Alignement : on ne conserve que les lettres l/c/r
@@ -135,13 +142,13 @@ function _tabSauvegarder(PDO $db, bool $is_ajax, string $redirect): void
     if ($id === 0):
       $stmt = $db->prepare('
         INSERT INTO dd_tableaux
-          (tab_slug, tab_nom, tab_contenu, tab_align, tab_note, tab_ruleset_var_id,
+          (tab_slug, tab_nom, tab_contenu, tab_align, tab_note, tab_tabc_id, tab_ruleset_var_id,
            tab_res_id, tab_ecran_mj, tab_ecran_ordre, tab_visible,
            tab_date_creation, tab_date_modif)
-        VALUES (?,?,?,?,?,?,?,?,?,?,NOW(),NOW())
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())
       ');
       $stmt->execute([
-        $slug, $nom, $contenu, $align ?: null, $note ?: null, $ruleset_id,
+        $slug, $nom, $contenu, $align ?: null, $note ?: null, $tabc_id ?: null, $ruleset_id,
         $res_id ?: null, $ecran_mj, $ecran_ordre, $visible,
       ]);
       $id = (int)$db->lastInsertId();
@@ -153,6 +160,7 @@ function _tabSauvegarder(PDO $db, bool $is_ajax, string $redirect): void
                tab_contenu     = ?,
                tab_align       = ?,
                tab_note        = ?,
+               tab_tabc_id     = ?,
                tab_res_id      = ?,
                tab_ecran_mj    = ?,
                tab_ecran_ordre = ?,
@@ -161,7 +169,7 @@ function _tabSauvegarder(PDO $db, bool $is_ajax, string $redirect): void
         WHERE  tab_id = ? AND tab_ruleset_var_id = ?
       ');
       $stmt->execute([
-        $slug, $nom, $contenu, $align ?: null, $note ?: null,
+        $slug, $nom, $contenu, $align ?: null, $note ?: null, $tabc_id ?: null,
         $res_id ?: null, $ecran_mj, $ecran_ordre, $visible, $id, $ruleset_id,
       ]);
 

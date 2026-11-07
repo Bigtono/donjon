@@ -36,7 +36,6 @@ $stmt = $db->prepare('
          res.res_nom,
          res.res_j_id,
          camp.camp_nom,
-         var.var_valeur AS ruleset_label,
          clapar.cla_nom AS cla_parente_nom
   FROM   dd_classes cla
   LEFT JOIN dd_classe_type   clt  ON clt.clt_id   = cla.cla_clt_id
@@ -44,7 +43,6 @@ $stmt = $db->prepare('
   LEFT JOIN dd_caracteristiques car ON car.car_id  = cla.cla_car_id
   LEFT JOIN dd_ressources    res  ON res.res_id    = cla.cla_res_id
   LEFT JOIN dd_campagnes     camp ON camp.camp_id  = cla.cla_camp_id
-  LEFT JOIN dd_variables     var  ON var.var_id    = cla.cla_ruleset_var_id
   LEFT JOIN dd_classes       clapar ON clapar.cla_id = cla.cla_cla_id
   WHERE  cla.cla_id = ?
 ');
@@ -689,9 +687,6 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
         <i class="fa fa-flask"></i> <?= h($cla['camp_nom']) ?>
       </span>
     <?php endif ?>
-    <span class="sort-detail__ruleset">
-      <?= h($cla['ruleset_label']) ?>
-    </span>
   </div>
 
 </div>

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-05-30 -->
+<!-- Mis à jour : 2026-11-01 22:00 -->
 
 # Définition d'une compétences
 Les compétences représentent toute une palette d'aptitudes différentes. Un personnage maîtrise ses compétences de mieux en mieux à mesure qu'il monte de niveau. 
@@ -28,3 +28,14 @@ Ce ruleset introduit plusieurs nouvelles notions pour les compétences
 * Dasn certains cas, un personnage peut gagner "l'expertise" d'une compétence auquel cas il double son bonus de maitrise lors d'un test de compétence
 
 restest
+# Total d'une compétence sur la fiche du personnage
+- **Modificateur divers** (les deux rulesets) : en attendant la gestion des bonus de dons, capacités spéciales et objets
+  magiques, le joueur inscrit sur chaque compétence un modificateur global (positif ou négatif) et, s'il le souhaite,
+  son origine (« Talent +3, cape +5 »). Il s'ajoute au total.
+- **Synergies** (DD3.5) : un degré de maîtrise de 5 dans une compétence donne en général +2 aux tests d'une compétence
+  liée. Chaque compétence du compendium déclare les synergies qu'elle accorde (compétence cible, rangs requis, bonus,
+  condition éventuelle).
+  - Une synergie sans condition s'ajoute au total ; plusieurs synergies venant de compétences différentes se cumulent.
+  - Une synergie conditionnelle (ex. « associés aux parchemins ») ne vaut que pour certains tests : elle est affichée
+    sous la compétence, hors total, et le joueur l'ajoute lui-même quand elle s'applique.
+- Le total ainsi obtenu sert aussi à l'accès aux informations des notes du MJ (voir METIER_11).

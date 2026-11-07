@@ -49,6 +49,14 @@ function formaterPrixPc(?int $pc, ?string $txt = null): string
   return number_format($pc, 0, ',', "\u{00A0}") . "\u{00A0}pc";
 }
 
+// Prix d'un objet magique, toujours en po (décimales au besoin) : « 2 302,5 po ».
+// formaterPrixPc() convertit en pa / pc, ce qui rend mal les prix d'objets magiques.
+function formaterPrixPo(int $pc): string
+{
+  $dec = $pc % 100 === 0 ? 0 : ($pc % 10 === 0 ? 1 : 2);
+  return number_format($pc / 100, $dec, ',', "\u{00A0}") . "\u{00A0}po";
+}
+
 // Poids stocké en grammes → « 500 g », « 2,5 kg ».
 function formaterPoidsG(?int $g, ?string $txt = null): string
 {

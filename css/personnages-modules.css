@@ -92,14 +92,6 @@
   padding: 3px 8px;
 }
 
-.per-fiche__ruleset {
-  background: var(--clr-surface-alt, var(--clr-surface));
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  padding: 2px 8px;
-  font-size: .85em;
-}
-
 .per-fiche__header-actions {
   display: flex;
   gap: var(--sp-sm);
@@ -1199,9 +1191,12 @@
 /* La largeur effective est portée par min-width : la colonne « Compétence »
    est en width:100% et absorbe tout l'espace libre, ce qui ramènerait une
    simple `width` au minimum calculé par le moteur de tableau. */
+/* 200px à l'origine, pour le libellé « Expertise » ; le select n'affiche plus
+   que « M. » / « E » (SP-PE10j) et la colonne Divers (SP-PE20) s'y ajoute :
+   72px suffisent à un nombre de rangs comme au select, sans faire déborder la table. */
 .table-dd .per-comp-table__saisie {
-  width: 200px;
-  min-width: 200px;
+  width: 72px;
+  min-width: 72px;
 }
 
 /* ---- Champs de saisie du tableau ---- */
@@ -1225,6 +1220,25 @@
 .per-comp-editor__select {
   padding: 4px var(--sp-sm);
   font-size: .9em;
+}
+
+/* Modificateur divers (SP-PE20) : colonne étroite, et origine du modificateur
+   saisie sous le nom, affichée seulement quand le modificateur n'est pas nul */
+.table-dd .per-comp-table__divers {
+  width: 72px;
+  min-width: 72px;
+}
+
+.per-comp-editor__libelle {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 2px var(--sp-xs);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: .85em;
 }
 
 /* ---- Responsive : cibles tactiles élargies (cf. archi §7.3) ---- */
@@ -1251,9 +1265,11 @@
   /* Colonne de saisie : 200px sur ordinateur, mais un champ de rangs (2 chiffres) ou un select M. / E
      n'en demande pas autant — sur 375px elle faisait déborder le tableau (498px dans un cadre de 325px)
      et rognait le nom. Le sélecteur reprend celui de la règle de base pour l'emporter à égalité. */
-  .table-dd .per-comp-table__saisie {
-    width: 72px;
-    min-width: 72px;
+  /* 58px : à 64px, la colonne Divers faisait déborder la table de 5px à 375px */
+  .table-dd .per-comp-table__saisie,
+  .table-dd .per-comp-table__divers {
+    width: 58px;
+    min-width: 58px;
   }
 }
 
@@ -1444,15 +1460,28 @@
     "nom  retour modifier"
     "meta retour modifier";
   align-items: start;
-  gap: var(--sp-xs) var(--sp-sm);
+  /* Pas d'écart de rangée : la rangée « meta » est vide sur les sous-pages et
+     ajouterait 4px sous le nom ; la meta porte sa propre marge. */
+  gap: 0 var(--sp-sm);
+  /* Marge nom → sous-menu = marge au-dessus du nom (padding de .site-main :
+     --sp-lg, --sp-sm sous 992px) — demande du 2026-11-07. */
+  margin-bottom: var(--sp-lg);
+}
+
+@media (max-width: 991px) {
+  .per-fiche__header {
+    margin-bottom: var(--sp-sm);
+  }
 }
 
 .per-fiche__header .per-fiche__nom {
   grid-area: nom;
+  margin: 0;
 }
 
 .per-fiche__header .per-fiche__meta {
   grid-area: meta;
+  margin-top: var(--sp-xs);
 }
 
 .per-fiche__header .per-fiche__retour {
@@ -1574,6 +1603,14 @@
 .per-comp__val--total {
   font-weight: 600;
   color: var(--clr-text);
+}
+
+/* Détail du modificateur divers et des synergies, sous le nom (SP-PE20, SP-PE21) */
+.per-comp__detail {
+  display: block;
+  color: var(--clr-text-muted);
+  font-size: .8em;
+  line-height: 1.35;
 }
 
 @media (max-width: 991px) {
@@ -1898,49 +1935,8 @@
   .per-magie__onglet { padding: var(--sp-xs) 5px; font-size: .9rem; }
 }
 
-/* ============================================================
-   SOUS-MENU DU PERSONNAGE (retour 2026-09-01)
-   ============================================================ */
-.per-nav {
-  display: flex;
-  gap: var(--sp-xs);
-  margin: 0 0 var(--sp-md);
-  padding-bottom: 2px;
-  border-bottom: 1px solid var(--clr-border);
-  overflow-x: auto;              /* défile plutôt que de se replier sur 2 lignes */
-  -webkit-overflow-scrolling: touch;
-}
-.per-nav__item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-xs);
-  flex: 0 0 auto;
-  padding: var(--sp-xs) var(--sp-md);
-  border: 1px solid var(--clr-border);
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  background: var(--clr-surface-alt);
-  color: var(--clr-text-muted);
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.per-nav__item:hover { color: var(--clr-text); }
-.per-nav__item.est-actif {
-  background: var(--clr-surface);
-  color: var(--clr-accent);
-  font-weight: 600;
-  /* Prolonge l'onglet actif par-dessus la bordure du conteneur */
-  margin-bottom: -1px;
-  border-bottom: 1px solid var(--clr-surface);
-}
-
-/* Téléphone : icônes seules. Cinq libellés ne tiennent pas sur une ligne,
-   et la cible tactile reste large grâce au padding. */
-@media (max-width: 767px) {
-  .per-nav__lbl { display: none; }
-  .per-nav__item { padding: var(--sp-sm) var(--sp-md); font-size: 1.05rem; }
-}
+/* Le sous-menu du personnage (ex-.per-nav) est devenu le composant partagé
+   .page-nav, dans css/modules.css (SP-CP9). */
 
 /* ============================================================
    NOTES DU PERSONNAGE (SP-NO4) — personnages/notes.php
@@ -2120,4 +2116,244 @@
 .per-groupe__raison {
   color: var(--clr-danger);
   font-size: 0.8rem;
+}
+
+/* ============================================================
+   POSSESSIONS (SP-PO8) — personnages/possessions.php
+   ============================================================ */
+
+.per-poss__totaux {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-xs) var(--sp-lg);
+  margin-bottom: var(--sp-md);
+}
+
+/* Harmonisation DD2024 (SP-PO12) : compteur, signalé au-delà de 3 */
+.per-poss__harmonie.est-depasse,
+.per-poss__harmonie.est-depasse strong {
+  color: var(--clr-warning);
+}
+
+.per-poss__badge.est-harmonise {
+  border-color: var(--clr-accent);
+  color: var(--clr-accent);
+}
+
+/* Ajouter / Composer dans l'en-tête des blocs Équipement et Objets magiques (D-PO31) */
+.per-poss__bloc-outils {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-xs);
+}
+
+.per-poss__totaux > span i {
+  color: var(--clr-text-muted);
+  margin-right: 4px;
+}
+
+.per-poss__compte {
+  margin-left: var(--sp-xs);
+  font-weight: 400;
+  color: var(--clr-text-muted);
+  font-size: .85em;
+}
+
+.per-poss__table {
+  margin: 0;
+}
+
+.per-poss__table td {
+  vertical-align: top;
+}
+
+.per-poss__table th:first-child,
+.per-poss__table .per-poss__nom {
+  text-align: left;
+}
+
+.per-poss__intitule {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+/* Onglets Équipement / Objets magiques : téléphone seulement (D-PO30).
+   Au-dessus de 768px, les deux blocs restent l'un sous l'autre. */
+.per-poss__onglets {
+  display: none;
+}
+
+/* Ordinateur : repli en alternance (D-PO32) — le panneau qui n'est pas actif
+   ne montre que son en-tête. Même état que l'onglet du téléphone. */
+@media (min-width: 768px) {
+  .per-poss__panneau:not(.est-actif) > .per-fiche__bloc-body {
+    display: none;
+  }
+
+  .per-poss__panneau:not(.est-actif) > .per-fiche__bloc-header {
+    border-bottom: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .per-poss__onglets {
+    display: flex;
+  }
+
+  .per-poss__panneau:not(.est-actif) {
+    display: none;
+  }
+
+  /* L'onglet nomme déjà le bloc : l'en-tête ne garde que ses boutons, à droite */
+  .per-poss__panneau > .per-fiche__bloc-header {
+    justify-content: flex-end;
+  }
+
+  .per-poss__panneau > .per-fiche__bloc-header .per-fiche__bloc-titre,
+  .per-poss__panneau .per-poss__replier {
+    display: none;
+  }
+}
+
+/* Sorts d'un parchemin composé, case « lu » (SP-PO11) */
+.per-poss__sorts {
+  list-style: none;
+  margin: var(--sp-xs) 0 0;
+  padding: 0;
+  font-size: .85rem;
+}
+
+.per-poss__sorts label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  cursor: pointer;
+}
+
+.per-poss__sorts li.est-lu label {
+  text-decoration: line-through;
+  color: var(--clr-text-muted);
+}
+
+.per-poss__sous,
+.per-poss__notes-apercu {
+  display: block;
+  font-size: .8rem;
+  color: var(--clr-text-muted);
+}
+
+.per-poss__notes-apercu {
+  font-style: italic;
+}
+
+.per-poss__badge {
+  margin-left: var(--sp-xs);
+  padding: 0 6px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: .7rem;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.per-poss__charges input {
+  width: 4.5rem;
+  padding: 1px 4px;
+  margin-left: 4px;
+}
+
+.per-poss__col-actions {
+  white-space: nowrap;
+  width: 1%;               /* le nom prend toute la place restante */
+}
+
+/* Quantité collée aux boutons, à droite ; elle en est séparée par le double
+   de l'écart entre deux boutons (D-PO31). */
+.per-poss__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-xs);
+}
+
+.per-poss__actions > .per-poss__qte {
+  margin-right: var(--sp-xs);
+}
+
+.per-poss__qte {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+
+.per-poss__qte [data-qte] {
+  min-width: 2ch;
+  text-align: center;
+}
+
+.per-poss__col-actions .btn-icon.est-actif {
+  color: var(--clr-accent);
+  border-color: var(--clr-accent);
+}
+
+.per-poss__edition-corps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--sp-sm) var(--sp-md);
+}
+
+.per-poss__edition-corps .form-group {
+  margin-bottom: 0;
+}
+
+.per-poss__edition td {
+  text-align: left;
+}
+
+/* Téléphone : une carte par ligne — nom sur toute la largeur, puis quantité
+   et actions sur une rangée (pas de défilement horizontal). */
+@media (max-width: 767px) {
+  .per-poss__edition-corps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .per-poss__table thead {
+    display: none;
+  }
+
+  .per-poss__table,
+  .per-poss__table tbody,
+  .per-poss__table tr.per-poss__edition,
+  .per-poss__table tr.per-poss__edition td {
+    display: block;
+    width: 100%;
+  }
+
+  .per-poss__table tr.per-poss__edition[hidden] {
+    display: none;
+  }
+
+  /* Flex à retour : les actions passent à la ligne quand la place manque (bouton Recomposer, SP-PO10) */
+  .per-poss__table tr.per-poss__ligne {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-xs) var(--sp-sm);
+    padding: var(--sp-xs) 0;
+  }
+
+  .per-poss__table tr.per-poss__ligne .per-poss__col-actions {
+    margin-left: auto;
+  }
+
+  .per-poss__table tr.per-poss__ligne td {
+    display: block;
+    width: auto;
+  }
+
+  .per-poss__table .per-poss__nom {
+    flex: 1 1 100%;
+  }
 }

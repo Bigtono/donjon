@@ -11,7 +11,7 @@
 // pagination, tri, menu ⋮, panneau de filtres mobile) au lieu de la table
 // maison de SP-TB3, qui n'avait ni pagination ni filtres.
 //
-// Paramètres GET : voir le moteur (q, f_res[], f_ecran, sort_col, sort_dir, page)
+// Paramètres GET : voir le moteur (q, f_res[], f_tabc, f_ecran, sort_col, sort_dir, page)
 //
 // Référence : doc/ARCHITECTURE_0_REFERENCE.md §9c
 
@@ -63,6 +63,8 @@ require_once '../include/header.php';
 
 $colonnes = [
   ['sql' => 't.tab_nom', 'champ' => 'tab_nom', 'label' => 'Nom', 'mobile' => true, 'tri' => true],
+  // Catégorie (SP-TB12) : commune aux deux rulesets, sert aussi de filtre.
+  ['sql' => 'tc.tabc_nom', 'champ' => 'tabc_nom', 'label' => 'Catégorie', 'mobile' => false, 'tri' => true],
   [
     'sql'    => "CONCAT('[[tab:', t.tab_slug, ']]')",
     'champ'  => 'tab_tag',
@@ -107,6 +109,7 @@ $listConfig = [
   'from' => '
     dd_tableaux t
     LEFT JOIN dd_ressources res ON res.res_id = t.tab_res_id
+    LEFT JOIN dd_tableaux_categories tc ON tc.tabc_id = t.tab_tabc_id
   ',
   'champ_id'      => 't.tab_id',
   'champ_ruleset' => 't.tab_ruleset_var_id',
@@ -124,6 +127,16 @@ $listConfig = [
   'colonnes' => $colonnes,
 
   'filtres' => [
+    [
+      'type'         => 'select',
+      'name'         => 'f_tabc',
+      'label'        => 'Catégorie',
+      'champ'        => 't.tab_tabc_id',
+      'query'        => 'SELECT tabc_id val, tabc_nom lab
+                         FROM   dd_tableaux_categories
+                         ORDER  BY tabc_ordre, tabc_nom',
+      'query_params' => [],
+    ],
     // Type checkbox : le moteur ne l'injecte pas dans le WHERE, son effet passe
     // par extra_where ci-dessus.
     [

@@ -57,6 +57,9 @@ if (!empty($tab['tab_res_id'])):
   $res_nom = (string)$stmt->fetchColumn();
 endif;
 
+// Catégorie (SP-TB12)
+$categorie_nom = chargerCategoriesTableaux($db)[(int)($tab['tab_tabc_id'] ?? 0)] ?? '';
+
 $index = preg_match('/[@%#$&]/', (string)$tab['tab_contenu'])
   ? chargerIndexMonstre($db, $ruleset_id, getActiveResIds($db))
   : [];
@@ -123,11 +126,18 @@ $index = preg_match('/[@%#$&]/', (string)$tab['tab_contenu'])
     <p class="text-muted">Ce tableau n'est inséré dans aucun texte.</p>
   <?php endif ?>
 
-  <?php if ($res_nom !== ''): ?>
+  <?php if ($res_nom !== '' || $categorie_nom !== ''): ?>
     <div class="regle-detail__footer">
-      <span class="regle-detail__source">
-        <i class="fa fa-book"></i> <?= h($res_nom) ?>
-      </span>
+      <?php if ($categorie_nom !== ''): ?>
+        <span class="regle-detail__source">
+          <i class="fa fa-tag"></i> <?= h($categorie_nom) ?>
+        </span>
+      <?php endif ?>
+      <?php if ($res_nom !== ''): ?>
+        <span class="regle-detail__source">
+          <i class="fa fa-book"></i> <?= h($res_nom) ?>
+        </span>
+      <?php endif ?>
     </div>
   <?php endif ?>
 

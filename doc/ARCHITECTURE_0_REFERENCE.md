@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-01 20:30 -->
+<!-- Mis à jour : 2026-11-07 11:40 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -30,7 +30,7 @@
 > 2026-08-10 : nouveau projet **SP-TB — Tableaux de règles**. Les tableaux de données quittent
 > `reg_texte` (HTML TinyMCE) pour une table dédiée `dd_tableaux`, saisis en convention texte et
 > insérés dans une règle par le tag `[[tab:slug]]`. SP-TB0→TB6 livrés ; SP-TB7 (extension aux
-> champs texte du compendium), SP-TB8 (écran du MJ) et SP-TB9 (tableaux DD3.5) restent à faire.
+> champs texte du compendium) et SP-TB9 (tableaux DD3.5) restent à faire ; SP-TB8 (écran du MJ) est livré le 2026-11-07.
 > Voir §9c.
 
 > 2026-08-24 : **SP-TB10 / SP-TB11**. Les tableaux ne sont pas une donnée du module Règles : le
@@ -314,7 +314,21 @@
 - [ ] SP-PO4 — Écran de gestion des familles d'équipement (aujourd'hui : migration SQL, comme `dd_categorie_objet_magique`)
 - [x] SP-PO5 — **Ruleset DD2024, équipement** : 28 familles propres au ruleset (armes courantes/de guerre × corps à corps/distance, armures, outils, matériel d'aventurier avec munitions/focaliseurs/symboles, montures et véhicules, repas, employés, services d'incantation), **238 articles** du SRD 5.2.1 avec leur description, 13 pages de règles manquantes (armes et propriétés/bottes, armures, outils, matériel, montures et véhicules, train de vie, repas, employés, sorts, fabrication, utilisation des objets magiques), 3 tableaux, listes `[[liste:equipement|…]]` aux emplacements prévus — `sql/2026-10-16_equipements_dd2024_srd_sp-po5.sql` et `sql/2026-10-16_regles_dd2024_equipement_sp-po5.sql`. Soldent `SP-E6`
 - [x] SP-PO5b — **DD2024, objets magiques** : 8 pages de règles créées sous « Objets magiques » + page « Catégories » complétée (pages 215 à 220 du SRD : catégories, miscibilité des potions, règles, rareté et valeur, activation, objets maudits, résilience, fabrication, objets intelligents), page « Objets magiques de A à Z » en listes `[[liste:objet|famille=…|source=SRD 5.2.1]]` ; 9 tableaux de règles. **Descriptions des 357 objets de la source SRD retranscrites** depuis le PDF (tables aplaties ou absentes, paragraphes fusionnés, traits d'union perdus, « Yeux de lynx » manquant) : 34 nouveaux tableaux appelés par `[[tab:slug]]`, chapeau mille-sorts corrigé, 2 profils inclus au texte — `sql/2026-10-16_regles_dd2024_objets_magiques_sp-po5b.sql` et `sql/2026-10-16_objets_dd2024_srd_sp-po5b.sql` (journal : `doc/LOG_CORRECTIONS_SRD2024_OBJETS_MAGIQUES.md`)
-- [ ] SP-PO6 — Possessions du personnage (inventaire, richesse, encombrement, objets harmonisés) dans le module Personnages — **à arbitrer** ; s'appuie sur `eqt_prix_pc` / `eqt_poids_g`
+- [x] SP-PO6 — Schéma des possessions (D-PO15 → D-PO21) : `dd_personnages_possessions` (types équipement / objet / composé, quantité, équipé, charges, photo du prix calculé en pc) + `dd_personnages_possessions_elements` (propriétés ou sorts d'un composé) ; propriétés spéciales DD3.5 exploitables (`om_bonus_equiv`, `om_nls`, `om_restriction`, 94 valeurs chargées des DRS 24 / 25 et des descriptions, déclinaisons Défense et Résistance à la magie, doublon « Sombre » supprimé), saisies au formulaire d'objet ; potions et baguettes DD3.5 masquées ; purge dans `supprimerPersonnage` — `sql/2026-11-06_sp-po6a_possessions.sql`, `…_sp-po6b_proprietes_speciales.sql`, `…_sp-po6c_masquage_potions_baguettes.sql`
+- [ ] SP-PO6p — Jouer en production les trois migrations `sql/2026-11-06_sp-po6*.sql`
+- [x] SP-PO7 — Moteur de composition `include/objet-compose.php` (armes, armures, boucliers, munitions, armes doubles, potions, huiles, baguettes, parchemins : prix, coût, PX, NLS, contraintes bloquantes ; NLS minimum lu dans `dd_classe_niveau`) + endpoint d'aperçu `include/ajax/possession-calcul.php` (POST + CSRF, JSON) ; `detail-pp/objet.php` branché sur le moteur (D-PO22, §9e « Objets composés DD3.5 »)
+- [x] SP-PO8 — Page `personnages/possessions.php` : blocs Équipé / Équipement / Objets magiques, quantité, charges, nom libre, notes, retrait, valeur et poids totaux (pas de bourse ni d'encombrement en V1) ; actions `ajouterPossession` / `modifierPossession` / `retirerPossession` ; fiche d'un composé `detail-pp/possession.php` ; cartes sur téléphone (D-PO23, §7.9b)
+- [x] SP-PO9 — Sélecteur d'équipements et d'objets magiques simples `possPicker` (`include/ajax/detail-pp/possessions-picker.php`, clone de `donsPicker`, une liste par bloc depuis D-PO31, filtre par famille ou catégorie, sources actives, visibilité des listes ; propriétés spéciales et consommables DD3.5 exclus) ; `ajouterPossession` alignée sur `listeClauseVisibilite` (D-PO24, §7.9b)
+- [x] SP-PO10 — Compositeur d'armes, armures et boucliers magiques (`include/ajax/modifier/objet-compose.php`, boutons « Composer » / « Recomposer », aperçu en direct par `possession-calcul.php`, action `enregistrerCompose` qui recalcule et refuse toute règle enfreinte) (D-PO25, §7.9b)
+- [x] SP-PO11 — Compositeur de potions, huiles, baguettes et parchemins (même formulaire : sort cherché, liste de classe, NLS minimum, composantes en po et PX, 1 à 6 sorts pour un parchemin) ; en jeu : potion bue, charge de baguette, sort de parchemin lu (`consommerPossession`, `utiliserSortParchemin`) ; `autocomplete-sorts.php` soumis à `listeClauseVisibilite` (D-PO26, §7.9b)
+- [x] SP-PO12 — Possessions DD2024 : même inventaire et même sélecteur, sans compositeur ; valeur tirée de la rareté (`objetValeurRareteDd2024`, potion ½, parchemin de sort = 2 × coût d'écriture), harmonisation `pp_harmonise` (bascule, compteur « n / 3 » signalé au-delà, non bloquant) (D-PO27, §7.9b)
+- [x] SP-PO12b — Migrations SP-PO2b / SP-PO5 / SP-PO5b (`sql/2026-10-15_*`, `sql/2026-10-16_*`) jouées en local par le moteur le 2026-11-07 (elles manquaient) : 238 articles et 28 familles DD2024, équipements DD3.5 sous « MdJ3.5 », descriptions des objets DD2024 et règles SRD ; sélecteur DD2024 contrôlé (D-PO28). Elles restent à jouer en production
+- [x] SP-PO12c — `getActiveResIds()` / `getActiveResIdsCampagne()` : sources de campagne filtrées par ruleset (sélecteur d'un personnage DD3.5 vide après ouverture d'un personnage DD2024) (D-PO29)
+- [x] SP-PO12d — Page Possessions allégée : badge « composé » retiré, nom de l'objet en gras, ni valeur ni poids (colonnes et totaux), onglets Équipement / Objets magiques sur téléphone ; sur toutes les pages du personnage, marge nom → sous-menu égale à la marge au-dessus du nom (D-PO30)
+- [x] SP-PO12e — Possessions : « Ajouter » dans l'en-tête des blocs Équipement et Objets magiques (+ « Composer » en DD3.5), sélecteur sans onglets ouvert sur la liste du bloc (`type=`), fiche en sous-panneau sur téléphone (liste pleine largeur) ; nom des objets agrandi, quantité collée aux boutons à droite, plus d'en-tête de tableau (D-PO31)
+- [x] SP-PO12f — Possessions : Objets magiques avant Équipement (blocs et onglets) ; sur ordinateur, repli en alternance des deux blocs (chevron `.per-fiche__replier`, un seul déplié) ; Objets magiques actif par défaut dans les deux modes (D-PO32)
+- [ ] SP-PO13 — Matériaux spéciaux DD3.5 (adamantium, mithral, argent alchimique, fer froid, bois de duse) dans le compositeur (D-PO17)
+- [ ] SP-PO14 — Suppression définitive des potions et baguettes DD3.5 masquées par SP-PO6 (après vérification des références)
 
 ### SP-T — Transfert / Duplication d'opposition
 
@@ -331,15 +345,23 @@
 - [x] SP-TB5 — Migration des tableaux HTML existants (`sql/migrate_tableaux_sp-tb5.php`)
 - [x] SP-TB6 — Portée du tag étendue à `mo_stats` (monstres)
 - [x] SP-TB7 — Portée du tag étendue aux champs texte du compendium, composant CSS rendu global, bouton d'insertion TinyMCE généralisé aux 10 éditeurs
-- [ ] SP-TB8 — Écran du MJ : alimenté par `tab_ecran_mj` / `tab_ecran_ordre`, mise en page
-      multi-colonnes et impression
-      — **débloquée** le 2026-08-24 par la livraison de SP-CP. Point d'entrée acté : le premier
-      bouton de la colonne d'outils des pages Campagnes (`include/campagne-outils.php`), aujourd'hui
-      inerte. Présentation retenue : ouverture dans `#detail-pp` (arbitrage SP-CP, question 1).
-      Aucun tableau n'est encore coché `tab_ecran_mj` en base
-- [ ] SP-TB9 — Saisie des tableaux du ruleset **DD3.5** (id 1) *(en cours au fil des lots SP-DRS — 15 tableaux livrés avec le lot 1)*
+- [x] SP-TB8a — Écran du MJ : arbitrage (D-TB24 → D-TB27, révision de D-CP9) ; impression abandonnée
+- [x] SP-TB8b — Migration `sql/2026-11-07_sp-tb8b_ecran_mj.sql` : `dd_campagnes_ecran`, `dd_campagnes.camp_ecran_colonnes`
+- [x] SP-TB8c — Surcouche plein écran `#ecran-mj` en consultation (repliage non enregistré), bouton de la colonne d'outils activé
+- [x] SP-TB8d — Mode organisation : placement en colonnes virtuelles (2 à 6), glisser-déposer, largeur 1 ou 2, repliage, Enregistrer / Annuler
+- [x] SP-TB8e — Ajout / retrait de tableaux : sélecteur `ecran-mj-picker.php`, préremplissage par la sélection proposée (`tab_ecran_mj`)
+- [x] SP-TB8f — Duplication de l'écran d'une autre campagne du même ruleset
+- [ ] SP-TB8g — Contrôle visuel par l'utilisateur (dont le lien d'une cellule ouvrant `#detail-pp` au-dessus de l'écran),
+      puis `sql/2026-11-07_sp-tb8b_ecran_mj.sql` à jouer en production
+- [ ] SP-TB9 — Saisie des tableaux du ruleset **DD3.5** (id 1) *(en cours au fil des lots SP-DRS — 74 tableaux DD3.5 en base le 2026-11-07, dont les 40 des fiches de compétences, SP-DRS4b)*
+- [x] SP-TB13 — Catégorie de tableaux **« Compétence »** (`tabc_id` 9, slug `competence`, ordre 35), portée par `sql/2026-11-08_sp-drs4b_competences_dd35.sql`
 - [x] SP-TB10 — Gestionnaire sorti du module Règles (`tableaux/index.php`), servi par le moteur de liste partagé : filtres (source, écran du MJ, texte sur nom **et** slug), pagination, tri. Propagation du renommage de slug étendue aux 11 champs hôtes
 - [x] SP-TB11 — Correctif d'affichage : le bouton Modifier des fiches détail (règle et tableau) passe dans le titre, il butait sur la croix de fermeture du panneau
+- [x] SP-TB12a — Catégories de tableaux : table `dd_tableaux_categories` (8 catégories communes aux rulesets) et `dd_tableaux.tab_tabc_id` (`sql/2026-11-07_sp-tb12a_categories_tableaux.sql`)
+- [x] SP-TB12b — Catégorie dans le formulaire, l'enregistrement, la fiche ; colonne et filtre de la liste `tableaux/index.php` ; filtre du sélecteur d'insertion
+- [x] SP-TB12c — Classement des 113 tableaux existants (validé par l'utilisateur)
+- [x] SP-TB12d — Migration de renvoi de toute la table `dd_tableaux` en production (`sql/2026-11-07_sp-tb12b_tableaux_upsert.sql`, upsert par `tab_id`), validée sur une copie de la base de production
+- [ ] SP-TB12e — Jouer en production les deux migrations `2026-11-07_sp-tb12*.sql` (déploiement), puis contrôler le filtre dans le navigateur
 
 ### SP-GL — Liaison automatique des termes de glossaire
 
@@ -364,7 +386,12 @@
 - [x] SP-DRS3 — Lot 3 : **DRS 23 (Objets magiques)** — racine « Objets magiques » (ordre 50), 13 pages (catégories, détection, utilisation, taille, emplacements et affinités, sauvegardes / dégâts / réparation, charges, description, création ×4, estimation du prix, catalogue) + 11 tableaux + 9 termes — `sql/2026-10-11_regles_dd35_drs23_sp-drs3.sql`. Les fiches d'objets (DRS 24 à 28) sont des données du compendium, hors périmètre
 - [x] SP-DRS4 — Lot 4 : **DRS 04 (Les compétences)**, règles générales (pages 1 à 4 du PDF) — racine « Les compétences » (ordre 15), 10 pages (points de compétence et degrés de maîtrise, utilisation, nouvelles tentatives et test inné, conditions, temps d'utilisation, test sans jet de dé, entraide, synergie, tests de caractéristique, lecture d'une fiche) + 2 tableaux + 11 termes de glossaire — `sql/2026-10-31_regles_dd35_drs04_sp-drs4.sql`. Journal des corrections : `doc/LOG_CORRECTIONS_DRS04.md`. Les descriptions des 36 compétences sont des données du compendium, hors périmètre → `SP-DRS4b`
 - [x] SP-DRS4c — Page de règles « **Liste des compétences** » (racine « Les compétences », ordre 110) : tag `[[liste:competence]]`, nouvelle entité de `liste-parser.php` (`listeRendreCompetence()`) — `sql/2026-10-31_regles_dd35_drs04_sp-drs4c.sql`
-- [ ] SP-DRS4b — **Descriptions des compétences DD3.5** (pages 5 à 34 du DRS 04, compendium `dd_competences`) : mesuré le 2026-10-31, **22 des 35 fiches couvrent moins de 60 % du texte du DRS** (Bluff 1 %, Survie 6 %, Équitation 7 %, Maîtrise des cordes 4 %…) ; 11 sont complètes (≥ 90 %), Dressage dépasse le DRS (210 %). Import à arbitrer fiche par fiche : il réécrit des données du compendium
+- [x] SP-DRS4b — **Descriptions des compétences DD3.5** (pages 5 à 34 du DRS 04) : texte intégral du DRS pour les **36 fiches mères** de `dd_competences` (domaines non touchés), **40 tableaux** `competence-*` (catégorie Compétence, source DRS 3.5 ; les 14 tableaux HTML des anciennes fiches sont ressaisis). Dressage garde son contenu hors DRS. La source des fiches reste le Manuel des joueurs. Deux noms sont débarrassés d'un blanc final — `sql/2026-11-08_sp-drs4b_competences_dd35.sql` (D-DRS5, D-DRS6). Les règles générales (pages 1 à 4) ont été recontrôlées : rien ne manque. Corrections : `doc/LOG_CORRECTIONS_DRS04.md` §5
+- [ ] SP-DRS4d — Jouer `sql/2026-11-08_sp-drs4b_competences_dd35.sql` en production (déploiement, après les migrations `2026-11-07_*`), puis relire quelques fiches dans le navigateur (Diplomatie, Saut, Dressage)
+- [ ] SP-DRS4e — Vérifier contre leur source les deux synergies de `dd_competences_synergies` absentes du DRS : Décryptage → Art de la magie (cercle runique) et Représentation → Concentration (chahut)
+- [ ] SP-DRS6 — Lot 6 : **DRS 24 / 25**, règles générales (pas les fiches) — chapitre « Objets magiques par catégorie » sous « Objets magiques » (ordre 95) : anneaux, armes (plafond +10, propriété ⇒ +1 minimum, NLS, prix par bonus, prix de maître, propriétés de corps à corps et à distance), armures et boucliers (idem, propriétés à équivalence ou prix fixe), baguettes, bâtons ; tableaux de prix ; listes `[[liste:objet|…]]` de chaque catégorie et des propriétés spéciales ; encadré expliquant les listes vides ou réduites (objets composés depuis l'inventaire, SP-PO10/11)
+- [ ] SP-DRS7 — Lot 7 : **DRS 26a / 27**, règles générales — objets merveilleux (présentation, activation), parchemins (déchiffrer, activer, test de NLS, incident), potions et huiles, sceptres
+- [ ] SP-DRS8 — Lot 8 : **DRS 28** — objets intelligents (tables de prix, alignement, pouvoirs, Ego, conflits), objets maudits (malédictions courantes), artefacts ; les renvois laissés en texte simple par SP-DRS3 (S13) deviennent des `[[tab:…]]`
 - [ ] SP-DRS5 — Lot suivant : prochains fichiers DRS présentés par l'utilisateur (ordre d'affichage = ordre de présentation des lots)
 
 ### SP-IM — Import des données manquantes (compendium)
@@ -464,6 +491,13 @@
 - [x] SP-PE19 — **Actions groupées de la liste des personnages** (D-PE19a → c, §7.4)
   - [x] SP-PE19a — Affecter à une campagne (rattachement + campagne en cours) et affecter à un joueur : panneau `include/ajax/modifier/personnages-groupe.php`, action `groupePersonnages`, appliquées aux seuls personnages éligibles ; barre réservée à l'admin et au MJ ; cases à cocher du moteur liées à la barre groupée
   - [x] SP-PE19b — Contrôle visuel dans le navigateur (barre, panneaux campagne et joueur, message des personnages écartés) ; sous 992px le moteur masque les cases à cocher : actions groupées réservées à l'ordinateur, comme au compendium
+- [ ] SP-PE20 — **Modificateur divers des compétences** (D-PE20a, §7.7b)
+  - [x] SP-PE20a — Colonnes `pec_mod_divers` / `pec_mod_libelle` (`sql/2026-11-01_sp-pe20_competences_mod_divers.sql`), colonne Divers de l'éditeur (origine saisie sous le nom), colonne « Div. » et détail en lecture, total commun `totalCompetence()` repris par l'accès aux notes
+  - [ ] SP-PE20b — Migration à jouer en production (déploiement)
+- [ ] SP-PE21 — **Synergies entre compétences, DD3.5** (D-PE21a → c, §7.7b)
+  - [x] SP-PE21a — Table `dd_competences_synergies` chargée de 28 synergies (MdJ 3.5 + descriptions du compendium, `sql/2026-11-01_sp-pe21_synergies_competences.sql`), `synergiesCompetences()` : synergies sans condition dans le total, conditionnelles affichées hors total ; recalcul en direct dans l'éditeur
+  - [x] SP-PE21b — Compendium : « Synergies accordées » dans le formulaire de compétence (remplacées en bloc, nettoyées à la suppression) et lignes « Synergie accordée / reçue » sur la fiche détail
+  - [ ] SP-PE21c — Migration à jouer en production (après `2026-10-31_sp-cd0_competences_domaines.sql`) et contrôle du nombre de synergies chargées (28 attendues)
 
 > Hors périmètre SP-PE : les **objets magiques du personnage** (`personnages/objets.php` reste un
 > placeholder, aucune table) — analyse métier non fiabilisée, cf. `DECISIONS_LOG.md` [2026-06-12] [D].
@@ -523,6 +557,7 @@
 - [x] SP-RS7 — Fiche classe sur smartphone : style des capacités déplacé dans `modules.css` (chargé partout, dont Personnages), description aérée, lignes Compétences / Armes / Outils / Armures / Équipement « au fil du texte » (`.sort-detail__row--inline`), vue Magie : Renouvellement et Domaines se replient au lieu de déborder ; feuilles CSS et scripts versionnés par `assetUrl()` (le navigateur gardait l'ancien `modules.css`) ; table de progression : colonne Niv. fixe et indicateur de défilement (`.table-dd-scroll`), filet rouge de l'en-tête retiré
 - [ ] SP-RS6c — Unification complète : replier les 7 capacités d'`admin-liste.php` dans le moteur, migrer `admin/utilisateurs.php`, `admin/ressources.php`, `admin/categories-notes.php` et `campagnes/index.php`, supprimer `admin-liste.php`, aligner le CSS du menu ⋮ de l'admin
 - [x] SP-RS5a — Collecte des relevés d'affichage : beacon, `dd_joueurs.j_last_*`, `dd_connexions`, écran admin
+- [x] SP-RS5b — Collecte rétablie en production (colonnes `j_last_*` absentes) ; échecs du beacon journalisés et signalés en console
 - [ ] SP-RS5 — Arbitrage des paliers définitifs (991 / 768 / 479) à partir des relevés accumulés dans `dd_connexions`
 
 ### SP-CP — Refonte du module Campagnes
@@ -539,7 +574,8 @@
 - [x] SP-CP5 — Fil d'Ariane du header en liens pleine page ; suppression des 4 handlers `detail-pp/*` du module et du sous-panneau `detail-pp-sub/opposition.php` devenu orphelin
 - [x] SP-CP6 — `js/campagne.js` aligné (suppressions par fabrique, lignes `data-href`), listes sans colonne code/abrév — préfixe `CODE : Nom`, ordre retiré des formulaires
 - [x] SP-CP7 — Documentation : §0, §8, §12, §12b, `ARCHITECTURE_8_CAMPAGNES.md`, `SCHEMA_SQL.md` v1.6, `DECISIONS_LOG.md`
-- [ ] SP-CP8 — Garnir la colonne d'outils : liste des aides de jeu à arbitrer (seul l'écran du MJ est identifié, cf. SP-TB8)
+- [ ] SP-CP8 — Garnir la colonne d'outils : liste des aides de jeu à arbitrer (notes et écran du MJ déjà en place, cf. SP-NO3 et SP-TB8)
+- [x] SP-CP9 — Page campagne en sous-pages (Description · Personnages · Scénarios), sous-menu `.page-nav` partagé avec le personnage, ruleset retiré de l'en-tête, puis des 13 fiches détail, du panneau personnage et des titres de liste (D-CP10, D-CP11)
 
 ### SP-AD — Ajustements de la zone d'administration
 
@@ -548,6 +584,9 @@
 > sous SP-RS6c.
 
 - [x] SP-AD0 — Changement du mot de passe d'un utilisateur par l'administrateur : section facultative du formulaire d'édition (nouveau + confirmation), validation serveur, invalidation du lien de réinitialisation en attente
+- [x] SP-AD1 — Liste admin Ressources : colonnes Dons et Objets magiques, et message de confirmation de suppression complété
+- [x] SP-AD2 — Fiche et formulaire de ressource : retrait de `res_pages`, colonne absente de la base, qui faisait échouer tout enregistrement
+- [x] SP-AD3 — Suppression d'une ressource : refus dès qu'un contenu est rattaché (monstres, équipements, règles, tableaux et contenu de campagne ajoutés au contrôle), liste de tables unique `contenuRessourceTables()`
 
 ### SP-RB — Bascule de ruleset depuis le header
 
@@ -601,7 +640,7 @@
 > catégorie propre au ruleset, et les diffuse à des personnages ; le joueur les lit dans la fiche.
 > Une note = un tronc commun + des sections conditionnées par compétence (D-NO1 → D-NO4).
 
-- [x] SP-NO — Arbitrage : conditions par section, seuil en DD « prendre 10 », compétences combinées en OU, scénario facultatif (D-NO1 → D-NO4)
+- [x] SP-NO — Arbitrage : conditions par section, seuil en DD (score de compétence ≥ DD depuis D-NO23, « prendre 10 » à l'origine), compétences combinées en OU, scénario facultatif (D-NO1 → D-NO4)
 - [x] SP-NO0 — Schéma `sql/2026-11-01_sp-no0_notes.sql` : tables de notes recréées (campagne, scénario facultatif, catégorie par ruleset, sections, destinataires), `dd_notes_conditions` créée, `dd_campagnes_notes` supprimée, 11 catégories par ruleset, garde-fou « tables vides » ; `METIER_11_Notes.md`, `SCHEMA_SQL.md` §9, §8b (D-NO5). Appliquée en local, **reste à jouer en production** (SP-NO8)
 - [x] SP-NO1 — Moteur d'accès (`include/personnage_helpers.php`) : `niveauGlobalPersonnage()` et `modsCaracCompetences()` extraits de `fiche.php`, `bonusCompetencesPersonnage()`, `conditionNoteSatisfaite()` / `sectionNoteAccessible()`, `getSectionsNotes()`, `getNotesPersonnage()` (sections filtrées et recherche côté serveur) ; fiche inchangée (D-NO6)
 - [x] SP-NO2 — Formulaire MJ `include/ajax/modifier/note.php` et `enregistrerNote()` / `supprimerNote()` : catégorie, scénario, date, mots-clés, tronc et sections TinyMCE avec images, conditions compétence + DD, destinataires, case « signaler la mise à jour » ; notes d'un scénario supprimé remontées à la campagne (D-NO7 → D-NO9). Ouvert pour l'instant sans bouton : le point d'entrée vient avec SP-NO3
@@ -610,9 +649,27 @@
 - [x] SP-NO5 — Passe smartphone de l'interface joueur, contrôlée en 375 px dans les deux thèmes : images TinyMCE à proportions conservées (`height: auto`, aussi côté MJ), mots longs coupés, extrait limité à 3 lignes, bascule de portée à 44 px et contrastée, puces de mots-clés visibles, compteur « n nouvelles » mis à jour à la lecture (D-NO12)
 - [x] SP-NO6 — Écran admin `admin/categories-notes.php` (moteur `admin-liste.php`) : création, renommage, ordre, suppression des catégories de notes par ruleset ; nom unique par ruleset, ruleset figé et suppression refusée dès qu'une note (même supprimée) emploie la catégorie (D-NO13)
 - [x] SP-NO7 — Import v1 : migration de transit `sql/2026-11-01_sp-no7_notes_v1_transit.sql` (tables `dd_v1_*`, export repris à l'identique), écran `admin/import-notes-v1.php` (campagne cible, type v1 → catégorie + compétences, libellés des mots-clés), règles `include/notes-import-v1.php` : DD 10 → tronc, DD > 10 → sections au même DD, images retirées, entités converties, relance sans doublon (D-NO14). Import joué en local le 2026-11-01 dans « L'Empire des Anges » (DD3.5) : 57 notes, 39 sections, 9 mots-clés (D-NO15)
-- [ ] SP-NO8 — Production : jouer `2026-11-01_sp-no0_notes.sql` puis `2026-11-01_sp-no7_notes_v1_transit.sql`, lancer l'import depuis l'écran admin dans la campagne cible (en local : L'Empire des Anges), diffuser les notes aux personnages, puis supprimer les tables `dd_v1_*` par une migration
+- [ ] SP-NO8 — Production : jouer `2026-11-01_sp-no0_notes.sql` puis `2026-11-01_sp-no7_notes_v1_transit.sql`, lancer l'import depuis l'écran admin dans la campagne cible (en local : L'Empire des Anges), diffuser les notes aux personnages (destinataires v1 : script ponctuel `sql/prod_notes_v1_affectations.sql`, à lancer dans phpMyAdmin), puis supprimer les tables `dd_v1_*` par une migration
 - [x] SP-NO9 — Actions groupées de la liste du MJ : supprimer (écran de validation), changer de campagne (même ruleset ; scénario vidé, destinataires hors campagne retirés), changer de catégorie, ajouter ou retirer des destinataires ; panneau `include/ajax/modifier/notes-groupe.php`, action `notesGroupe`, clé `bulk_panneau` du moteur de liste (D-NO16)
 - [ ] SP-NO10 — Dupliquer une note d'une autre campagne du MJ dans la campagne courante (copie du tronc, des sections, des conditions et des mots-clés ; ni scénario ni destinataire)
+- [ ] SP-NO11 — **Diffusion d'une note à toute la campagne**, y compris aux personnages rattachés plus tard (D-NO19 → D-NO22, §8b)
+  - [x] SP-NO11a — Colonne `no_diffusion_campagne` (`sql/2026-11-06_sp-no11_notes_diffusion_campagne.sql`), accès par `dd_campagnes_personnages` dans `getNotesPersonnage()` (inactifs compris, perdu en quittant la campagne), ligne de suivi créée à la première lecture, `destinatairesNote()` ; formulaire en mode exclusif « Toute la campagne » / « Personnages choisis », « Vu par », colonne « Campagne » des listes, action groupée « Diffusion » ; règle du contenu lisible conservée dans les deux modes
+  - [ ] SP-NO11b — Migration à jouer en production (déploiement)
+
+### SP-MO — Import des monstres DD3.5 de l'ancienne application
+
+Source : export `maikasteiymaika_mysql_db.sql` (6 nov. 2026), table `dd_monstres`, ruleset 1 : 116 fiches de campagne
+en HTML. `dnd35_monstres` (569 monstres du MM 3.5), `dnd35_monstresArchetypes` et les fiches DD2024 sont hors périmètre (D-MO0).
+
+- [x] SP-MO0 — Cadrage : homebrew de L'Empire des Anges (`mo_camp_id = 5`), source 88 « Créations personnelles », texte « Libellé : valeur », ids figés (D-MO0 → D-MO3)
+- [x] SP-MO1 — Catégories DD3.5 des types du MM, ids 21-32, et catégorie 16 Géant rendue à DD2024 — `sql/2026-11-06_sp-mo1_categories_monstres_dd35.sql` (jouée en local)
+- [x] SP-MO2 — Parser DD3.5 : `labelsDD35()` étendue au format court, `estLabelDD35()` (lignes « Sorts … préparés / connus », précision entre parenthèses), titres de section, listes de sorts décalées, noms de capacités (Ext/Sur/Mag) en libellé, libellés dans la couleur du texte ; copier-coller gemmaline reconnu ; aide `monstre-tags-description` (D-MO2, D-MO4)
+- [x] SP-MO3 — Générateur `tools/generer-sp-mo3-monstres-dd35.php` (CLI, hors git) : HTML → lignes, liens `afficherSort/Don/OM` → tags `$ # &`, catégorie lue sur la ligne de type, rapport et aperçu
+  - [x] SP-MO3a — Import test de 3 fiches (159 Lirdnolu Dhuurniv, 264 Golems de diamant, 382 Glabrezu), corrections de rendu (D-MO4) et validation de l'utilisateur ; fichiers de test supprimés
+  - [x] SP-MO3b — Import complet : `sql/2026-11-06_sp-mo3_monstres_dd35.sql` (116 fiches, mo_id 2159-2406), jouée en local par le moteur ; journal `doc/LOG_IMPORT_MONSTRES_DD35.md` (57 liens laissés en texte simple, aucune catégorie par défaut) (D-MO5)
+- [ ] SP-MO4 — Relecture par l'utilisateur des 116 fiches dans la campagne L'Empire des Anges. Déjà vérifié : rendu des 116 sans avertissement PHP (2 054 libellés, 295 lignes de sorts, 287 capacités), liste à 116 résultats, recherche de monstre pour une opposition
+- [ ] SP-MO5 — Production : jouer `2026-11-06_sp-mo1_…` puis `2026-11-06_sp-mo3_…` (déploiement)
+- [ ] SP-MO6 — *À arbitrer* — faux liens de la liaison automatique DD3.5 dans les lignes simples et les descriptions (mots courants reliés à des objets : « lumière », « attaque », « lancer », « Drow » ; sorts « noir », « mission ») ; touche tout le compendium DD3.5, pas seulement l'import
 
 ---
 
@@ -1093,6 +1150,9 @@ générique `filtres[]` à checkbox — gérée directement par le moteur, pas p
   toutes deux systématiquement le supplément personnel pertinent, même sans sélection explicite
   (voir bug corrigé ci-dessous et § Oppositions, Usage Oppositions — 2026-06-20).
 - La priorité 3 de `getActiveResIds()` (défaut absolu) reste limitée aux ressources officielles (`res_j_id IS NULL`).
+- **Ruleset** (D-PO29, 2026-11-07) : la priorité 1 de `getActiveResIds()` (campagne du dernier personnage ouvert) et la
+  sélection de `getActiveResIdsCampagne()` ne retiennent que les sources du **ruleset demandé** (jointure sur
+  `dd_ressources.res_ruleset_var_id`). Sans source de ce ruleset, `getActiveResIds()` passe à la priorité 2.
 
 > �
  **Bug corrigé le 2026-07-02 — supplément personnel absent de la priorité 1 de `getActiveResIds()`
@@ -1305,6 +1365,23 @@ ci-dessous), `rendreStatsMonstre()` étant agnostique de la source du scope.
   **titre de section**, **label inline**, **label gras**, **sous-liste de sorts**, **pouvoir**, ligne simple.
 - **DD3.5** (`formaterLigneDD35()`) : labels terminés par « : ». Ligne « Dons : » → liaison dons ;
   autres → liaison auto (sorts + objets + glossaire). Parsing automatique DD3.5 **minimal — à compléter**.
+  Libellés reconnus (`estLabelDD35()`) : ceux du MM et, depuis SP-MO2, ceux du format court de l'ancienne
+  application (PV, Sens, Langues, Aura, Immunités, RM, RD, Mêlée, Distance, Options d'attaque, Possessions…)
+  ainsi que toute ligne « Sorts … préparés / connus ». Une précision finale entre parenthèses est
+  ignorée (« Capacités de type sort (NLS 6e) »).
+  **Format cible : le copier-coller d'un site comme gemmaline** (présentation du MM). Chaque ligne est
+  classée dans cet ordre (SP-MO2, D-MO4) :
+  1. titre de section seul sur sa ligne (`sectionsTitresDD35()` : Combat…) → `.mo-section-titre` ;
+  2. « Libellé : valeur » ;
+  3. ligne de liste de sorts ou de pouvoirs (`sousListeDD35()` : « 1er — », « 5ème - », « 0 - »,
+     « À volonté — », « 3/jour — », « 1 fois par jour — ») → `.mo-sous-liste--dd35`, décalée, liée
+     aux sorts seulement ;
+  4. capacité spéciale (`pouvoirDD35()` : « Nom (Ext|Sur|Mag|Psi). … », ou libellé connu suivi d'un
+     point, « Pouvoirs magiques. … ») → `.mo-pouvoir`, nom rendu en libellé ;
+  5. ligne simple.
+
+  Libellés et noms de capacités DD3.5 portent `.mo-stat-label--dd35` (couleur du texte, au lieu de
+  l'accent conservé en DD2024).
 
 Séparateur de blocs commun : une ligne `***` → `<hr class="mo-stat-hr">`.
 
@@ -1828,20 +1905,24 @@ Les utilisateurs désactivés restent visibles dans la liste (indicateur visuel)
 | 5 | col-secondary | Propriétaire | j_pseudo si res_j_id IS NOT NULL (supplément) |
 | 6 | col-secondary | Nb sorts | COUNT dd_sorts WHERE so_res_id |
 
-**Règle de suppression :** Une ressource ne peut être supprimée que si **aucune** des tables
-du compendium ne lui est rattachée. La vérification porte sur l'ensemble du périmètre :
+**Règle de suppression :** Une ressource ne peut être supprimée que si **aucun** contenu ne lui
+est rattaché, contenu propre à une campagne compris. La liste des tables tient dans
+`contenuRessourceTables()` (`include/helpers.php`), reprise par le contrôle de suppression, le
+panneau de détail et la liste :
 
 ```
-dd_classes, dd_races, dd_sorts, dd_dons, dd_competences, dd_historiques, dd_objets_magiques
+dd_classes, dd_races, dd_sorts, dd_dons, dd_competences, dd_historiques, dd_objets_magiques,
+dd_monstres, dd_equipements, dd_regles, dd_tableaux
 ```
 
-Si des données existent, la suppression est refusée avec un message explicite.
+Si des données existent, la suppression est refusée avec un message explicite. Si le comptage
+échoue, elle est annulée. Toute nouvelle table portant un `_res_id` doit être ajoutée à cette liste.
 
 **Formulaire modifier (overlay) :**
 - res_nom, res_abreviation
 - res_ruleset_var_id : SELECT des rulesets (dd_variables WHERE var_cat = 'ruleset')
 - res_selection : checkbox "actif par défaut dans les sélections"
-- res_editeur, res_pages, res_description
+- res_editeur, res_description
 
 ### Fichiers de la zone admin
 
@@ -2345,7 +2426,9 @@ L'édition passe par l'**overlay AJAX** `include/ajax/modifier/personnage.php` (
   **toutes** les compétences du ruleset dans un tableau `.table-dd` filtrable par nom.
   DD3.5 : input numérique (rangs 0..99, borne technique seule). DD2024 : sélecteur 0 (aucune) /
   1 (maîtrise) / 2 (expertise). Total recalculé à la volée à chaque saisie.
-  Persistance DELETE + INSERT en bloc des seules lignes `pec_maitrise > 0` — une liste vide est
+  Colonne « Divers » (modificateur divers et son origine, SP-PE20) ; synergies DD3.5 recalculées
+  dans le total (SP-PE21, §7.7b).
+  Persistance DELETE + INSERT en bloc des seules lignes `pec_maitrise > 0` ou `pec_mod_divers <> 0` — une liste vide est
   valide et efface toutes les compétences. Validation serveur : propriétaire, appartenance de la
   compétence au ruleset du personnage, bornage (2 en DD2024, 99 en DD3.5).
 - **Dons** : **exception au commit global** — sélecteur dédié à écriture immédiate, voir §7.5b.
@@ -2665,17 +2748,44 @@ annule le bénéfice de la fiche.
 
 ```
 DD3.5   Total = rangs (pec_maitrise) + modificateur de la caractéristique associée
+              + modificateur divers (pec_mod_divers)            — SP-PE20
+              + synergies sans condition acquises               — SP-PE21
 DD2024  Total = modificateur de la caractéristique associée
               + bonus de maîtrise (dd_bonus_maitrise au niveau global)
                 × 1 si maîtrise, × 2 si expertise
+              + modificateur divers (pec_mod_divers)            — SP-PE20
 ```
 
-Le total est **volontairement incomplet** : ni équipement, ni malus d'armure, ni bonus divers — ces
-données ne sont pas saisies dans le module. La fiche l'annonce explicitement sous le tableau ; c'est
-une aide de calcul, pas une valeur de fiche opposable.
+Ni équipement ni malus d'armure : ces données ne sont pas saisies dans le module.
 
-Helpers : `bonusCompetence()` et `getBonusMaitrise()` (`include/personnage_helpers.php`), dupliqués
-en JS dans `competencesEditor` pour le recalcul à la volée pendant la saisie.
+**Modificateur divers (SP-PE20, D-PE20a).** En attendant une gestion des bonus de dons, capacités
+et objets magiques, le joueur inscrit sur chaque compétence un modificateur signé (borne technique
+±99) et, s'il le veut, son origine (`pec_mod_libelle`, 200 caractères). L'éditeur l'ajoute en
+colonne « Divers » ; le champ d'origine apparaît sous le nom dès que le modificateur n'est pas nul.
+Une ligne `dd_personnages_competences` est désormais conservée si `pec_maitrise > 0` **ou**
+`pec_mod_divers <> 0` ; une compétence sans rang reste inutilisable en DD3.5 si elle exige une
+formation (accès aux notes, `conditionNoteSatisfaite()`).
+
+**Synergies (SP-PE21, DD3.5 seulement, D-PE21a → c).** `dd_competences_synergies` : compétence
+source, cible, seuil de rangs (5), bonus (+2), condition facultative. `synergiesCompetences()`
+retient celles dont la source atteint le seuil ; sans condition, leur bonus entre dans le total et
+elles se cumulent entre sources ; avec condition (« parchemins »), elles sont seulement affichées
+sous le nom de la compétence, marquées « hors total ». Une synergie sur une cible qui n'est pas une
+compétence (empathie sauvage, savoir bardique, renvoi des morts-vivants) n'est pas modélisée.
+Saisie au compendium : section « Synergies accordées » du formulaire de compétence DD3.5 (remplacée
+en bloc, `synergies_envoyees` distingue une liste vidée d'un formulaire sans la section) ; la fiche
+détail montre les synergies accordées et reçues.
+
+**Lecture.** Une compétence s'affiche si elle a des rangs, un modificateur divers ou une synergie
+acquise sans condition. Colonne « Div. » = modificateur divers + synergies ; le détail (origine,
+sources de synergie, synergies conditionnelles) est écrit sous le nom.
+
+Helpers : `bonusCompetence()` (base), `synergiesCompetences()`, `totalCompetence()` et
+`getBonusMaitrise()` (`include/personnage_helpers.php`). `totalCompetence()` est le seul calcul du
+total, partagé par la fiche et `bonusCompetencesPersonnage()` (accès aux notes, aperçu « vu par »).
+Le calcul est dupliqué en JS dans `competencesEditor` (`_total()`, `_synergie()` sur
+`perSynergies`) : un changement de rangs recalcule tous les totaux, puisqu'il peut ouvrir ou fermer
+une synergie.
 
 > **Ruleset des sources — règle du module.** `getActiveResIds($db, $ruleset_var_id)` prend un second
 > paramètre optionnel. La fiche et l'overlay Personnage passent **le ruleset du personnage**
@@ -2696,9 +2806,122 @@ supprimerait silencieusement ces compétences de la fiche. Modificateur 0, colon
 
 ### 7.9 Pages annexes
 
-- `personnages/objets.php` : placeholder « Fonctionnalité à venir » (analyse métier non fiabilisée, aucune table).
+- `personnages/possessions.php` : inventaire du personnage (SP-PO8, voir §7.9b).
+  `personnages/objets.php` n'est plus qu'une redirection 301 vers lui.
 - Onglet Notes : emplacement réservé ; le contenu relève du module Notes (chantier `SP-NO`, voir §0). La préférence d'affichage
   (campagne en cours / toutes les campagnes) est mémorisée sur le personnage (`pe_notes_scope`).
+
+### 7.9b Possessions — inventaire (SP-PO8)
+
+`personnages/possessions.php`, une ligne de `dd_personnages_possessions` par objet. Trois blocs :
+**Équipé / en main** (`pp_equipe = 1`, tous types, masqué s'il est vide), **Objets magiques** (simples et
+composés mêlés, sans distinction visible : « composé » est une notion technique), **Équipement** (D-PO32 :
+objets magiques en premier).
+Nom de l'objet en gras et agrandi (1,1 rem). Les blocs Équipement et Objets magiques s'affichent toujours
+(même vides) : leur en-tête porte « Ajouter » — et « Composer » pour les objets magiques en DD3.5 (D-PO31).
+Au-dessus des blocs, en DD2024 seulement, le compteur d'harmonisation. Tableau sans ligne d'en-tête :
+une ligne = nom, puis à droite la quantité (− n +) collée aux boutons, séparée d'eux par deux fois
+l'écart entre deux boutons (`.per-poss__actions`).
+Pas de bourse ni d'encombrement (D-PO16). **Ni valeur ni poids affichés** (D-PO30) : la ligne garde sa
+largeur pour la quantité et les actions ; prix et poids se lisent dans la fiche de l'objet. Le serveur
+calcule encore `possessionsTotaux()` dans ses réponses, sans usage à l'écran.
+**Panneau actif** (D-PO32) : un seul état pour Objets magiques / Équipement (`.per-poss__panneau.est-actif`,
+`perPossessions.onglet()`), **Objets magiques par défaut**, gardé en `sessionStorage` par personnage.
+- **Téléphone (< 768px)** : deux onglets, Objets magiques puis Équipement (`.per-poss__onglets`, styles
+  `.per-magie__onglet*` réutilisés), sous le bloc Équipé ; l'en-tête d'un panneau ne garde que ses boutons,
+  le titre est porté par l'onglet ; le panneau inactif est masqué.
+- **Ordinateur (≥ 768px)** : les deux blocs se **replient en alternance** — le corps du panneau inactif est
+  masqué. Chevron de la fiche réutilisé (`.per-fiche__replier`, rotation `is-open`, `aria-expanded`, SP-RS6d)
+  à droite de l'en-tête ; `perPossessions.replier(cle)` déplie ce bloc et replie l'autre, ou l'inverse s'il
+  était déjà ouvert. `perReplierBloc()` n'est pas appelé : il bascule un seul corps par `noDisplay`, alors
+  qu'ici l'état doit rester celui de l'onglet du téléphone.
+
+- **Lecture** : `getPersonnagePossessions($db, $pe_id)` (`include/personnage_helpers.php`) joint
+  l'équipement, l'objet magique, sa catégorie et sa rareté, et ajoute à chaque ligne `nom` (nom libre,
+  sinon celui du compendium), `nom_origine`, `famille`, `prix_unit_pc`, `prix_txt`, `poids_unit_g`,
+  `lien` (fiche à ouvrir) et `manquant`. `possessionPrixTexte()` affiche le prix (po pour un objet
+  magique, po / pa / pc pour l'équipement) ; `possessionsTotaux()` fait les totaux.
+- **Prix unitaire** : le total d'une ligne vaut prix unitaire × quantité. Équipement : `eqt_prix_pc` ;
+  objet simple : `om_prix` (po) ou, à défaut en DD2024, la valeur de la rareté (`objetValeurRareteDd2024`,
+  SP-PO12 ; texte si elle n'est pas chiffrée, « Inestimable ») ; composé : `pp_prix_pc`,
+  qui est donc le prix **d'une pièce** — SP-PO10 enregistre un lot de 50 munitions avec le prix du lot
+  divisé par 50 (coût et PX restent ceux du lot, à la composition). Poids : celui de l'équipement, ou de
+  l'objet de base d'un composé ; un objet magique simple n'a pas de poids au compendium.
+- **Écriture immédiate** (D-PE4a) dans `personnages/enregistrement.php`, droit `peutGererPersonnage` (D-PO18) :
+  - `ajouterPossession` (pe_id, type `equipement` | `objet`, id, quantite) : entrée du ruleset du
+    personnage, hors homebrew de campagne, visible selon `listeClauseVisibilite` (règle du sélecteur) ; refuse une propriété spéciale et, en DD3.5, une potion,
+    baguette ou parchemin (ils se composent). Une ligne identique sans nom libre, ni notes, ni
+    « équipé » voit sa quantité augmentée au lieu d'être doublée. Appelée par le sélecteur (SP-PO9).
+  - `modifierPossession` (pp_id, champ, valeur) : `quantite` (1 à 9 999), `equipe`, `charges`,
+    `nom` (vide = nom du compendium, interdit pour un composé), `notes`. Liste fermée de champs.
+  - `retirerPossession` (pp_id) : la ligne et les éléments d'un composé, en transaction.
+  - Chaque réponse renvoie `totaux` recalculés (plus affichés depuis D-PO30).
+- **JS** `perPossessions` (`js/personnage.js`) : quantité et charges mises à jour sur place ; équiper, renommer, annoter et retirer rechargent la page (la ligne change de bloc).
+- **Sélecteur `possPicker`** (SP-PO9) : bouton « Ajouter » d'un bloc → `possPicker.ouvrir('equipement' | 'objet')` →
+  `include/ajax/detail-pp/possessions-picker.php?pe_id=&type=` dans `#detail-pp`. Structure et styles du
+  sélecteur de dons (`.dons-picker*`, §7.5b) plus `.poss-picker__*` (`css/modules.css`) : **une seule liste**,
+  celle du bloc (D-PO31 : plus d'onglets, seule la requête utile est jouée), recherche, filtre par famille (un parent filtre ses descendants,
+  `data-fam` = chaîne des ancêtres) ou par catégorie, fiche du compendium à droite (crayon d'édition
+  retiré, bouton « Ajouter » posé à côté du nom), « × n » déjà possédés. Chaque clic ajoute une unité ;
+  la page est rechargée à la fermeture. Périmètre : ruleset du personnage, sources actives
+  (`getActiveResIds`), `listeClauseVisibilite`, hors homebrew de campagne ; exclus les propriétés
+  spéciales et, en DD3.5, les catégories calculées (un encadré l'explique sur la liste des objets magiques).
+  **Téléphone (< 768px)** : volet de la fiche masqué, liste en pleine largeur ; un nom touché ouvre sa fiche
+  dans `#detail-pp-sub`, par-dessus le sélecteur, avec le même bouton « Ajouter » (pattern du sélecteur de
+  sorts, SP-PE10d).
+- **Compositeur** (SP-PO10, DD3.5) : bouton « Composer » de l'en-tête du bloc Objets magiques, ou baguette
+  « Recomposer » sur la ligne d'une arme, armure ou bouclier composé →
+  `include/ajax/modifier/objet-compose.php?pe_id=&cat=&id=` dans `#modification` (IIFE `window.ocForm`,
+  styles `.oc-*` dans `css/modules.css`). Type (onglets Arme / Armure / Bouclier, figé en recomposition) ;
+  objet de base groupé par famille (équipement visible des sources actives dont `composeObjetBaseDepuisLigne()`
+  donne le bon rôle ; l'objet d'un composé existant reste proposé) ; altération +0 à +5, et tête 2 pour une
+  arme double ; propriétés spéciales de la catégorie, une case par tête et un champ de précision. Les
+  propriétés incompatibles avec l'objet de base (`om_restriction` comparée aux `data-emploi` / `data-degats`
+  de l'option) sont grisées et décochées, mais c'est le moteur qui tranche. Chaque changement envoie la spec
+  à `possession-calcul.php` (`URLSearchParams` construit à la main pour les tableaux `prop_*[]`) : nom, prix,
+  coût, PX, NLS, détail, avertissements, erreurs ; le bouton d'enregistrement reste désactivé tant qu'une erreur
+  subsiste. Le nom suit le nom généré tant que l'utilisateur ne l'a pas modifié (en recomposition : nom
+  enregistré différent du nom généré = nom saisi, conservé).
+- **`enregistrerCompose`** (pe_id, pp_id = 0 pour créer, nom, champs du moteur) : DD3.5 seulement,
+  `composerObjet()` sur la spec postée (refus si `!ok`), `composeVisibiliteErreur()` (objet de base,
+  propriétés et sorts visibles selon `listeClauseVisibilite`, hors homebrew de campagne), puis INSERT ou
+  UPDATE de la ligne et réécriture des éléments, en transaction. Nom vide = nom généré. Recomposer garde
+  la quantité, « équipé », les charges restantes et les notes. `pp_prix_pc` = prix ÷ quantité générée.
+  Déjà ouverte à toutes les catégories du moteur : SP-PO11 n'aura qu'à ajouter le formulaire.
+- **Consommables du compositeur** (SP-PO11) : onglets Potion, Huile, Baguette, Parchemin du même formulaire.
+  Section « Sorts » à la place de l'objet de base : une ligne par sort (une seule, jusqu'à 6 pour un parchemin,
+  bouton « Ajouter un sort », modèle `<template id="oc-sort-modele">`). Recherche par
+  `include/ajax/autocomplete-sorts.php` (sources actives, `limite=12`) ; au choix d'un sort, ses listes de classe
+  viennent de `possession-calcul.php` (option `listes=`), présélection de la première dont le niveau tient dans le
+  plafond de l'objet (les autres sont marquées « trop haut ») ; NLS vide = minimum de la liste (affiché en
+  placeholder) ; composantes coûteuses en po et en PX. Champs postés : `sort_so[]`, `sort_cla[]`, `sort_nls[]`,
+  `sort_suppl_po[]`, `sort_suppl_px[]` (lignes sans sort ignorées). Les styles d'autocomplétion de
+  `compendium-modules.css` n'étant pas chargés ici, `.oc-sort .autocomplete-*` les reprend dans `css/modules.css`.
+  Recomposer pré-remplit chaque ligne (listes du sort lues par `sortListesClasses`) ; il réécrit les éléments,
+  donc remet à zéro les sorts lus d'un parchemin.
+- **Usage en jeu** (SP-PO11), boutons de la ligne d'inventaire :
+  - `consommerPossession` (pp_id) : potion ou huile composée bue / appliquée = un exemplaire de moins, la ligne
+    part au dernier (confirmation) ; baguette = une charge de moins, jamais sous 0 (bouton désactivé à vide).
+  - `utiliserSortParchemin` (pp_id, ppe_id, valeur) : case « lu » par sort (`ppe_utilise`, sort barré). Quand tous
+    les sorts sont lus et qu'il reste d'autres exemplaires, un parchemin est consommé et les cases reviennent à zéro ;
+    un dernier exemplaire lu reste dans l'inventaire (Retirer).
+- **DD2024** (SP-PO12) : même page et même sélecteur ; pas de bouton « Composer » (compositeur DD3.5 seul).
+  - **Valeur** : `objetValeurRareteDd2024(omr_prix, com_slug, om_nom)` (`include/personnage_helpers.php`) applique
+    la table « Rareté et valeur des objets magiques » du SRD 5.2.1 : valeur de la rareté, **moitié pour une potion**
+    (catégorie `potions`, seul objet à utilisation unique repérable), **parchemin de sort = double du coût
+    d'écriture** de son niveau (table « Coût des parchemins de sort », niveau lu dans le nom). Un artefact reste
+    en texte (« Inestimable ») et compte dans les lignes sans prix chiffré.
+  - **Harmonisation** : `modifierPossession` champ `harmonise` (`pp_harmonise`), accepté seulement pour un objet
+    magique DD2024 à `om_harmonisation = 1`. Sur la ligne : badge « harmonisation » / « harmonisé » et bascule
+    (icône maillon) ; dans la barre des totaux : « Harmonisés : n / 3 », en couleur d'alerte au-delà de 3 —
+    signalé, jamais refusé (la fiche reste déclarative).
+  - Poids total « — » quand aucune ligne n'a de poids (objets magiques seuls).
+- **Poids d'un composé de munitions** : `getPersonnagePossessions` divise le poids de l'objet de base par
+  la taille du lot lue dans son nom (« Flèches (20) ») — poids d'une flèche, comme le prix.
+- **Fiche d'un composé** : `include/ajax/detail-pp/possession.php` (objet de base, bonus, propriétés ou
+  sorts avec liens vers le compendium, NLS, charges, prix, coût, PX), même droit.
+- **Téléphone** (< 768 px) : une carte par ligne (flex à retour), nom sur toute la largeur puis quantité,
+  prix, poids et actions, qui passent à la ligne quand la place manque ; pas de défilement horizontal. Styles `.per-poss__*` (`css/personnages-modules.css`).
 
 ### 7.10 Fichiers du module
 
@@ -2708,7 +2931,7 @@ personnages/
   fiche.php          Fiche unique (sections repliables, Mode jeu en tête)
   enregistrement.php Routeur d'actions transactionnelles (commit global)
   magie.php          Vue dédiée Magie (NLS, emplacements, sorts cliquables)
-  objets.php         Placeholder « Fonctionnalité à venir »
+  possessions.php    Inventaire (SP-PO8, §7.9b) — objets.php y redirige
 
 js/personnage.js                Menu contextuel, suppression inline, éditeurs DOM (3.2+)
 css/personnages-modules.css     Styles module — chargé si $css_module = 'personnages'
@@ -2722,6 +2945,7 @@ include/personnage_helpers.php  getPersonnageContext, getPersonnageClasses,
 
 include/ajax/detail-pp/personnage.php   Vue détail (contexte 'externe' depuis Campagnes)
 include/ajax/detail-pp/dons-picker.php  Sélecteur de dons deux volets (SP-PE4, voir §7.5b)
+include/ajax/modifier/objet-compose.php Compositeur d'objets magiques DD3.5 (SP-PO10/11, voir §7.9b)
 include/ajax/detail-pp/campagne.php     Section « Personnages » du panneau campagne (SP-PE5)
 include/ajax/modifier/personnage.php    Overlay création / modification
 ```
@@ -2772,9 +2996,9 @@ Hiérarchie : **Campagne → Scénario → Chapitre → Rencontre → Opposition
 - **Sources** : `dd_campagnes_sources` — priorité 1 de la chaîne `getActiveResIds()`.
 - **Personnages** : lien **N-N** via `dd_campagnes_personnages` (source de vérité).
   `dd_personnages.pe_camp_id` n'est qu'un raccourci « dernière campagne jouée ».
-  Le rattachement se pilote **depuis la fiche du personnage** (SP-PE5, §7.5c) ; le panneau de
-  campagne n'en donne qu'une vue en lecture seule (section « Personnages »), et le compteur de
-  `campagnes/index.php` s'appuie sur la même table.
+  Le rattachement se pilote **depuis la fiche du personnage** (SP-PE5, §7.5c) et, pour le MJ,
+  depuis l'onglet Personnages de la campagne (`campagnes/campagne-personnages.php`, SP-PE18,
+  SP-CP9) ; le compteur de `campagnes/index.php` s'appuie sur la même table.
 - **Rencontre** : rattachement à un chapitre **obligatoire** (`re_scc_id` NOT NULL).
   Effectifs décrits **littéralement** dans `re_composition` (texte).
 - **Opposition** : copie **éditable** d'un monstre du compendium (`dd_oppositions`), propre à une
@@ -2794,8 +3018,8 @@ Hiérarchie : **Campagne → Scénario → Chapitre → Rencontre → Opposition
 
 **Liste `campagnes/index.php`** — liste dédiée (pas le moteur `compendium-liste.php`), filtrée sur
 `camp_j_id = j_id` **et** `camp_ruleset_var_id = $_SESSION['ruleset_var_id']`, comme la liste des
-personnages (§7.4, qui en est calquée). Le ruleset étant constant sur toute la liste, il est affiché
-dans le titre — `Campagnes (DD2024)` — et non en colonne. Colonnes : ⋮ · Nom · Univers · Scénarios ·
+personnages (§7.4, qui en est calquée). Le ruleset est constant sur toute la liste et n'est pas
+rappelé (titre `Campagnes`, D-CP11). Colonnes : ⋮ · Nom · Univers · Scénarios ·
 Personnages. Une campagne est toujours créée dans le ruleset actif (§3, saisie impossible) : elle
 apparaît donc immédiatement dans la liste où on vient de la créer.
 
@@ -2825,8 +3049,8 @@ pas d'URL partageable, pas de retour navigateur, pas de place pour des outils de
 | < 992px | Une colonne, outils au-dessus dans un bloc **replié par défaut** (`campToggleOutils()`) |
 
 **Colonne d'outils** — `include/campagne-outils.php`, fragment commun aux quatre pages. Elle ne
-contient à ce jour que l'**écran du MJ** (SP-TB8), affiché mais inerte. Le reste des aides de jeu
-est à arbitrer (SP-CP8).
+contient les **notes du MJ** (SP-NO3) et l'**écran du MJ** (SP-TB8, surcouche plein écran — voir
+§9c). Le reste des aides de jeu est à arbitrer (SP-CP8).
 
 **Écritures** — les formulaires restent des overlays `#modification` (les cinq `modifier/*.php`
 sont réutilisés tels quels). Une seule règle après commit : **recharger la page courante**, on
@@ -2847,6 +3071,25 @@ bandeaux de titre. La ligne entière est cliquable (`tr[data-href]`, handler dé
 `js/campagne.js`), un vrai `<a>` restant posé sur le nom ; poignée de tri, menu ⋮, boutons et
 liens sont exclus de la zone.
 
+**Sous-pages de la campagne — SP-CP9 (2026-11-06)** — la colonne de droite de la page campagne
+est découpée en onglets, sur le modèle du personnage (§7, `include/personnage-nav.php`) : une
+vraie page, avec son URL, par onglet.
+
+| Onglet | Page | Contenu |
+|---|---|---|
+| Description | `campagnes/campagne.php` (URL d'entrée, inchangée) | résumé, description, sources, suppression de la campagne |
+| Personnages | `campagnes/campagne-personnages.php` | personnages rattachés, ajout / retrait par le MJ (SP-PE18) |
+| Scénarios | `campagnes/campagne-scenarios.php` | scénarios triables, création |
+
+Trois fragments communs : `include/campagne-contexte.php` (chargement, contrôle `isMJ`,
+`setLastCampagne()`, variables du gabarit), `include/campagne-entete.php` (globals `campUrl*`,
+ouverture du gabarit, colonne d'outils, bandeau de titre, sous-menu — la page referme
+`</section></div>`) et `include/campagne-nav.php` (sous-menu). Le sous-menu est le composant
+partagé **`.page-nav`** (`css/modules.css`, ex-`.per-nav` du personnage). Le bandeau de titre
+n'affiche que l'univers : le ruleset n'est rappelé sur aucune page (D-CP11). La bascule de ruleset
+(`helpers.php`) traite les deux nouvelles pages comme le niveau campagne ; le bouton retour d'un
+scénario mène à l'onglet Scénarios.
+
 ---
 
 ## 8b. Module Notes — SP-NO
@@ -2856,9 +3099,17 @@ liens sont exclus de la zone.
 - **Modèle** : `dd_notes` (campagne obligatoire, scénario facultatif, catégorie `dd_types_notes` du ruleset de la campagne,
   tronc commun `no_texte`) → `dd_notes_contenus` (sections ordonnées) → `dd_notes_conditions` (compétence + DD).
   Destinataires : `dd_personnages_notes` (`pno_date` diffusion, `pno_lu_date` lecture). Mots-clés : `dd_tags` / `dd_notes_tags`.
+- **Mode de diffusion (SP-NO11, D-NO19 → D-NO22)** : `no_diffusion_campagne` = 0 « personnages choisis » (lignes
+  `dd_personnages_notes`) ou 1 « toute la campagne » : tout personnage de `dd_campagnes_personnages` pour `no_camp_id`,
+  inactif compris, calculé à la consultation. En mode campagne, la ligne pno n'est plus qu'un **suivi de lecture** : créée
+  à la première ouverture (`INSERT … ON DUPLICATE KEY UPDATE` de `note-perso.php`), elle n'ouvre aucun accès — un
+  personnage qui quitte la campagne perd la note et la retrouve, avec son état lu, s'il revient. Sans ligne, la note est
+  « nouvelle » et `pno_date` vaut `no_date`. `destinatairesNote($db, $note)` renvoie les lecteurs selon le mode (membres
+  ou lignes pno, avec `pno_lu_date`) pour « Vu par ». Passer de 1 à 0 (action groupée) fait des membres actuels les
+  destinataires nommés (`INSERT IGNORE`) ; de 0 à 1, les lignes pno restent.
 - **Ruleset** : hérité de la campagne par jointure (`no_camp_id` → `camp_ruleset_var_id`), comme les scénarios ;
   la cohérence catégorie ↔ ruleset est contrôlée à l'enregistrement.
-- **Accès à une section** : aucune condition = libre ; sinon OU de `10 + bonus total ≥ nocd_dd` ; en DD3.5, compétence à
+- **Accès à une section** : aucune condition = libre ; sinon OU de `bonus total ≥ nocd_dd` (le score de la compétence, sans « prendre 10 », D-NO23) ; en DD3.5, compétence à
   formation requise sans rang = non satisfaite. Calcul **côté serveur** à chaque consultation (SP-NO1) : une section
   inaccessible n'est jamais envoyée au navigateur.
 - **Moteur d'accès (SP-NO1, `include/personnage_helpers.php`)** :
@@ -2867,7 +3118,8 @@ liens sont exclus de la zone.
     `modsCaracCompetences()`, `bonusCompetence()` — la fiche passe par les deux premiers extraits) ;
   - `conditionNoteSatisfaite()` / `sectionNoteAccessible()` : règle d'accès ci-dessus ;
   - `getSectionsNotes($db, $no_ids)` : sections ordonnées avec leurs conditions (sert aussi à l'aperçu MJ, NO3) ;
-  - `getNotesPersonnage($db, $perso, $filtres)` : notes reçues (non supprimées, campagne active), filtres `no_id`,
+  - `getNotesPersonnage($db, $perso, $filtres)` : notes reçues — ligne pno en mode « choisis », appartenance à la
+    campagne en mode « toute la campagne » (`LEFT JOIN` pno + `EXISTS` cp, SP-NO11) — non supprimées, campagne active, filtres `no_id`,
     `camp_id`, `sce_id`, `tyno_id`, `tag_id`, `q`, `tri` ; ne renvoie que les sections lisibles ; écarte une note dont le
     tronc est vide (`texteRicheVide()` : ni texte ni image, `<p>&nbsp;</p>` compris) sans section lisible. La recherche `q`
     est faite en PHP après filtrage, sur titre + tronc + sections lisibles : chercher dans une section cachée la trahirait.
@@ -2877,7 +3129,9 @@ liens sont exclus de la zone.
   mots-clés (pastilles, Entrée ou virgule, suggestions `<datalist>` des mots-clés du MJ), tronc commun et sections
   TinyMCE avec images (`upload-image.php`). Sections construites depuis deux `<template>` (section, condition) ; ↑/↓
   retire puis recrée les deux éditeurs concernés (une iframe TinyMCE déplacée se recharge vide). Destinataires :
-  personnages de `dd_campagnes_personnages`, plus les destinataires actuels qui ont quitté la campagne ; case « Tous ».
+  personnages de `dd_campagnes_personnages`, plus les destinataires actuels qui ont quitté la campagne ; radios
+  `no_diffusion_campagne` (SP-NO11) : en « Toute la campagne », les cases des membres sont cochées et désactivées
+  (`majDiffusion()`), et réactivées, pré-cochées, au retour en « Personnages choisis ».
   En modification, case `signaler_maj`. JS en IIFE dans le fragment (`window.noteForm`), styles `.note-form__*` dans
   `css/campagnes-modules.css`.
 - **Enregistrement (SP-NO2, `campagnes/enregistrement.php`)** : `enregistrerNote()` — droits par `isMJ()` sur la campagne
@@ -2887,7 +3141,8 @@ liens sont exclus de la zone.
   Sections, conditions et liens de mots-clés sont **remplacés en bloc** ; mots-clés retrouvés ou créés par
   `(tag_j_id, tag_slug)`, slug par `_tabSlugify()` (`include/tableau-parser.php`). Destinataires : suppression des
   retirés, `INSERT IGNORE` des nouveaux (les conservés gardent `pno_date` / `pno_lu_date`), `signaler_maj` remet
-  `pno_lu_date` à NULL. `supprimerNote()` : suppression douce. `supprimerScenario()` remet `no_sce_id` à NULL (D-NO7).
+  `pno_lu_date` à NULL. En mode « toute la campagne », `pe_ids[]` est ignoré et aucune ligne pno n'est supprimée
+  (elles portent l'état lu) ; `signaler_maj` s'y applique de même. `supprimerNote()` : suppression douce. `supprimerScenario()` remet `no_sce_id` à NULL (D-NO7).
 - **Suppression** : douce (`no_supprime`). `supprimerCampagne()` (`campagnes/enregistrement.php`) passe les notes de la
   campagne en suppression douce ; la suppression d'un personnage efface ses lignes `dd_personnages_notes`.
 - **Interface MJ (SP-NO3)** : `campagnes/notes.php` — campagnes du MJ dans le ruleset de la session (`champ_ruleset` =
@@ -2897,7 +3152,7 @@ liens sont exclus de la zone.
   N-N n'a pas demandé de nouveau type de filtre). Recherche sur titre, tronc et sections concaténées (`GROUP_CONCAT`) ;
   le formulaire enregistre les accents en clair (`entity_encoding: 'raw'`) pour que `LIKE` les trouve. Tri par défaut
   `no_date` décroissant. « Nouvelle note » exige une campagne choisie.
-  **Actions groupées (SP-NO9, D-NO16)** : `bulk_actions` supprimer / campagne / catégorie / personnages et `bulk_panneau` →
+  **Actions groupées (SP-NO9, D-NO16)** : `bulk_actions` supprimer / campagne / catégorie / personnages / diffusion (SP-NO11) et `bulk_panneau` →
   `include/ajax/modifier/notes-groupe.php?action=…&ids=…`, panneau `#modification` qui liste la sélection, porte le choix
   et sert d'écran de validation (bouton « Supprimer n notes »). Écriture : action `notesGroupe` de
   `campagnes/enregistrement.php` (POST `operation`, `ids[]`, une transaction). `notesGroupeMJ()`
@@ -2905,10 +3160,13 @@ liens sont exclus de la zone.
   campagne dont l'utilisateur n'est pas MJ. Campagne : même ruleset, notes déjà dans la cible ignorées, scénario remis
   à vide, destinataires absents de la nouvelle campagne retirés. Catégorie : du ruleset des notes. Personnages : mode
   `ajouter` (`INSERT IGNORE … SELECT` limité aux couples note × personnage de la campagne de la note) ou `retirer` (toutes
-  les notes sélectionnées). Bilan en message flash, la liste se recharge.
+  les notes sélectionnées) ; les notes en mode « toute la campagne » en sont écartées (signalé dans le panneau et le
+  bilan). Diffusion : POST `diffusion` 1/0, seules les notes à changer sont touchées. Colonne « Destinataires » :
+  `CASE` qui affiche « Campagne » en mode campagne (idem `nb_dest` de `campagnes/scenario.php`). Bilan en message flash, la liste se recharge.
   Fiche `include/ajax/detail-pp/note.php` (MJ seul, `isMJ`) : métadonnées, mots-clés, tronc et sections passés par
   `rendreTexteEnrichi()` avec leurs conditions, puis tableau **« vu par »** — une ligne par destinataire, une colonne par
-  section, ✓/✗ calculés par `sectionNoteAccessible()` (infobulle : 10 + bonus / DD par compétence), date de lecture, et
+  section, ✓/✗ calculés par `sectionNoteAccessible()` (infobulle : score / DD par compétence), date de lecture,
+  mention « Diffusée à toute la campagne » en mode campagne (lignes = membres actuels, `destinatairesNote()`), et
   « ne voit rien » quand le tronc est vide et aucune section n'est lisible. Points d'entrée : outil « Notes » de
   `include/campagne-outils.php`, section Notes de `campagnes/scenario.php` (liste + « Nouvelle » avec `sce_id`), lien
   « Notes » du menu en mode campagne (`include/header.php`).
@@ -3038,9 +3296,8 @@ Import itératif, un lot de fichiers DRS à la fois, arbitré le 2026-08-25 :
   capitalise pas ses termes en milieu de phrase (à la différence du SRD 2024).
 - **Tableaux** — saisis directement en convention texte dans `dd_tableaux` (aucun HTML à migrer,
   contrairement à l'historique DD2024), tags `[[tab:slug]]` dans `reg_texte`.
-- **Attribution** — ressource dédiée `DRS 3.5` (OGL 1.0a), créée par le socle. Le schéma réel de
-  `dd_ressources` n'a **pas** de colonne `res_pages` (le seed DD2024 la référençait — ne pas
-  copier ce modèle). Le socle ajoute aussi la ressource aux **sélections personnelles DD3.5
+- **Attribution** — ressource dédiée `DRS 3.5` (OGL 1.0a), créée par le socle.
+  Le socle ajoute aussi la ressource aux **sélections personnelles DD3.5
   existantes** (`dd_joueurs_sources`) : sans cela, le gestionnaire de tableaux et les listes
   compendium filtrées par source ne montreraient jamais son contenu aux joueurs ayant une
   sélection (D-DRS2), alors que les pages Règles — non filtrées — l'affichent.
@@ -3159,7 +3416,7 @@ HTML), et sont insérés dans le corps d'une règle par un **tag**. Le HTML est 
 le design reste intégralement géré en CSS.
 
 Objectif structurant : un tableau devient une **donnée adressable**, réutilisable ailleurs —
-notamment par le futur écran du MJ (SP-TB8), qui regroupera les tableaux marqués `tab_ecran_mj`.
+notamment par l'écran du MJ (SP-TB8), qui dispose par campagne les tableaux choisis par le MJ.
 
 ### Schéma de la table dd_tableaux
 
@@ -3171,16 +3428,51 @@ notamment par le futur écran du MJ (SP-TB8), qui regroupera les tableaux marqu�
 | tab_contenu | text | nn | Convention texte (voir ci-dessous) |
 | tab_align | varchar(40) | null | Une lettre par colonne : `l` / `c` / `r` (ex. `lrr`) |
 | tab_note | varchar(500) | null | Note de bas de tableau |
+| tab_tabc_id | int unsigned | null | -> `dd_tableaux_categories` (SP-TB12), NULL = sans catégorie |
 | tab_ruleset_var_id | int unsigned | nn | -> `dd_variables` |
 | tab_res_id | int unsigned | null | -> `dd_ressources` (attribution) |
 | tab_camp_id | int unsigned | null | **RÉSERVÉ** house rules, comme `reg_camp_id` |
-| tab_ecran_mj | tinyint(1) | nn, défaut 0 | 1 = retenu pour l'écran du MJ (SP-TB8) |
-| tab_ecran_ordre | smallint unsigned | nn, défaut 0 | Ordre sur l'écran du MJ |
+| tab_ecran_mj | tinyint(1) | nn, défaut 0 | 1 = **proposé** pour l'écran du MJ : préremplit un écran vide (D-TB25) |
+| tab_ecran_ordre | smallint unsigned | nn, défaut 0 | Ordre de ce préremplissage |
 | tab_visible | tinyint(1) | nn, défaut 1 | 0 = brouillon/masqué |
 | tab_date_creation / tab_date_modif | datetime | nn | |
 
 **Scoping ruleset uniquement**, droits d'édition `canEditCompendium()` — strictement calqué sur
 `dd_regles`.
+
+### Catégories — SP-TB12
+
+Une catégorie facultative par tableau, **commune aux deux rulesets** : table de référence
+`dd_tableaux_categories` (`tabc_id`, `tabc_slug`, `tabc_nom`, `tabc_ordre`), ids figés 1 Classe,
+2 Race, 3 Don, 4 Sort, 5 Monstre, 6 Objet magique, 7 Règle, 8 Équipement, 9 Compétence (SP-TB13,
+ordre 35 : entre Don et Sort). Ajouter une catégorie = une migration qui insère une ligne ; aucun
+code à toucher.
+
+Les tableaux des fiches de compétences DD3.5 (SP-DRS4b) portent le slug
+`competence-<compétence>-<objet>` (ex. `competence-saut-hauteur`). Les deux tableaux des règles
+générales du DRS 04 (`exemples-de-degres-de-difficulte`, `exemples-de-tests-opposes`) restent dans la
+catégorie Règle (D-DRS6).
+
+| Point d'usage | Comportement |
+|---|---|
+| `include/tableau-parser.php` | `chargerCategoriesTableaux($db)` : `[tabc_id => tabc_nom]` dans l'ordre d'affichage, cache statique |
+| Formulaire `include/ajax/modifier/tableau.php` | select « Catégorie » (« — Aucune — » = NULL), champ POST `tab_tabc_id` |
+| `tableaux/enregistrement.php` | `tab_tabc_id` refusé s'il ne figure pas dans la table de référence |
+| Liste `tableaux/index.php` | colonne triable « Catégorie » (`LEFT JOIN dd_tableaux_categories tc`) et filtre `select` `f_tabc` du moteur |
+| Sélecteur `detail-pp-sub/tableaux-picker.php` | select à côté du champ texte (paramètre `tabc`, rechargement au changement) ; catégorie rappelée dans la méta de chaque ligne |
+| Fiche `detail-pp/tableau.php` | catégorie en pied de fiche, avant la source |
+
+**Règle de classement** (appliquée aux 113 tableaux existants le 2026-11-07) : le texte qui insère
+le tableau prime — une fiche d'objet → objet magique, une capacité de race → race, une capacité
+de (sous-)classe → classe, un don → don. Pour un tableau inséré dans une règle, le thème de la
+règle : règles des objets magiques → objet magique, monnaie / armes / armures / train de vie →
+équipement, préparation des sorts et écoles → sort, types de créatures → monstre, le reste → règle.
+Un bloc de stats de créature inséré dans une fiche d'objet (Mouche géante, Avatar de la Mort) suit
+la fiche : objet magique.
+
+> Le filtre déclaré revient sur D-TB18 (« pas de filtre par module du site ») : D-TB18 écartait un
+> rattachement *dérivé des usages*, impossible à paginer en SQL. La catégorie est une colonne
+> saisie, filtrée en SQL avant le `LIMIT` — l'objection ne s'applique pas (D-TB20).
 
 ### Le gestionnaire — `tableaux/index.php` (SP-TB10)
 
@@ -3201,8 +3493,9 @@ disparaître derrière le filtre des sources actives. Les sources ont été rens
 standard du compendium s'applique tel quel (`champ_res` = `t.tab_res_id`).
 
 Filtres offerts : **texte libre** (nom *et* slug — c'est le slug qu'on a sous les yeux quand un
-tag ne résout pas), **sources** (menu à cases du moteur), **écran du MJ** (case à cocher, alimente
-`extra_where`). Colonnes triables : nom, tag, écran, source, statut.
+tag ne résout pas), **catégorie** (select `f_tabc`, SP-TB12), **sources** (menu à cases du moteur),
+**écran du MJ** (case à cocher, alimente `extra_where`). Colonnes triables : nom, catégorie, tag,
+écran, source, statut.
 
 Trois capacités génériques ont été ajoutées au moteur pour ce faire — utilisables par toute autre
 liste :
@@ -3532,6 +3825,65 @@ pas devinables de façon fiable, l'auteur les reprend à la main.
 > donc pas stylés. Sans objet après SP-TB5 : le titre remonte dans `tab_nom` et la migration
 > supprime le paragraphe.
 
+### Écran du MJ — SP-TB8
+
+L'écran du MJ regroupe, **par campagne**, des tableaux `dd_tableaux` disposés dans des colonnes
+virtuelles (D-TB24). On l'ouvre depuis le bouton « Écran du MJ » de la colonne d'outils
+(`include/campagne-outils.php`), présent sur toutes les pages Campagnes, qui sont réservées au MJ
+et à l'admin. Usage sur ordinateur uniquement : aucune passe smartphone.
+
+**Données** (`sql/2026-11-07_sp-tb8b_ecran_mj.sql`) :
+
+| Élément | Rôle |
+|---|---|
+| `dd_campagnes.camp_ecran_colonnes` | Nombre de colonnes, de 2 à 6 (défaut 3) |
+| `dd_campagnes_ecran` (`ce_`) | Une ligne par tableau posé : `ce_camp_id`, `ce_tab_id` (UK du couple), `ce_colonne` (colonne de départ, 0 = gauche), `ce_ordre` (**ordre global**), `ce_largeur` (1 ou 2), `ce_replie` |
+| `dd_tableaux.tab_ecran_mj` / `tab_ecran_ordre` | Ne servent plus qu'à la **sélection proposée**, qui préremplit un écran vide (D-TB25) |
+
+Clés étrangères en `ON DELETE CASCADE` : supprimer physiquement un tableau le retire de tous les
+écrans. Un tableau repassé en brouillon (`tab_visible = 0`) disparaît de l'écran sans que sa
+ligne soit effacée.
+
+**Placement** (D-TB26), dans `placer()` de `js/ecran-mj.js` : l'ordre des `.ecran-mj__item` dans la
+grille est l'ordre global. Chaque tableau est posé dans cet ordre, au plus haut des colonnes
+qu'il couvre (`data-col` … `data-col + data-largeur - 1`), en positionnement absolu. Un tableau
+qui déborde (largeur 2 en dernière colonne, nombre de colonnes réduit) est ramené à gauche. Le
+placement est recalculé au dépôt, au repliage, au changement du nombre de colonnes et au
+redimensionnement.
+- Dépôt **sur un tableau** : même colonne, juste avant ou juste après lui (selon la moitié visée).
+- Dépôt **dans le vide d'une colonne** (`.ecran-mj__bande`) : en bas de cette colonne, en fin
+  d'ordre global.
+- Glisser-déposer HTML5 natif, déclenché seulement par la poignée : un glisser lancé ailleurs
+  empêcherait de sélectionner le texte d'une cellule.
+
+**Interface** : la surcouche `#ecran-mj` est en `position: fixed; inset: 0`, au `z-index` 190,
+donc sous `#detail-pp-backdrop` (199). Un lien `.mo-lien` d'une cellule ouvre ainsi sa fiche
+par-dessus l'écran, et les sous-panneaux d'ajout et de duplication (`#detail-pp-sub`, 300)
+s'affichent aussi au-dessus. Échap ferme l'écran, sauf si un panneau est ouvert par-dessus. Deux
+modes :
+- **consultation** : le repliage est possible mais n'est pas enregistré ;
+- **organisation** (`.ecran-mj--orga`) : poignées, bandes de colonnes, nombre de colonnes,
+  largeur, retrait, ajout, duplication. **Enregistrer** remplace la disposition en bloc ;
+  **Annuler** recharge l'état enregistré.
+
+L'ajout, la sélection proposée et la duplication **ne font que préremplir** le client : rien n'est
+écrit avant Enregistrer (D-TB27).
+
+| Fichier | Rôle |
+|---|---|
+| `include/ecran-mj.php` | Lecture (`chargerEcranMJ()`, `chargerSelectionProposee()`, `chargerTableauxEcran()`, `listerCampagnesDuplicables()`), rendu (`rendreElementEcranMJ()` : `rendreTableau()` sans `tab_nom`, porté par la barre de l'élément), écriture validée (`enregistrerEcranMJ()`) |
+| `include/ajax/ecran-mj.php` | Surcouche (HTML) et vues de préremplissage en JSON : `vue=elements&ids=`, `vue=proposee`, `vue=camp&from=` (même ruleset, campagne dont on est MJ) |
+| `include/ajax/detail-pp-sub/ecran-mj-picker.php` | Ajout par cases à cocher, filtrage nom et catégorie côté client. Distinct de `tableaux-picker.php`, réservé aux éditeurs du compendium et branché sur TinyMCE |
+| `include/ajax/detail-pp-sub/ecran-mj-dupliquer.php` | Campagnes du même ruleset ayant un écran |
+| `campagnes/enregistrement.php` | Action `enregistrerEcranMJ` : `camp_id`, `colonnes`, `elements` en JSON (liste ordonnée de `{tab_id, col, largeur, replie}`) |
+| `js/ecran-mj.js` | IIFE chargée en `defer` par `campagne-outils.php`. API : `ecranMJOuvrir()`, `ecranMJAjouter(ids)`, `ecranMJCharger(source, from)` |
+| `css/campagnes-modules.css` | Bloc `.ecran-mj*` |
+
+> ⚠ Le placement lit `clientWidth` et `offsetHeight` : dans un onglet masqué (navigateur de travail
+> caché), la fenêtre mesure 0 px et `requestAnimationFrame` est suspendu. Pour tester hors écran,
+> émuler une taille de fenêtre, puis déclencher un placement synchrone (changer le nombre de
+> colonnes).
+
 ---
 
 ## 9e. Listes dynamiques d'équipements et d'objets magiques — SP-PO
@@ -3689,6 +4041,48 @@ Deux migrations, **par nom et par slug** (jamais par id : ceux de la production 
 - Les titres de capacité sont retrouvés par **liste fermée** (120 titres) et par la forme « Nom (rareté) » ; une phrase courte suivie d'une majuscule n'est pas un titre (« Cette baguette dispose de 7 charges. »).
 - Une coquille du SRD est corrigée : « pas le biais du chapeau » → « par le biais » (chapeau mille-sorts). Les autres écarts sont des artefacts d'extraction (journal : `doc/LOG_CORRECTIONS_SRD2024_OBJETS_MAGIQUES.md`).
 - Une migration régénérée après avoir été jouée en local change de somme de contrôle : pour la rejouer sans la déclarer « retouchée », rejouer ses instructions puis aligner `dd_migrations.mig_checksum`.
+
+### Objets composés DD3.5 — moteur (SP-PO7)
+
+En DD3.5, armes, armures et boucliers magiques, potions, huiles, baguettes et parchemins sont
+**composés** pour un personnage au lieu d'être lus au compendium (D-PO19). Toutes les règles de
+prix vivent dans `include/objet-compose.php` ; le JS n'en recalcule rien.
+
+| Fonction | Rôle |
+|---|---|
+| `composeSpecDepuisPost($post)` | Formulaire → spec (`cat`, `eqt_id`, `bonus`, `bonus_tete2`, `proprietes[]`, `sorts[]`) ; composantes saisies en po |
+| `composerObjet($db, $spec)` | Point d'entrée : `ok`, `erreurs[]`, `avertissements[]`, `nom`, `quantite`, `charges`, `nls`, `prix_pc`, `cout_pc`, `cout_px`, `details[]`, `elements[]` (lignes prêtes pour `dd_personnages_possessions_elements`) |
+| `composeObjetBase($db, $eqt_id)` | Objet de base et son rôle (arme / armure / bouclier), jetons d'emploi et de dégâts, arme double, lot de munitions |
+| `nlsMinimum($db, $cla_id, $niveau)` | Premier niveau de classe ayant des emplacements de ce niveau (`dd_classe_niveau.cn_sort_nX`), ÷ 2 pour paladin et rôdeur ; repli 2n − 1 |
+| `sortListesClasses($db, $so_id)` | Listes de classe d'un sort (niveau, type profane / divin par `cla_mag_id`, NLS minimum), la plus avantageuse d'abord |
+| `formaterPrixPo($pc)` | Prix toujours en po, décimales au besoin (« 2 302,5 po ») — défini dans `include/liste-parser.php` (SP-PO8) |
+
+**Règles appliquées** (DRS 23 à 27) :
+- arme : base + maître (300 po, 600 po arme double) + (altération + équivalences)² × 2 000 po + prix fixes ;
+  armure, bouclier : base + 150 po + (…)² × 1 000 po + prix fixes ;
+- munitions (nom « … (N) » dans une famille à distance) : par lot de 50, maître 6 po pièce ;
+- arme double : chaque tête a son bonus et ses propriétés ;
+- altération ≤ +5, total ≤ +10 par tête, toute propriété exige +1 ; deux propriétés de même
+  famille ne se cumulent pas (Feu / Feu intense, déclinaisons de Défense, de Résistance…) ;
+  restrictions `om_restriction` contrôlées contre l'objet de base ;
+- NLS = max(3 × altération, NLS des propriétés) ;
+- consommables : niveau du sort (0 = ½) × NLS × 50 (potion, huile), 750 (baguette, 50 charges),
+  25 (parchemin) ; composantes coûteuses × 1, × 50 pour une baguette (1 PX = 5 po au prix) ;
+  potion ≤ niveau 3, baguette ≤ 4, parchemin de 1 à 6 sorts, jamais profane et divin mêlés ;
+  NLS ≥ minimum de la classe choisie, ≤ 20 ;
+- coût de création : objet de base et maître au prix plein, partie magique ÷ 2 ; PX = partie magique ÷ 25
+  (+ PX des composantes) ; arrondi à la demi-unité supérieure.
+
+Contraintes **bloquantes** (D-PO20) : `ok = false` tant qu'une erreur subsiste, mais le prix est
+calculé sur ce qui est valide, pour l'aperçu. Références par slug ou par nom, jamais par id.
+
+**Aperçu** : `include/ajax/possession-calcul.php` (POST + CSRF, DD3.5 seulement), JSON du moteur
+avec les prix formatés ; `listes=<so_id>` ajoute les listes de classe du sort. Aucune écriture.
+
+**Fiche du compendium** : `detail-pp/objet.php` calcule les potions, baguettes et parchemins à sort lié
+(catégorie `com_est_calcule`, format auto) par le moteur, sur la liste de classe la plus avantageuse,
+NLS saisi relevé au minimum. Une infraction (sort trop puissant pour une potion) est signalée sous la
+fiche ; un sort sans liste de classe affiche un message au lieu d'un prix nul.
 
 ### Pièges relevés
 
@@ -3898,6 +4292,9 @@ Base de mesures destinée à arbitrer les paliers responsive sur des données r�
   reprennent les media queries déclarées : **à mettre à jour si un palier bouge en SP-RS5**.
 - **Prérequis** : tant que le patch SQL n'est pas appliqué, le beacon échoue sans poser le drapeau
   de session — la collecte redémarre d'elle-même une fois la base à jour.
+- **Échecs** (SP-RS5b, D-RS70) : une erreur SQL annule toute la transaction, donc aussi la ligne de
+  `dd_connexions`. Elle est écrite dans le log PHP, son détail revient dans le JSON (`detail`) pour
+  un administrateur seulement, et `releveDevice()` signale tout statut d'erreur par `console.warn`.
 
 > Premiers relevés manuels, avant collecte automatique : Galaxy A52 **342 × 632** (dpr 3.16),
 > Galaxy A12 **384 × 725** (dpr 1.88). Deux appareils sous 400px CSS, donc tous deux sous le

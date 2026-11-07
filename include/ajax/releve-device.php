@@ -120,8 +120,13 @@ try {
   $db->commit();
 } catch (PDOException $e) {
   if ($db->inTransaction()) $db->rollBack();
+  // Journalisé : cet échec n'est visible de personne d'autre (D-RS70). Le détail
+  // SQL ne part vers le navigateur que pour un administrateur.
+  error_log('Relevé d\'affichage non enregistré : ' . $e->getMessage());
   http_response_code(500);
-  echo json_encode(['ok' => false, 'erreur' => 'Relevé non enregistré.']);
+  $reponse = ['ok' => false, 'erreur' => 'Relevé non enregistré.'];
+  if (isAdmin()) $reponse['detail'] = $e->getMessage();
+  echo json_encode($reponse);
   exit;
 }
 

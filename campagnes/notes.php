@@ -122,7 +122,9 @@ $listConfig = [
     ['sql' => 'camp.camp_nom', 'champ' => 'camp_nom', 'label' => 'Campagne', 'mobile' => false, 'tri' => true],
     ['sql' => '(SELECT COUNT(*) FROM dd_notes_contenus noc WHERE noc.noc_no_id = n.no_id)',
      'champ' => 'nb_sections', 'label' => 'Sections', 'mobile' => false, 'tri' => true],
-    ['sql' => '(SELECT COUNT(*) FROM dd_personnages_notes pno WHERE pno.pno_no_id = n.no_id)',
+    // « Campagne » pour une note diffusée à toute la campagne (SP-NO11)
+    ['sql' => "CASE WHEN n.no_diffusion_campagne = 1 THEN 'Campagne'
+                    ELSE (SELECT COUNT(*) FROM dd_personnages_notes pno WHERE pno.pno_no_id = n.no_id) END",
      'champ' => 'nb_dest', 'label' => 'Destinataires', 'mobile' => false, 'tri' => true],
   ],
   'filtres' => $filtres,
@@ -150,6 +152,7 @@ $listConfig = [
     ['valeur' => 'campagne',    'label' => 'Changer de campagne'],
     ['valeur' => 'categorie',   'label' => 'Changer de catégorie'],
     ['valeur' => 'personnages', 'label' => 'Ajouter ou retirer des destinataires'],
+    ['valeur' => 'diffusion',   'label' => 'Diffusion (toute la campagne / personnages choisis)'],
   ],
   'bulk_panneau'  => BASE_URL . '/include/ajax/modifier/notes-groupe.php',
   'suppression'   => ['mode' => 'ajax', 'action' => 'supprimerNote', 'param' => 'id'],
@@ -160,7 +163,7 @@ $listConfig = [
 ?>
 
 <div class="flex-between mb-md">
-  <h1>Notes <span class="text-muted text-sm">(<?= $ruleset_id === 2 ? 'DD2024' : 'DD3.5' ?>)</span></h1>
+  <h1>Notes</h1>
   <div class="flex flex-gap">
     <?php if ($camp_courante): ?>
       <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/campagnes/campagne.php?id=<?= $camp_courante ?>">

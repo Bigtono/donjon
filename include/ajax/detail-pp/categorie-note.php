@@ -12,12 +12,11 @@ requireAdmin();
 $id = intParam($_GET['id'] ?? 0);
 
 $stmt = $db->prepare('
-  SELECT tyno.*, var.var_valeur AS ruleset_label,
+  SELECT tyno.*,
          (SELECT COUNT(*) FROM dd_notes n WHERE n.no_tyno_id = tyno.tyno_id AND n.no_supprime = 0) AS nb_notes,
          (SELECT COUNT(*) FROM dd_notes n WHERE n.no_tyno_id = tyno.tyno_id AND n.no_supprime = 1) AS nb_supprimees,
          (SELECT COUNT(DISTINCT n.no_camp_id) FROM dd_notes n WHERE n.no_tyno_id = tyno.tyno_id AND n.no_supprime = 0) AS nb_campagnes
     FROM dd_types_notes tyno
-    JOIN dd_variables var ON var.var_id = tyno.tyno_ruleset_var_id
    WHERE tyno.tyno_id = ?
 ');
 $stmt->execute([$id]);
@@ -56,7 +55,6 @@ endif;
 
   <div class="sort-detail__footer">
     <span class="sort-detail__source"><i class="fa fa-sticky-note"></i> Module Notes</span>
-    <span class="sort-detail__ruleset"><?= h($tyno['ruleset_label']) ?></span>
   </div>
 
 </div>

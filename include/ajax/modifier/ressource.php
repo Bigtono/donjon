@@ -19,7 +19,6 @@ $res = [
   'res_ruleset_var_id' => 0,
   'res_selection'      => 0,
   'res_editeur'        => '',
-  'res_pages'          => '',
   'res_description'    => '',
 ];
 
@@ -115,12 +114,6 @@ $titre = $id > 0 ? 'Modifier ' . h($res['res_nom']) : 'Nouvelle ressource';
               <input type="text" id="res_editeur" name="res_editeur"
                      value="<?= h($res['res_editeur'] ?? '') ?>" maxlength="255"
                      placeholder="Ex: Wizards of the Coast">
-            </div>
-
-            <div class="form-group">
-              <label for="res_pages">Nombre de pages</label>
-              <input type="number" id="res_pages" name="res_pages"
-                     value="<?= h($res['res_pages'] ?? '') ?>" min="0" max="9999">
             </div>
 
           </div>

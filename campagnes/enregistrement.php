@@ -10,6 +10,7 @@
 //           | 'enregistrerChapitre' | 'supprimerChapitre'
 //           | 'enregistrerNote' | 'supprimerNote' (SP-NO2)
 //           | 'notesGroupe' (SP-NO9 : actions groupées de la liste des notes)
+//           | 'enregistrerEcranMJ' (SP-TB8 : disposition de l'écran du MJ)
 
 require_once '../include/db.php';
 require_once '../include/auth.php';
@@ -137,6 +138,10 @@ switch ($action):
 
   case 'notesGroupe':
     notesGroupe($db, $is_ajax, $redirect);
+    break;
+
+  case 'enregistrerEcranMJ':
+    enregistrerEcranMJAction($db, $is_ajax, $redirect);
     break;
 
   default:
@@ -1185,6 +1190,9 @@ function enregistrerNote(PDO $db, bool $is_ajax, string $redirect): void
   $texte    = (string)($_POST['no_texte']   ?? '');
   $date     = strParam($_POST['no_date']    ?? '');
   $signaler = !empty($_POST['signaler_maj']);
+  // Diffusion à toute la campagne (SP-NO11) : les destinataires nommés ne
+  // comptent plus, les lignes pno ne gardent que le suivi de lecture.
+  $diffusion_campagne = ((int)($_POST['no_diffusion_campagne'] ?? 0) === 1) ? 1 : 0;
 
   // Modification : la campagne est celle de la note, jamais celle du formulaire.
   if ($no_id > 0):
@@ -1262,7 +1270,7 @@ function enregistrerNote(PDO $db, bool $is_ajax, string $redirect): void
 
   // Destinataires : personnages de la campagne, ou déjà destinataires de la note
   // (un personnage qui a quitté la campagne peut rester destinataire).
-  $pe_ids = array_values(array_unique(array_filter(array_map('intval', (array)($_POST['pe_ids'] ?? [])))));
+  $pe_ids = $diffusion_campagne ? [] : array_values(array_unique(array_filter(array_map('intval', (array)($_POST['pe_ids'] ?? [])))));
   if ($pe_ids):
     $ph   = implode(',', array_fill(0, count($pe_ids), '?'));
     $stmt = $db->prepare("
@@ -1281,15 +1289,16 @@ function enregistrerNote(PDO $db, bool $is_ajax, string $redirect): void
 
     if ($no_id === 0):
       $db->prepare('
-        INSERT INTO dd_notes (no_nom, no_camp_id, no_sce_id, no_tyno_id, no_texte, no_j_id, no_date, no_supprime)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-      ')->execute([$nom, $camp_id, $sce_id ?: null, $tyno_id, $texte, (int)$_SESSION['j_id'], $date_sql]);
+        INSERT INTO dd_notes (no_nom, no_camp_id, no_sce_id, no_tyno_id, no_diffusion_campagne, no_texte, no_j_id, no_date, no_supprime)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+      ')->execute([$nom, $camp_id, $sce_id ?: null, $tyno_id, $diffusion_campagne, $texte, (int)$_SESSION['j_id'], $date_sql]);
       $no_id = (int)$db->lastInsertId();
     else:
       $db->prepare('
-        UPDATE dd_notes SET no_nom = ?, no_sce_id = ?, no_tyno_id = ?, no_texte = ?, no_date = ?, no_date_maj = ?
+        UPDATE dd_notes SET no_nom = ?, no_sce_id = ?, no_tyno_id = ?, no_diffusion_campagne = ?, no_texte = ?,
+                            no_date = ?, no_date_maj = ?
          WHERE no_id = ?
-      ')->execute([$nom, $sce_id ?: null, $tyno_id, $texte, $date_sql, $maintenant, $no_id]);
+      ')->execute([$nom, $sce_id ?: null, $tyno_id, $diffusion_campagne, $texte, $date_sql, $maintenant, $no_id]);
     endif;
 
     // Sections et conditions : remplacées en bloc (rien d'autre ne référence noc_id).
@@ -1324,12 +1333,14 @@ function enregistrerNote(PDO $db, bool $is_ajax, string $redirect): void
       $lien->execute([$no_id, $tag_id]);
     endforeach;
 
-    // Destinataires
-    if ($pe_ids):
+    // Destinataires. Toute la campagne : rien n'est retiré, les lignes pno ne
+    // sont plus que le suivi de lecture (un départ de la campagne suffit à
+    // couper l'accès, getNotesPersonnage()).
+    if (!$diffusion_campagne && $pe_ids):
       $ph = implode(',', array_fill(0, count($pe_ids), '?'));
       $db->prepare("DELETE FROM dd_personnages_notes WHERE pno_no_id = ? AND pno_pe_id NOT IN ($ph)")
          ->execute(array_merge([$no_id], $pe_ids));
-    else:
+    elseif (!$diffusion_campagne):
       $db->prepare('DELETE FROM dd_personnages_notes WHERE pno_no_id = ?')->execute([$no_id]);
     endif;
     if ($signaler):
@@ -1393,7 +1404,8 @@ function supprimerNote(PDO $db, bool $is_ajax, string $redirect): void
 //                   absents de la nouvelle campagne retirés
 //   'categorie'   — tyno_id : catégorie du ruleset des notes
 //   'personnages' — mode ajouter|retirer, pe_ids[] ; un personnage n'est ajouté
-//                   qu'aux notes de ses campagnes
+//                   qu'aux notes de ses campagnes ; notes « toute la campagne » écartées
+//   'diffusion'   — diffusion 1 (toute la campagne) | 0 (personnages choisis) — SP-NO11
 // Le bilan va en message flash : la page se recharge après la réponse.
 // ============================================================
 
@@ -1465,6 +1477,17 @@ function notesGroupe(PDO $db, bool $is_ajax, string $redirect): void
         if (empty($pe_ids) || !in_array($mode, ['ajouter', 'retirer'], true)):
           throw new InvalidArgumentException('Choisissez au moins un personnage.');
         endif;
+        // Une note « toute la campagne » n'a pas de destinataires nommés (SP-NO11) :
+        // elle est écartée et signalée.
+        $ids_campagne = array_keys(array_filter($notes, fn($n) => (int)$n['no_diffusion_campagne'] === 1));
+        $ids          = array_values(array_diff($ids, $ids_campagne));
+        $ecartees     = $ids_campagne
+          ? ' ' . count($ids_campagne) . ' note(s) diffusée(s) à toute la campagne écartée(s).'
+          : '';
+        if (empty($ids)):
+          throw new InvalidArgumentException('Les notes choisies sont diffusées à toute la campagne : elles n\'ont pas de destinataires à ajouter ou retirer.');
+        endif;
+        $ph   = implode(',', array_fill(0, count($ids), '?'));
         $ph_p = implode(',', array_fill(0, count($pe_ids), '?'));
         if ($mode === 'ajouter'):
           // Couples note × personnage de la campagne de la note
@@ -1476,12 +1499,38 @@ function notesGroupe(PDO $db, bool $is_ajax, string $redirect): void
              WHERE n.no_id IN ($ph) AND cp.cp_pe_id IN ($ph_p)
           ");
           $stmt->execute(array_merge([$maintenant], $ids, $pe_ids));
-          $message = $stmt->rowCount() . ' diffusion(s) ajoutée(s).';
+          $message = $stmt->rowCount() . ' diffusion(s) ajoutée(s).' . $ecartees;
         else:
           $stmt = $db->prepare("DELETE FROM dd_personnages_notes WHERE pno_no_id IN ($ph) AND pno_pe_id IN ($ph_p)");
           $stmt->execute(array_merge($ids, $pe_ids));
-          $message = $stmt->rowCount() . ' diffusion(s) retirée(s).';
+          $message = $stmt->rowCount() . ' diffusion(s) retirée(s).' . $ecartees;
         endif;
+        break;
+
+      case 'diffusion':
+        // SP-NO11 — vers « toute la campagne » : les lignes pno restent (suivi de
+        // lecture). Vers « personnages choisis » : les membres actuels deviennent
+        // destinataires nommés, pour que personne ne perde la note sans décision.
+        $diffusion = (int)($_POST['diffusion'] ?? -1);
+        if ($diffusion !== 0 && $diffusion !== 1) throw new InvalidArgumentException('Choisissez un mode de diffusion.');
+        $vers_campagne = ($diffusion === 1);
+        $a_changer     = array_keys(array_filter($notes, fn($n) => (int)$n['no_diffusion_campagne'] !== ($vers_campagne ? 1 : 0)));
+        if ($a_changer):
+          $ph_c = implode(',', array_fill(0, count($a_changer), '?'));
+          if (!$vers_campagne):
+            $db->prepare("
+              INSERT IGNORE INTO dd_personnages_notes (pno_no_id, pno_pe_id, pno_date)
+              SELECT n.no_id, cp.cp_pe_id, ?
+                FROM dd_notes n
+                JOIN dd_campagnes_personnages cp ON cp.cp_camp_id = n.no_camp_id
+               WHERE n.no_id IN ($ph_c)
+            ")->execute(array_merge([$maintenant], $a_changer));
+          endif;
+          $db->prepare("UPDATE dd_notes SET no_diffusion_campagne = ?, no_date_maj = ? WHERE no_id IN ($ph_c)")
+             ->execute(array_merge([$vers_campagne ? 1 : 0, $maintenant], $a_changer));
+        endif;
+        $message = count($a_changer) . ' note(s) désormais diffusée(s) '
+                 . ($vers_campagne ? 'à toute la campagne' : 'aux personnages choisis') . '.';
         break;
 
       default:
@@ -1507,4 +1556,28 @@ function notesGroupe(PDO $db, bool $is_ajax, string $redirect): void
   endif;
   header('Location: ' . $redirect);
   exit;
+}
+
+// ============================================================
+// ÉCRAN DU MJ — disposition des tableaux (SP-TB8)
+// ============================================================
+// POST : camp_id, colonnes (2 à 6), elements — JSON, liste ordonnée de
+// {tab_id, col, largeur, replie}. L'ordre de la liste est l'ordre global de
+// placement. La disposition est remplacée en bloc (include/ecran-mj.php).
+
+function enregistrerEcranMJAction(PDO $db, bool $is_ajax, string $redirect): void
+{
+  require_once __DIR__ . '/../include/ecran-mj.php';
+
+  $camp_id = intParam($_POST['camp_id'] ?? 0);
+  $camp    = $camp_id ? chargerCampagneEcran($db, $camp_id) : null;
+  if (!$camp || !isMJ($db, $camp_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  $elements = json_decode((string)($_POST['elements'] ?? ''), true);
+  if (!is_array($elements)) campErreur($is_ajax, 'Disposition illisible.', $redirect);
+
+  $erreur = enregistrerEcranMJ($db, $camp, intParam($_POST['colonnes'] ?? 3), $elements);
+  if ($erreur !== null) campErreur($is_ajax, $erreur, $redirect);
+
+  campOk($is_ajax, $camp_id, $redirect);
 }

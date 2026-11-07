@@ -39,17 +39,10 @@ $stmt = $db->prepare('SELECT t.tag_nom FROM dd_notes_tags nt JOIN dd_tags t ON t
 $stmt->execute([$id]);
 $tags = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-// Destinataires, et pour chacun les sections accessibles
-$stmt = $db->prepare('
-  SELECT pe.*, pno.pno_date, pno.pno_lu_date
-    FROM dd_personnages_notes pno
-    JOIN dd_personnages pe ON pe.pe_id = pno.pno_pe_id
-   WHERE pno.pno_no_id = ?
-ORDER BY pe.pe_nom
-');
-$stmt->execute([$id]);
+// Destinataires — membres de la campagne ou personnages choisis selon le mode
+// de diffusion (SP-NO11) — et pour chacun les sections accessibles
 $destinataires = [];
-foreach ($stmt->fetchAll() as $pe):
+foreach (destinatairesNote($db, $note) as $pe):
   $bonus = bonusCompetencesPersonnage($db, $pe);
   $rep   = ((int)$pe['pe_ruleset_var_id'] === 2) ? 'DD2024' : 'DD3.5';
   $acces = [];
@@ -119,8 +112,13 @@ function libelleCondition(array $c): string {
 
   <section class="note-detail__vu-par">
     <h3 class="note-detail__section-titre">Vu par</h3>
+    <?php if ((int)$note['no_diffusion_campagne'] === 1): ?>
+      <p class="text-muted">Diffusée à toute la campagne : tout personnage rattaché la reçoit, y compris ceux ajoutés plus tard.</p>
+    <?php endif; ?>
     <?php if (empty($destinataires)): ?>
-      <p class="text-muted">Aucun destinataire : la note n'est diffusée à personne.</p>
+      <p class="text-muted"><?= (int)$note['no_diffusion_campagne'] === 1
+        ? 'Aucun personnage n\'est encore rattaché à la campagne.'
+        : 'Aucun destinataire : la note n\'est diffusée à personne.' ?></p>
     <?php else: ?>
       <div class="note-detail__table-wrap">
         <table class="table-dd note-detail__table">
@@ -150,7 +148,7 @@ function libelleCondition(array $c): string {
                   $infos = [];
                   foreach ($s['conditions'] as $c):
                     $b = $d['bonus'][(int)$c['nocd_comp_id']] ?? null;
-                    $infos[] = ($c['comp_nom'] ?? '?') . ' : ' . ($b ? (10 + $b['bonus']) : '—') . ' / ' . (int)$c['nocd_dd'];
+                    $infos[] = ($c['comp_nom'] ?? '?') . ' : ' . ($b ? $b['bonus'] : '—') . ' / ' . (int)$c['nocd_dd'];
                   endforeach;
                   ?>
                   <td title="<?= h(implode(' · ', $infos)) ?>">
@@ -166,13 +164,12 @@ function libelleCondition(array $c): string {
           </tbody>
         </table>
       </div>
-      <p class="text-muted text-sm">Accès d'une section : 10 + bonus total de compétence ≥ DD (survol d'une case pour le détail).</p>
+      <p class="text-muted text-sm">Accès d'une section : score (bonus total) de compétence ≥ DD (survol d'une case pour le détail).</p>
     <?php endif; ?>
   </section>
 
   <div class="sort-detail__footer">
     <span class="sort-detail__source"><i class="fa fa-feather"></i> <?= $note['no_date_maj'] ? 'Modifiée le ' . h(date('d/m/Y', strtotime($note['no_date_maj']))) : 'Jamais modifiée' ?></span>
-    <span class="sort-detail__ruleset"><?= $ruleset_id === 2 ? 'DD2024' : 'DD3.5' ?></span>
   </div>
 
 </div>

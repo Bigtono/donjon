@@ -234,6 +234,14 @@ function omToggleSections(source) {
 
   // Description : visible si format libre — préservée en base même en mode auto
   if (secDesc) secDesc.style.display = modeAuto ? 'none' : '';
+
+  // Propriété spéciale DD3.5 (SP-PO6) : équivalence, prix fixe, NLS, restrictions ;
+  // la section format / sort / bonus ne la concerne pas
+  const estPropriete = (typeof OM_CAT_PROPRIETE !== 'undefined') && !!OM_CAT_PROPRIETE[comId];
+  const secProp = document.getElementById('section-dd35-propriete');
+  const secAuto = document.getElementById('section-dd35-auto');
+  if (secProp) secProp.hidden = !estPropriete;
+  if (secAuto) secAuto.style.display = estPropriete ? 'none' : '';
 }
 
 // ============================================================

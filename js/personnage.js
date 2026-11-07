@@ -390,7 +390,8 @@ const classesEditor = (function() {
 const competencesEditor = (function() {
   'use strict';
 
-  const MAX_RANGS = 99;
+  const MAX_RANGS  = 99;
+  const MAX_DIVERS = 99; // borne technique, comme MAX_RANGS
 
   let _etatEdition = false;
   // Copie locale de l'état de l'éditeur (une entrée par compétence du ruleset)
@@ -398,11 +399,30 @@ const competencesEditor = (function() {
 
   // ---- Calculs d'affichage --------------------------------------
 
+  // Synergies sans condition acquises par une compétence cible (SP-PE21, DD3.5) :
+  // recalculées sur les rangs en cours de saisie. Les conditionnelles ne
+  // comptent pas dans le total (même règle que synergiesCompetences()).
+  function _synergie(ligne) {
+    if (perRuleset !== 'DD3.5' || typeof perSynergies === 'undefined') return 0;
+    let bonus = 0;
+    perSynergies.forEach(function(s) {
+      if (s.cible !== ligne.comp_id || s.condition) return;
+      const source = _lignes.find(function(l) { return l.comp_id === s.source; });
+      if (source && source.maitrise >= s.seuil) bonus += s.bonus;
+    });
+    return bonus;
+  }
+
   function _total(ligne) {
-    if (perRuleset === 'DD2024') {
-      return ligne.mod + perBonusMaitrise * Math.min(Math.max(ligne.maitrise, 0), 2);
-    }
-    return ligne.mod + ligne.maitrise;
+    const base = (perRuleset === 'DD2024')
+      ? ligne.mod + perBonusMaitrise * Math.min(Math.max(ligne.maitrise, 0), 2)
+      : ligne.mod + ligne.maitrise;
+    return base + ligne.divers + _synergie(ligne);
+  }
+
+  // Un changement de rangs peut déplacer une synergie : tous les totaux suivent
+  function _actualiserTotaux() {
+    _lignes.forEach(function(l, idx) { _actualiserTotal(idx); });
   }
 
   function _formatMod(valeur) {
@@ -452,7 +472,41 @@ const competencesEditor = (function() {
       if (isNaN(v) || v < 0) v = 0;
       if (v > MAX_RANGS)     v = MAX_RANGS;
       _lignes[idx].maitrise = v;
+      _actualiserTotaux();
+    });
+    return input;
+  }
+
+  // ---- Modificateur divers (SP-PE20) ----------------------------
+
+  function _buildChampDivers(idx, data, champLibelle) {
+    const input = document.createElement('input');
+    input.type      = 'number';
+    input.min       = String(-MAX_DIVERS);
+    input.max       = String(MAX_DIVERS);
+    input.value     = data.divers;
+    input.className = 'per-comp-editor__input';
+    input.title     = 'Modificateur divers : dons, capacités, objets magiques…';
+    input.addEventListener('input', function() {
+      let v = parseInt(this.value, 10);
+      if (isNaN(v)) v = 0;
+      v = Math.max(-MAX_DIVERS, Math.min(MAX_DIVERS, v));
+      _lignes[idx].divers = v;
+      champLibelle.classList.toggle('noDisplay', v === 0);
       _actualiserTotal(idx);
+    });
+    return input;
+  }
+
+  function _buildChampLibelle(idx, data) {
+    const input = document.createElement('input');
+    input.type        = 'text';
+    input.maxLength   = 200;
+    input.value       = data.libelle;
+    input.placeholder = 'Origine (ex. Talent +3, cape +5)';
+    input.className   = 'per-comp-editor__libelle' + (data.divers === 0 ? ' noDisplay' : '');
+    input.addEventListener('input', function() {
+      _lignes[idx].libelle = this.value;
     });
     return input;
   }
@@ -494,6 +548,8 @@ const competencesEditor = (function() {
       tdNom.appendChild(document.createTextNode(' '));
       tdNom.appendChild(a);
     }
+    const champLibelle = _buildChampLibelle(idx, data);
+    tdNom.appendChild(champLibelle);
     tr.appendChild(tdNom);
 
     // Caractéristique associée, abréviation seule : le modificateur n'est pas affiché ici (il pèse sur la
@@ -516,6 +572,12 @@ const competencesEditor = (function() {
     tdSaisie.className = 'per-comp-table__saisie';
     tdSaisie.appendChild(_buildChampMaitrise(idx, data));
     tr.appendChild(tdSaisie);
+
+    // Modificateur divers (SP-PE20)
+    const tdDivers = document.createElement('td');
+    tdDivers.className = 'per-comp-table__divers';
+    tdDivers.appendChild(_buildChampDivers(idx, data, champLibelle));
+    tr.appendChild(tdDivers);
 
     // Total
     const tdTotal = document.createElement('td');
@@ -550,6 +612,7 @@ const competencesEditor = (function() {
         '<th class="per-comp-table__nom">Compétence</th>' +
         '<th class="col-stat">Carac</th>' +
         '<th class="per-comp-table__saisie">' + (perRuleset === 'DD2024' ? 'Maîtrise' : 'Rangs') + '</th>' +
+        '<th class="per-comp-table__divers" title="Modificateur divers">Divers</th>' +
         '<th class="col-stat">Total</th>' +
       '</tr>';
     table.appendChild(thead);
@@ -577,6 +640,8 @@ const competencesEditor = (function() {
         malusArmure: c.malusArmure,
         classe:      !!c.classe,
         maitrise:    c.maitrise,
+        divers:      c.divers || 0,
+        libelle:     c.libelle || '',
       };
     });
   }
@@ -625,9 +690,10 @@ const competencesEditor = (function() {
   }
 
   async function enregistrer() {
-    // Seules les lignes réellement maîtrisées sont transmises (cf. archi §7.5).
-    // Une liste vide est valide : elle efface toutes les compétences du personnage.
-    const lignesSaisies = _lignes.filter(function(l) { return l.maitrise > 0; });
+    // Seules les lignes maîtrisées ou portant un modificateur divers sont
+    // transmises (cf. archi §7.5, SP-PE20). Une liste vide est valide : elle
+    // efface toutes les compétences du personnage.
+    const lignesSaisies = _lignes.filter(function(l) { return l.maitrise > 0 || l.divers !== 0; });
 
     const formData = new FormData();
     formData.append('action', 'enregistrerCompetences');
@@ -639,6 +705,8 @@ const competencesEditor = (function() {
     lignesSaisies.forEach(function(l, i) {
       formData.append('competences[' + i + '][comp_id]',  l.comp_id);
       formData.append('competences[' + i + '][maitrise]', l.maitrise);
+      formData.append('competences[' + i + '][divers]',   l.divers);
+      formData.append('competences[' + i + '][libelle]',  l.divers !== 0 ? l.libelle : '');
     });
 
     try {
@@ -2145,4 +2213,270 @@ const perAffectation = (function() {
   }
 
   return { ouvrir, fermer, valider, retirer };
+})();
+
+// ============================================================
+// POSSESSIONS (SP-PO8) — personnages/possessions.php
+// Attendus inline : perPeId, perUrlEnreg
+// Écriture immédiate. Quantité et charges se mettent à jour sur place (la page
+// n'affiche plus de totaux, D-PO30) ; équiper, renommer, annoter et retirer
+// rechargent la page (la ligne change de bloc ou de libellé).
+// ============================================================
+
+const perPossessions = (function() {
+
+  // Panneau actif Objets magiques / Équipement : onglet affiché sur téléphone (D-PO30),
+  // bloc déplié sur ordinateur, l'autre replié (D-PO32). Le choix survit aux
+  // rechargements de la page (équiper, retirer…) le temps de la session, personnage
+  // par personnage.
+  const CLE_ONGLET = 'perPossOnglet-' + (typeof perPeId !== 'undefined' ? perPeId : 0);
+
+  function onglet(nom) {
+    if (!document.querySelector('.per-poss__panneau[data-onglet="' + nom + '"]')) return;
+    document.querySelectorAll('.per-poss__onglets [data-onglet]').forEach(function(b) {
+      const actif = b.dataset.onglet === nom;
+      b.classList.toggle('est-actif', actif);
+      b.setAttribute('aria-selected', actif ? 'true' : 'false');
+    });
+    document.querySelectorAll('.per-poss__panneau').forEach(function(s) {
+      const actif = s.dataset.onglet === nom;
+      s.classList.toggle('est-actif', actif);
+      const chevron = s.querySelector('.per-poss__replier');
+      if (chevron) {
+        chevron.classList.toggle('is-open', actif);
+        chevron.setAttribute('aria-expanded', actif ? 'true' : 'false');
+      }
+    });
+    try { sessionStorage.setItem(CLE_ONGLET, nom); } catch (e) { /* stockage indisponible */ }
+  }
+
+  // Chevron d'un bloc (ordinateur) : repli en alternance — déplier l'un replie l'autre,
+  // replier le bloc ouvert déplie l'autre.
+  function replier(nom) {
+    const bloc = document.querySelector('.per-poss__panneau[data-onglet="' + nom + '"]');
+    if (!bloc) return;
+    onglet(bloc.classList.contains('est-actif') ? (nom === 'magique' ? 'equipement' : 'magique') : nom);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    let nom = null;
+    try { nom = sessionStorage.getItem(CLE_ONGLET); } catch (e) { /* stockage indisponible */ }
+    if (nom) onglet(nom);
+  });
+
+  async function envoyer(donnees) {
+    try {
+      const data = await postAjax(perUrlEnreg, Object.assign({ pe_id: perPeId }, donnees));
+      if (!data.ok) { notifier(data.erreur || 'Échec', 'erreur'); return null; }
+      return data;
+    } catch (e) {
+      notifier('Erreur réseau', 'erreur');
+      return null;
+    }
+  }
+
+  async function modifier(ppId, champ, valeur, recharger) {
+    const data = await envoyer({ action: 'modifierPossession', pp_id: ppId, champ: champ, valeur: valeur });
+    if (data && recharger) window.location.reload();
+    return data;
+  }
+
+  async function quantite(ppId, delta) {
+    const ligne = document.querySelector('.per-poss__ligne[data-pp="' + ppId + '"]');
+    const cible = ligne.querySelector('[data-qte]');
+    const nouvelle = parseInt(cible.textContent, 10) + delta;
+    if (nouvelle < 1) return;
+    const data = await modifier(ppId, 'quantite', nouvelle, false);
+    if (!data) return;
+    cible.textContent = data.valeur;
+    ligne.querySelector('.per-poss__qte button').disabled = data.valeur <= 1;
+  }
+
+  function basculerEdition(ppId) {
+    const zone = document.getElementById('per-poss-edition-' + ppId);
+    zone.hidden = !zone.hidden;
+    if (!zone.hidden) zone.querySelector('input').focus();
+  }
+
+  async function retirer(ppId) {
+    const ligne = document.querySelector('.per-poss__ligne[data-pp="' + ppId + '"]');
+    const nom = ligne.querySelector('.per-poss__nom a, .per-poss__nom span').textContent.trim();
+    if (!confirm('Retirer « ' + nom + ' » de l\'inventaire ?')) return;
+    const data = await envoyer({ action: 'retirerPossession', pp_id: ppId });
+    if (data) window.location.reload();
+  }
+
+  // Potion / huile bue (un exemplaire de moins, la ligne part au dernier) ou charge de baguette (SP-PO11)
+  async function consommer(ppId) {
+    const ligne = document.querySelector('.per-poss__ligne[data-pp="' + ppId + '"]');
+    const qte = parseInt(ligne.querySelector('[data-qte]').textContent, 10);
+    const charges = ligne.querySelector('.per-poss__charges input');
+    if (!charges && qte <= 1) {
+      const nom = ligne.querySelector('.per-poss__nom a, .per-poss__nom span').textContent.trim();
+      if (!confirm('Dernier exemplaire de « ' + nom + ' » : il quittera l\'inventaire. Continuer ?')) return;
+    }
+    const data = await envoyer({ action: 'consommerPossession', pp_id: ppId });
+    if (!data) return;
+    if (data.retire) { window.location.reload(); return; }
+    if (data.charges !== null) {
+      charges.value = data.charges;
+      if (data.charges <= 0) ligne.querySelector('.fa-bolt').closest('button').disabled = true;
+    } else {
+      ligne.querySelector('[data-qte]').textContent = data.quantite;
+      ligne.querySelector('.per-poss__qte button').disabled = data.quantite <= 1;
+    }
+  }
+
+  // Sort d'un parchemin lu ; tous lus avec d'autres exemplaires : un parchemin de moins (SP-PO11)
+  async function sortLu(ppId, ppeId, caseLu) {
+    const data = await envoyer({ action: 'utiliserSortParchemin', pp_id: ppId, ppe_id: ppeId, valeur: caseLu.checked ? 1 : 0 });
+    if (!data) { caseLu.checked = !caseLu.checked; return; }
+    if (data.consomme) { window.location.reload(); return; }
+    caseLu.closest('li').classList.toggle('est-lu', caseLu.checked);
+  }
+
+  return { modifier, quantite, basculerEdition, retirer, consommer, sortLu, onglet, replier };
+})();
+
+// ============================================================
+// SÉLECTEUR DE POSSESSIONS (SP-PO9) — personnages/possessions.php
+// Attendus inline : perPeId, perUrlEnreg, perUrlPossPicker
+// Clone de donsPicker : panneau #detail-pp, une liste (équipement OU objets
+// magiques, selon le bouton « Ajouter » du bloc, D-PO31) filtrable à gauche, fiche
+// du compendium à droite — sur téléphone, la liste prend toute la largeur et la
+// fiche s'ouvre par-dessus, dans #detail-pp-sub. « Ajouter » écrit une unité tout
+// de suite ; la page est rechargée à la fermeture.
+// ============================================================
+
+const possPicker = (function() {
+  'use strict';
+
+  let _modifie = false;
+  let _onglet  = 'equipement';
+
+  function _panel()    { return document.getElementById('detail-pp'); }
+  function _backdrop() { return document.getElementById('detail-pp-backdrop'); }
+
+  function ouvrir(type) {
+    const panel = _panel();
+    const bd    = _backdrop();
+    if (!panel) return;
+    _modifie = false;
+    _onglet  = type === 'objet' ? 'objet' : 'equipement';
+    if (bd) bd.classList.remove('noDisplay');
+    panel.classList.remove('noDisplay');
+    panel.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
+
+    fetch(perUrlPossPicker + '?pe_id=' + encodeURIComponent(perPeId) + '&type=' + _onglet)
+      .then(function(r) { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
+      .then(function(html) {
+        panel.innerHTML =
+          '<button class="overlay-close" onclick="possPicker.fermer()" title="Fermer">'
+          + '<i class="fa fa-times"></i></button>'
+          + '<div class="overlay-panel__inner">' + html + '</div>';
+        filtrer();
+        const q = document.getElementById('poss-picker-q');
+        if (q) q.focus();
+      })
+      .catch(function(e) { panel.innerHTML = '<p class="erreur">' + e + '</p>'; });
+  }
+
+  function fermer() {
+    const panel = _panel();
+    const bd    = _backdrop();
+    if (panel) { panel.classList.add('noDisplay'); panel.innerHTML = ''; }
+    if (bd)    bd.classList.add('noDisplay');
+    if (_modifie) window.location.reload();
+  }
+
+  function filtrer() {
+    const q   = (document.getElementById('poss-picker-q') || { value: '' }).value.trim().toLowerCase();
+    const fam = parseInt((document.getElementById('poss-picker-fam') || { value: 0 }).value, 10) || 0;
+    const cat = parseInt((document.getElementById('poss-picker-cat') || { value: 0 }).value, 10) || 0;
+    let visibles = 0;
+    document.querySelectorAll('#poss-picker-liste [data-liste="' + _onglet + '"] .dons-picker__item[data-id]').forEach(function(li) {
+      let ok = !q || li.dataset.nom.indexOf(q) !== -1;
+      if (ok && _onglet === 'equipement' && fam) ok = (' ' + li.dataset.fam + ' ').indexOf(' ' + fam + ' ') !== -1;
+      if (ok && _onglet === 'objet' && cat)      ok = parseInt(li.dataset.cat, 10) === cat;
+      li.classList.toggle('noDisplay', !ok);
+      if (ok) visibles++;
+    });
+    const decompte = document.getElementById('poss-picker-decompte');
+    if (decompte) decompte.textContent = visibles + (visibles > 1 ? ' articles affichés' : ' article affiché');
+  }
+
+  function _ligne(type, id) {
+    return document.querySelector('#poss-picker-liste .dons-picker__item[data-type="' + type + '"][data-id="' + id + '"]');
+  }
+
+  // Téléphone : volet droit masqué (CSS), la fiche s'ouvre par-dessus le sélecteur
+  // dans #detail-pp-sub, comme pour le sélecteur de sorts (SP-PE10d).
+  function _estTelephone() {
+    return window.matchMedia('(max-width: 767px)').matches;
+  }
+
+  function voir(type, id) {
+    const volet = document.getElementById('poss-picker-detail');
+    if (!volet) return;
+    document.querySelectorAll('#poss-picker-liste .dons-picker__item').forEach(function(li) {
+      li.classList.toggle('is-courant', li.dataset.type === type && parseInt(li.dataset.id, 10) === id);
+    });
+    let zone = volet;
+    if (_estTelephone()) {
+      const sub = document.getElementById('detail-pp-sub');
+      const sbd = document.getElementById('detail-pp-sub-backdrop');
+      if (!sub) return;
+      if (sbd) sbd.classList.remove('noDisplay');
+      sub.classList.remove('noDisplay');
+      sub.innerHTML = barrePanneau('<button class="overlay-close" onclick="fermerSubPanel()" title="Fermer">'
+        + '<i class="fa fa-times"></i></button>') + '<div class="overlay-panel__inner"></div>';
+      zone = sub.querySelector('.overlay-panel__inner');
+    }
+    zone.innerHTML = '<div class="loading"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>';
+    const url = type === 'objet' ? volet.dataset.urlObjet : volet.dataset.urlEquipement;
+    fetch(url + '?id=' + encodeURIComponent(id))
+      .then(function(r) { if (!r.ok) throw new Error('Erreur ' + r.status); return r.text(); })
+      .then(function(html) {
+        zone.innerHTML = html;
+        zone.scrollTop = 0;
+        // Bouton d'ajout à droite du nom ; le crayon d'édition du compendium n'a pas sa place ici
+        const titre = zone.querySelector('.sort-detail__nom');
+        if (!titre) return;
+        const edit = titre.querySelector('.sort-detail__edit-btn');
+        if (edit) edit.remove();
+        const btn = document.createElement('button');
+        btn.type      = 'button';
+        btn.className = 'dons-picker__btn dons-picker__btn-detail';
+        btn.title     = 'Ajouter un exemplaire';
+        btn.innerHTML = '<i class="fa fa-plus"></i><span class="dons-picker__btn-lbl">Ajouter</span>';
+        btn.addEventListener('click', function() { ajouter(type, id); });
+        titre.appendChild(btn);
+      })
+      .catch(function(e) { zone.innerHTML = '<p class="erreur">' + e + '</p>'; });
+  }
+
+  async function ajouter(type, id) {
+    const li = _ligne(type, id);
+    const boutons = document.querySelectorAll('#poss-picker .dons-picker__btn');
+    boutons.forEach(function(b) { b.disabled = true; });
+    try {
+      const data = await postAjax(perUrlEnreg, { action: 'ajouterPossession', pe_id: perPeId, type: type, id: id, quantite: 1 });
+      if (!data.ok) { notifier(data.erreur || 'Échec', 'erreur'); return; }
+      _modifie = true;
+      if (li) {
+        const badge = li.querySelector('.poss-picker__possede');
+        const qte   = parseInt(badge.dataset.qte, 10) + 1;
+        badge.dataset.qte = qte;
+        badge.textContent = '× ' + qte;
+        badge.hidden = false;
+        li.classList.add('is-possede');
+      }
+    } catch (e) {
+      notifier('Erreur réseau', 'erreur');
+    } finally {
+      boutons.forEach(function(b) { b.disabled = false; });
+    }
+  }
+
+  return { ouvrir, fermer, filtrer, voir, ajouter };
 })();

@@ -45,12 +45,12 @@ $classes     = getPersonnageClasses($db, (int)$perso['pe_id']);
         <i class="fa fa-edit"></i>
       </button>
     </h2>
-    <div class="per-detail__meta">
-      <span><?= h($perso['ruleset_label']) ?></span>
-      <?php if ($perso['campagne_courante_nom']): ?>
-        · <i class="fa fa-map"></i> <?= h($perso['campagne_courante_nom']) ?>
-      <?php endif ?>
-    </div>
+    <?php // Ruleset non rappelé (D-CP11) ?>
+    <?php if ($perso['campagne_courante_nom']): ?>
+      <div class="per-detail__meta">
+        <i class="fa fa-map"></i> <?= h($perso['campagne_courante_nom']) ?>
+      </div>
+    <?php endif ?>
   </div>
 
   <!-- Identité -->

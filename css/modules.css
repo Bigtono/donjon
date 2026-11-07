@@ -1,6 +1,53 @@
 /* css/modules.css — Styles globaux transverses */
 
 /* ============================================================
+   SOUS-MENU DE PAGE — .page-nav (retour 2026-09-01, partagé SP-CP9)
+   Onglets des sous-pages : personnage (include/personnage-nav.php) et
+   campagne (include/campagne-nav.php). Ex-.per-nav, déplacé ici pour
+   être chargé par les deux modules.
+   ============================================================ */
+.page-nav {
+  display: flex;
+  gap: var(--sp-xs);
+  margin: 0 0 var(--sp-md);
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--clr-border);
+  overflow-x: auto;              /* défile plutôt que de se replier sur 2 lignes */
+  -webkit-overflow-scrolling: touch;
+}
+.page-nav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  flex: 0 0 auto;
+  padding: var(--sp-xs) var(--sp-md);
+  border: 1px solid var(--clr-border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: var(--clr-surface-alt);
+  color: var(--clr-text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.page-nav__item:hover { color: var(--clr-text); }
+.page-nav__item.est-actif {
+  background: var(--clr-surface);
+  color: var(--clr-accent);
+  font-weight: 600;
+  /* Prolonge l'onglet actif par-dessus la bordure du conteneur */
+  margin-bottom: -1px;
+  border-bottom: 1px solid var(--clr-surface);
+}
+
+/* Téléphone : icônes seules. Six libellés ne tiennent pas sur une ligne,
+   et la cible tactile reste large grâce au padding. */
+@media (max-width: 767px) {
+  .page-nav__lbl { display: none; }
+  .page-nav__item { padding: var(--sp-sm) var(--sp-md); font-size: 1.05rem; }
+}
+
+/* ============================================================
    AIDE CONTEXTUELLE
    Icône .aide-icone insérée via aideIcone() (include/helpers.php),
    bulle #aide-bulle injectée dynamiquement en enfant de <body> par
@@ -703,6 +750,16 @@
   margin-bottom: var(--sp-md, 16px);
 }
 
+/* Filtre par catégorie (SP-TB12) : largeur à son contenu, le champ texte prend le reste */
+.tableaux-picker__recherche .form-control:first-child {
+  flex: 1 1 auto;
+}
+
+.tableaux-picker__categorie {
+  flex: 0 0 auto;
+  width: auto;
+}
+
 .tableaux-picker__liste {
   list-style: none;
   padding: 0;
@@ -1393,6 +1450,17 @@
   color: var(--clr-text-muted);
 }
 
+/* ---- DD3.5 (SP-MO2) : libellés et noms de capacités dans la couleur du texte,
+   listes de sorts / pouvoirs (« 1er — … », « À volonté — … ») décalées ---- */
+.mo-stat-label--dd35 {
+  color: var(--clr-text);
+}
+
+.mo-sous-liste--dd35 {
+  margin: .12rem 0 .12rem 1.25rem;
+  font-size: inherit;
+}
+
 /* ---- Mention explicative (ex. "* Expertise dans la compétence") ----
    Style dédié, réutilisable pour toute mention ajoutée au parser monstre. */
 .mo-mention {
@@ -1910,17 +1978,6 @@
 .sort-detail__homebrew {
   color: var(--clr-accent);
   font-weight: 500;
-}
-
-.sort-detail__ruleset {
-  margin-left: auto;
-  background: var(--clr-surface-2);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 
@@ -3254,3 +3311,184 @@
 .tri-ligne--saisie td {
   background: var(--clr-surface-2) !important;
 }
+
+/* Formulaire d'objet magique : restrictions d'une propriété spéciale DD3.5 (SP-PO6) */
+.om-restrictions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-xs) var(--sp-md);
+  margin-top: var(--sp-xs);
+}
+.om-restrictions > .form-hint {
+  margin-left: 0;
+  min-width: 7.5rem;
+}
+
+/* ============================================================
+   SP-PO9 — Sélecteur de possessions (.poss-picker)
+   Fragment injecté dans #detail-pp depuis personnages/possessions.php ;
+   reprend la structure .dons-picker et n'ajoute que l'encadré d'aide
+   et le compteur d'exemplaires possédés. Une seule liste par ouverture
+   (équipement ou objets magiques, D-PO31).
+   ============================================================ */
+
+.poss-picker__aide {
+  margin: 0;
+}
+
+/* Téléphone : la liste prend toute la largeur ; la fiche s'ouvre par-dessus,
+   dans #detail-pp-sub (possPicker.voir), comme pour le sélecteur de sorts. */
+@media (max-width: 767px) {
+  .poss-picker .dons-picker__detail {
+    display: none;
+  }
+
+  .poss-picker .dons-picker__liste {
+    flex: 1 1 100%;
+    max-width: none;
+    max-height: 70vh;
+  }
+}
+
+.poss-picker__possede {
+  flex: 0 0 auto;
+  color: var(--clr-accent);
+  font-size: .85em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---- Compositeur d'objets magiques DD3.5 (SP-PO10) — include/ajax/modifier/objet-compose.php ---- */
+.oc-form__types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-xs);
+  margin-bottom: var(--sp-md);
+}
+.oc-form__grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-sm) var(--sp-md);
+}
+.oc-form .oc-tete2 { display: none; }
+.oc-form.est-double .oc-tete2 { display: revert; }
+.oc-form__proprietes {
+  border: 1px solid var(--clr-border);
+  border-radius: 4px;
+  padding: var(--sp-sm);
+  margin: var(--sp-md) 0;
+  min-width: 0;
+}
+.oc-form__proprietes legend { padding: 0 var(--sp-xs); font-weight: 600; }
+.oc-form__filtre { width: 100%; margin-bottom: var(--sp-sm); }
+.oc-proprietes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.oc-propriete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-xs) var(--sp-sm);
+  padding: var(--sp-xs) 0;
+  border-bottom: 1px solid var(--clr-border);
+}
+.oc-propriete:last-child { border-bottom: 0; }
+.oc-propriete__case {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: .8em;
+  color: var(--clr-text-muted);
+}
+.oc-propriete__nom { flex: 1 1 140px; min-width: 0; }
+.oc-propriete__valeur,
+.oc-propriete__restriction {
+  font-size: .85em;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+.oc-propriete__restriction { font-style: italic; }
+.oc-propriete__param { display: none; flex: 1 1 100%; }
+.oc-propriete.est-coche .oc-propriete__param { display: block; }
+.oc-propriete.est-coche .oc-propriete__nom { font-weight: 600; }
+.oc-propriete.est-incompatible { opacity: .45; }
+.oc-apercu {
+  border: 1px solid var(--clr-border);
+  border-radius: 4px;
+  background: var(--clr-surface-2);
+  padding: var(--sp-sm) var(--sp-md);
+  margin-bottom: var(--sp-md);
+}
+.oc-apercu__nom { margin: 0 0 var(--sp-xs); color: var(--clr-accent); }
+.oc-apercu__chiffres { margin: 0 0 var(--sp-xs); }
+.oc-apercu__details {
+  list-style: none;
+  margin: 0 0 var(--sp-xs);
+  padding: 0;
+  font-size: .9em;
+}
+.oc-apercu__details li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  border-bottom: 1px dotted var(--clr-border);
+}
+.oc-apercu__avert { margin: var(--sp-xs) 0 0; color: var(--clr-warning); font-size: .9em; }
+.oc-apercu__erreur { margin: var(--sp-xs) 0 0; color: var(--clr-danger); font-size: .9em; }
+
+/* Compositeur — sorts des potions, huiles, baguettes et parchemins (SP-PO11) */
+.oc-form__aide { margin: 0 0 var(--sp-sm); }
+.oc-sorts {
+  list-style: none;
+  margin: 0 0 var(--sp-sm);
+  padding: 0;
+}
+.oc-sort {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) minmax(160px, 1.5fr) repeat(3, minmax(70px, .5fr)) auto;
+  gap: var(--sp-xs) var(--sp-sm);
+  align-items: end;
+  padding: var(--sp-xs) 0;
+  border-bottom: 1px solid var(--clr-border);
+}
+.oc-sort:last-child { border-bottom: 0; }
+.oc-sort .form-group { margin: 0; min-width: 0; }
+.oc-sort .autocomplete-wrap { position: relative; }
+.oc-sort__retirer { margin-bottom: var(--sp-xs); }
+@media (max-width: 767px) {
+  .oc-sort { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+  .oc-sort__recherche,
+  .oc-sort__liste-grp { grid-column: 1 / -1; }
+}
+/* Liste d'autocomplétion du compositeur : les styles .autocomplete-* de compendium-modules.css
+   ne sont pas chargés sur les pages du module Personnages */
+.oc-sort .autocomplete-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.oc-sort .autocomplete-list[hidden] { display: none; }
+.oc-sort .autocomplete-item,
+.oc-sort .autocomplete-empty {
+  padding: var(--sp-xs) var(--sp-sm);
+  font-size: .875rem;
+  border-bottom: 1px solid var(--clr-border);
+  cursor: pointer;
+}
+.oc-sort .autocomplete-item:hover { background: var(--clr-surface-2); color: var(--clr-accent-2); }
+.oc-sort .autocomplete-empty { color: var(--clr-text-muted); font-style: italic; cursor: default; }

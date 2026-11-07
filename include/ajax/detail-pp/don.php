@@ -25,13 +25,11 @@ $stmt = $db->prepare('
          dad.dado_nom,
          res.res_nom,
          res.res_j_id,
-         camp.camp_nom,
-         var.var_valeur AS ruleset_label
+         camp.camp_nom
   FROM   dd_dons do
   LEFT JOIN dd_data_don   dad  ON dad.dado_id  = do.do_dado_id
   LEFT JOIN dd_ressources res  ON res.res_id   = do.do_res_id
   LEFT JOIN dd_campagnes  camp ON camp.camp_id = do.do_camp_id
-  LEFT JOIN dd_variables  var  ON var.var_id   = do.do_ruleset_var_id
   WHERE  do.do_id = ?
 ');
 $stmt->execute([$id]);
@@ -88,7 +86,6 @@ endif;
         <i class="fa fa-flask"></i> <?= h($don['camp_nom']) ?>
       </span>
     <?php endif ?>
-    <span class="sort-detail__ruleset"><?= h($don['ruleset_label']) ?></span>
   </div>
 
 </div>
