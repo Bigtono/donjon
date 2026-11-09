@@ -12,6 +12,7 @@
 // ENTITÉS     equipement  → dd_equipements       (familles : dd_categorie_equipement)
 //             objet       → dd_objets_magiques   (familles : dd_categorie_objet_magique)
 //             competence  → dd_competences       (pas de familles ; tri = nom | car)
+//             don         → dd_dons              (familles : slug du nom de dd_data_don ; tri = nom | categorie)
 // PARAMÈTRES  (tous facultatifs, séparés par « | », valeurs multiples par « , »)
 //   famille   slug(s) de catégorie. Pour l'équipement, la famille inclut ses descendants
 //             (« armes » = courantes + de guerre + exotiques). Absent = toutes.
@@ -598,6 +599,100 @@ function listeRendreCompetence(PDO $db, array $p, int $ruleset_id): ?string
   return $html;
 }
 
+// ------------------------------------------------------------
+// 5d. Dons (SP-DRS9)
+// ------------------------------------------------------------
+// Une table : Don | Catégorie | Conditions | Résumé. famille = slug du nom de catégorie
+// (dd_data_don n'a pas de colonne slug : « Monstres » → monstres, « Création d'objets »
+// → creation-d-objets). tri = nom (défaut) | categorie. Homebrew de campagne exclu.
+function listeSlugTexte(string $s): string
+{
+  $s = function_exists('transliterator_transliterate')
+    ? (transliterator_transliterate('Any-Latin; Latin-ASCII', $s) ?? $s) : $s;
+  return trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($s)), '-');
+}
+
+function listeRendreDon(PDO $db, array $p, int $ruleset_id): ?string
+{
+  $params = [$ruleset_id];
+  $where  = ['d.do_ruleset_var_id = ?', 'd.do_camp_id IS NULL'];
+  $noms_famille = [];
+
+  if (!empty($p['famille'])):
+    $stmt = $db->prepare('SELECT dado_id, dado_nom FROM dd_data_don WHERE dado_ruleset_var_id = ?');
+    $stmt->execute([$ruleset_id]);
+    $par_slug = [];
+    foreach ($stmt->fetchAll() as $c) $par_slug[listeSlugTexte((string)$c['dado_nom'])] = $c;
+    $ids = [];
+    foreach ($p['famille'] as $slug):
+      if (!isset($par_slug[$slug])) return null;
+      $ids[]          = (int)$par_slug[$slug]['dado_id'];
+      $noms_famille[] = (string)$par_slug[$slug]['dado_nom'];
+    endforeach;
+    $where[] = 'd.do_dado_id IN (' . resIdsPlaceholders($ids) . ')';
+    $params  = array_merge($params, $ids);
+  endif;
+
+  $res_ids = listeSourcesIds($db, $p['source'], $ruleset_id);
+  if ($res_ids !== null):
+    if (empty($res_ids)) return '<p class="reg-liste__vide">Aucun élément.</p>';
+    $where[] = 'd.do_res_id IN (' . resIdsPlaceholders($res_ids) . ')';
+    $params  = array_merge($params, $res_ids);
+  endif;
+
+  $where[] = listeClauseVisibilite('res.res_j_id', 'd.do_public', 'd.do_visible', $params);
+
+  $stmt = $db->prepare('
+    SELECT d.do_id, d.do_nom, d.do_conditions, d.do_resume, dad.dado_nom, res.res_abreviation
+    FROM   dd_dons d
+    LEFT JOIN dd_data_don   dad ON dad.dado_id = d.do_dado_id
+    LEFT JOIN dd_ressources res ON res.res_id  = d.do_res_id
+    WHERE  ' . implode(' AND ', $where) . '
+    LIMIT  2000
+  ');
+  $stmt->execute($params);
+  $rows = $stmt->fetchAll();
+  if (empty($rows)) return '<p class="reg-liste__vide">Aucun élément.</p>';
+
+  foreach ($rows as &$r) $r['do_nom'] = trim(preg_replace('/\s+/u', ' ', (string)$r['do_nom']));
+  unset($r);
+  $cle = fn(array $r) => mb_strtolower($r['do_nom']);
+  usort($rows, $p['tri'] === 'categorie'
+    ? fn($a, $b) => [(string)$a['dado_nom'], $cle($a)] <=> [(string)$b['dado_nom'], $cle($b)]
+    : fn($a, $b) => strcoll($cle($a), $cle($b)));
+
+  $total        = count($rows);
+  $rows         = array_slice($rows, 0, LISTE_MAX_LIGNES);
+  $avec_cat     = count($noms_famille) !== 1;
+  $avec_source  = count(array_unique(array_column($rows, 'res_abreviation'))) > 1;
+
+  $entetes = [['Don', 'left']];
+  if ($avec_cat) $entetes[] = ['Catégorie', 'left'];
+  $entetes[] = ['Conditions', 'left'];
+  $entetes[] = ['Résumé', 'left'];
+  if ($avec_source) $entetes[] = ['Source', 'left'];
+
+  $lignes = [];
+  foreach ($rows as $r):
+    $cel = [listeLien('don', (int)$r['do_id'], $r['do_nom'])];
+    if ($avec_cat) $cel[] = h((string)($r['dado_nom'] ?? '—'));
+    $cond   = trim(html_entity_decode(strip_tags((string)$r['do_conditions']), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    $resume = trim(html_entity_decode(strip_tags((string)$r['do_resume']), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    $cel[] = $cond !== '' ? h($cond) : '—';
+    $cel[] = $resume !== '' ? h($resume) : '—';
+    if ($avec_source) $cel[] = h((string)$r['res_abreviation']);
+    $lignes[] = ['cellules' => $cel];
+  endforeach;
+
+  $caption = $p['titre'] !== '' ? $p['titre'] : (count($noms_famille) === 1 ? 'Dons — ' . $noms_famille[0] : 'Dons');
+  $html = listeHtmlTable($caption === '-' ? '' : $caption, $entetes, $lignes);
+  if ($total > LISTE_MAX_LIGNES):
+    $html .= '<p class="reg-liste__plus">' . ($total - LISTE_MAX_LIGNES) . ' autre(s) ligne(s) — '
+           . '<a href="' . BASE_URL . '/compendium/dons.php">voir tout dans le compendium</a>.</p>';
+  endif;
+  return $html;
+}
+
 // ============================================================
 // 6. RÉSOLUTION DU TAG [[liste:…]]
 // ============================================================
@@ -615,6 +710,7 @@ function resoudreTagsListes(PDO $db, ?string $html, int $ruleset_id): string
       'equipement' => listeRendreEquipement($db, $p, $ruleset_id),
       'objet'      => listeRendreObjet($db, $p, $ruleset_id),
       'competence' => listeRendreCompetence($db, $p, $ruleset_id),
+      'don'        => listeRendreDon($db, $p, $ruleset_id),
       default      => null,
     };
   };
@@ -760,6 +856,7 @@ function listeRendreTag(PDO $db, string $tag, int $ruleset_id): ?string
     'equipement' => listeRendreEquipement($db, $p, $ruleset_id),
     'objet'      => listeRendreObjet($db, $p, $ruleset_id),
     'competence' => listeRendreCompetence($db, $p, $ruleset_id),
+    'don'        => listeRendreDon($db, $p, $ruleset_id),
     default      => null,
   };
 }

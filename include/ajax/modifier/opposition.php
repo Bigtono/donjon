@@ -133,6 +133,20 @@ $url_detail_mo     = BASE_URL . '/include/ajax/detail-monstre-json.php';
                  value="<?= h($opp['opp_mocat_nom'] ?? '') ?>" maxlength="150">
         </div>
 
+        <?php // Suivi des PV (SP-CP11) : effectif et PV d'une créature. ?>
+        <div class="form-group">
+          <label for="opp_nombre">Effectif <span class="form-hint">(créatures identiques<?= $id === 0 ? ' ; laissé à 1, repris de la composition' : '' ?>)</span></label>
+          <input type="number" id="opp_nombre" name="opp_nombre" min="1" max="99"
+                 value="<?= (int)($opp['opp_nombre'] ?? 1) ?: 1 ?>">
+        </div>
+
+        <div class="form-group">
+          <label for="opp_pv_max">PV max <span class="form-hint">(par créature)</span></label>
+          <input type="number" id="opp_pv_max" name="opp_pv_max" min="0" max="9999"
+                 value="<?= !empty($opp['opp_pv_max']) ? (int)$opp['opp_pv_max'] : '' ?>"
+                 placeholder="Vide : lu dans les statistiques">
+        </div>
+
         <div class="form-group modif-grid__full">
           <label for="opp_stats">Statistiques</label>
           <textarea id="opp_stats" name="opp_stats" rows="14"

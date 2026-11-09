@@ -140,9 +140,10 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
       selector:    '#scc_description',
       language:    'fr_FR',
       menubar:     false,
-      plugins:       'lists link code',
-      toolbar:       'styles | bold italic underline | bullist numlist | link unlink | removeformat | code',
-      height:        240,
+      // Images autorisées (SP-CP12) : plans de lieux, comme scénario et rencontre.
+      plugins:       'lists link image table code',
+      toolbar:       'styles | bold italic underline | bullist numlist | link unlink image table | removeformat | code',
+      height:        300,
       skin:          isLight ? 'oxide' : 'oxide-dark',
       content_css:   isLight ? 'default' : 'dark',
       content_style: isLight
@@ -152,6 +153,9 @@ $titre = $id > 0 ? 'Modifier ' . h($scc['scc_nom']) : 'Nouveau chapitre';
       branding:    false,
       base_url:    'https://cdn.jsdelivr.net/npm/tinymce@6',
       suffix:      '.min',
+      images_upload_url:         '<?= BASE_URL ?>/include/ajax/upload-image.php',
+      images_upload_credentials: true,
+      automatic_uploads:         true,
     });
   })();
 

@@ -31,6 +31,116 @@ function strParam($val, string $default = ''): string {
 }
 
 // ============================================================
+// ENVOI DE MAIL (SP-ML)
+// ============================================================
+
+// Sujet et texte du mail de réinitialisation, partagés entre la vraie demande et
+// sa simulation dans admin/test-email.php : le test porte sur le contenu réel.
+const SUJET_MAIL_REINITIALISATION = '[Codex DD] Réinitialisation de votre mot de passe';
+
+function corpsMailReinitialisation(string $pseudo, string $lien): string {
+  $corps  = "Bonjour " . $pseudo . ",\n\n";
+  $corps .= "Vous avez demandé la réinitialisation de votre mot de passe.\n\n";
+  $corps .= "Cliquez sur ce lien (valable 1 heure) :\n" . $lien . "\n\n";
+  $corps .= "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\n";
+  $corps .= "— Codex DD";
+  return $corps;
+}
+
+// Vrai si la configuration déclare un envoi SMTP complet, mot de passe compris
+function smtpConfigure(): bool {
+  return defined('SMTP_HOTE') && defined('SMTP_PORT') && defined('SMTP_UTILISATEUR')
+    && defined('SMTP_MOT_DE_PASSE') && SMTP_MOT_DE_PASSE !== '';
+}
+
+// Point de passage unique des mails du site. L'expéditeur vient de la
+// configuration, jamais de HTTP_HOST. Passe par le SMTP authentifié quand il est
+// configuré, par mail() sinon ; un échec SMTP ne retombe PAS sur mail(), dont les
+// messages se perdaient sans erreur en production (D-ML4). Retourne true si le
+// serveur a ACCEPTÉ le message, ce qui ne garantit pas qu'il soit délivré. Le
+// journal ne contient ni le destinataire ni le corps, qui peut porter un token de
+// réinitialisation. $erreur reçoit la raison d'un échec, $reponses les réponses du
+// serveur SMTP (diagnostic de la page de test, SP-ML5).
+function envoyerMail(string $dest, string $sujet, string $corps, ?string &$erreur = null, ?array &$reponses = null): bool {
+  $erreur   = null;
+  $reponses = [];
+
+  if (!defined('MAIL_EXPEDITEUR') || !filter_var(MAIL_EXPEDITEUR, FILTER_VALIDATE_EMAIL)):
+    $erreur = 'MAIL_EXPEDITEUR absente ou invalide dans config/db.config.php';
+    error_log('[envoyerMail] ' . $erreur);
+    return false;
+  endif;
+
+  if (!filter_var($dest, FILTER_VALIDATE_EMAIL)):
+    $erreur = 'destinataire invalide';
+    error_log('[envoyerMail] ' . $erreur);
+    return false;
+  endif;
+
+  if (smtpConfigure()):
+    return envoyerMailSmtp($dest, $sujet, $corps, $erreur, $reponses);
+  endif;
+
+  $sujet_encode = mb_encode_mimeheader($sujet, 'UTF-8', 'B', "\r\n", strlen('Subject: '));
+  $entetes = [
+    'From'                      => 'Codex DD <' . MAIL_EXPEDITEUR . '>',
+    'Reply-To'                  => MAIL_EXPEDITEUR,
+    'MIME-Version'              => '1.0',
+    'Content-Type'              => 'text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding' => '8bit',
+  ];
+
+  $accepte = @mail($dest, $sujet_encode, $corps, $entetes, '-f' . MAIL_EXPEDITEUR);
+  if (!$accepte):
+    $erreur = 'mail() a refusé le message : ' . (error_get_last()['message'] ?? 'raison inconnue');
+    error_log('[envoyerMail] ' . $erreur);
+  endif;
+
+  return $accepte;
+}
+
+// Envoi authentifié (SP-ML3). TLS implicite, certificat vérifié par défaut.
+// PHPMailer n'est chargé que pour cet usage.
+function envoyerMailSmtp(string $dest, string $sujet, string $corps, ?string &$erreur = null, ?array &$reponses = null): bool {
+  require_once __DIR__ . '/phpmailer/Exception.php';
+  require_once __DIR__ . '/phpmailer/SMTP.php';
+  require_once __DIR__ . '/phpmailer/PHPMailer.php';
+
+  $envoi = new \PHPMailer\PHPMailer\PHPMailer(true);
+  try {
+    $envoi->isSMTP();
+    $envoi->Host       = SMTP_HOTE;
+    $envoi->Port       = SMTP_PORT;
+    $envoi->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+    $envoi->SMTPAuth   = true;
+    $envoi->Username   = SMTP_UTILISATEUR;
+    $envoi->Password   = SMTP_MOT_DE_PASSE;
+    $envoi->Timeout    = 15;
+    // Seules les réponses du serveur sont retenues, jamais ce que le client envoie
+    // (identifiants) ; les étapes 334 d'authentification sont écartées aussi.
+    $envoi->SMTPDebug   = \PHPMailer\PHPMailer\SMTP::DEBUG_SERVER;
+    $envoi->Debugoutput = function ($ligne) use (&$reponses) {
+      $prefixe = 'SERVER -> CLIENT: ';
+      if (strpos($ligne, $prefixe) !== 0) return;
+      $texte = trim(substr($ligne, strlen($prefixe)));
+      if (strpos($texte, '334') !== 0) $reponses[] = $texte;
+    };
+    $envoi->CharSet    = \PHPMailer\PHPMailer\PHPMailer::CHARSET_UTF8;
+    $envoi->Encoding   = \PHPMailer\PHPMailer\PHPMailer::ENCODING_8BIT;
+    $envoi->setFrom(MAIL_EXPEDITEUR, 'Codex DD');
+    $envoi->addAddress($dest);
+    $envoi->Subject = $sujet;
+    $envoi->Body    = $corps;
+    $envoi->isHTML(false);
+    return $envoi->send();
+  } catch (\Throwable $e) {
+    $erreur = 'SMTP : ' . $envoi->ErrorInfo;
+    error_log('[envoyerMail] ' . $erreur);
+    return false;
+  }
+}
+
+// ============================================================
 // AIDE CONTEXTUELLE
 // ============================================================
 
@@ -484,6 +594,43 @@ function getLastPersonnage(): int {
 // le même niveau (ex. clic sur un bouton du header) préserve les niveaux
 // enfants déjà mémorisés, tant qu'on ne change pas de campagne/scénario/
 // chapitre. Le discriminant est l'id, pas le chemin emprunté pour y arriver.
+
+// ------------------------------------------------------------
+// PV max d'une opposition lus dans son bloc de stats (SP-CP11)
+// ------------------------------------------------------------
+// Première valeur qui suit « PV » / « Pv » / « Points de vie » : couvre « PV : 42
+// chacun (5 DV) », « Pv 81 (18d8) », « PV 82 chacun (12 DV) ». 0 si rien n'est
+// trouvé. Sert de valeur par défaut quand opp_pv_max n'est pas renseigné.
+function pvMaxDepuisStats(?string $stats): int {
+  if ($stats === null || $stats === '') return 0;
+  return preg_match('/\b(?:pv|points de vie)\s*:?\s*(\d{1,4})\b/iu', strip_tags($stats), $m)
+    ? (int)$m[1] : 0;
+}
+
+// ------------------------------------------------------------
+// Onglets mémorisés des pages Campagnes (SP-CP10)
+// ------------------------------------------------------------
+// Chaque page de la hiérarchie (campagne, scénario, chapitre, rencontre) rouvre
+// l'onglet que l'on y avait laissé. Mémoire de SESSION, par élément : la clé
+// désigne l'élément (« re-12 »), et éventuellement un second niveau d'onglets
+// (« re-12-opp » : fiche d'opposition sélectionnée). Écrite par la page
+// elle-même (sous-pages de la campagne) ou par l'action AJAX memoriserOnglet.
+
+// Clé admise : niveau-id, suivi d'un suffixe facultatif.
+function cleOngletValide(string $cle): bool {
+  return (bool)preg_match('/^(camp|sce|scc|re)-\d{1,10}(-[a-z]{1,10})?$/', $cle);
+}
+
+// Onglet mémorisé pour $cle, s'il figure parmi $permis ; $defaut sinon.
+function ongletMemorise(string $cle, array $permis, string $defaut): string {
+  $val = (string)($_SESSION['camp_onglets'][$cle] ?? '');
+  return in_array($val, $permis, true) ? $val : $defaut;
+}
+
+function memoriserOnglet(string $cle, string $valeur): void {
+  if (!cleOngletValide($cle) || !preg_match('/^[a-z0-9_-]{1,30}$/', $valeur)) return;
+  $_SESSION['camp_onglets'][$cle] = $valeur;
+}
 
 // Mémorise la campagne ; n'efface les niveaux enfants que si l'id change.
 function setLastCampagne(int $camp_id, string $camp_nom): void {

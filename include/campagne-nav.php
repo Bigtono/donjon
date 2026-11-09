@@ -10,16 +10,20 @@
 
 $nav_camp_id = (int)$id;
 
+// La sous-page affichée devient l'onglet mémorisé de la campagne (SP-CP10) ;
+// campagne.php y renvoie quand on entre sans onglet explicite.
+memoriserOnglet('camp-' . $nav_camp_id, $nav_courante ?? 'description');
+
 $nav_items = [
-  'description' => ['campagne.php',             'fa-scroll',    'Description'],
-  'personnages' => ['campagne-personnages.php', 'fa-users',     'Personnages'],
-  'scenarios'   => ['campagne-scenarios.php',   'fa-book-open', 'Scénarios'],
+  'description' => ['campagne.php?o=description&id=', 'fa-scroll', 'Description'],
+  'personnages' => ['campagne-personnages.php?id=', 'fa-users',     'Personnages'],
+  'scenarios'   => ['campagne-scenarios.php?id=',   'fa-book-open', 'Scénarios'],
 ];
 ?>
 <nav class="page-nav" aria-label="Sections de la campagne">
   <?php foreach ($nav_items as $cle => [$page, $icone, $libelle]): ?>
     <?php $actif = ($cle === ($nav_courante ?? 'description')); ?>
-    <a href="<?= BASE_URL ?>/campagnes/<?= $page ?>?id=<?= $nav_camp_id ?>"
+    <a href="<?= BASE_URL ?>/campagnes/<?= h($page) ?><?= $nav_camp_id ?>"
        class="page-nav__item<?= $actif ? ' est-actif' : '' ?>"
        <?= $actif ? 'aria-current="page"' : '' ?>
        title="<?= h($libelle) ?>">

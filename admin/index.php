@@ -74,6 +74,11 @@ require_once '../include/header.php';
     <span>Migrations SQL</span>
   </a>
 
+  <a href="<?= BASE_URL ?>/admin/test-email.php" class="dashboard-card dashboard-card--admin">
+    <i class="fa fa-envelope"></i>
+    <span>Test d'envoi de mail</span>
+  </a>
+
   <?php if ($deploiement_disponible): ?>
     <a href="<?= BASE_URL ?>/admin/deploiement/index.php" class="dashboard-card dashboard-card--admin">
       <i class="fa fa-cloud-arrow-up"></i>

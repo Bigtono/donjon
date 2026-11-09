@@ -11,6 +11,17 @@
 
 require_once __DIR__ . '/../include/campagne-contexte.php';
 
+// Onglet mémorisé (SP-CP10) : une entrée sans onglet explicite (liste, fil
+// d'Ariane, header) rouvre la sous-page laissée la dernière fois. Le lien
+// « Description » du sous-menu porte o=description et échappe au renvoi.
+if (!isset($_GET['o'])):
+  $memo = ongletMemorise('camp-' . $id, ['personnages', 'scenarios'], '');
+  if ($memo !== ''):
+    header('Location: ' . BASE_URL . '/campagnes/campagne-' . $memo . '.php?id=' . $id);
+    exit;
+  endif;
+endif;
+
 // Sources
 $stmt_src = $db->prepare('
   SELECT res.res_nom FROM dd_campagnes_sources cs

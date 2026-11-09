@@ -203,6 +203,39 @@ $stmt_dado = $db->prepare('SELECT dado_id, dado_nom FROM dd_data_don WHERE dado_
 $stmt_dado->execute([$ruleset_id]);
 $categoriesDon = $stmt_dado->fetchAll();
 
+// Compétences de classe (DD3.5 seulement — DD2024 les gère autrement, cf. SP-IM7) :
+// toutes les compétences du ruleset, domaines rangés sous leur compétence mère.
+// Une compétence peut être liée plusieurs fois avec des précisions différentes
+// (« Connaissances » : mystères, géographie) : les précisions sont jointes par « ; »
+// dans un seul champ, et l'enregistrement les redécoupe.
+$compMeres   = [];
+$compEnfants = [];
+$compLiees   = [];   // comp_id => liste des précisions ('' = sans précision)
+if ($ruleset === 'DD3.5'):
+  $stmt_comp = $db->prepare('
+    SELECT comp_id, TRIM(comp_nom) AS comp_nom, comp_parent_id
+    FROM   dd_competences
+    WHERE  comp_ruleset_var_id = ?
+    ORDER  BY comp_nom
+  ');
+  $stmt_comp->execute([$ruleset_id]);
+  foreach ($stmt_comp->fetchAll() as $c):
+    if ($c['comp_parent_id']):
+      $compEnfants[(int)$c['comp_parent_id']][] = $c;
+    else:
+      $compMeres[] = $c;
+    endif;
+  endforeach;
+  if ($id > 0):
+    $stmt_cc = $db->prepare('SELECT ccomp_comp_id, ccomp_precision FROM dd_classe_competence WHERE ccomp_cla_id = ? ORDER BY ccomp_id');
+    $stmt_cc->execute([$id]);
+    foreach ($stmt_cc->fetchAll() as $l):
+      $compLiees[(int)$l['ccomp_comp_id']][] = trim((string)$l['ccomp_precision']);
+    endforeach;
+  endif;
+endif;
+$precisionsComp = fn(int $cid) => implode(' ; ', array_filter($compLiees[$cid] ?? [], fn($p) => $p !== ''));
+
 // ============================================================
 // Listes de référence
 // ============================================================
@@ -571,6 +604,55 @@ $classesParentes = $stmt_par->fetchAll();
 
       </div>
 
+      <?php // Compétences de classe → dd_classe_competence. « ccomp_soumis » dit à
+            // l'enregistrement que la liste a été affichée : sans lui, il n'y touche pas. ?>
+      <div class="form-group classe-comp-bloc" style="margin-top:.5rem;">
+        <label>Compétences de classe</label>
+        <input type="hidden" name="ccomp_soumis" value="1">
+        <div class="classe-comp-grille">
+          <?php foreach ($compMeres as $m): ?>
+            <?php $mid = (int)$m['comp_id']; ?>
+            <div class="classe-comp<?= isset($compEnfants[$mid]) ? ' classe-comp--domaines' : '' ?>">
+              <label class="classe-comp__case">
+                <input type="checkbox" name="ccomp[<?= $mid ?>]" value="1"
+                       <?= isset($compLiees[$mid]) ? 'checked' : '' ?>>
+                <?= h($m['comp_nom']) ?>
+              </label>
+              <input type="text" class="classe-comp__precision" name="ccomp_prec[<?= $mid ?>]"
+                     value="<?= h($precisionsComp($mid)) ?>" maxlength="200"
+                     placeholder="précision (facultative)"
+                     title="Précision facultative, ex. « alchimie » pour Artisanat. Plusieurs précisions : séparer par « ; »">
+              <?php if (isset($compEnfants[$mid])): ?>
+                <div class="classe-comp__domaines">
+                  <span class="classe-comp__lot">
+                    Domaines :
+                    <button type="button" class="btn-link" data-comp-lot="1">tous</button> |
+                    <button type="button" class="btn-link" data-comp-lot="0">aucun</button>
+                  </span>
+                  <?php foreach ($compEnfants[$mid] as $e): ?>
+                    <?php $eid = (int)$e['comp_id']; ?>
+                    <label class="classe-comp__case classe-comp__case--domaine">
+                      <input type="checkbox" name="ccomp[<?= $eid ?>]" value="1"
+                             <?= isset($compLiees[$eid]) ? 'checked' : '' ?>>
+                      <?= h(preg_replace('/^.*?\((.*)\)$/u', '$1', $e['comp_nom'])) ?>
+                    </label>
+                    <?php if ($precisionsComp($eid) !== ''): ?>
+                      <input type="hidden" name="ccomp_prec[<?= $eid ?>]" value="<?= h($precisionsComp($eid)) ?>">
+                    <?php endif ?>
+                  <?php endforeach ?>
+                </div>
+              <?php endif ?>
+            </div>
+          <?php endforeach ?>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="cla_competences">Compétences de classe — texte libre</label>
+        <textarea id="cla_competences" name="cla_competences" rows="2"
+                  placeholder="Affiché sous la liste, ex. « jusqu'à dix compétences au choix »"><?= h($cla['cla_competences']) ?></textarea>
+      </div>
+
       <div class="form-group" style="margin-top:.5rem;">
         <label for="cla_armes">Armes &amp; armures</label>
         <textarea id="cla_armes" name="cla_armes"
@@ -878,6 +960,21 @@ $classesParentes = $stmt_par->fetchAll();
 </div>
 
 <script>
+// Compétences de classe : « tous / aucun » coche ou décoche les domaines d'une compétence mère.
+(function () {
+  var blocsComp = document.querySelectorAll('.classe-comp-bloc');
+  blocsComp.forEach(function (bloc) {
+    bloc.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('[data-comp-lot]');
+      if (!btn) return;
+      var valeur = btn.getAttribute('data-comp-lot') === '1';
+      btn.closest('.classe-comp__domaines').querySelectorAll('input[type=checkbox]').forEach(function (c) {
+        c.checked = valeur;
+      });
+    });
+  });
+})();
+
 (function () {
   var selectRes  = document.getElementById('cla_res_id');
   var blocVisib  = document.getElementById('cla-supplement-visibilite');

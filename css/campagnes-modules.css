@@ -505,11 +505,12 @@ body.camp-plein .site-main {
   max-width: 1500px;
 }
 
-/* 1/4 – 3/4. Le minmax() garde la colonne d'outils lisible sur un écran plus
-   étroit que la cible ; à 1536 elle vaut ~363px, soit le quart demandé. */
+/* 1/6 – 5/6 (SP-CP10 : colonne d'outils réduite d'un tiers, ex-1/4). Le
+   minmax() garde la colonne lisible sur un écran plus étroit que la cible ;
+   à 1536 elle vaut ~240px. */
 .camp-page {
   display: grid;
-  grid-template-columns: minmax(260px, 25%) minmax(0, 1fr);
+  grid-template-columns: minmax(175px, 16.667%) minmax(0, 1fr);
   gap: var(--sp-lg);
   align-items: start;
 }
@@ -683,6 +684,219 @@ body.camp-plein .site-main {
 
 .camp-opp__corps .mo-stats {
   margin: 0;
+}
+
+.camp-opp__nb {
+  font-weight: 400;
+  color: var(--clr-text-muted);
+}
+
+/* ------------------------------------------------------------
+   Onglets en page (SP-CP10)
+   ------------------------------------------------------------ */
+
+.onglet-panneau[hidden] {
+  display: none;
+}
+
+/* Dans un onglet, le titre de section est porté par l'onglet : il ne reste
+   que les boutons d'action, calés à droite. */
+.camp-section__header--onglet {
+  justify-content: flex-end;
+}
+
+/* ------------------------------------------------------------
+   Oppositions : sous-menu d'une fiche par opposition (SP-CP11)
+   ------------------------------------------------------------ */
+
+.camp-opp-onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-xs);
+  margin: var(--sp-md) 0;
+  padding: var(--sp-xs);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  background: var(--clr-surface);
+}
+
+.camp-opp-onglet {
+  display: flex;
+  align-items: center;
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.camp-opp-onglet .tri-poignee {
+  padding: 0 var(--sp-xs);
+  color: var(--clr-text-muted);
+  cursor: grab;
+}
+
+.camp-opp-onglet__btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--clr-text);
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.camp-opp-onglet__btn:hover {
+  background: var(--clr-surface-2);
+}
+
+.camp-opp-onglet__btn.est-actif {
+  border-color: var(--clr-accent);
+  color: var(--clr-accent);
+  font-weight: 600;
+}
+
+.camp-opp-onglet__nb {
+  margin-left: var(--sp-xs);
+  font-weight: 400;
+  color: var(--clr-text-muted);
+}
+
+.camp-opp__ajout {
+  margin-top: var(--sp-md);
+}
+
+/* ------------------------------------------------------------
+   Suivi des PV (SP-CP11) — include/opposition-pv.php
+   Une ligne par créature : nom · jauge · PV / max · saisie · − · +
+   ------------------------------------------------------------ */
+
+.camp-pv-bandeau {
+  margin-top: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  background: var(--clr-surface);
+}
+
+.camp-pv-bandeau__entete {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-sm);
+}
+
+.camp-pv-bandeau__titre {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.camp-pv-bandeau__total {
+  margin-right: auto;
+  color: var(--clr-text-muted);
+}
+
+.camp-pv-bandeau__total b {
+  color: var(--clr-text);
+}
+
+.camp-pv-bandeau__liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr));
+  gap: var(--sp-xs) var(--sp-lg);
+}
+
+.camp-opp__pv {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: var(--sp-xs) var(--sp-lg);
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.camp-pv {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4rem auto 4.2rem auto auto;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: .9rem;
+}
+
+.camp-pv__nom {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.camp-pv__jauge {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--clr-surface-2);
+  overflow: hidden;
+}
+
+.camp-pv__jauge span {
+  display: block;
+  height: 100%;
+  background: var(--clr-success);
+  transition: width .2s ease;
+}
+
+.camp-pv.est-blesse .camp-pv__jauge span { background: var(--clr-warning); }
+.camp-pv.est-hors-combat .camp-pv__jauge span { background: var(--clr-danger); }
+
+.camp-pv__valeur {
+  white-space: nowrap;
+  color: var(--clr-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.camp-pv__valeur b {
+  color: var(--clr-text);
+}
+
+.camp-pv.est-hors-combat .camp-pv__nom {
+  color: var(--clr-text-muted);
+  text-decoration: line-through;
+}
+
+.camp-pv.est-hors-combat .camp-pv__valeur b {
+  color: var(--clr-danger);
+}
+
+.camp-pv__delta {
+  width: 100%;
+  padding: 2px var(--sp-xs);
+  font-size: .9rem;
+}
+
+.camp-pv__btn {
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface-2);
+  color: var(--clr-text);
+  cursor: pointer;
+}
+
+.camp-pv__btn:hover {
+  border-color: var(--clr-accent);
+  color: var(--clr-accent);
+}
+
+.camp-pv--inconnu {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.camp-pv__aide {
+  font-size: .8rem;
+  font-style: italic;
+  color: var(--clr-text-muted);
 }
 
 /* ------------------------------------------------------------
@@ -1383,4 +1597,10 @@ body.ecran-mj-ouvert {
 .ecran-mj-dupliquer__btn:hover {
   border-color: var(--clr-accent);
   background: var(--clr-surface-2);
+}
+
+/* Plans dans les descriptions (SP-CP12) : le clic ouvre l'image en grand
+   (js/campagne.js). */
+.camp-detail__description img {
+  cursor: zoom-in;
 }

@@ -11,12 +11,15 @@
 //           | 'enregistrerNote' | 'supprimerNote' (SP-NO2)
 //           | 'notesGroupe' (SP-NO9 : actions groupées de la liste des notes)
 //           | 'enregistrerEcranMJ' (SP-TB8 : disposition de l'écran du MJ)
+//           | 'memoriserOnglet' (SP-CP10 : onglet ouvert, mémorisé en session)
+//           | 'modifierPvOpposition' | 'reinitialiserPvRencontre' (SP-CP11 : suivi des PV)
 
 require_once '../include/db.php';
 require_once '../include/auth.php';
 require_once '../include/helpers.php';
 require_once '../include/personnage_helpers.php'; // texteRicheVide() (SP-NO2)
 require_once '../include/tableau-parser.php';     // _tabSlugify() : slug des mots-clés (SP-NO2)
+require_once '../include/opposition-pv.php';      // effectifs lus dans la composition (SP-CP11c)
 
 requireAuth();
 verifyCsrf();
@@ -142,6 +145,18 @@ switch ($action):
 
   case 'enregistrerEcranMJ':
     enregistrerEcranMJAction($db, $is_ajax, $redirect);
+    break;
+
+  case 'memoriserOnglet':
+    memoriserOngletAction($is_ajax, $redirect);
+    break;
+
+  case 'modifierPvOpposition':
+    modifierPvOpposition($db, $is_ajax, $redirect);
+    break;
+
+  case 'reinitialiserPvRencontre':
+    reinitialiserPvRencontre($db, $is_ajax, $redirect);
     break;
 
   default:
@@ -813,12 +828,25 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
   $opp_nom       = trim($_POST['opp_nom']             ?? '');
   $opp_mocat_nom = trim($_POST['opp_mocat_nom']       ?? '');
   $opp_stats     = trim($_POST['opp_stats']           ?? '');
+  // Effectif et PV max (SP-CP11). PV max vide → lus dans le bloc de stats.
+  $opp_nombre    = max(1, min(99, intParam($_POST['opp_nombre'] ?? 1)));
+  $opp_pv_max    = intParam($_POST['opp_pv_max'] ?? 0) ?: pvMaxDepuisStats($opp_stats);
 
   if (!$opp_nom) campErreur($is_ajax, 'Le nom est obligatoire.', $redirect);
   if (!$re_id)   campErreur($is_ajax, 'Rencontre manquante.', $redirect);
   if (!checkReOwner($db, $re_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
 
   $opp_id_was_zero = ($opp_id === 0);
+
+  // Nouvelle opposition laissée à 1 : l'effectif écrit dans la composition de
+  // la rencontre (« 5 × Asabi Brute ») l'emporte (SP-CP11c, D-CP16). En
+  // modification, la valeur saisie fait foi.
+  if ($opp_id === 0 && $opp_nombre === 1):
+    $stmt = $db->prepare('SELECT re_composition FROM dd_rencontres WHERE re_id = ?');
+    $stmt->execute([$re_id]);
+    $n = effectifOpposition(effectifsComposition($stmt->fetchColumn() ?: null), $opp_nom);
+    if ($n > 1) $opp_nombre = min(99, $n);
+  endif;
 
   $db->beginTransaction();
   try {
@@ -830,11 +858,11 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
 
       $stmt = $db->prepare('
         INSERT INTO dd_oppositions
-          (opp_nom, opp_mocat_nom, opp_stats, opp_ordre, opp_re_id, opp_mo_id, opp_supprime)
-        VALUES (?, ?, ?, ?, ?, ?, 0)
+          (opp_nom, opp_mocat_nom, opp_stats, opp_nombre, opp_pv_max, opp_ordre, opp_re_id, opp_mo_id, opp_supprime)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
       ');
       $stmt->execute([$opp_nom, $opp_mocat_nom ?: null, $opp_stats ?: null,
-                      $opp_ordre, $re_id, $opp_mo_id]);
+                      $opp_nombre, $opp_pv_max ?: null, $opp_ordre, $re_id, $opp_mo_id]);
       $opp_id = (int)$db->lastInsertId();
     else:
       // Vérification propriété sur l'opposition existante
@@ -850,10 +878,14 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
       // créée sans monstre d'origine, elle le reste (cohérent avec "figé").
       $stmt = $db->prepare('
         UPDATE dd_oppositions
-        SET    opp_nom = ?, opp_mocat_nom = ?, opp_stats = ?
+        SET    opp_nom = ?, opp_mocat_nom = ?, opp_stats = ?, opp_nombre = ?, opp_pv_max = ?
         WHERE  opp_id = ? AND opp_supprime = 0
       ');
-      $stmt->execute([$opp_nom, $opp_mocat_nom ?: null, $opp_stats ?: null, $opp_id]);
+      $stmt->execute([$opp_nom, $opp_mocat_nom ?: null, $opp_stats ?: null,
+                      $opp_nombre, $opp_pv_max ?: null, $opp_id]);
+      // Effectif réduit : les créatures retirées perdent leur suivi de PV.
+      $stmt = $db->prepare('DELETE FROM dd_oppositions_pv WHERE opv_opp_id = ? AND opv_rang > ?');
+      $stmt->execute([$opp_id, $opp_nombre]);
     endif;
     $db->commit();
   } catch (Exception $e) {
@@ -862,6 +894,10 @@ function enregistrerOpposition(PDO $db, bool $is_ajax, string $redirect): void
   }
 
   $id_retour  = $opp_id_was_zero ? $re_id : $opp_id;
+
+  // La page rencontre se rouvre sur l'opposition que l'on vient d'écrire (SP-CP10).
+  memoriserOnglet('re-' . $re_id, 'oppositions');
+  memoriserOnglet('re-' . $re_id . '-opp', (string)$opp_id);
 
   if ($is_ajax):
     header('Content-Type: application/json');
@@ -1009,13 +1045,16 @@ function dupliquerOpposition(PDO $db, bool $is_ajax, string $redirect): void
 
     $stmt = $db->prepare('
       INSERT INTO dd_oppositions
-        (opp_nom, opp_mocat_nom, opp_stats, opp_ordre, opp_re_id, opp_mo_id, opp_supprime)
-      VALUES (?, ?, ?, ?, ?, ?, 0)
+        (opp_nom, opp_mocat_nom, opp_stats, opp_nombre, opp_pv_max, opp_ordre, opp_re_id, opp_mo_id, opp_supprime)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
     ');
+    // Effectif et PV max recopiés ; l'état des PV, lui, reste à la rencontre d'origine.
     $stmt->execute([
       $nom,
       $opp['opp_mocat_nom'],
       $opp['opp_stats'],
+      $opp['opp_nombre'],
+      $opp['opp_pv_max'],
       $opp_ordre,
       $dest_re_id,
       $opp['opp_mo_id'],
@@ -1153,6 +1192,65 @@ function reordonnerOppositions(PDO $db, bool $is_ajax, string $redirect): void
 
   reordonnerNiveau($db, $is_ajax, $redirect, 'dd_oppositions',
                    'opp_id', 'opp_ordre', 'opp_re_id', 'opp_supprime', $re_id);
+}
+
+// ============================================================
+// ONGLETS — mémoire de session (SP-CP10)
+// ============================================================
+// N'écrit que dans la session de l'utilisateur : aucun contrôle de propriété
+// n'est utile, la clé et la valeur sont seulement validées (memoriserOnglet()).
+
+function memoriserOngletAction(bool $is_ajax, string $redirect): void
+{
+  $cle    = strParam($_POST['cle'] ?? '');
+  $valeur = strParam($_POST['valeur'] ?? '');
+  if (!cleOngletValide($cle)) campErreur($is_ajax, 'Onglet invalide.', $redirect);
+  memoriserOnglet($cle, $valeur);
+  campOk($is_ajax, 0, $redirect);
+}
+
+// ============================================================
+// PV DES OPPOSITIONS (SP-CP11)
+// ============================================================
+// dd_oppositions_pv ne garde que les créatures ENTAMÉES : une ligne absente
+// vaut « PV max » (opp_pv_max). Réinitialiser, c'est donc supprimer les lignes.
+
+function modifierPvOpposition(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $opp_id = intParam($_POST['opp_id'] ?? 0);
+  $rang   = intParam($_POST['rang'] ?? 0);
+  $pv     = (int)($_POST['pv'] ?? 0);
+
+  $stmt = $db->prepare('SELECT opp_re_id, opp_nombre FROM dd_oppositions WHERE opp_id = ? AND opp_supprime = 0');
+  $stmt->execute([$opp_id]);
+  $opp = $stmt->fetch();
+  if (!$opp || !checkReOwner($db, (int)$opp['opp_re_id'])) campErreur($is_ajax, 'Accès refusé.', $redirect);
+  if ($rang < 1 || $rang > (int)$opp['opp_nombre']) campErreur($is_ajax, 'Créature inconnue.', $redirect);
+
+  // Bornes de la colonne (smallint signé) : on autorise les PV négatifs
+  // (mourant en DD3.5), pas l'absurde.
+  $pv = max(-999, min(9999, $pv));
+
+  $stmt = $db->prepare('
+    INSERT INTO dd_oppositions_pv (opv_opp_id, opv_rang, opv_pv) VALUES (?, ?, ?)
+    ON DUPLICATE KEY UPDATE opv_pv = VALUES(opv_pv)
+  ');
+  $stmt->execute([$opp_id, $rang, $pv]);
+  campOk($is_ajax, $opp_id, $redirect);
+}
+
+function reinitialiserPvRencontre(PDO $db, bool $is_ajax, string $redirect): void
+{
+  $re_id = intParam($_POST['re_id'] ?? 0);
+  if (!$re_id || !checkReOwner($db, $re_id)) campErreur($is_ajax, 'Accès refusé.', $redirect);
+
+  $stmt = $db->prepare('
+    DELETE opv FROM dd_oppositions_pv opv
+    JOIN   dd_oppositions opp ON opp.opp_id = opv.opv_opp_id
+    WHERE  opp.opp_re_id = ?
+  ');
+  $stmt->execute([$re_id]);
+  campOk($is_ajax, $re_id, $redirect);
 }
 
 // Vérifie que l'utilisateur courant est MJ de la campagne porteuse de la rencontre.

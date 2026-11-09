@@ -60,6 +60,15 @@ $stmt_no = $db->prepare('
 $stmt_no->execute([$id]);
 $notes = $stmt_no->fetchAll();
 
+// Onglets mémorisés (SP-CP10). Les notes du scénario gardent leur onglet.
+$cle_onglets = 'sce-' . $id;
+$onglet      = ongletMemorise($cle_onglets, ['description', 'chapitres', 'notes'], 'description');
+$onglets     = [
+  'description' => ['fa-scroll',      'Description', 0],
+  'chapitres'   => ['fa-book-open',   'Chapitres',   count($chapitres)],
+  'notes'       => ['fa-sticky-note', 'Notes',       count($notes)],
+];
+
 $page_title     = $sce['sce_nom'];
 $js_module      = 'campagne';
 $css_module     = 'campagnes';
@@ -103,14 +112,22 @@ require_once '../include/header.php';
       </div>
     </div>
 
-    <?php if (!empty($sce['sce_description'])): ?>
-      <div class="camp-detail__description"><?= $sce['sce_description'] ?></div>
-    <?php endif ?>
+    <?php require __DIR__ . '/../include/onglets-nav.php'; ?>
+
+    <!-- Description -->
+    <div class="onglet-panneau" role="tabpanel" data-panneau-de="<?= h($cle_onglets) ?>"
+         data-panneau="description" <?= $onglet !== 'description' ? 'hidden' : '' ?>>
+      <?php if (!empty($sce['sce_description'])): ?>
+        <div class="camp-detail__description"><?= $sce['sce_description'] ?></div>
+      <?php else: ?>
+        <p class="text-muted">Aucune description pour le moment.</p>
+      <?php endif ?>
+    </div>
 
     <!-- Chapitres -->
-    <div class="camp-detail__section">
-      <div class="camp-section__header">
-        <h2 class="camp-detail__section-title">Chapitres</h2>
+    <div class="onglet-panneau" role="tabpanel" data-panneau-de="<?= h($cle_onglets) ?>"
+         data-panneau="chapitres" <?= $onglet !== 'chapitres' ? 'hidden' : '' ?>>
+      <div class="camp-section__header camp-section__header--onglet">
         <button class="btn btn-primary btn-sm"
                 onclick="actualiserPageModif('<?= $base_modifier ?>/chapitre.php',
                          {id:0, sce_id:<?= $id ?>})">
@@ -197,9 +214,9 @@ require_once '../include/header.php';
     </div>
 
     <!-- Notes du scénario (SP-NO3) -->
-    <div class="camp-detail__section">
-      <div class="camp-section__header">
-        <h2 class="camp-detail__section-title">Notes</h2>
+    <div class="onglet-panneau" role="tabpanel" data-panneau-de="<?= h($cle_onglets) ?>"
+         data-panneau="notes" <?= $onglet !== 'notes' ? 'hidden' : '' ?>>
+      <div class="camp-section__header camp-section__header--onglet">
         <div class="flex flex-gap">
           <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/campagnes/notes.php?f_campagne=<?= $camp_id ?>&amp;f_sce=<?= $id ?>">
             <i class="fa fa-list"></i> Toutes

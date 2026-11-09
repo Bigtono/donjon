@@ -52,6 +52,14 @@ $stmt_re = $db->prepare('
 $stmt_re->execute([$id]);
 $rencontres = $stmt_re->fetchAll();
 
+// Onglets mémorisés (SP-CP10)
+$cle_onglets = 'scc-' . $id;
+$onglet      = ongletMemorise($cle_onglets, ['description', 'rencontres'], 'description');
+$onglets     = [
+  'description' => ['fa-scroll',   'Description', 0],
+  'rencontres'  => ['fa-shield-halved', 'Rencontres',  count($rencontres)],
+];
+
 $page_title     = $scc['scc_nom'];
 $js_module      = 'campagne';
 $css_module     = 'campagnes';
@@ -99,25 +107,22 @@ require_once '../include/header.php';
       </div>
     </div>
 
-    <?php if (!empty($scc['scc_description'])): ?>
-      <div class="camp-detail__section">
-        <div class="camp-section__header">
-          <h2 class="camp-detail__section-title">Description</h2>
-          <button type="button" class="accordion-trigger" onclick="togglePlus('chapitre-description')"
-                  title="Replier / déplier">
-            <i class="fa fa-bars"></i>
-          </button>
-        </div>
-        <div id="chapitre-description" class="accordion-content">
-          <div class="camp-detail__description"><?= $scc['scc_description'] ?></div>
-        </div>
-      </div>
-    <?php endif ?>
+    <?php require __DIR__ . '/../include/onglets-nav.php'; ?>
+
+    <!-- Description -->
+    <div class="onglet-panneau" role="tabpanel" data-panneau-de="<?= h($cle_onglets) ?>"
+         data-panneau="description" <?= $onglet !== 'description' ? 'hidden' : '' ?>>
+      <?php if (!empty($scc['scc_description'])): ?>
+        <div class="camp-detail__description"><?= $scc['scc_description'] ?></div>
+      <?php else: ?>
+        <p class="text-muted">Aucune description pour le moment.</p>
+      <?php endif ?>
+    </div>
 
     <!-- Rencontres -->
-    <div class="camp-detail__section">
-      <div class="camp-section__header">
-        <h2 class="camp-detail__section-title">Rencontres</h2>
+    <div class="onglet-panneau" role="tabpanel" data-panneau-de="<?= h($cle_onglets) ?>"
+         data-panneau="rencontres" <?= $onglet !== 'rencontres' ? 'hidden' : '' ?>>
+      <div class="camp-section__header camp-section__header--onglet">
         <button class="btn btn-primary btn-sm"
                 onclick="actualiserPageModif('<?= $base_modifier ?>/rencontre.php',
                          {id:0, scc_id:<?= $id ?>})">

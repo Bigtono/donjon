@@ -159,7 +159,7 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
    compendium), `SP-MA` (référentiel de la magie), `SP-PE` (module Personnages), `SP-SC`
    (sous-classes DD2024), `SP-RS` (UI smartphone), `SP-CP` (refonte du module Campagnes), `SP-AD`
    (administration), `SP-RB` (bascule de ruleset depuis le header), `SP-DP` (déploiement en
-   production), `SP-XC` (export de classes vers la production), `SP-CH` (choix liés aux capacités de classe), `SP-DO` (dons DD3.5 : dons de guerrier, données techniques), `SP-NO` (module Notes : diffusion d'informations aux joueurs), `SP-MO` (import des monstres DD3.5 de l'ancienne application), `SP-SY` (synchronisation du contenu
+   production), `SP-XC` (export de classes vers la production), `SP-CH` (choix liés aux capacités de classe), `SP-DO` (dons DD3.5 : dons de guerrier, données techniques), `SP-NO` (module Notes : diffusion d'informations aux joueurs), `SP-MO` (import des monstres DD3.5 de l'ancienne application), `SP-CV` (import des scénarios, chapitres et rencontres de l'ancienne application), `SP-ML` (envoi de mails du site), `SP-SY` (synchronisation du contenu
    local → production, en attente d'arbitrage).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
@@ -246,9 +246,15 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   import v1 (`admin/import-notes-v1.php`) joué en local dans L'Empire des Anges (migrations jouées en production) ;
   SP-NO10 : dupliquer une note d'une autre campagne ;
   SP-NO11a livré (diffusion à toute la campagne, `no_diffusion_campagne`, D-NO19 → D-NO22, migration jouée en production)
+- SP-ML4 : mail de mot de passe oublié toujours non reçu en production (2026-11-08), malgré un envoi signalé comme réussi.
+  Envoi SMTP livré (`envoyerMail()`, PHPMailer dans `include/phpmailer/`). `admin/test-email.php` choisit un compte actif et peut
+  imiter le mail de réinitialisation (SP-ML5, ML6). Reste à tester vers une adresse non alias, puis à saisir le support OVH si nécessaire
 - SP-SY0 : arbitrage de la synchronisation du contenu local → prod (non prioritaire, voir §6c) —
   ajouter en prod le contenu local absent, sans jamais rien écraser
 - SP-TB8g : contrôle visuel de l'écran du MJ, migration `2026-11-07_sp-tb8b_ecran_mj.sql` à jouer en production
+- Pages Campagnes SP-CP10 → CP12 (2026-11-07) : onglets en page mémorisés en session, oppositions en fiches à sous-menu avec suivi
+  des PV (`dd_oppositions_pv`, `opp_nombre`, `opp_pv_max`), images jusqu'à 15 Mo. Restent SP-CP11b (`sql/2026-11-07_sp-cp11_oppositions_pv.sql`
+  **à jouer en production**), SP-CP11d (`sql/2026-11-08_sp-cv1b_effectifs_oppositions.sql`, effectifs lus dans la composition, à jouer après `sp-cv1`) et SP-CP12b (limite d'envoi PHP d'OVH à vérifier)
 - SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
 - SP-C6 : profil "Mes sources" — suppléments publics tiers
 - SP-E4 : `monstre-parser.php`, type liable `equipement` (SP-E5 soldée par SP-PO0)
@@ -256,6 +262,18 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - Compétences DD3.5 SP-DRS4b (2026-11-07) : texte intégral du DRS 04 pour les 36 fiches mères et 40 tableaux
   `competence-*` (catégorie Compétence) — `sql/2026-11-08_sp-drs4b_competences_dd35.sql`, **à jouer en production**
   (SP-DRS4d) ; journal `doc/LOG_CORRECTIONS_DRS04.md` §5
+- Monstres du DRS 29 à 40 (2026-11-07) : règles SP-DRS9a (chapitre « Les monstres »), dons SP-DRS9b (tag
+  `[[liste:don|famille=…]]`), archétypes SP-DRS9c (Races, type Archétype), FP SP-MO7a — migrations
+  `sql/2026-11-08_sp-drs9*` et `_sp-mo7a_*` jouées en local, **à jouer en production**. Fiches SP-MO7 :
+  435 fiches importées en local (mo_id 3001-3435, `sql/2026-11-08_sp-mo7c_*`, jouée en production le 2026-11-08,
+  générateur `tools/generer-sp-mo7-monstres-drs.php`) ; journal `doc/LOG_CORRECTIONS_DRS29_40.md`
+- Classes de prestige et de PNJ DD3.5 SP-DRS10a (2026-11-09) : DRS 08a, 08b, 15 — 15 prestiges mis en conformité (conditions, armes,
+  compétences liées domaine par domaine, sorts, capacités en texte intégral avec variantes par classe D-DRS11), 5 classes de PNJ créées,
+  racine de règles « Les classes » et 4 termes de glossaire — `sql/2026-11-09_sp-drs10_classes_prestige_pnj_dd35.sql`, jouée en local,
+  **à jouer en production** (SP-DRS10c) ; contrôle visuel SP-DRS10b ; journal `doc/LOG_CORRECTIONS_DRS08_15.md`
+- Scénarios v1 de L'Empire des Anges SP-CV1 (2026-11-07) : 2 scénarios, 10 chapitres, 64 rencontres, 119 oppositions
+  recopiées des fiches SP-MO3 — `sql/2026-11-08_sp-cv1_campagne_empire_v1.sql`, contrôle visuel validé (SP-CV2), jouée en production le 2026-11-08 (SP-CV3)
+  ; journal `doc/LOG_IMPORT_CAMPAGNE_EMPIRE_V1.md`
 - Autres phases ouvertes (détail dans §0) : SP-MA4c / MA5 / MA6e (magie), SP-DRS4d / DRS4e, SP-DRS5 et SP-GL4 (lots
   suivants du DRS), SP-RS5 / RS6c (UI smartphone), SP-CP8 (outils de partie), SP-XC4 (premier export
   de classes joué en production)

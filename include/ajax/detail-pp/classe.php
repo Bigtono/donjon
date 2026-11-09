@@ -370,7 +370,16 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
               <?php endif ?>
             </span>
           <?php endforeach ?>
+          <?php // DD3.5 : texte libre en complément de la liste (« … et une compétence au choix »). ?>
+          <?php if ($ruleset === 'DD3.5' && trim((string)$cla['cla_competences']) !== ''): ?>
+            <div><?= h($cla['cla_competences']) ?></div>
+          <?php endif ?>
         </div>
+      </div>
+    <?php elseif ($ruleset === 'DD3.5' && trim((string)$cla['cla_competences']) !== ''): ?>
+      <div class="sort-detail__row sort-detail__row--inline">
+        <span class="sort-detail__label">Compétences de classe</span>
+        <div class="sort-detail__value"><?= h($cla['cla_competences']) ?></div>
       </div>
     <?php elseif ($ruleset === 'DD2024' && $cla['cla_competences']): ?>
       <div class="sort-detail__row sort-detail__row--inline">

@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-07 11:40 -->
+<!-- Mis à jour : 2026-11-09 19:40 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -39,6 +39,9 @@
 | 1.25 | 2026-11-07 | JM | Base locale **rechargée depuis le dump de production** du 2026-11-07 : toutes les migrations antérieures (1.17 → 1.24 comprises) y étaient jouées, les mentions « reste à appliquer en prod » de ces lignes sont donc soldées. **SP-TB12** — `dd_tableaux_categories` CRÉÉE (8 catégories communes aux rulesets), `dd_tableaux.tab_tabc_id` AJOUTÉE (FK, `ON DELETE SET NULL`) ; les 113 tableaux classés. SQL : `sql/2026-11-07_sp-tb12a_categories_tableaux.sql`, `…_sp-tb12b_tableaux_upsert.sql` (renvoi de toute la table, appliqués en dev le 2026-11-07 ; **restent à appliquer en prod OVH**) |
 | 1.26 | 2026-11-07 | JM | **SP-TB8** — écran du MJ : `dd_campagnes_ecran` CRÉÉE (tableaux posés sur l'écran d'une campagne, FK en cascade), `dd_campagnes.camp_ecran_colonnes` AJOUTÉE. SQL : `sql/2026-11-07_sp-tb8b_ecran_mj.sql` (appliqué en dev le 2026-11-07 ; **reste à appliquer en prod OVH**) |
 | 1.27 | 2026-11-07 | JM | **SP-DRS4b / SP-TB13** — données seulement, aucune colonne : `dd_tableaux_categories` reçoit la catégorie 9 « Compétence » ; 40 tableaux `competence-*` ajoutés à `dd_tableaux` (DD3.5) ; `dd_competences.comp_description` réécrite pour les 36 compétences mères DD3.5 ; deux `comp_nom` débarrassés d'un blanc final. SQL : `sql/2026-11-08_sp-drs4b_competences_dd35.sql` (appliqué en dev le 2026-11-07 ; **reste à appliquer en prod OVH**) |
+| 1.28 | 2026-11-07 | JM | **SP-CP11** — suivi des PV des oppositions : `dd_oppositions.opp_nombre` (effectif, défaut 1) et `opp_pv_max` (PV max d'une créature, pré-rempli d'après la ligne « PV » du bloc de stats : 121 / 128 en local) AJOUTÉES ; `dd_oppositions_pv` CRÉÉE (PV courants des créatures entamées, FK en cascade). SQL : `sql/2026-11-07_sp-cp11_oppositions_pv.sql` (**NON IDEMPOTENT**, appliqué en dev le 2026-11-07 ; **reste à appliquer en prod OVH**) |
+| 1.29 | 2026-11-07 | JM | **SP-CP11c** — données seulement, aucune colonne : `dd_oppositions.opp_nombre` renseigné d'après la composition des rencontres de la campagne v1 (55 oppositions), `opp_pv_max` repris là où il était vide. SQL : `sql/2026-11-08_sp-cv1b_effectifs_oppositions.sql` (appliqué en dev le 2026-11-07 ; **reste à appliquer en prod OVH**, après `sp-cv1`) |
+| 1.30 | 2026-11-09 | JM | **SP-DRS10** — données seulement, aucune colonne : 15 classes de prestige DD3.5 mises en conformité avec le DRS (`dd_classes`, `dd_classe_niveau`, `dd_classe_capacite`, `dd_classe_competence`, `dd_sortclasse`), 5 classes de PNJ créées (`cla_clt_id` 3) ; capacités réécrites ou créées dans `dd_capacites_speciales`, `cap_classe_initiale` désormais renseignée pour les capacités propres à une classe (variantes, D-DRS11) ; 5 tableaux `classe-*` (catégorie Classe) ; racine de règles « Les classes » et 4 termes de glossaire dans `dd_regles`. SQL : `sql/2026-11-09_sp-drs10_classes_prestige_pnj_dd35.sql` (appliqué en dev le 2026-11-09 ; **reste à appliquer en prod OVH**) |
 | 1.5 | 2026-07-01 | JM | Audit `SHOW CREATE TABLE` sur les 7 tables restantes du Supplément (SP-C5/C6, débloquant) : `_public`/`_visible` **existent déjà en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques` (+ `om_public` sur `dd_objets_magiques`, `om_visible` déjà documenté). Colonnes ajoutées à la doc ci-dessous. `sql/patch_004_supplements.sql` reste introuvable dans le dépôt (appliqué directement en base, jamais committé — même écart que l'incident `mo_j_id`). Écart noté au passage : `dd_dons.do_page_source` (int NOT NULL) présent en base, non documenté, sans rapport avec SP-C — non traité ici |
 
 ---
@@ -475,7 +478,7 @@ Capacités spéciales attribuables aux classes.
 | cap_nom | varchar(150) | nn | |
 | cap_description | text | null | Description complète |
 | cap_type | varchar(50) | null | Ex : Ext, Mag, Sur |
-| cap_classe_initiale | int | null | -> dd_classes, classe d'origine de la capacité |
+| cap_classe_initiale | int | null | -> dd_classes, classe d'origine de la capacité ; pour une variante propre à une classe (D-DRS11), c'est elle qui distingue deux capacités de même nom |
 | cap_choix_mode | varchar(10) | nn, défaut '' | *[SP-CH]* Nature du choix que le joueur saisit sur sa fiche : vide = aucun, `texte` ou `don` |
 | cap_choix_dado_id | int unsigned | null | *[SP-CH]* -> dd_data_don : catégorie de don proposée en mode `don` (NULL = toutes). Non transporté par l'export de classes |
 | cap_choix_guerrier | tinyint(1) | nn, défaut 0 | *[SP-DO]* Mode `don` : limite le choix aux dons de guerrier (`dd_dons.do_guerrier`) ; avec `cap_choix_dado_id`, dons de guerrier OU de cette catégorie (Guerrier psychique : + dons psioniques) |
@@ -1138,6 +1141,8 @@ librement pour sa partie, **sans altérer le compendium** ; ou bien saisit direc
 | opp_nom | varchar(150) | nn | Recopié de `mo_nom` si monstre choisi, sinon saisi librement. Éditable |
 | opp_mocat_nom | varchar(150) | null | Recopié du libellé de catégorie (`mocat_nom` via `mo_mocat_id`) si monstre choisi, sinon texte libre. Éditable |
 | opp_stats | text | null | Recopié de `mo_stats` si monstre choisi, sinon saisi librement. Éditable |
+| opp_nombre | tinyint unsigned | nn, défaut 1 | Effectif : nombre de créatures identiques (SP-CP11). Saisi dans le formulaire d'opposition |
+| opp_pv_max | smallint unsigned | null | PV max d'une créature (SP-CP11). `NULL` = lus dans `opp_stats` à l'affichage (`pvMaxDepuisStats()`) |
 | opp_ordre | smallint unsigned | nn, défaut 0 | Ordre d'affichage dans la rencontre. Glisser-déposer uniquement (SP-CP0). Une opposition transférée ou dupliquée se pose en fin de la rencontre d'arrivée |
 | opp_re_id | int unsigned | nn | Rencontre parente -> dd_rencontres |
 | opp_mo_id | int unsigned | **null** | Monstre-template d'origine -> dd_monstres. **Non éditable** par le MJ une fois fixé (traçabilité). **`NULL` = opposition saisie manuellement**, sans monstre d'origine au compendium. |
@@ -1153,6 +1158,18 @@ librement pour sa partie, **sans altérer le compendium** ; ou bien saisit direc
 > `opp_mo_id` rendu **nullable** le 2026-06-20 (`sql/2026-06-20_oppositions_monstre_optionnel.sql`,
 > committé + testé sur MariaDB réelle) — était `NOT NULL` à l'origine, bloquant toute saisie
 > manuelle.
+
+### dd_oppositions_pv
+PV courants des créatures **entamées** d'une opposition (SP-CP11). Une ligne absente = la créature est à `opp_pv_max`.
+
+| Champ | Type | Null | Commentaire |
+|---|---|---|---|
+| opv_opp_id | int unsigned | PK | -> dd_oppositions (`ON DELETE CASCADE`) |
+| opv_rang | tinyint unsigned | PK | N° de la créature dans l'opposition (1..`opp_nombre`) |
+| opv_pv | smallint | nn | PV courants, négatifs admis |
+
+> Réinitialiser une rencontre = supprimer ses lignes. Réduire `opp_nombre` supprime les rangs en trop.
+> La duplication d'une opposition ne recopie pas cette table.
 
 ---
 

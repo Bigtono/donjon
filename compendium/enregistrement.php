@@ -1552,24 +1552,37 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
   // Flags booléens (checkboxes — absent = 0)
   $domaineDivin = isset($_POST['cla_domaine_divin']) ? 1 : 0;
 
+  // Un champ que le formulaire n'affiche pas pour ce ruleset (armures et outils en
+  // DD3.5, alignement et or de départ en DD2024, champs hérités…) n'est pas envoyé :
+  // il garde sa valeur en base au lieu d'être vidé à chaque enregistrement.
+  $actuel = [];
+  if ($cla_id > 0):
+    $stmt = $db->prepare('SELECT * FROM dd_classes WHERE cla_id = ?');
+    $stmt->execute([$cla_id]);
+    $actuel = $stmt->fetch() ?: [];
+  endif;
+  $garde = fn(string $k) => array_key_exists($k, $_POST) ? $_POST[$k] : (array_key_exists($k, $actuel) ? $actuel[$k] : '');
+  if (!array_key_exists('cla_alignement', $_POST)) $alignement = (string)($actuel['cla_alignement'] ?? '');
+  if (!array_key_exists('cla_po_niveau1', $_POST)) $poNiv1 = (int)($actuel['cla_po_niveau1'] ?? 0);
+
   // Champs texte TinyMCE (HTML — pas de h())
-  $description    = $_POST['cla_description']    ?? '';
-  $armes          = $_POST['cla_armes']          ?? '';
-  $armures        = $_POST['cla_armures']        ?? '';
-  $outils         = $_POST['cla_outils']         ?? '';
-  $sauvegardes    = $_POST['cla_sauvegardes']    ?? '';
-  $equipement     = $_POST['cla_equipement']     ?? '';
-  $competences    = $_POST['cla_competences']    ?? '';
-  $sorts          = $_POST['cla_sorts']          ?? '';
+  $description    = $garde('cla_description');
+  $armes          = $garde('cla_armes');
+  $armures        = $garde('cla_armures');
+  $outils         = $garde('cla_outils');
+  $sauvegardes    = $garde('cla_sauvegardes');
+  $equipement     = $garde('cla_equipement');
+  $competences    = $garde('cla_competences');
+  $sorts          = $garde('cla_sorts');
   $conditions     = $_POST['cla_conditions']     ?? '';
   // Conditions d'accès : propres aux classes de prestige. Le champ reste dans le
   // formulaire, masqué, quand on choisit un autre type : on ne garde pas son contenu.
   if ($clt_id !== 2):
     $conditions = '';
   endif;
-  $caracteristiques = $_POST['cla_caracteristiques'] ?? '';
-  $traits         = $_POST['cla_traits']         ?? '';
-  $critere_rec    = $_POST['cla_critere_rec']    ?? '';
+  $caracteristiques = $garde('cla_caracteristiques');
+  $traits         = $garde('cla_traits');
+  $critere_rec    = $garde('cla_critere_rec');
 
   // Intitulés des pouvoirs 1-5
   $pouvoirs = [];
@@ -1750,6 +1763,27 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
         WHERE cla_id = :cla_id
       ');
       $stmt->execute($params);
+    endif;
+
+    // ---- 1b. Compétences de classe (DD3.5, formulaire à cases) ----
+    // Réécrites seulement si la liste a été affichée (ccomp_soumis) : un formulaire
+    // qui ne la montre pas (DD2024, sous-classe) laisse les liaisons intactes.
+    // Plusieurs précisions séparées par « ; » donnent plusieurs liaisons.
+    if (isset($_POST['ccomp_soumis']) && !$estSousClasse):
+      $cochees = array_keys(array_filter((array)($_POST['ccomp'] ?? [])));
+      $precs   = (array)($_POST['ccomp_prec'] ?? []);
+      $stmt_ok = $db->prepare('SELECT comp_id FROM dd_competences WHERE comp_id = ? AND comp_ruleset_var_id = ?');
+      $db->prepare('DELETE FROM dd_classe_competence WHERE ccomp_cla_id = ?')->execute([$cla_id]);
+      $stmt_ins = $db->prepare('INSERT INTO dd_classe_competence (ccomp_cla_id, ccomp_comp_id, ccomp_precision) VALUES (?, ?, ?)');
+      foreach ($cochees as $comp_id):
+        $comp_id = (int)$comp_id;
+        $stmt_ok->execute([$comp_id, $ruleset_id]);
+        if (!$stmt_ok->fetchColumn()) continue;
+        $liste = array_values(array_filter(array_map('trim', explode(';', (string)($precs[$comp_id] ?? ''))), fn($p) => $p !== ''));
+        foreach ($liste ?: [null] as $p):
+          $stmt_ins->execute([$cla_id, $comp_id, $p === null ? null : mb_substr($p, 0, 30)]);   // ccomp_precision : varchar(30)
+        endforeach;
+      endforeach;
     endif;
 
     // ---- 2. Table de progression (UPSERT niveau par niveau) ----

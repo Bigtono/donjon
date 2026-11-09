@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-07 11:40 -->
+<!-- Mis à jour : 2026-11-09 21:00 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -8166,3 +8166,318 @@ portée par la migration de SP-DRS4b. Elle regroupe les 40 tableaux des fiches d
 → Les deux tableaux des règles générales du DRS 04 (« Exemples de degrés de difficulté », « Exemples
   de tests opposés ») **restent dans « Règle »** (choix de l'utilisateur) : ils illustrent le
   mécanisme du test, pas une compétence.
+
+## SP-DRS9 / SP-MO7 — Les monstres du DRS 29 à 40 (2026-11-07)
+
+**[2026-11-07] D-DRS7 — Règles des monstres : un chapitre de la racine « Créatures et pouvoirs spéciaux »**
+Phase SP-DRS9a. Les DRS 29 à 32 décrivent la lecture d'un profil, l'évolution des monstres, leurs dons et
+les personnages monstrueux. Arbitrage de l'utilisateur :
+→ **Chapitre « Les monstres »** (ordre 30, après « Types et sous-types ») sous la racine existante, en
+  **4 parties calquées sur les 4 PDF** ; la partie « Évolution des monstres » (DRS 30) est un chapitre de
+  5 pages (tirage des caractéristiques, niveaux de classe, augmentation des DV, archétypes, FP des
+  monstres évolués). Slug `archetypes-des-monstres`, pour ne pas prendre `archetypes`.
+→ 7 tableaux de catégorie Monstre et 10 termes de glossaire (Archétype, Créature de base, NGE…).
+→ Les fiches (DRS 33 à 40) ne sont pas des règles : elles vont dans le compendium (D-MO6).
+
+**[2026-11-07] D-DRS8 — Dons des monstres : compendium d'abord, liste dynamique dans la règle**
+Phase SP-DRS9b. Des 13 dons du DRS 31, 9 étaient déjà en base (Manuel des monstres, Coup fabuleux).
+→ **Les 4 manquants sont ajoutés au compendium** (choix de l'utilisateur), catégorie « Monstres », source
+  DRS 3.5 : Capture, Création de créature artificielle, Extension de pouvoir magique, Pouvoir magique
+  rapide. Les deux derniers appellent la table `[[tab:pouvoirs-magiques-rapides-et-etendus]]`.
+→ La page « Dons des monstres » **liste** les dons par un nouveau tag `[[liste:don|famille=monstres]]`
+  au lieu de recopier leur texte : une seule source de vérité. Entité `don` ajoutée à
+  `include/liste-parser.php` (`listeRendreDon()`, familles par slug du nom de catégorie), sans
+  extension du sélecteur de l'éditeur.
+→ Corrigé en passant : le « Pouvoir magique rapide » des Chapitres interdits portait la catégorie
+  « Général » **du ruleset DD2024** (id 19) ; il passe à « Général » DD3.5.
+
+**[2026-11-07] D-DRS9 — Archétypes : compendium Races, type Archétype**
+Phase SP-DRS9c. L'utilisateur pensait les archétypes rangés dans Classes ; la base les range dans Races
+(`ra_rat_id` = 2 : Demi-dragon, Céleste, Fiélon). Question reposée, réponse : **Races, type Archétype**.
+→ 8 archétypes ajoutés, source DRS 3.5 : Demi-céleste, Demi-fiélon, Fantôme, Liche, Lycanthrope,
+  Squelette, Vampire, Zombi. Texte intégral des sections « Création de … » en HTML (libellés en
+  `<strong>`, intertitres en `<h4>`, traits en liste), 14 tableaux `archetype-*` ressaisis à la main.
+→ `ra_mod_niveau` = ajustement de niveau du DRS (Lycanthrope : +2, valeur de l'infecté ; le naturel
+  +3 est dans le texte ; Squelette et Zombi : 0, le DRS dit « — »).
+→ **Les 3 archétypes existants ne sont pas réécrits** (autres sources, contenus déjà relus).
+→ Le texte des archétypes est retiré des fiches de monstres : la fiche d'exemple (Vampirien, Loup-garou…)
+  garde son profil et sa description, la section « Création de … » vit dans Races.
+
+**[2026-11-07] D-MO6 — Fiches du DRS 33 à 40 : une fiche par colonne de profil**
+Phase SP-MO7. Le DRS présente souvent plusieurs profils côte à côte (tailles d'araignée monstrueuse,
+élémentaires de P à seigneur, formes du lycanthrope) et les dragons par tables d'âge.
+→ **Colonne = fiche** (choix de l'utilisateur) : « Araignée monstrueuse, très petite » … « colossale ».
+  Le texte commun (description, combat, tableaux) suit chaque fiche de la série.
+→ **Dragons véritables** : une fiche « Dragon véritable » porte les règles communes (âges, attaques,
+  souffle, présence terrifiante, déplacement) et leurs 4 tableaux ; une fiche par couleur (10) porte
+  son profil, son texte et deux tableaux par âge (`dragon-<couleur>-profils`, `-pouvoirs`). Le FP
+  dépend de l'âge : `mo_fp_id` reste NULL, la ligne « Facteur de puissance » donne la liste.
+→ Compendium général : `mo_camp_id` NULL, source DRS 3.5, `mo_public` 0, `mo_visible` 1 ; catégorie lue
+  sur la ligne de type (catégories DD3.5 de SP-MO1). **mo_id réservés à partir de 3001**, attribués
+  avant le filtre du générateur : une fiche garde son id entre l'import test et l'import complet.
+→ Générateur `tools/generer-sp-mo7-monstres-drs.php` (CLI, hors git) sur l'extraction `pdftotext -table`
+  des PDF : 435 fiches, 41 tableaux. Les tables illisibles en extraction (âges des dragons, tailles des
+  élémentaires) sont ressaisies. Corrections : `doc/LOG_CORRECTIONS_DRS29_40.md`.
+→ Comme pour SP-MO3 (D-MO5), **import test de 21 fiches à valider par l'utilisateur** avant l'import
+  complet ; le test est joué en local sans être enregistré comme migration.
+
+**[2026-11-07] D-MO7 — Référentiel des FP complété, tri décimal**
+Les fiches du DRS portent des FP absents de `dd_fp` : 1/10, 1/6, 1/3, 16 et de 23 à 30.
+→ `fp_nom` passe de varchar(3) à varchar(5) (« 1/10 ») ; 12 valeurs ajoutées.
+→ `fp_valeur` ne sert qu'à trier les listes (filtre FP du compendium, formulaire monstre). En entier,
+  1/8, 1/4 et 1/2 valaient 0 ou 1 comme 0 et 1 : il passe en `decimal(6,3)` avec la valeur exacte.
+  Le référentiel est commun aux deux rulesets : la liste DD2024 gagne seulement un ordre exact.
+→ `sql/2026-11-08_sp-mo7a_fp_dd35.sql`, datée du 08 comme les autres migrations du lot.
+
+**[2026-11-07] D-MO8 — Import complet des fiches du DRS après validation du test**
+→ L'utilisateur valide les 21 fiches de test. Elles sont retirées (aucune opposition ne les référence)
+  pour être réinsérées avec le texte final du générateur, puis `sql/2026-11-08_sp-mo7c_monstres_drs_dd35.sql`
+  est jouée en local par le moteur : 435 fiches (mo_id 3001-3435), 41 tableaux. Les 435 fiches se rendent
+  sans avertissement ni tableau manquant ; 11 fiches sans FP (les dragons véritables, D-MO6).
+
+**[2026-11-07] D-CV0 — Rencontres v1 : une opposition par lien, effectifs en clair**
+Source : `dd_rencontres_monstres` de l'ancienne application (rencontre, monstre, effectif), campagne v1 1 « L'Empire des
+Anges » → campagne v2 5. Code : `tools/generer-sp-cv1-campagne-empire-v1.php`, `sql/2026-11-08_sp-cv1_campagne_empire_v1.sql`.
+→ **Décision (utilisateur).** Chaque lien devient une opposition recopiée, au jeu de la migration, de la fiche v2
+  importée par SP-MO3 (`mo_id` = 2000 + id v1) : `opp_nom`, `opp_mocat_nom`, `opp_stats`, `opp_mo_id` figé. Le MJ
+  l'adapte à la marge sans toucher au compendium.
+→ L'effectif est écrit dans `re_composition` (« 4 × Mage Shadovar » ; effectif 0 → « effectif non précisé »),
+  conformément au schéma v2 qui n'a pas de colonne d'effectif. La description de la rencontre (TinyMCE, image
+  téléversée) accueille le récit et le plan : rien à développer.
+→ Liens écartés (journal `doc/LOG_IMPORT_CAMPAGNE_EMPIRE_V1.md`) : rencontres supprimées en v1 (40-42, 67-69, 0)
+  et monstres supprimés en v1 (251, 252 de Barbicane).
+
+**[2026-11-07] D-CV1 — Rencontre v1 79 « Attaque Shadovar » importée**
+Saisie tardive sans scénario ni propriétaire, mais rattachée au chapitre « Recherches et développements ».
+→ **Décision (utilisateur).** Les rencontres sont rattachées par leur chapitre : elle est importée.
+
+**[2026-11-07] D-CV2 — Descriptions v1 parasites vidées**
+→ **Décision (utilisateur).** « 3 », « 5 » (numéro de chapitre saisi par erreur), vide et « blabla bla » → NULL.
+  Les autres descriptions (scénario Anauroch, rencontres M6 et C00a) passent par `nettoyerHtmlV1()`
+  (`include/notes-import-v1.php`) : entités converties, images retirées. Noms et codes débarrassés des espaces.
+  `re_ordre` suit le tri naturel du code v1 (C00a, C01, C08…).
+
+**[2026-11-07] D-CV3 — Ids figés 2000 + id v1**
+→ Comme D-MO3 : `sce_id`, `scc_id`, `re_id` = 2000 + id v1, `opp_id` = 2000 + `rem_id`, hors des plages locale
+  et prod (sce ≤ 4, scc ≤ 1, re ≤ 7, opp ≤ 10). Chaque INSERT exige la campagne 5 et `NOT EXISTS` : la migration
+  se rejoue sans doublon (vérifié en local : 0 ligne au second jeu). Elle porte un nom postérieur à
+  `2026-11-06_sp-mo3_…`, dont elle dépend.
+
+**[2026-11-07] D-CP12 — SP-CP10 : onglets dans les pages Campagnes, mémorisés en session**
+Demande de l'utilisateur.
+→ **Colonne d'outils réduite d'un tiers** : `minmax(175px, 16.667%)` au lieu de `minmax(260px, 25%)`. Elle passe
+  de ~363px à ~242px à la cible de 1536px. Le gabarit étant commun, cela vaut pour toutes les pages du module,
+  pas seulement pour la campagne.
+→ **Onglets EN PAGE**, pas des sous-pages : scénario (Description · Chapitres · Notes), chapitre (Description ·
+  Rencontres), rencontre (Description · Composition · Oppositions). Le scénario garde un troisième onglet
+  **Notes**, absent de la demande, pour ne pas perdre la section des notes du scénario (SP-NO3).
+  L'accordéon de la description du chapitre et de la rencontre disparaît : l'onglet le remplace.
+  Un onglet vide l'annonce (« Aucune description pour le moment »).
+→ **Mémoire de session par élément** (`$_SESSION['camp_onglets']`), écrite par l'action AJAX
+  `memoriserOnglet` et rendue par le serveur à la visite suivante. Clé et valeur sont validées ; aucune base, aucun
+  contrôle de propriété, puisque la donnée ne quitte pas la session de l'utilisateur. La campagne, restée en
+  sous-pages, mémorise sa sous-page. `campagne.php` sans `o=` y renvoie.
+→ Composant : `include/onglets-nav.php` reprend les classes `.page-nav*` (D-CP10). Un seul style donc pour les
+  onglets-liens (sous-pages) et les onglets-boutons (en page).
+→ **Vérifié** dans le navigateur :
+  - les onglets s'affichent et basculent ;
+  - l'onglet ouvert est mémorisé et rouvert au rechargement (rencontre, chapitre, scénario) ;
+  - la campagne renvoie vers la sous-page mémorisée ;
+  - une clé invalide est refusée ;
+  - la colonne d'outils mesure 242px à 1536px ;
+  - aucune erreur PHP.
+
+**[2026-11-07] D-CP13 — SP-CP11 : PV des oppositions conservés en base**
+Arbitrage de l'utilisateur (question 1) : en base, plutôt qu'en session ou dans le navigateur. Une partie
+s'étale sur plusieurs séances et parfois sur plusieurs postes.
+→ Table `dd_oppositions_pv` (opposition, rang de la créature, PV courants), FK en cascade sur `dd_oppositions`.
+  Seules les créatures **entamées** y figurent : une ligne absente vaut PV max. Réinitialiser une rencontre, c'est
+  supprimer ses lignes.
+→ PV négatifs admis (DD3.5 : mourant), bornés à −999 / 9999.
+→ Affichage (arbitrage, question 4) : **bandeau commun** à la rencontre au-dessus des fiches, et PV repris dans la
+  fiche de chaque opposition. Les deux copies sont synchronisées en JS. Seul le bandeau porte le total.
+→ Sous-menu des oppositions : une fiche à la fois, comme sur la capture fournie. Le glisser-déposer des cartes
+  passe dans le sous-menu, avec le même contrat `tri-liste`.
+
+**[2026-11-07] D-CP14 — SP-CP11 : effectif et PV max en colonnes, pré-remplis**
+Arbitrage de l'utilisateur (question 2). L'effectif et les PV n'existaient qu'en texte libre. Deux colonnes
+sur `dd_oppositions` : `opp_nombre` (défaut 1) et `opp_pv_max`. On les saisit dans le formulaire d'opposition.
+→ **Pré-remplissage** par la migration : `opp_pv_max` est lu sur la ligne « PV » du bloc de stats (121
+  oppositions sur 128 en local ; les 7 autres n'ont pas de ligne PV). Aucun nom local ne portait d'effectif
+  (« (5) ») : `opp_nombre` part de 1 partout et se corrige dans le formulaire.
+→ **Repli à l'affichage** : si `opp_pv_max` est vide, la page lit les stats (`pvMaxDepuisStats()`), et
+  l'enregistrement fait de même. La migration n'a donc aucune dépendance d'ordre avec `sp-cv1` (oppositions
+  insérées après elle en production).
+→ La duplication recopie l'effectif et les PV max, jamais l'état des PV. Réduire l'effectif efface le suivi des
+  créatures retirées.
+→ **Vérifié** dans le navigateur (rencontre « Susurrus Déchainé ») :
+  - dégâts et soins appliqués ;
+  - les deux copies de la créature et le total suivent ;
+  - les valeurs persistent au rechargement ;
+  - avec l'effectif porté à 3 par le formulaire, on obtient trois créatures et l'état du n°1 est gardé ;
+  - la réinitialisation fonctionne ;
+  - « PV max à saisir » s'affiche pour une opposition sans PV.
+  Les données d'essai ont été remises à l'état d'origine. Le glisser-déposer du sous-menu n'a pas été rejoué.
+
+**[2026-11-07] D-CP15 — SP-CP12 : images dans les descriptions, 15 Mo**
+Arbitrage de l'utilisateur (question 3).
+→ La campagne, le scénario et la rencontre acceptaient déjà les images. Le **chapitre** reçoit le même plugin
+  TinyMCE (`image table`, envoi automatique).
+→ Limite de `include/ajax/upload-image.php` : 5 → **15 Mo**. Un plan exporté en PNG dépasse souvent 5 Mo.
+  En local, PHP accepte 40 Mo. Sur OVH, `upload_max_filesize` / `post_max_size` restent à vérifier (SP-CP12b).
+→ Lecture d'un plan : un clic sur une image de description l'ouvre seule dans un nouvel onglet.
+→ **Vérifié** : le bouton image est présent dans le formulaire du chapitre, et une image PNG de 11,1 Mo est
+  acceptée (fichier d'essai supprimé ensuite).
+
+**[2026-11-07] D-CP16 — SP-CP11c : effectif des oppositions lu dans la composition**
+Retour de l'utilisateur : dans « Les catacombes d'Oreme », la rencontre compte 5 Asabis et Kharantes, mais
+l'écran n'affichait qu'un compteur pour les Asabis.
+→ Cause : la v1 écrit le nombre de créatures dans la composition de la rencontre (« 5 × Asabi Brute »),
+  pas dans l'opposition. L'import SP-CV1 avait donc laissé `opp_nombre` à 1 partout.
+→ Rattrapage des données : `sql/2026-11-08_sp-cv1b_effectifs_oppositions.sql`. Les 118 lignes « N × Nom » des
+  compositions sont toutes rapprochées d'une opposition, ce qui donne 55 effectifs supérieurs à 1. La migration
+  ne touche que les oppositions encore à 1 et repasse le pré-remplissage des PV max. Elle est placée après
+  `sp-cv1` et `sp-cp11` dans l'ordre du moteur.
+→ Pour la suite : à la **création** d'une opposition laissée à 1, l'enregistrement reprend l'effectif écrit dans
+  la composition (`effectifOpposition()`). En modification, la valeur saisie fait foi.
+→ **Vérifié** : la rencontre 2059 affiche 5 compteurs Asabi Brute (82 PV) et 1 Kharantes (139 PV), dans le
+  bandeau et dans les fiches.
+
+---
+
+## SP-ML — Envoi de mails du site (2026-11-08)
+
+**[2026-11-08] D-ML0 — Mail de mot de passe oublié non reçu : corriger `mail()` avant d'envisager le SMTP**
+Signalement : message de confirmation affiché en production, rien de reçu sur Gmail. La cause exacte n'est pas établie,
+car le message est le même dans tous les cas et le retour de `mail()` était ignoré.
+→ Défauts corrigés : expéditeur tiré de `HTTP_HOST`, pas d'enveloppe `-f`, sujet accentué non encodé, pas de `MIME-Version`,
+  aucune trace d'échec.
+→ Le SMTP authentifié (SP-ML3) demanderait une bibliothèque et un mot de passe de boîte en configuration : il ne sera
+  arbitré que si le test réel de SP-ML2 montre un message accepté mais non délivré.
+
+**[2026-11-08] D-ML1 — Domaine des mails et des liens lu en configuration**
+`SITE_ORIGINE` et `MAIL_EXPEDITEUR` remplacent `HTTP_HOST`, fourni par le client, qui permettait de fausser le lien de
+réinitialisation et donnait `noreply@www.…` selon l'adresse de visite.
+→ `config/db.config.php` n'étant pas déployé, les constantes s'ajoutent à la main en production. En leur absence, rien n'est
+  envoyé, l'erreur est journalisée et le message affiché ne change pas.
+
+**[2026-11-08] D-ML2 — Expiration du token calculée en SQL**
+Écrite par PHP (`date()`) et relue par MySQL (`NOW()`) sans fuseau fixé, elle pouvait être décalée. `DATE_ADD(NOW(), …)` retire
+ce risque sans migration.
+
+**[2026-11-08] D-ML3 — Test d'envoi limité à l'adresse de l'admin connecté**
+`admin/test-email.php` ne propose aucun champ destinataire, pour ne pas servir à écrire à un tiers. Sa réponse rappelle
+qu'un message accepté par le serveur n'est pas forcément délivré.
+→ **Vérifié en local**, envoi remplacé par une capture : en-têtes et enveloppe, parcours complet dans une transaction annulée,
+  adresse inconnue, refus sans CSRF et hors admin. **Non vérifié** : envoi réel depuis OVH (SP-ML2), rendu visuel de la page.
+
+**[2026-11-08] D-ML4 — SP-ML3 : passage au SMTP authentifié, sans repli sur `mail()`**
+Test de production (SP-ML2) : `mail()` accepte le message et OVH le compte sans erreur (2 envois ce jour-là), mais rien
+n'arrive dans Gmail, indésirables compris, ni dans `noreply@maikastel.fr`. La cause exacte reste inconnue.
+→ Envoi par `ssl0.ovh.net:465` (TLS implicite, certificat vérifié) avec la boîte `noreply@maikastel.fr`. L'hôte n'a pas encore
+  été essayé depuis l'hébergement : le test SP-ML4 validera aussi cette sortie réseau.
+→ Pas de repli sur `mail()` en cas d'échec SMTP : il afficherait un succès pour un message qui peut se perdre.
+
+**[2026-11-08] D-ML5 — PHPMailer 7.2.0 copié dans `include/phpmailer/`, mot de passe saisi par l'utilisateur**
+Arbitrage de l'utilisateur : PHPMailer plutôt qu'un client maison, pour ne pas maintenir TLS et authentification. Le projet
+n'utilisant pas Composer, seuls `PHPMailer.php`, `SMTP.php`, `Exception.php` et `LICENSE` sont copiés, sans modification.
+→ Le mot de passe est écrit par l'utilisateur dans `config/db.config.php` (exclu de git et du déploiement) et n'est jamais
+  communiqué à l'assistant. Tant qu'il est vide, le site reste sur `mail()`.
+→ **Vérifié en local** contre un faux serveur SMTPS : envoi complet, port fermé, certificat non approuvé, authentification
+  refusée ; le mot de passe n'apparaît ni dans les erreurs ni dans le journal. **Non vérifié** : connexion réelle à OVH et
+  réception chez Gmail (SP-ML4).
+
+**[2026-11-08] D-ML6 — SP-ML5 : réponses SMTP visibles au test, cause de non-réception encore ouverte**
+Après déploiement de SP-ML3, le site signale l'envoi comme réussi, mais rien n'arrive sur deux Gmail, une adresse Exchange ni
+`noreply@maikastel.fr`. Le mode réellement utilisé et la réponse d'OVH n'étaient pas consultables.
+→ `admin/test-email.php` affiche le mode et les réponses du serveur. Seules les lignes serveur sont retenues, sans les étapes
+  334 : ni identifiant ni mot de passe. Ces réponses ne sont ni journalisées ni affichées ailleurs.
+→ DNS constatés : SPF présent, DMARC absent, aucun DKIM sur les sélecteurs essayés (ce qui ne prouve pas son absence).
+→ **Vérifié en local** contre le faux serveur. **Non vérifié** : réponses réelles d'OVH.
+→ **Complément du même jour.** Test depuis la production : SMTP actif, authentification acceptée, réponse
+  `250 2.0.0 Ok: 962 bytes queued as 090B8C0071`, sans réception sur l'adresse de l'admin. Un mail manuel du webmail est
+  arrivé avec SPF et DKIM en `pass` (sélecteur `ovhmo3989068-selector1`) : le DKIM est donc actif, et l'authentification du
+  domaine n'est pas en cause. Ce mail allait toutefois à une autre adresse que celle du compte admin : la comparaison reste à
+  refaire avec la même adresse.
+→ **Second complément.** L'adresse du compte admin (j_id 1) est un alias, et un mail manuel du webmail ne l'atteint pas non
+  plus : le test admin ne peut donc rien prouver vers elle. La demande de mot de passe oublié échoue aussi vers l'adresse
+  principale (compte j_id 2 dans la base locale), ce qui reste inexpliqué.
+
+**[2026-11-08] D-ML7 — SP-ML6 : le test écrit aux comptes actifs (révise D-ML3)**
+Accord de l'utilisateur : l'adresse de l'admin étant un alias qui ne reçoit pas, le test limité à cette adresse ne prouvait plus
+rien. Le destinataire se choisit parmi les comptes actifs, et l'identifiant reçu est recontrôlé côté serveur. Aucune saisie libre,
+pour que la page ne serve pas à écrire à un tiers.
+→ Variante « imitation » : mêmes sujet et texte que la vraie demande, grâce à `corpsMailReinitialisation()`, avec un jeton factice
+  de 64 zéros qui donne « Lien invalide ». Aucun token n'est créé ni modifié en base.
+→ **Vérifié en local**, envoi capturé : imitation vers le compte 2, compte hors liste refusé sans envoi, variante inconnue ramenée
+  au message simple, parcours de réinitialisation intact, jeton factice refusé. **Non vérifié** : envoi réel et rendu visuel.
+
+## SP-DRS10 — Classes de prestige et de PNJ du DRS 08a, 08b et 15 (2026-11-09)
+
+**[2026-11-09] D-DRS10 — Classes de prestige existantes mises en conformité, classes de PNJ créées**
+Les 15 classes de prestige du DRS étaient en base (ids 21 à 35, source Guide du maître) mais sans conditions d'accès,
+armes et armures ni compétences de classe (sauf l'archer-mage), avec des capacités couvrant 0 à 84 % du texte et
+quelques erreurs de progression. Les 5 classes de PNJ manquaient. Arbitrages de l'utilisateur :
+→ **Source : Guide du maître**, conservée pour les prestiges et donnée aux classes de PNJ (pas « DRS 3.5 » : les
+  sélections de sources existantes les montrent déjà).
+→ **Règles + glossaire** : nouvelle racine « Les classes » (ordre 12) avec les pages « Classes de prestige »
+  (introduction et « Définition des termes » du DRS) et « Classes de PNJ » (texte rédigé : le DRS 15 n'a pas
+  d'introduction) ; 4 termes de glossaire (Classe de base, Niveau de classe, Niveau de lanceur de sorts, Niveau global).
+→ Classes et capacités **retrouvées par leur nom** (et, pour une capacité, par sa liaison à la classe), jamais par
+  id. Les classes et capacités renommées sont cherchées sous l'ancien et le nouveau nom : la migration est rejouable.
+→ **Compétences de classe liées domaine par domaine** : « Connaissances (mystères) » → le domaine ;
+  « Connaissances (au choix…) » → les 10 domaines ; « Artisanat (alchimie) » → Artisanat avec précision.
+  `personnages/fiche.php` compare les ids exacts : un lien vers la compétence mère ne marquerait aucun domaine.
+  (Le barde, classe de base, est lié à la mère : hors périmètre.)
+→ **Liste de sorts en double emploi** : texte du DRS dans `cla_sorts` (affiché en fin de fiche) et liaisons
+  `dd_sortclasse`, par nom, version du Manuel des joueurs v3.5 de préférence ; liaisons existantes conservées
+  (`INSERT IGNORE`). Les sorts connus de l'assassin ne sont **pas** dupliqués en tableau : `dd_classe_niveau` les
+  porte déjà et la table de progression les affiche.
+→ Équipement de départ des PNJ et compétences libres de l'expert dans `cla_description` (`cla_po_niveau1` n'est
+  affiché nulle part).
+→ Migration `sql/2026-11-09_sp-drs10_classes_prestige_pnj_dd35.sql`, **datée du 09** pour passer après
+  `2026-11-07_sp-tb12a` (catégories de tableaux) et les `2026-11-08_*`. Générée par script depuis l'instantané de la
+  base d'avant import, contrôlée en restaurant cet instantané puis en la jouant deux fois par `migrationsAppliquer()` :
+  états identiques. Rendu des 20 fiches par le harnais CLI sans erreur ; **contrôle visuel non fait** (SP-DRS10b).
+
+**[2026-11-09] D-DRS11 — Capacités partagées : une variante par classe quand le texte diffère**
+Plusieurs prestiges étaient liés aux capacités du roublard, du barbare ou du moine (Attaque sournoise, Esquive
+instinctive (supérieure), Discrétion totale, Esquive extraordinaire, Sens des pièges, Réduction des dégâts), alors
+que le DRS leur donne un texte propre (niveaux, cumul, conditions).
+→ **Choix de l'utilisateur, contre la recommandation** (garder la capacité partagée et mettre la nuance en
+  précision) : **une capacité dédiée par classe**, `cap_classe_initiale` = la classe, liée à ses niveaux avec la
+  précision (« +2d6 », « 3/– »). La capacité partagée n'est plus liée à cette classe ; elle reste celle des classes
+  de base.
+→ Les capacités existantes réécrites (propres à une seule classe) reçoivent aussi `cap_classe_initiale` : la
+  variante d'une autre classe se reconnaît ainsi à sa classe, et la liaison remplacée se retrouve par
+  « même nom, autre classe initiale ».
+→ Archer-mage : les 5 capacités « Flèche magique (+1) » à « (+5) » deviennent **une** capacité « Flèche magique »,
+  le bonus passant en précision ; les 4 doublons sont supprimés s'ils ne sont plus référencés nulle part.
+
+**[2026-11-09] D-DRS12 — Tableaux et encadrés des classes de prestige**
+→ 5 tableaux secondaires en `dd_tableaux`, **catégorie Classe**, source DRS 3.5, slugs `classe-<classe>-<objet>`
+  (serviteur fiélon du chevalier noir, griffes et souffle du disciple draconien, secrets du gardien du savoir,
+  alignements opposés du hiérophante), appelés par `[[tab:…]]` dans le texte de la capacité.
+→ Les encadrés « Paladins déchus » et « Corruption d'arme » du chevalier noir deviennent des **capacités liées au
+  niveau 1**, pour être lisibles depuis la fiche ; le « Serviteur fiélon » reçoit le texte de son encadré.
+
+**[2026-11-09] D-DRS13 — Formulaire de classe : compétences de classe saisissables, champs non envoyés conservés**
+Signalé par l'utilisateur : le formulaire de création / modification de classe n'affichait pas les compétences de
+classe. Constat : **aucune interface n'a jamais existé** pour `dd_classe_competence` (saisie en SQL seulement), et
+l'enregistrement réécrivait à vide tout champ texte que le formulaire n'envoie pas (`cla_competences` des classes
+DD2024, `cla_critere_rec`, `cla_traits`, armures / outils / équipement en DD3.5, alignement et or de départ en DD2024).
+Arbitrages de l'utilisateur :
+→ **Cases à cocher, DD3.5 seulement** (« DD2024 gère les compétences totalement différemment ») : toutes les
+  compétences du ruleset, domaines en retrait sous leur compétence mère avec « tous / aucun », précision facultative
+  visible à la coche. Une compétence liée plusieurs fois (« Connaissances » : mystères, géographie) montre ses
+  précisions jointes par « ; », que l'enregistrement redécoupe en autant de liaisons (`ccomp_precision`, 30 caractères).
+→ **Texte libre `cla_competences` en DD3.5** : champ du formulaire, affiché sur la fiche sous la liste (ou seul s'il
+  n'y a pas de liste). En DD2024 il reste lu, non saisi.
+→ Les liaisons ne sont réécrites que si le formulaire a affiché la liste (champ caché `ccomp_soumis`) : DD2024 et
+  sous-classes n'y touchent pas.
+→ Correctif : un champ absent du POST garde sa valeur en base (relue avant l'UPDATE).
+→ Vérifié par aller-retour formulaire → enregistrement sur 5 classes DD3.5 (dont deux liaisons multiples) : liaisons
+  inchangées ; une modification (ajout, retrait, deux précisions) écrit ce qu'il faut. Base restaurée après les tests.
+  **Contrôle visuel non fait** (SP-DRS10f).
+→ Laissé en l'état, signalé : en DD2024 la table de progression n'a pas de champ `cn_bba`, et un enregistrement le
+  vide (colonne affichée en DD3.5 seulement, donc sans effet visible).

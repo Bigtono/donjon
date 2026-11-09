@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-07 11:40 -->
+<!-- Mis à jour : 2026-11-09 21:00 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -353,7 +353,7 @@
 - [x] SP-TB8f — Duplication de l'écran d'une autre campagne du même ruleset
 - [ ] SP-TB8g — Contrôle visuel par l'utilisateur (dont le lien d'une cellule ouvrant `#detail-pp` au-dessus de l'écran),
       puis `sql/2026-11-07_sp-tb8b_ecran_mj.sql` à jouer en production
-- [ ] SP-TB9 — Saisie des tableaux du ruleset **DD3.5** (id 1) *(en cours au fil des lots SP-DRS — 74 tableaux DD3.5 en base le 2026-11-07, dont les 40 des fiches de compétences, SP-DRS4b)*
+- [ ] SP-TB9 — Saisie des tableaux du ruleset **DD3.5** (id 1) *(en cours au fil des lots SP-DRS — 141 tableaux DD3.5 en base le 2026-11-09, dont les 40 des fiches de compétences, SP-DRS4b, et les 5 `classe-*` des classes de prestige, SP-DRS10)*
 - [x] SP-TB13 — Catégorie de tableaux **« Compétence »** (`tabc_id` 9, slug `competence`, ordre 35), portée par `sql/2026-11-08_sp-drs4b_competences_dd35.sql`
 - [x] SP-TB10 — Gestionnaire sorti du module Règles (`tableaux/index.php`), servi par le moteur de liste partagé : filtres (source, écran du MJ, texte sur nom **et** slug), pagination, tri. Propagation du renommage de slug étendue aux 11 champs hôtes
 - [x] SP-TB11 — Correctif d'affichage : le bouton Modifier des fiches détail (règle et tableau) passe dans le titre, il butait sur la croix de fermeture du panneau
@@ -369,7 +369,7 @@
 - [x] SP-GL1 — Branchement sur `reg_texte` (vue règle, `detail-pp/regle.php`) et sur les définitions de glossaire (`detail-pp-sub/glossaire.php`)
 - [x] SP-GL2 — Handler `.glossaire-lien` déplacé de `js/regles.js` vers `js/main.js` ; style porté dans `css/modules.css`
 - [x] SP-GL3 — Portée étendue aux champs texte du compendium (via rendreTexteEnrichi(), même liste de champs que SP-TB7)
-- [ ] SP-GL4 — Saisie du glossaire du ruleset **DD3.5** (id 1) *(en cours au fil des lots SP-DRS — 63 termes livrés avec le lot 1)*
+- [ ] SP-GL4 — Saisie du glossaire du ruleset **DD3.5** (id 1) *(en cours au fil des lots SP-DRS — 109 termes DD3.5 en base le 2026-11-09)*
 
 ### SP-DRS — Import des règles DD3.5 (fichiers DRS)
 
@@ -392,6 +392,16 @@
 - [ ] SP-DRS6 — Lot 6 : **DRS 24 / 25**, règles générales (pas les fiches) — chapitre « Objets magiques par catégorie » sous « Objets magiques » (ordre 95) : anneaux, armes (plafond +10, propriété ⇒ +1 minimum, NLS, prix par bonus, prix de maître, propriétés de corps à corps et à distance), armures et boucliers (idem, propriétés à équivalence ou prix fixe), baguettes, bâtons ; tableaux de prix ; listes `[[liste:objet|…]]` de chaque catégorie et des propriétés spéciales ; encadré expliquant les listes vides ou réduites (objets composés depuis l'inventaire, SP-PO10/11)
 - [ ] SP-DRS7 — Lot 7 : **DRS 26a / 27**, règles générales — objets merveilleux (présentation, activation), parchemins (déchiffrer, activer, test de NLS, incident), potions et huiles, sceptres
 - [ ] SP-DRS8 — Lot 8 : **DRS 28** — objets intelligents (tables de prix, alignement, pouvoirs, Ego, conflits), objets maudits (malédictions courantes), artefacts ; les renvois laissés en texte simple par SP-DRS3 (S13) deviennent des `[[tab:…]]`
+- [x] SP-DRS9a — Lot 9 : **DRS 29 à 32 (règles des monstres)** — chapitre « **Les monstres** » sous « Créatures et pouvoirs spéciaux » (ordre 30), 4 parties calquées sur les PDF : Présentation des monstres, Évolution des monstres (5 pages : tirage des caractéristiques, niveaux de classe, augmentation des DV, archétypes, FP des monstres évolués), Dons des monstres, Personnages monstrueux ; 7 tableaux (catégorie Monstre), 10 termes de glossaire — `sql/2026-11-08_sp-drs9a_regles_dd35_monstres.sql` (jouée en local) (D-DRS7)
+- [x] SP-DRS9b — Dons des monstres : 4 dons absents ajoutés (Capture, Création de créature artificielle, Extension de pouvoir magique, Pouvoir magique rapide ; catégorie Monstres, source DRS 3.5), « Pouvoir magique rapide » des Chapitres interdits ramené de la catégorie DD2024 « Général » à son équivalent DD3.5 ; page « Dons des monstres » par le nouveau tag `[[liste:don|famille=monstres]]` (entité `don` de `liste-parser.php`, §9e) — `sql/2026-11-08_sp-drs9b_dons_monstres_dd35.sql` (jouée en local) (D-DRS8)
+- [x] SP-DRS9c — **Archétypes** du DRS 35 à 40 dans le compendium Races (type Archétype, source DRS 3.5) : Demi-céleste, Demi-fiélon, Fantôme, Liche, Lycanthrope, Squelette, Vampire, Zombi (ra_id 22-29 en local), texte intégral et 14 tableaux `archetype-*` ; Demi-dragon, Céleste et Fiélon existants non touchés — `sql/2026-11-08_sp-drs9c_archetypes_dd35.sql` (jouée en local) (D-DRS9)
+- [ ] SP-DRS9d — Production : jouer `2026-11-08_sp-drs9a_…`, `_sp-drs9b_…`, `_sp-drs9c_…` (déploiement), puis relire dans le navigateur le chapitre « Les monstres » et l'archétype Lycanthrope. Corrections : `doc/LOG_CORRECTIONS_DRS29_40.md`
+- [x] SP-DRS10a — Lot 10 : **DRS 08a, 08b, 15 (classes de prestige et de PNJ)** — les **15 classes de prestige** existantes (source Guide du maître, conservée) mises en conformité avec le DRS : nom, abréviation, niveau maximal, conditions d'accès, armes et armures, compétences de classe (domaines de Connaissances liés un à un), listes de sorts, progression redressée, texte intégral des capacités (variantes propres à la classe pour les capacités partagées, archer-mage : une seule « Flèche magique ») ; les **5 classes de PNJ** créées (type PNJ, 20 niveaux, sorts de l'adepte) ; 5 tableaux `classe-*` (catégorie Classe) ; racine de règles « **Les classes** » (ordre 12 : Classes de prestige, Classes de PNJ) et 4 termes de glossaire — `sql/2026-11-09_sp-drs10_classes_prestige_pnj_dd35.sql` (jouée en local, deux fois sans écart) (D-DRS10 → D-DRS12). Corrections : `doc/LOG_CORRECTIONS_DRS08_15.md`
+- [ ] SP-DRS10b — Contrôle visuel dans le navigateur : fiches Chevalier noir (tableau du serviteur fiélon, Paladin déchu), Hiérophante, Maître des ombres, Adepte ; page de règles « Classes de prestige » et liaison des 4 termes de glossaire
+- [ ] SP-DRS10c — Jouer `sql/2026-11-09_sp-drs10_classes_prestige_pnj_dd35.sql` en production (déploiement, après les migrations `2026-11-07_sp-tb12*` et `2026-11-08_*`)
+- [ ] SP-DRS10d — Relire les écarts laissés en l'état (`doc/LOG_CORRECTIONS_DRS08_15.md` §5) : sort « Texte illusoire » absent du compendium (assassin), compétence « Scrutation » du gardien du savoir, correction « allié d'outreplan » du thaumaturge (C19)
+- [x] SP-DRS10e — Formulaire de classe (`include/ajax/modifier/classe.php`, DD3.5) : saisie des **compétences de classe** en cases à cocher (domaines sous leur compétence mère, boutons « tous / aucun », précision facultative, plusieurs précisions séparées par « ; »), champ « texte libre » `cla_competences` affiché sur la fiche DD3.5 ; l'enregistrement ne vide plus les champs absents du formulaire d'un ruleset (D-DRS13)
+- [ ] SP-DRS10f — Contrôle visuel du formulaire de classe (grille des compétences, précision qui apparaît à la coche, thèmes clair et sombre, largeur < 992px)
 - [ ] SP-DRS5 — Lot suivant : prochains fichiers DRS présentés par l'utilisateur (ordre d'affichage = ordre de présentation des lots)
 
 ### SP-IM — Import des données manquantes (compendium)
@@ -576,6 +586,13 @@
 - [x] SP-CP7 — Documentation : §0, §8, §12, §12b, `ARCHITECTURE_8_CAMPAGNES.md`, `SCHEMA_SQL.md` v1.6, `DECISIONS_LOG.md`
 - [ ] SP-CP8 — Garnir la colonne d'outils : liste des aides de jeu à arbitrer (notes et écran du MJ déjà en place, cf. SP-NO3 et SP-TB8)
 - [x] SP-CP9 — Page campagne en sous-pages (Description · Personnages · Scénarios), sous-menu `.page-nav` partagé avec le personnage, ruleset retiré de l'en-tête, puis des 13 fiches détail, du panneau personnage et des titres de liste (D-CP10, D-CP11)
+- [x] SP-CP10 — Colonne d'outils réduite d'un tiers (1/6) ; onglets EN PAGE pour scénario (Description · Chapitres · Notes), chapitre (Description · Rencontres) et rencontre (Description · Composition · Oppositions), onglet ouvert mémorisé en session par élément, sous-page de campagne comprise (D-CP12)
+- [x] SP-CP11 — Oppositions : une fiche par opposition choisie dans un sous-menu (réordonnable) et suivi des PV de chaque créature, bandeau commun + fiche ; `opp_nombre`, `opp_pv_max`, table `dd_oppositions_pv` (D-CP13, D-CP14)
+- [ ] SP-CP11b — Jouer `sql/2026-11-07_sp-cp11_oppositions_pv.sql` en production ; contrôle visuel en partie (glisser-déposer du sous-menu des oppositions non rejoué)
+- [x] SP-CP11c — Effectif des oppositions lu dans la composition de la rencontre (« 5 × Asabi Brute ») : `sql/2026-11-08_sp-cv1b_effectifs_oppositions.sql` (55 effectifs, jouée en local) ; une nouvelle opposition laissée à 1 reprend l'effectif de la composition (D-CP16)
+- [ ] SP-CP11d — Jouer `sql/2026-11-08_sp-cv1b_effectifs_oppositions.sql` en production, après `sp-cv1` (SP-CV3) et `sp-cp11` (SP-CP11b)
+- [x] SP-CP12 — Images dans les descriptions : bouton image ajouté au chapitre, limite d'envoi portée à 15 Mo, clic sur une image pour l'ouvrir en grand (D-CP15)
+- [ ] SP-CP12b — Vérifier `upload_max_filesize` / `post_max_size` sur OVH (≥ 15 Mo), sinon les plans lourds échouent en production
 
 ### SP-AD — Ajustements de la zone d'administration
 
@@ -668,8 +685,33 @@ en HTML. `dnd35_monstres` (569 monstres du MM 3.5), `dnd35_monstresArchetypes` e
   - [x] SP-MO3a — Import test de 3 fiches (159 Lirdnolu Dhuurniv, 264 Golems de diamant, 382 Glabrezu), corrections de rendu (D-MO4) et validation de l'utilisateur ; fichiers de test supprimés
   - [x] SP-MO3b — Import complet : `sql/2026-11-06_sp-mo3_monstres_dd35.sql` (116 fiches, mo_id 2159-2406), jouée en local par le moteur ; journal `doc/LOG_IMPORT_MONSTRES_DD35.md` (57 liens laissés en texte simple, aucune catégorie par défaut) (D-MO5)
 - [ ] SP-MO4 — Relecture par l'utilisateur des 116 fiches dans la campagne L'Empire des Anges. Déjà vérifié : rendu des 116 sans avertissement PHP (2 054 libellés, 295 lignes de sorts, 287 capacités), liste à 116 résultats, recherche de monstre pour une opposition
-- [ ] SP-MO5 — Production : jouer `2026-11-06_sp-mo1_…` puis `2026-11-06_sp-mo3_…` (déploiement)
+- [x] SP-MO5 — Production : jouer `2026-11-06_sp-mo1_…` puis `2026-11-06_sp-mo3_…` (déploiement) — jouées le 2026-11-07, constaté sur la copie de production du 2026-11-08
 - [ ] SP-MO6 — *À arbitrer* — faux liens de la liaison automatique DD3.5 dans les lignes simples et les descriptions (mots courants reliés à des objets : « lumière », « attaque », « lancer », « Drow » ; sorts « noir », « mission ») ; touche tout le compendium DD3.5, pas seulement l'import
+- [ ] SP-MO7 — **Fiches des monstres du DRS 33 à 40** dans le compendium général (source DRS 3.5, `mo_camp_id` NULL, mo_id réservés à partir de 3001) : 435 fiches (une par colonne de profil, une par couleur de dragon + une fiche « Dragon véritable »), 41 tableaux `monstre-*` / `dragon-*` / `taille-des-elementaires-*` — générateur `tools/generer-sp-mo7-monstres-drs.php` (CLI, hors git, option `--migration=`) (D-MO6)
+  - [x] SP-MO7a — Référentiel des FP : `fp_nom` en varchar(5), 1/10, 1/6, 1/3, 16 et 23 à 30 ajoutés, `fp_valeur` décimal pour trier 1/8 < 1/4 < 1/2 — `sql/2026-11-08_sp-mo7a_fp_dd35.sql` (jouée en local) (D-MO7)
+  - [x] SP-MO7b — Import test de 21 fiches (Aigle, Aigle géant, 7 araignées monstrueuses, Dragon véritable, Dragon blanc, 6 élémentaires de l'Air, 3 loups-garous, Vampirien ; mo_id définitifs), joué en local sans enregistrement de migration, rendu contrôlé, **validé par l'utilisateur** le 2026-11-07 ; fiches de test retirées avant l'import complet
+  - [x] SP-MO7c — Import complet : `sql/2026-11-08_sp-mo7c_monstres_drs_dd35.sql` (435 fiches, mo_id 3001-3435, 41 tableaux), jouée en local par le moteur. Contrôlé : les 435 fiches rendues sans avertissement PHP ni tableau manquant (96 tableaux affichés), liste du compendium à 435 résultats
+  - [x] SP-MO7d — Production : jouer `2026-11-08_sp-mo7a_…` puis `_sp-mo7c_…` (déploiement) — jouées le 2026-11-08, constaté sur la copie de production
+
+### SP-CV — Import des scénarios, chapitres et rencontres de l'ancienne application
+
+Source : export `maikasteiymaika_mysql_db.sql`, campagne v1 1 « L'Empire des Anges » → v2 5. Personnages et notes hors
+périmètre. Oppositions recopiées des fiches SP-MO3 (D-CV0 → D-CV3).
+
+- [x] SP-CV0 — Cadrage : inventaire v1 (2 scénarios, 10 chapitres, 64 rencontres, liens rencontre ↔ monstre), une opposition par lien et effectifs dans `re_composition`, rencontre 79 importée, descriptions parasites vidées, ids figés 2000 + id v1 (D-CV0 → D-CV3)
+- [x] SP-CV1 — Générateur `tools/generer-sp-cv1-campagne-empire-v1.php` (CLI, hors git) et migration `sql/2026-11-08_sp-cv1_campagne_empire_v1.sql` (2 scénarios, 10 chapitres, 64 rencontres, 119 oppositions), jouée en local par le moteur, rejouable sans doublon ; journal `doc/LOG_IMPORT_CAMPAGNE_EMPIRE_V1.md` (9 liens v1 écartés)
+- [x] SP-CV2 — Contrôle visuel de la campagne L'Empire des Anges, validé par l'utilisateur le 2026-11-08 (vérifié aussi : pages scénario, chapitre et rencontre, ordre des rencontres, oppositions rendues, `opp_stats` = `mo_stats` pour les 119)
+- [x] SP-CV3 — Production : jouer `2026-11-08_sp-cv1_…` après `2026-11-06_sp-mo3_…` (SP-MO5), au déploiement — jouée le 2026-11-08, constaté sur la copie de production
+
+### SP-ML — Envoi de mails du site
+
+- [x] SP-ML0 — Helper `envoyerMail()`, constantes `SITE_ORIGINE` / `MAIL_EXPEDITEUR`, page de mot de passe oublié corrigée
+- [x] SP-ML1 — Page `admin/test-email.php` (envoi vers l'adresse de l'admin connecté)
+- [x] SP-ML2 — Test de `mail()` en production : accepté, compté sans erreur par OVH, mais rien chez Gmail ni dans `noreply@maikastel.fr`
+- [x] SP-ML3 — Envoi SMTP authentifié avec PHPMailer 7.2.0 (`include/phpmailer/`), mode et erreur affichés par `admin/test-email.php`
+- [x] SP-ML5 — Réponses du serveur SMTP affichées par `admin/test-email.php`, sans les échanges d'authentification
+- [x] SP-ML6 — Test admin : destinataire choisi parmi les comptes actifs, imitation du mail de réinitialisation avec jeton factice
+- [ ] SP-ML4 — Production : obtenir une réception réelle sur une adresse non alias, puis une vraie réinitialisation. Au 2026-11-08, SMTP est accepté par OVH (`250 … queued`) et les mails manuels du webmail arrivent sur l'adresse principale, mais pas sur l'alias ; le mot de passe oublié n'arrive pas non plus. Reste à tester avec SP-ML6, puis à saisir le support OVH si un envoi accepté se perd
 
 ---
 
@@ -3043,7 +3085,7 @@ pas d'URL partageable, pas de retour navigateur, pas de place pour des outils de
 | Élément | Règle |
 |---|---|
 | Largeur du cadre | `body.camp-plein .site-main { max-width: 1500px }` — `--main-max` (1200px) est trop étroit pour une table de jeu |
-| Grille | `minmax(260px, 25%)` + `minmax(0, 1fr)` — 363px / 1065px à la cible |
+| Grille | `minmax(175px, 16.667%)` + `minmax(0, 1fr)` — ~242px / ~1186px à la cible (SP-CP10 : colonne d'outils réduite d'un tiers, ex-`minmax(260px, 25%)`) |
 | Colonne gauche | Outils, `position: sticky` sous le header collant |
 | Colonne droite | Données du niveau ; bandeau de titre avec nom, bouton Modifier et **bouton retour** vers le niveau supérieur |
 | < 992px | Une colonne, outils au-dessus dans un bloc **replié par défaut** (`campToggleOutils()`) |
@@ -3089,6 +3131,63 @@ partagé **`.page-nav`** (`css/modules.css`, ex-`.per-nav` du personnage). Le ba
 n'affiche que l'univers : le ruleset n'est rappelé sur aucune page (D-CP11). La bascule de ruleset
 (`helpers.php`) traite les deux nouvelles pages comme le niveau campagne ; le bouton retour d'un
 scénario mène à l'onglet Scénarios.
+
+**Onglets en page et mémoire de session — SP-CP10 (2026-11-07)** — le scénario, le chapitre et la
+rencontre gardent une seule URL, mais leur contenu est réparti en **onglets dans la page** (pas de
+sous-pages) :
+
+| Page | Onglets (dans l'ordre) |
+|---|---|
+| `scenario.php` | Description · Chapitres · Notes (les notes du scénario, SP-NO3, gardent leur onglet) |
+| `chapitre.php` | Description · Rencontres |
+| `rencontre.php` | Description · Composition · Oppositions |
+
+- **Barre** : `include/onglets-nav.php`, mêmes classes `.page-nav*` que les sous-pages, mais en
+  `<button data-onglet>` dans un `<nav data-onglets="<clé>">`. Panneaux :
+  `[data-panneau-de="<clé>"][data-panneau="<onglet>"]`, masqués par `hidden`. Le compteur d'un
+  onglet (`.page-nav__compte`) s'affiche dès qu'il est non nul.
+- **Mémoire** : `$_SESSION['camp_onglets'][<clé>]`, une entrée par élément. Clés
+  `camp-<id>` · `sce-<id>` · `scc-<id>` · `re-<id>`, plus `re-<id>-opp` (fiche d'opposition
+  ouverte). Helpers `ongletMemorise()` / `memoriserOnglet()` / `cleOngletValide()`
+  (`include/helpers.php`), action AJAX `memoriserOnglet` (`campagnes/enregistrement.php`).
+  Le serveur rend directement l'onglet mémorisé : pas de clignotement au chargement.
+- **Campagne** (sous-pages, SP-CP9) : chaque sous-page s'inscrit comme onglet mémorisé
+  (`include/campagne-nav.php`) ; `campagne.php` appelée **sans `o=`** renvoie vers la sous-page
+  mémorisée. Le lien Description du sous-menu porte `o=description`.
+- Créer ou modifier une opposition mémorise `re-<id>` = `oppositions` et la fiche concernée : on
+  revient dessus après le rechargement.
+
+**Oppositions et suivi des PV — SP-CP11 (2026-11-07)** — dans l'onglet Oppositions :
+
+1. **Bandeau commun** (`.camp-pv-bandeau`) : toutes les créatures de la rencontre, avec leur
+   jauge, leurs PV courants / max et un champ de saisie. « − » ou Entrée inflige les dégâts saisis,
+   « + » (ou Maj+Entrée) rend des PV sans dépasser le max. Le total de la rencontre ne compte que
+   les PV positifs des créatures dont le max est connu. Le bouton « Réinitialiser » remet toute la
+   rencontre aux PV max.
+2. **Sous-menu** (`.camp-opp-onglets`) : une entrée par opposition (`×N` si effectif > 1),
+   réordonnable par sa poignée (`tri-liste`, action `reordonnerOppositions` inchangée).
+3. **Fiche** de l'opposition choisie : nom (N), menu ⋮ (modifier, transférer, dupliquer,
+   supprimer), PV de ses créatures (numérotées #1…#N), bloc de stats déplié.
+
+Une créature est rendue **deux fois**, dans le bandeau et dans sa fiche, par le même composant
+`rendrePvCreature()` (`include/opposition-pv.php`). `js/campagne.js` synchronise les deux copies
+par leur clé `data-pv-cle="<opp_id>-<rang>"`, puis enregistre (`modifierPvOpposition`). En cas
+d'échec, il rétablit l'ancienne valeur. Données : `opp_nombre` (effectif), `opp_pv_max` (PV max d'une créature,
+à défaut lus dans les stats par `pvMaxDepuisStats()`), `dd_oppositions_pv` (une ligne par créature
+entamée ; absente = PV max). Réduire l'effectif supprime le suivi des créatures retirées. La
+duplication recopie effectif et PV max, pas l'état des PV.
+
+**Effectif — SP-CP11c** : la v1 portait le nombre de créatures dans la composition de la rencontre
+(`re_composition`, lignes « N × Nom »), pas dans l'opposition. `effectifsComposition()` et
+`effectifOpposition()` (`include/opposition-pv.php`) l'y lisent : nom normalisé (entités HTML décodées deux fois,
+accents et apostrophes typographiques ramenés), pluriel en « s » toléré. À la **création** d'une opposition dont
+l'effectif est laissé à 1, `enregistrerOpposition` reprend celui de la composition ; en modification, la valeur
+saisie fait foi.
+
+**Images dans les descriptions — SP-CP12 (2026-11-07)** — les quatre formulaires (campagne,
+scénario, chapitre, rencontre) proposent l'image TinyMCE avec envoi vers
+`include/ajax/upload-image.php` (15 Mo, jpg / png / gif / webp, nom aléatoire dans `img/uploads/`).
+Affichage : largeur de la colonne, clic → image seule dans un nouvel onglet (`js/campagne.js`).
 
 ---
 
@@ -3282,7 +3381,7 @@ partagent le même handler. L'index du parser est par ruleset : DD2024 (155 term
 Import itératif, un lot de fichiers DRS à la fois, arbitré le 2026-08-25 :
 
 - **Arborescence thématique** — les racines ne calquent pas les fichiers DRS : `Les bases du jeu`
-  (ordre 10), `Les compétences` (15, SP-DRS4), `Le combat` (20), `Aventure et environnement` (30), `Équipement` (40, SP-DRS2),
+  (ordre 10), `Les classes` (12, SP-DRS10), `Les compétences` (15, SP-DRS4), `Le combat` (20), `Aventure et environnement` (30), `Équipement` (40, SP-DRS2),
   `Objets magiques` (50, SP-DRS3), `Créatures et pouvoirs spéciaux` (60 — était 40), `Glossaire` (90). `reg_ordre` par pas de 10 : les lots suivants
   s'intercalent sans renumérotation (`Les compétences` prend **15**, juste après `Les bases du jeu`, sans toucher aux autres racines — contrairement à SP-DRS2 qui avait déplacé « Créatures » de 40 à 60). Sous une racine, un fichier DRS devient un `chapitre`
   (ex. `Les caractéristiques`), sauf quand thème et fichier coïncident (`Le combat` : les règles
@@ -3306,6 +3405,21 @@ Import itératif, un lot de fichiers DRS à la fois, arbitré le 2026-08-25 :
   (parents via `LAST_INSERT_ID()` et variables `@`), réinitialisation idempotente limitée au
   sous-arbre du chapitre concerné (le glossaire supprime par liste de slugs, pour ne pas effacer
   les termes des autres lots).
+- **Monstres (SP-DRS9, DRS 29 à 40)** — les règles (DRS 29 à 32) forment le chapitre « Les monstres »
+  de la racine « Créatures et pouvoirs spéciaux ». Les fiches (DRS 33 à 40) ne sont pas des règles :
+  ce sont des données du compendium `dd_monstres` (SP-MO7), les dons manquants vont dans `dd_dons`
+  (SP-DRS9b) et les archétypes dans `dd_races`, type Archétype (SP-DRS9c), avec leurs tableaux en
+  `[[tab:archetype-…]]`. Une page de règles ne recopie pas une donnée du compendium : la page « Dons
+  des monstres » liste les dons par `[[liste:don|famille=monstres]]`.
+- **Classes (SP-DRS10, DRS 08a, 08b, 15)** — racine « Les classes » (ordre 12, entre « Les bases du jeu »
+  et « Les compétences ») : deux pages, « Classes de prestige » (introduction et définitions du DRS) et
+  « Classes de PNJ ». Les classes elles-mêmes sont des données du compendium `dd_classes` : conditions
+  d'accès en paragraphes `<strong>Libellé.</strong>` dans `cla_conditions`, liste de sorts en texte dans
+  `cla_sorts` **et** en liaisons `dd_sortclasse` (par nom, version du Manuel des joueurs v3.5 de
+  préférence), équipement de départ des PNJ dans `cla_description`. Les compétences de classe « au choix »
+  ou à domaine (« Connaissances (mystères) ») sont liées **domaine par domaine**, la fiche de personnage
+  comparant les ids exacts. Une capacité partagée dont le texte diffère d'une classe à l'autre reçoit
+  une variante (`cap_classe_initiale` = la classe) ; les tableaux secondaires sont des `[[tab:classe-…]]`.
 
 ### Fichiers du module
 
@@ -3908,7 +4022,7 @@ jour toutes les listes du site. Valable pour les deux rulesets ; seules les fami
 
 | Élément | Règle |
 |---|---|
-| Entités | `equipement` (`dd_equipements`), `objet` (`dd_objets_magiques`), `competence` (`dd_competences`, SP-DRS4c) |
+| Entités | `equipement` (`dd_equipements`), `objet` (`dd_objets_magiques`), `competence` (`dd_competences`, SP-DRS4c), `don` (`dd_dons`, SP-DRS9b) |
 | Séparateurs | `\|` entre paramètres, `,` entre valeurs. Tag **seul dans son paragraphe** |
 | `famille` | slug(s) de catégorie. **Équipement : une famille inclut ses descendants** (`armes` = courantes + de guerre + exotiques). Objets : `com_slug`, plat. Absent = toutes (les « propriétés spéciales » DD3.5, `com_est_propriete = 1`, restent exclues, comme dans le compendium) |
 | `source` | abréviation ou nom de ressource du ruleset (« DRS 3.5 »). **Absent = sources ACTIVES de l'utilisateur** (`getActiveResIds()`), comme le compendium — une même règle peut donc montrer des lignes différentes à deux utilisateurs. **Présent = ces sources-là, quelles que soient les sources actives**. Source inconnue → « Aucun élément » |
@@ -3920,6 +4034,18 @@ jour toutes les listes du site. Valable pour les deux rulesets ; seules les fami
 ### Entité `competence` (SP-DRS4c)
 
 `[[liste:competence]]` — une table `Compétence | Caractéristique`, complétée en DD3.5 de `Formation nécessaire` et `Malus d'armure` (colonnes `comp_formation`, `comp_malusArmure`) et d'une colonne `Source` quand la liste mêle plusieurs ressources. `titre` et `source` valent comme ailleurs ; `tri` : `nom` (défaut, alphabétique, `strcoll`) ou `car` (par caractéristique). **Pas de `famille`** : `dd_competences` n'en a pas, et le paramètre fait signaler le tag comme inconnu plutôt que de produire silencieusement la liste complète. Pas de filtre homebrew de campagne (la table n'a pas de `comp_camp_id`). Les noms sont nettoyés des blancs parasites saisis (espace ou tabulation de fin). Le lien ouvre `include/ajax/detail-pp/competence.php`. Le sélecteur de l'éditeur (`listes-picker.php`) ne propose pas encore cette entité : le tag se saisit à la main.
+
+### Entité `don` (SP-DRS9b)
+
+`[[liste:don|famille=monstres|titre=Dons des monstres]]` — une table `Don | Conditions | Résumé`
+(`do_conditions` et `do_resume` débarrassés de leur HTML), précédée d'une colonne `Catégorie` quand la
+liste ne porte pas sur exactement une famille, suivie d'une colonne `Source` quand elle mêle plusieurs
+ressources. **`famille`** = slug du nom de catégorie de `dd_data_don` du ruleset (`listeSlugTexte()` :
+« Monstres » → `monstres`, « Création d'objets » → `creation-d-objets`) ; slug inconnu → tag signalé.
+`tri` : `nom` (défaut, `strcoll`) ou `categorie`. `source` et `titre` comme ailleurs (légende par défaut :
+« Dons — <famille> »). Homebrew de campagne exclu (`do_camp_id IS NULL`). Le lien ouvre la fiche du don
+(`listeLien('don', …)`). Plafond `LISTE_MAX_LIGNES`, puis renvoi vers `compendium/dons.php`. Pas encore
+proposé par le sélecteur de l'éditeur.
 
 ### Rendu
 
@@ -4356,6 +4482,28 @@ positionné par le CSS de la page appelante, ce qui préserve le comportement de
 
 Quatre sections indépendantes (champ hidden section) : identité, mot de passe, paramètres, sources.
 DEV_MODE = true (défini dans config/db.config.php, actif automatiquement en local) → lien reset MDP affiché en page.
+
+### Envoi de mails (SP-ML)
+
+`envoyerMail($dest, $sujet, $corps, &$erreur)` (`include/helpers.php`) est le point de passage unique des mails. Il passe
+par le SMTP authentifié si `smtpConfigure()` est vrai, par `mail()` sinon. **Un échec SMTP ne retombe pas sur `mail()`**,
+dont les messages se perdaient sans erreur en production (D-ML4). Le retour `true` signifie que le serveur a accepté le
+message, pas qu'il a été délivré. Les échecs vont dans le journal PHP, sans destinataire ni corps, et dans `$erreur`.
+
+PHPMailer est une copie non modifiée dans `include/phpmailer/` (version dans `VERSION.txt`), sans Composer, protégée du web
+par le `.htaccess` de `include/` et chargée seulement lors d'un envoi SMTP.
+
+`config/db.config.php` déclare `SITE_ORIGINE` (schéma + domaine, sans `BASE_URL`), `MAIL_EXPEDITEUR` et, dans le bloc de
+production, `SMTP_HOTE`, `SMTP_PORT`, `SMTP_UTILISATEUR` et `SMTP_MOT_DE_PASSE` (vide = `mail()`). Ce fichier, commun aux
+deux environnements, n'est pas déployé : toute modification s'envoie à la main par SFTP. Un lien envoyé par mail se construit avec
+`SITE_ORIGINE . BASE_URL`, jamais avec `HTTP_HOST`, que le client choisit. L'expiration du token de réinitialisation est
+calculée en SQL, comme sa relecture.
+
+`profil/mot-de-passe-oublie.php` affiche le même message que le compte existe ou non et que l'envoi réussisse ou non
+(anti-énumération) : seul le journal permet de les distinguer. `admin/test-email.php` teste l'envoi vers
+un compte actif du site, choisi dans une liste (jamais en saisie libre), avec un message simple ou le vrai mail de
+réinitialisation muni d'un jeton factice. Il affiche le mode d'envoi, l'erreur éventuelle et les réponses du serveur SMTP.
+`SUJET_MAIL_REINITIALISATION` et `corpsMailReinitialisation()` portent le texte commun.
 
 ### Paramètres utilisateur
 

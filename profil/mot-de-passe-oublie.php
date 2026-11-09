@@ -27,38 +27,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
     $joueur = $stmt->fetch();
 
     if ($joueur):
-      $token   = bin2hex(random_bytes(32));
-      $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+      $token = bin2hex(random_bytes(32));
 
+      // Expiration calculée par la base, qui la relit avec NOW() dans
+      // reinitialisation.php : un écart de fuseau avec PHP est sans effet.
       $upd = $db->prepare('
         UPDATE dd_joueurs
-        SET    j_reset_token = ?, j_reset_token_expires = ?
+        SET    j_reset_token = ?, j_reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR)
         WHERE  j_id = ?
       ');
-      $upd->execute([$token, $expires, $joueur['j_id']]);
+      $upd->execute([$token, $joueur['j_id']]);
 
-      $lien  = 'http' . (isset($_SERVER['HTTPS']) ? 's' : '') . '://' . $_SERVER['HTTP_HOST'];
-      $lien .= BASE_URL . '/profil/reinitialisation.php?token=' . urlencode($token);
+      // Origine lue en configuration : HTTP_HOST est fourni par le client et
+      // permettrait d'envoyer à la victime un lien vers un autre site.
+      $lien = '';
+      if (defined('SITE_ORIGINE')):
+        $lien = SITE_ORIGINE . BASE_URL . '/profil/reinitialisation.php?token=' . urlencode($token);
+      else:
+        error_log('[mot-de-passe-oublie] SITE_ORIGINE absente de config/db.config.php');
+      endif;
 
-      if (defined('DEV_MODE') && DEV_MODE):
+      if (defined('DEV_MODE') && DEV_MODE && $lien):
         // En dev : affiche le lien directement, pas d'email
         $dev_lien = $lien;
         $message  = 'Mode développement — cliquez sur le lien ci-dessous pour réinitialiser le mot de passe :';
       else:
-        $sujet  = '[Codex DD] Réinitialisation de votre mot de passe';
-        $corps  = "Bonjour " . $joueur['j_pseudo'] . ",\n\n";
-        $corps .= "Vous avez demandé la réinitialisation de votre mot de passe.\n\n";
-        $corps .= "Cliquez sur ce lien (valable 1 heure) :\n" . $lien . "\n\n";
-        $corps .= "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\n";
-        $corps .= "— Codex DD";
-        $headers = 'From: noreply@' . $_SERVER['HTTP_HOST'] . "\r\n" .
-          'Content-Type: text/plain; charset=UTF-8';
-        mail($email, $sujet, $corps, $headers);
+        $corps = corpsMailReinitialisation($joueur['j_pseudo'], $lien);
+        if (!$lien || !envoyerMail($email, SUJET_MAIL_REINITIALISATION, $corps)):
+          error_log('[mot-de-passe-oublie] échec de l\'envoi pour j_id=' . (int)$joueur['j_id']);
+        endif;
         // Réponse identique dans tous les cas (anti-énumération)
         $message = 'Si cette adresse correspond à un compte, vous allez recevoir un email avec un lien de réinitialisation.';
       endif;
 
     else:
+      // Trace sans l'adresse : distingue ce cas d'un échec d'envoi dans le journal
+      error_log('[mot-de-passe-oublie] demande sans compte actif correspondant');
       // Réponse identique même si l'email n'existe pas (anti-énumération)
       $message = 'Si cette adresse correspond à un compte, vous allez recevoir un email avec un lien de réinitialisation.';
     endif;

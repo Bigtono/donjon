@@ -364,3 +364,127 @@ function campPersoRetirer(campId, peId, peNom) {
     })
     .catch(err => alert('Erreur : ' + err));
 }
+
+// ============================================================
+// ONGLETS EN PAGE (SP-CP10)
+// ============================================================
+// Contrat (include/onglets-nav.php, campagnes/rencontre.php) :
+//   <nav data-onglets="re-12"> … <button data-onglet="description"> …
+//   <div data-panneau-de="re-12" data-panneau="description" [hidden]>
+// Le serveur rend déjà l'onglet mémorisé ; le clic bascule les panneaux sans
+// recharger, puis mémorise le choix en session (action memoriserOnglet). Une
+// mémoire perdue n'est pas une erreur : rien n'est signalé.
+
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('[data-onglets] [data-onglet]');
+  if (!btn) return;
+  const barre = btn.closest('[data-onglets]');
+  campActiverOnglet(barre, btn.dataset.onglet);
+});
+
+function campActiverOnglet(barre, valeur) {
+  const cle = barre.dataset.onglets;
+  barre.querySelectorAll('[data-onglet]').forEach(b => {
+    const actif = (b.dataset.onglet === valeur);
+    b.classList.toggle('est-actif', actif);
+    b.setAttribute('aria-selected', actif ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-panneau-de="' + cle + '"]').forEach(p => {
+    p.hidden = (p.dataset.panneau !== valeur);
+  });
+  if (typeof campUrlEnreg !== 'undefined') {
+    postAjax(campUrlEnreg, { action: 'memoriserOnglet', cle: cle, valeur: valeur }).catch(() => {});
+  }
+}
+
+// ============================================================
+// SUIVI DES PV DES OPPOSITIONS (SP-CP11)
+// ============================================================
+// Chaque créature (.camp-pv[data-pv-cle="oppid-rang"]) figure deux fois : dans
+// le bandeau commun et dans la fiche de son opposition. Une saisie met à jour
+// toutes les copies et le total, puis enregistre ; en cas d'échec, on revient
+// à la valeur précédente. « − » (ou Entrée) inflige les dégâts saisis, « + »
+// rend des PV, sans dépasser le maximum.
+
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('.camp-pv [data-pv-op]');
+  if (!btn) return;
+  campPvAppliquer(btn.closest('.camp-pv'), btn.dataset.pvOp);
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter' || !e.target.classList.contains('camp-pv__delta')) return;
+  e.preventDefault();
+  campPvAppliquer(e.target.closest('.camp-pv'), e.shiftKey ? 'plus' : 'moins');
+});
+
+function campPvAppliquer(bloc, op) {
+  const champ = bloc.querySelector('.camp-pv__delta');
+  const delta = parseInt(champ.value, 10);
+  if (!delta || delta < 0) { champ.focus(); return; }
+
+  const avant = parseInt(bloc.dataset.pv, 10);
+  const max   = parseInt(bloc.dataset.pvMax, 10);
+  const apres = op === 'plus' ? Math.min(max, avant + delta) : avant - delta;
+  champ.value = '';
+  if (apres === avant) return;
+
+  campPvAfficher(bloc.dataset.pvCle, apres);
+  postAjax(campUrlEnreg, {
+    action: 'modifierPvOpposition',
+    opp_id: bloc.dataset.pvOpp,
+    rang:   bloc.dataset.pvRang,
+    pv:     apres,
+  }).then(data => {
+    if (!data.ok) throw new Error(data.erreur || 'PV non enregistrés.');
+  }).catch(err => {
+    campPvAfficher(bloc.dataset.pvCle, avant);
+    notifier(err.message || 'PV non enregistrés.', 'erreur');
+  });
+}
+
+// Met à jour toutes les copies d'une créature, puis le total de la rencontre.
+function campPvAfficher(cle, pv) {
+  document.querySelectorAll('.camp-pv[data-pv-cle="' + cle + '"]').forEach(b => {
+    const max = parseInt(b.dataset.pvMax, 10);
+    const pct = Math.max(0, Math.min(100, Math.round(pv * 100 / max)));
+    b.dataset.pv = pv;
+    b.querySelector('.camp-pv__valeur b').textContent = pv;
+    b.querySelector('.camp-pv__jauge span').style.width = pct + '%';
+    b.classList.toggle('est-hors-combat', pv <= 0);
+    b.classList.toggle('est-blesse', pv > 0 && pct <= 50);
+  });
+
+  const total = document.querySelector('[data-pv-total]');
+  if (!total) return;
+  let somme = 0;
+  document.querySelectorAll('.camp-pv-bandeau .camp-pv[data-pv-cle]').forEach(b => {
+    somme += Math.max(0, parseInt(b.dataset.pv, 10));
+  });
+  total.textContent = somme;
+}
+
+function campPvReinitialiser(reId) {
+  confirmer('Remettre toutes les créatures de la rencontre à leurs PV max ?', async () => {
+    try {
+      const data = await postAjax(campUrlEnreg, { action: 'reinitialiserPvRencontre', re_id: reId });
+      if (data.ok) window.location.reload();
+      else notifier(data.erreur || 'Réinitialisation impossible.', 'erreur');
+    } catch (err) {
+      notifier('Erreur : ' + err.message, 'erreur');
+    }
+  });
+}
+
+// ============================================================
+// IMAGES DES DESCRIPTIONS — plans en taille réelle (SP-CP12)
+// ============================================================
+// Une image de description est réduite à la largeur de la colonne ; un plan
+// se lit mieux en grand. Le clic l'ouvre seule dans un nouvel onglet, sauf si
+// elle est déjà dans un lien (le lien garde la main).
+
+document.addEventListener('click', function (e) {
+  const img = e.target.closest('.camp-detail__description img');
+  if (!img || img.closest('a')) return;
+  window.open(img.currentSrc || img.src, '_blank', 'noopener');
+});

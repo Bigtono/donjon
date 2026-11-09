@@ -31,6 +31,18 @@
   cursor: pointer;
 }
 .page-nav__item:hover { color: var(--clr-text); }
+/* Onglets EN PAGE (SP-CP10, include/onglets-nav.php) : des boutons, pas des liens. */
+button.page-nav__item { font: inherit; }
+.page-nav__compte {
+  min-width: 1.4em;
+  padding: 0 var(--sp-xs);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface-2);
+  color: var(--clr-text-muted);
+  font-size: .75rem;
+  font-weight: 600;
+  text-align: center;
+}
 .page-nav__item.est-actif {
   background: var(--clr-surface);
   color: var(--clr-accent);

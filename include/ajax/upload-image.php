@@ -22,11 +22,13 @@ endif;
 
 $fichier = $_FILES['file'];
 
-// --- Validation taille (5 Mo max) ---
-$tailleMax = 5 * 1024 * 1024;
+// --- Validation taille (15 Mo max, SP-CP12 : plans de lieux) ---
+// Plafonnée aussi par upload_max_filesize / post_max_size de PHP (40 Mo en
+// local ; à vérifier sur OVH — au-delà, $_FILES arrive en erreur ci-dessus).
+$tailleMax = 15 * 1024 * 1024;
 if ($fichier['size'] > $tailleMax):
   http_response_code(400);
-  echo json_encode(['error' => 'Fichier trop volumineux (5 Mo maximum).']);
+  echo json_encode(['error' => 'Fichier trop volumineux (15 Mo maximum).']);
   exit;
 endif;
 

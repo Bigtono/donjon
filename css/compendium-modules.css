@@ -507,3 +507,46 @@
   min-width: 56px;
   text-align: center;
 }
+
+/* Compétences de classe DD3.5 dans le formulaire de classe : grille de cases,
+   domaines (Connaissances) en retrait sous leur compétence mère, précision
+   visible seulement quand la case est cochée. */
+.classe-comp-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-xs) var(--sp-md);
+}
+
+.classe-comp--domaines {
+  grid-column: 1 / -1;
+}
+
+.classe-comp__case {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.classe-comp__precision {
+  display: none;
+  width: 100%;
+  margin-top: var(--sp-xs);
+}
+
+.classe-comp:has(> .classe-comp__case input:checked) > .classe-comp__precision {
+  display: block;
+}
+
+.classe-comp__domaines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-xs) var(--sp-md);
+  margin: var(--sp-xs) 0 0 var(--sp-lg);
+}
+
+.classe-comp__lot {
+  flex-basis: 100%;
+  color: var(--clr-text-muted);
+}
