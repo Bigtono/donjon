@@ -73,15 +73,18 @@ $poids_saisi = str_replace("\u{00A0}", ' ', $poids_saisi);
 
 // Sources — officielles vs supplément personnel (même mécanisme que objet.php)
 $sources_officielles = [];
-if (!empty($res_ids)):
-  $ph   = resIdsPlaceholders($res_ids);
-  $stmt = $db->prepare("
+// Sources officielles : réservées aux éditeurs du contenu officiel (admin,
+// gestionnaire) ; un MJ n'alimente que son supplément (SP-RE5). Ressources
+// actives, plus la source actuelle de l'entrée si elle a été désactivée.
+if (canEditCompendiumOfficiel()):
+  $stmt = $db->prepare('
     SELECT res_id, res_nom
     FROM   dd_ressources
-    WHERE  res_id IN ($ph) AND res_j_id IS NULL
+    WHERE  res_j_id IS NULL AND res_ruleset_var_id = ?
+      AND  (res_selection = 1 OR res_id = ?)
     ORDER  BY res_nom
-  ");
-  $stmt->execute($res_ids);
+  ');
+  $stmt->execute([$ruleset_id, (int)$equipement['eqt_res_id']]);
   $sources_officielles = $stmt->fetchAll();
 endif;
 
@@ -185,6 +188,7 @@ $titre = $id > 0 ? 'Modifier ' . h($equipement['eqt_nom']) : 'Nouvel équipement
           <label for="eqt_res_id">Source <span class="required">*</span></label>
           <select id="eqt_res_id" name="eqt_res_id" required>
             <option value="">— Choisir —</option>
+            <?php if (!empty($sources_officielles)): ?>
             <optgroup label="Sources officielles">
               <?php foreach ($sources_officielles as $src): ?>
                 <option value="<?= (int)$src['res_id'] ?>" data-supplement="0"
@@ -193,9 +197,10 @@ $titre = $id > 0 ? 'Modifier ' . h($equipement['eqt_nom']) : 'Nouvel équipement
                 </option>
               <?php endforeach ?>
             </optgroup>
+            <?php endif ?>
             <optgroup label="Mon supplément">
               <option value="supplement" data-supplement="1"
-                <?= $res_select === 'supplement' ? 'selected' : '' ?>>
+                <?= ($res_select === 'supplement' || empty($sources_officielles)) ? 'selected' : '' ?>>
                 <?= h($supp_nom) ?>
               </option>
             </optgroup>
@@ -227,15 +232,6 @@ $titre = $id > 0 ? 'Modifier ' . h($equipement['eqt_nom']) : 'Nouvel équipement
           </label>
         </div>
 
-        <!-- Partagé (supplément uniquement) -->
-        <div class="form-group" id="eqt-supplement-visibilite" hidden>
-          <label class="form-label--checkbox">
-            <input type="checkbox" id="eqt_public" name="eqt_public" value="1"
-              <?= (int)$equipement['eqt_public'] === 1 ? 'checked' : '' ?>>
-            Partagé (visible des autres utilisateurs ayant ce supplément comme source)
-          </label>
-          <span class="form-hint">Une entrée partagée est forcément visible.</span>
-        </div>
 
       </div><!-- .modif-grid -->
     </div><!-- .modif-section -->
@@ -336,27 +332,7 @@ $titre = $id > 0 ? 'Modifier ' . h($equipement['eqt_nom']) : 'Nouvel équipement
 
   selectFam.addEventListener('change', construire);
   construire();
-
-  // Supplément : « Partagé » n'a de sens que sur la source de l'utilisateur ;
-  // une entrée partagée est forcément visible
-  var selectRes  = document.getElementById('eqt_res_id');
-  var blocPublic = document.getElementById('eqt-supplement-visibilite');
-  var chkPublic  = document.getElementById('eqt_public');
-  var chkVisible = document.getElementById('eqt_visible');
-
-  function appliquerContrainte() {
-    if (chkPublic.checked) { chkVisible.checked = true; chkVisible.disabled = true; }
-    else { chkVisible.disabled = false; }
-  }
-  function actualiserAffichage() {
-    var option = selectRes.options[selectRes.selectedIndex];
-    var estSupplement = option && option.getAttribute('data-supplement') === '1';
-    blocPublic.hidden = !estSupplement;
-    if (estSupplement) appliquerContrainte();
-    else chkVisible.disabled = false;
-  }
-  selectRes.addEventListener('change', actualiserAffichage);
-  chkPublic.addEventListener('change', appliquerContrainte);
-  actualiserAffichage();
+  // La case « Partagé » par entrée a disparu (SP-RE5) : le statut public / privé
+  // est celui du supplément entier, choisi par le MJ dans son profil.
 }());
 </script>

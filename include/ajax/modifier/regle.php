@@ -15,7 +15,7 @@ require_once __DIR__ . '/../../helpers.php';
 require_once __DIR__ . '/../../regles-arbre.php';
 
 requireAuth();
-if (!canEditCompendium()):
+if (!canEditCompendiumOfficiel()):
   http_response_code(403);
   echo '<p class="erreur">Accès refusé.</p>';
   exit;

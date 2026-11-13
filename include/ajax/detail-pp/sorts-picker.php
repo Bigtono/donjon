@@ -73,7 +73,7 @@ foreach ($ctx['empl_detail'] as $n => $d) if (!empty($d['accessible'])) $accessi
 if (!$accessibles) $accessibles = [0];
 
 // Ruleset du PERSONNAGE (figé à la création), jamais celui de la session.
-$res_ids = getActiveResIds($db, $ruleset_id);
+$res_ids = getActiveResIds($db, $ruleset_id, ['pe_id' => $pe_id]);
 
 // ------------------------------------------------------------
 // Réservoir

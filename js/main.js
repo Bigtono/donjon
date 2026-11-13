@@ -759,6 +759,17 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') fermerMenuPrincipal();
 });
 
+// Page affichée en popup (SP-CP13b, body.est-popup) : Échap ferme le popup de
+// la page parente, sauf si un panneau est ouvert dans la page elle-même (Échap
+// lui revient alors).
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape' || !document.body.classList.contains('est-popup')) return;
+  if (document.querySelector('#detail-pp:not(.noDisplay), #modification:not(.noDisplay), #detail-pp-sub:not(.noDisplay)')) return;
+  try {
+    if (window.parent !== window && typeof window.parent.campFicheFermer === 'function') window.parent.campFicheFermer();
+  } catch (err) { /* parent d'une autre origine : rien à faire */ }
+});
+
 // Retour en affichage desktop : on réinitialise l'état du menu
 window.addEventListener('resize', function () {
   if (window.innerWidth > NAV_BREAKPOINT) fermerMenuPrincipal();

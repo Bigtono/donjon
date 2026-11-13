@@ -53,6 +53,7 @@ $cla = [
   'cla_alignement'       => '',
   'cla_conditions'       => '',
   'cla_description'      => '',
+  'cla_regles_speciales' => '',
   'cla_armes'            => '',
   'cla_armures'          => '',
   'cla_outils'           => '',
@@ -266,15 +267,18 @@ $caracteristiques = $db->query('SELECT car_id, car_nom FROM dd_caracteristiques 
 // sources officielles (res_j_id IS NULL) vs supplément personnel de
 // l'utilisateur courant (le seul supplément qu'il a le droit d'alimenter).
 $sources_officielles = [];
-if (!empty($res_ids)):
-  $ph   = resIdsPlaceholders($res_ids);
-  $stmt = $db->prepare("
+// Sources officielles : réservées aux éditeurs du contenu officiel (admin,
+// gestionnaire) ; un MJ n'alimente que son supplément (SP-RE5). Ressources
+// actives, plus la source actuelle de l'entrée si elle a été désactivée.
+if (canEditCompendiumOfficiel()):
+  $stmt = $db->prepare('
     SELECT res_id, res_nom
     FROM   dd_ressources
-    WHERE  res_id IN ($ph) AND res_j_id IS NULL
+    WHERE  res_j_id IS NULL AND res_ruleset_var_id = ?
+      AND  (res_selection = 1 OR res_id = ?)
     ORDER  BY res_nom
-  ");
-  $stmt->execute($res_ids);
+  ');
+  $stmt->execute([$ruleset_id, (int)$cla['cla_res_id']]);
   $sources_officielles = $stmt->fetchAll();
 endif;
 
@@ -487,6 +491,7 @@ $classesParentes = $stmt_par->fetchAll();
           <label for="cla_res_id">Source <span class="required">*</span></label>
           <select id="cla_res_id" name="cla_res_id" required>
             <option value="">— Choisir —</option>
+            <?php if (!empty($sources_officielles)): ?>
             <optgroup label="Sources officielles">
               <?php foreach ($sources_officielles as $src): ?>
                 <option value="<?= (int)$src['res_id'] ?>" data-supplement="0"
@@ -495,9 +500,10 @@ $classesParentes = $stmt_par->fetchAll();
                 </option>
               <?php endforeach ?>
             </optgroup>
+            <?php endif ?>
             <optgroup label="Mon supplément">
               <option value="supplement" data-supplement="1"
-                <?= $cla_res_id_select === 'supplement' ? 'selected' : '' ?>>
+                <?= ($cla_res_id_select === 'supplement' || empty($sources_officielles)) ? 'selected' : '' ?>>
                 <?= h($cla_supplement_nom) ?>
               </option>
             </optgroup>
@@ -507,16 +513,10 @@ $classesParentes = $stmt_par->fetchAll();
         <!-- Visibilité (supplément uniquement) -->
         <div class="form-group" id="cla-supplement-visibilite" hidden>
           <label class="form-label--checkbox">
-            <input type="checkbox" id="cla_public" name="cla_public" value="1"
-              <?= (int)$cla['cla_public'] === 1 ? 'checked' : '' ?>>
-            Partagé (visible des autres utilisateurs ayant ce supplément comme source)
-          </label>
-          <label class="form-label--checkbox">
             <input type="checkbox" id="cla_visible" name="cla_visible" value="1"
               <?= (int)$cla['cla_visible'] === 1 ? 'checked' : '' ?>>
             Visible (décoché = brouillon masqué, accessible via « Afficher mes brouillons »)
           </label>
-          <span class="form-hint">Une entrée partagée est forcément visible.</span>
         </div>
 
         <?php if (!empty($campagnes)): ?>
@@ -942,6 +942,14 @@ $classesParentes = $stmt_par->fetchAll();
           </table>
         </div>
       <?php endif ?>
+
+      <?php // SP-CR1 — règles spéciales : affichées sans libellé juste après la liste des
+            // capacités. Hors du if ci-dessus : saisissable dès la création. ?>
+      <div class="form-group" style="margin-top:1rem;">
+        <label for="cla_regles_speciales">Règles spéciales (affichées après les capacités spéciales)<?= aideIcone('texte-parsers') ?></label>
+        <textarea id="cla_regles_speciales" name="cla_regles_speciales"
+                  class="tinymce-basic"><?= $cla['cla_regles_speciales'] ?? '' ?></textarea>
+      </div>
     </div><!-- .modif-section S3 -->
 
     <!-- ====================================================
@@ -984,7 +992,7 @@ $classesParentes = $stmt_par->fetchAll();
   if (!selectRes || !blocVisib) return;
 
   function appliquerContrainte() {
-    if (chkPublic.checked) {
+    if (chkPublic && chkPublic.checked) {
       chkVisible.checked = true;
       chkVisible.disabled = true;
     } else {

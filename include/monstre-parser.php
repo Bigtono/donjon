@@ -364,7 +364,9 @@ function lierSegmentBrut(string $txt, int $maxWords, callable $resolve, array &$
       $cle     = normaliserNomMonstre($brut);
       if (mb_strlen($cle) < MO_LONGUEUR_MIN) continue;
       if (!preg_match('/\p{L}/u', $cle)) continue;
-      $cible = $resolve($cle);
+      // 2e argument : texte brut tel que saisi (casse d'origine), pour les
+      // résolveurs à casse exacte (SP-GL5). Les résolveurs existants l'ignorent.
+      $cible = $resolve($cle, $brut);
       if ($cible !== null):
         $trouve = ['debut'=>$debut,'fin'=>$fin,'brut'=>$brut,'cible'=>$cible];
         $i += $k;

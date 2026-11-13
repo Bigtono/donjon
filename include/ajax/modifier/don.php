@@ -73,15 +73,18 @@ $categories = $stmt->fetchAll();
 // sources officielles (res_j_id IS NULL) vs supplément personnel de
 // l'utilisateur courant (le seul supplément qu'il a le droit d'alimenter).
 $sources_officielles = [];
-if (!empty($res_ids)):
-  $ph   = resIdsPlaceholders($res_ids);
-  $stmt = $db->prepare("
+// Sources officielles : réservées aux éditeurs du contenu officiel (admin,
+// gestionnaire) ; un MJ n'alimente que son supplément (SP-RE5). Ressources
+// actives, plus la source actuelle de l'entrée si elle a été désactivée.
+if (canEditCompendiumOfficiel()):
+  $stmt = $db->prepare('
     SELECT res_id, res_nom
     FROM   dd_ressources
-    WHERE  res_id IN ($ph) AND res_j_id IS NULL
+    WHERE  res_j_id IS NULL AND res_ruleset_var_id = ?
+      AND  (res_selection = 1 OR res_id = ?)
     ORDER  BY res_nom
-  ");
-  $stmt->execute($res_ids);
+  ');
+  $stmt->execute([$ruleset_id, (int)$don['do_res_id']]);
   $sources_officielles = $stmt->fetchAll();
 endif;
 
@@ -180,6 +183,7 @@ $titre = $id > 0 ? 'Modifier ' . h($don['do_nom']) : 'Nouveau don';
           <label for="do_res_id">Source <span class="required">*</span></label>
           <select id="do_res_id" name="do_res_id" required>
             <option value="">— Choisir —</option>
+            <?php if (!empty($sources_officielles)): ?>
             <optgroup label="Sources officielles">
               <?php foreach ($sources_officielles as $src): ?>
                 <option value="<?= (int)$src['res_id'] ?>" data-supplement="0"
@@ -188,9 +192,10 @@ $titre = $id > 0 ? 'Modifier ' . h($don['do_nom']) : 'Nouveau don';
                 </option>
               <?php endforeach ?>
             </optgroup>
+            <?php endif ?>
             <optgroup label="Mon supplément">
               <option value="supplement" data-supplement="1"
-                <?= $do_res_id_select === 'supplement' ? 'selected' : '' ?>>
+                <?= ($do_res_id_select === 'supplement' || empty($sources_officielles)) ? 'selected' : '' ?>>
                 <?= h($don_supplement_nom) ?>
               </option>
             </optgroup>
@@ -200,16 +205,10 @@ $titre = $id > 0 ? 'Modifier ' . h($don['do_nom']) : 'Nouveau don';
         <!-- Visibilité (supplément uniquement) -->
         <div class="form-group" id="do-supplement-visibilite" hidden>
           <label class="form-label--checkbox">
-            <input type="checkbox" id="do_public" name="do_public" value="1"
-              <?= (int)$don['do_public'] === 1 ? 'checked' : '' ?>>
-            Partagé (visible des autres utilisateurs ayant ce supplément comme source)
-          </label>
-          <label class="form-label--checkbox">
             <input type="checkbox" id="do_visible" name="do_visible" value="1"
               <?= (int)$don['do_visible'] === 1 ? 'checked' : '' ?>>
             Visible (décoché = brouillon masqué, accessible via « Afficher mes brouillons »)
           </label>
-          <span class="form-hint">Une entrée partagée est forcément visible.</span>
         </div>
 
         <!-- Campagne homebrew -->
@@ -303,7 +302,7 @@ $titre = $id > 0 ? 'Modifier ' . h($don['do_nom']) : 'Nouveau don';
   if (!selectRes || !blocVisib) return;
 
   function appliquerContrainte() {
-    if (chkPublic.checked) {
+    if (chkPublic && chkPublic.checked) {
       chkVisible.checked = true;
       chkVisible.disabled = true;
     } else {

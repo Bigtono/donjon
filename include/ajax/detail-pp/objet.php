@@ -161,8 +161,16 @@ endif;
 
   <!-- Description -->
   <?php if ($contenu_description): ?>
-    <div class="sort-detail__description">
-      <?= rendreTexteEnrichi($db, $contenu_description) ?>
+    <?php
+    // Liens vers sorts, dons et objets (SP-GL5) : uniquement pour le texte saisi à la
+    // main. Le bloc généré des potions / baguettes / parchemins porte déjà son lien.
+    $liens = $contenu_description === (string)($om['om_description'] ?? '')
+      ? ['liens_compendium' => ['exclure' => ['objet' => $id]]]
+      : [];
+    ?>
+    <div class="sort-detail__description"
+         data-detail-base="<?= h(BASE_URL) ?>/include/ajax/detail-pp/">
+      <?= rendreTexteEnrichi($db, $contenu_description, (int)$om['om_ruleset_var_id'], $liens) ?>
     </div>
   <?php endif ?>
 

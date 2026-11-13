@@ -26,7 +26,7 @@ $action  = strParam($_POST['action'] ?? '');
 // Helpers de réponse
 // ============================================================
 
-function repondreOk(bool $is_ajax, int $id, string $entite, string $redirect_url): void
+function repondreOk(bool $is_ajax, int $id, string $entite, string $redirect_url, string $message = 'Modification enregistrée.'): void
 {
   $url_detail = BASE_URL . '/include/ajax/detail-pp/' . $entite . '.php';
   if ($is_ajax):
@@ -34,9 +34,60 @@ function repondreOk(bool $is_ajax, int $id, string $entite, string $redirect_url
     echo json_encode(['ok' => true, 'id' => $id, 'url_detail' => $url_detail]);
     exit;
   endif;
-  $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Modification enregistrée.'];
+  $_SESSION['flash_message'] = ['type' => 'success', 'text' => $message];
   header('Location: ' . $redirect_url);
   exit;
+}
+
+// Contrôle serveur de la source d'un enregistrement (SP-RE5, D-RE4). Appelé avant
+// la transaction ; sort par repondreErreur() si le droit manque :
+//   - entrée existante : son auteur doit pouvoir la modifier (canEditCompendiumEntry :
+//     officielle = admin / gestionnaire, supplément = son propriétaire) — sans quoi un MJ
+//     forgeant la requête pourrait réécrire une entrée officielle ;
+//   - sentinelle 'supplement' : réservée à un utilisateur qui peut avoir un supplément ;
+//   - source officielle : admin / gestionnaire, et du ruleset de l'entrée ;
+//   - supplément : le sien (un admin peut écrire dans tous).
+function controlerSourceEnregistrement($db, bool $is_ajax, string $redirect, string $res_raw,
+                                       int $ruleset_id, string $table, string $champ_id,
+                                       string $champ_res, int $id): void
+{
+  if ($id > 0):
+    $stmt = $db->prepare("
+      SELECT res.res_j_id
+        FROM $table e
+        LEFT JOIN dd_ressources res ON res.res_id = e.$champ_res
+       WHERE e.$champ_id = ?
+    ");
+    $stmt->execute([$id]);
+    $owner = $stmt->fetchColumn();
+    if ($owner === false):
+      repondreErreur($is_ajax, 'Entrée introuvable.', $redirect);
+    endif;
+    if (!canEditCompendiumEntry($db, $owner !== null ? (int)$owner : null)):
+      repondreErreur($is_ajax, 'Accès refusé.', $redirect);
+    endif;
+  endif;
+
+  if ($res_raw === 'supplement'):
+    if (!canEditCompendium()):
+      repondreErreur($is_ajax, 'Accès refusé.', $redirect);
+    endif;
+    return;
+  endif;
+
+  $stmt = $db->prepare('SELECT res_j_id, res_ruleset_var_id FROM dd_ressources WHERE res_id = ?');
+  $stmt->execute([(int)$res_raw]);
+  $res = $stmt->fetch();
+  if (!$res || (int)$res['res_ruleset_var_id'] !== $ruleset_id):
+    repondreErreur($is_ajax, 'Source invalide.', $redirect);
+  endif;
+  if ($res['res_j_id'] === null):
+    if (!canEditCompendiumOfficiel()):
+      repondreErreur($is_ajax, 'Seul le contenu de votre supplément peut être enregistré.', $redirect);
+    endif;
+  elseif ((int)$res['res_j_id'] !== (int)($_SESSION['j_id'] ?? 0) && !isAdmin()):
+    repondreErreur($is_ajax, 'Source de supplément invalide.', $redirect);
+  endif;
 }
 
 function repondreErreur(bool $is_ajax, string $message, string $redirect_url): void
@@ -148,6 +199,9 @@ switch ($entite):
       case 'bulk_supprimer':
         bulkSupprimerClasses($db, $is_ajax, $redirect);
         break;
+      case 'dupliquer':
+        dupliquerClasse($db, $is_ajax, $redirect);
+        break;
       default:
         repondreErreur($is_ajax, 'Action inconnue.', $redirect);
     endswitch;
@@ -226,6 +280,8 @@ function enregistrerDon($db, bool $is_ajax, string $redirect): void
   if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
+  controlerSourceEnregistrement($db, $is_ajax, $redirect, $res_raw, $ruleset_id,
+                                'dd_dons', 'do_id', 'do_res_id', $do_id);
 
   $dado_id    = intParam($_POST['do_dado_id']  ?? 0) ?: null;
   $camp_id    = intParam($_POST['do_camp_id']  ?? 0) ?: null;
@@ -435,6 +491,8 @@ function enregistrerEquipement($db, bool $is_ajax, string $redirect): void
   if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
+  controlerSourceEnregistrement($db, $is_ajax, $redirect, $res_raw, $ruleset_id,
+                                'dd_equipements', 'eqt_id', 'eqt_res_id', $eqt_id);
 
   // Famille : doit appartenir au ruleset de l'équipement
   // Obligatoire dès que le ruleset a des familles ; sans famille définie (DD2024 avant SP-E6), NULL.
@@ -663,6 +721,8 @@ function enregistrerSort($db, bool $is_ajax, string $redirect): void
   if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
+  controlerSourceEnregistrement($db, $is_ajax, $redirect, $res_raw, $ruleset_id,
+                                'dd_sorts', 'so_id', 'so_res_id', $so_id);
 
   // Champs texte communs
   $co_id     = intParam($_POST['so_co_id']             ?? 0) ?: null;
@@ -958,6 +1018,8 @@ function enregistrerCompetence($db, bool $is_ajax, string $redirect): void
   if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
+  controlerSourceEnregistrement($db, $is_ajax, $redirect, $res_raw, $ruleset_id,
+                                'dd_competences', 'comp_id', 'comp_res_id', $comp_id);
 
   $car_id      = intParam($_POST['comp_car_id']      ?? 0);
   $formation   = isset($_POST['comp_formation'])  ? 1 : 0;
@@ -1220,6 +1282,8 @@ function enregistrerRace($db, bool $is_ajax, string $redirect): void
   if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
+  controlerSourceEnregistrement($db, $is_ajax, $redirect, $res_raw, $ruleset_id,
+                                'dd_races', 'ra_id', 'ra_res_id', $ra_id);
 
   $rat_id      = intParam($_POST['ra_rat_id']      ?? 0) ?: null;
   $mod_niveau  = intParam($_POST['ra_mod_niveau']   ?? 0);
@@ -1509,6 +1573,8 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
   if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
+  controlerSourceEnregistrement($db, $is_ajax, $redirect, $res_raw, $ruleset_id,
+                                'dd_classes', 'cla_id', 'cla_res_id', $cla_id);
 
   // Champs scalaires
   $clt_id      = intParam($_POST['cla_clt_id']          ?? 1);
@@ -1567,6 +1633,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
 
   // Champs texte TinyMCE (HTML — pas de h())
   $description    = $garde('cla_description');
+  $reglesSpeciales = $garde('cla_regles_speciales'); // SP-CR1 — conservé pour une sous-classe
   $armes          = $garde('cla_armes');
   $armures        = $garde('cla_armures');
   $outils         = $garde('cla_outils');
@@ -1674,6 +1741,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
       ':cla_alignement'       => $alignement,
       ':cla_conditions'       => $conditions,
       ':cla_description'      => $description,
+      ':cla_regles_speciales' => $reglesSpeciales,
       ':cla_armes'            => $armes,
       ':cla_armures'          => $armures,
       ':cla_outils'           => $outils,
@@ -1703,7 +1771,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           cla_nom, cla_abreviation, cla_clt_id, cla_dV, cla_niveauMax,
           cla_mag_id, cla_car_id, cla_profil_incantation, cla_renouvellement,
           cla_domaine_divin, cla_pointsCompetences, cla_po_niveau1, cla_alignement,
-          cla_conditions, cla_description, cla_armes, cla_armures, cla_outils,
+          cla_conditions, cla_description, cla_regles_speciales, cla_armes, cla_armures, cla_outils,
           cla_sauvegardes, cla_equipement, cla_competences, cla_sorts,
           cla_caracteristiques, cla_traits, cla_critere_rec,
           cla_pouvoir1, cla_pouvoir2, cla_pouvoir3, cla_pouvoir4, cla_pouvoir5,
@@ -1712,7 +1780,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           :cla_nom, :cla_abreviation, :cla_clt_id, :cla_dV, :cla_niveauMax,
           :cla_mag_id, :cla_car_id, :cla_profil_incantation, :cla_renouvellement,
           :cla_domaine_divin, :cla_pointsCompetences, :cla_po_niveau1, :cla_alignement,
-          :cla_conditions, :cla_description, :cla_armes, :cla_armures, :cla_outils,
+          :cla_conditions, :cla_description, :cla_regles_speciales, :cla_armes, :cla_armures, :cla_outils,
           :cla_sauvegardes, :cla_equipement, :cla_competences, :cla_sorts,
           :cla_caracteristiques, :cla_traits, :cla_critere_rec,
           :cla_pouvoir1, :cla_pouvoir2, :cla_pouvoir3, :cla_pouvoir4, :cla_pouvoir5,
@@ -1740,6 +1808,7 @@ function enregistrerClasse($db, bool $is_ajax, string $redirect): void
           cla_alignement       = :cla_alignement,
           cla_conditions       = :cla_conditions,
           cla_description      = :cla_description,
+          cla_regles_speciales = :cla_regles_speciales,
           cla_armes            = :cla_armes,
           cla_armures          = :cla_armures,
           cla_outils           = :cla_outils,
@@ -2094,9 +2163,32 @@ function supprimerClasse($db, bool $is_ajax, string $redirect): void
     try {
       $db->beginTransaction();
       foreach ($ok_ids as $cla_id):
+        // Capacités liées à la classe : relevées avant de défaire les liaisons
+        $stmt_caps = $db->prepare('SELECT DISTINCT cc_cap_id FROM dd_classe_capacite WHERE cc_cla_id = ?');
+        $stmt_caps->execute([$cla_id]);
+        $caps = $stmt_caps->fetchAll(PDO::FETCH_COLUMN);
+
         $db->prepare('DELETE FROM dd_classe_capacite WHERE cc_cla_id = ?')->execute([$cla_id]);
-        $db->prepare('DELETE FROM dd_classe_niveau   WHERE cn_cla_id = ?')->execute([$cla_id]);
-        $db->prepare('DELETE FROM dd_classes         WHERE cla_id    = ?')->execute([$cla_id]);
+
+        // SP-DU6 : une capacité n'est supprimée que si plus rien ne s'y réfère
+        // (autre classe, race, choix d'un personnage) — les capacités partagées restent.
+        $stmt_cap = $db->prepare('
+          DELETE FROM dd_capacites_speciales
+          WHERE  cap_id = ?
+            AND  NOT EXISTS (SELECT 1 FROM dd_classe_capacite WHERE cc_cap_id   = ?)
+            AND  NOT EXISTS (SELECT 1 FROM dd_race_capacite   WHERE cr_cap_id   = ?)
+            AND  NOT EXISTS (SELECT 1 FROM dd_personnages_choix WHERE pech_cap_id = ?)
+        ');
+        foreach ($caps as $cap_id):
+          $stmt_cap->execute([(int)$cap_id, (int)$cap_id, (int)$cap_id, (int)$cap_id]);
+        endforeach;
+
+        // Liste de sorts, sorts toujours préparés, compétences et progression
+        $db->prepare('DELETE FROM dd_sortclasse        WHERE sc_cla_id    = ?')->execute([$cla_id]);
+        $db->prepare('DELETE FROM dd_classe_sort       WHERE cs_cla_id    = ?')->execute([$cla_id]);
+        $db->prepare('DELETE FROM dd_classe_competence WHERE ccomp_cla_id = ?')->execute([$cla_id]);
+        $db->prepare('DELETE FROM dd_classe_niveau     WHERE cn_cla_id    = ?')->execute([$cla_id]);
+        $db->prepare('DELETE FROM dd_classes           WHERE cla_id       = ?')->execute([$cla_id]);
       endforeach;
       $db->commit();
     } catch (Exception $e) {
@@ -2136,6 +2228,177 @@ function bulkSupprimerClasses($db, bool $is_ajax, string $redirect): void
 
 
 // ============================================================
+// DUPLICATION (SP-DU) — assistants génériques
+// Réutilisés par la duplication des classes, puis des races (SP-DU4).
+// Les noms de table et de colonne viennent du code appelant, jamais
+// d'une saisie : ils sont concaténés, les valeurs passent en paramètres.
+// ============================================================
+
+// Colonnes copiables d'une table : toutes, sauf la clé auto-incrémentée.
+function colonnesCopiables($db, string $table): array
+{
+  $colonnes = [];
+  foreach ($db->query('SHOW COLUMNS FROM ' . $table)->fetchAll() as $c):
+    if (stripos((string)$c['Extra'], 'auto_increment') === false):
+      $colonnes[] = $c['Field'];
+    endif;
+  endforeach;
+  return $colonnes;
+}
+
+// Copie des lignes d'une table qui portent $champ_fk = $ancien_id, avec
+// $champ_fk = $nouvel_id. $surcharges (colonne => valeur) remplace la valeur
+// recopiée d'autres colonnes ; $filtre (colonne => valeur) restreint les
+// lignes copiées. Retourne le nombre de lignes insérées.
+function copierLignesLiees($db, string $table, string $champ_fk, int $ancien_id, int $nouvel_id,
+                           array $surcharges = [], array $filtre = []): int
+{
+  $surcharges[$champ_fk] = $nouvel_id;
+  $cols   = colonnesCopiables($db, $table);
+  $select = [];
+  $params = [];
+  foreach ($cols as $col):
+    if (array_key_exists($col, $surcharges)):
+      $select[]            = ':s_' . $col;
+      $params[':s_' . $col] = $surcharges[$col];
+    else:
+      $select[] = $col;
+    endif;
+  endforeach;
+  $where = $champ_fk . ' = :ancien';
+  $params[':ancien'] = $ancien_id;
+  foreach ($filtre as $col => $val):
+    $where .= ' AND ' . $col . ' = :f_' . $col;
+    $params[':f_' . $col] = $val;
+  endforeach;
+  $stmt = $db->prepare(
+    'INSERT INTO ' . $table . ' (' . implode(', ', $cols) . ')
+     SELECT ' . implode(', ', $select) . ' FROM ' . $table . ' WHERE ' . $where . '
+     ORDER BY ' . $champ_fk
+  );
+  $stmt->execute($params);
+  return $stmt->rowCount();
+}
+
+// Copie d'une ligne repérée par sa clé primaire ; retourne le nouvel identifiant.
+function copierLigne($db, string $table, string $champ_pk, int $id, array $surcharges = []): int
+{
+  $cols   = colonnesCopiables($db, $table);
+  $select = [];
+  $params = [':id' => $id];
+  foreach ($cols as $col):
+    if (array_key_exists($col, $surcharges)):
+      $select[]            = ':s_' . $col;
+      $params[':s_' . $col] = $surcharges[$col];
+    else:
+      $select[] = $col;
+    endif;
+  endforeach;
+  $db->prepare(
+    'INSERT INTO ' . $table . ' (' . implode(', ', $cols) . ')
+     SELECT ' . implode(', ', $select) . ' FROM ' . $table . ' WHERE ' . $champ_pk . ' = :id'
+  )->execute($params);
+  return (int)$db->lastInsertId();
+}
+
+
+// ============================================================
+// CLASSE — Duplication (SP-DU1, DD3.5)
+// ============================================================
+
+// Copie intégrale d'une classe : fiche, table de progression, capacités
+// (nouvelles lignes, pour qu'une modification de la copie ne touche pas
+// l'original), compétences de classe, liste de sorts et sorts toujours
+// préparés. Le contenu n'est pas retouché, même s'il cite l'ancien nom.
+// La copie est rangée dans le supplément personnel de l'utilisateur
+// (privée, visible). Ne sont pas copiés : les personnages et les
+// sous-classes de l'original.
+function dupliquerClasse($db, bool $is_ajax, string $redirect): void
+{
+  $cla_id = intParam($_POST['ids'][0] ?? $_POST['id'] ?? 0);
+  if (!$cla_id):
+    repondreErreur($is_ajax, 'Classe introuvable.', $redirect);
+  endif;
+
+  $stmt = $db->prepare('
+    SELECT cla.*, res.res_j_id
+    FROM   dd_classes cla
+    LEFT JOIN dd_ressources res ON res.res_id = cla.cla_res_id
+    WHERE  cla.cla_id = ?
+  ');
+  $stmt->execute([$cla_id]);
+  $cla = $stmt->fetch();
+  if (!$cla):
+    repondreErreur($is_ajax, 'Classe introuvable.', $redirect);
+  endif;
+
+  // Dupliquer ne modifie pas l'original : la copie va dans le supplément de
+  // l'utilisateur. Le droit requis est donc d'avoir un supplément (garde globale
+  // canEditCompendium() du dispatch), pas de pouvoir modifier la classe source —
+  // un MJ duplique une classe officielle pour l'adapter (SP-RE, D-RE3).
+
+  $ruleset_id = (int)$cla['cla_ruleset_var_id'];
+  if ($ruleset_id !== 1):
+    // Les classes et sous-classes DD2024 viennent avec SP-DU5.
+    repondreErreur($is_ajax, 'La duplication n\'est pas encore disponible pour ce ruleset.', $redirect);
+  endif;
+
+  $uid    = (int)($_SESSION['j_id'] ?? 0);
+  $new_id = 0;
+
+  try {
+    $db->beginTransaction();
+
+    $res_id = getOrCreateUserSupplement($db, $uid, $ruleset_id);
+
+    // 1. dd_classes : la ligne entière, nom, source et visibilité exceptés.
+    $new_id = copierLigne($db, 'dd_classes', 'cla_id', $cla_id, [
+      'cla_nom'     => mb_substr('Copie de ' . $cla['cla_nom'], 0, 100),
+      'cla_res_id'  => $res_id,
+      'cla_public'  => 0,
+      'cla_visible' => 1,
+    ]);
+
+    // 2. Capacités : une nouvelle ligne par capacité liée, rattachée à la copie.
+    $stmt = $db->prepare('SELECT DISTINCT cc_cap_id FROM dd_classe_capacite WHERE cc_cla_id = ?');
+    $stmt->execute([$cla_id]);
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $ancien_cap):
+      $ancien_cap = (int)$ancien_cap;
+      $new_cap = copierLigne($db, 'dd_capacites_speciales', 'cap_id', $ancien_cap, [
+        'cap_classe_initiale' => $new_id,
+      ]);
+      copierLignesLiees($db, 'dd_classe_capacite', 'cc_cla_id', $cla_id, $new_id,
+        ['cc_cap_id' => $new_cap], ['cc_cap_id' => $ancien_cap]);
+    endforeach;
+
+    // 3. Listes de sorts (tables transactionnelles).
+    copierLignesLiees($db, 'dd_sortclasse', 'sc_cla_id', $cla_id, $new_id);
+    copierLignesLiees($db, 'dd_classe_sort', 'cs_cla_id', $cla_id, $new_id);
+
+    // 4. Tables MyISAM (aucun rollback possible) : en dernier, avec
+    //    compensation manuelle si une exception survient après leur écriture.
+    copierLignesLiees($db, 'dd_classe_niveau', 'cn_cla_id', $cla_id, $new_id);
+    copierLignesLiees($db, 'dd_classe_competence', 'ccomp_cla_id', $cla_id, $new_id);
+
+    $db->commit();
+  } catch (Exception $e) {
+    if ($db->inTransaction()):
+      $db->rollBack();
+    endif;
+    if ($new_id > 0):
+      $db->prepare('DELETE FROM dd_classe_niveau       WHERE cn_cla_id    = ?')->execute([$new_id]);
+      $db->prepare('DELETE FROM dd_classe_competence   WHERE ccomp_cla_id = ?')->execute([$new_id]);
+    endif;
+    error_log('dupliquerClasse : ' . $e->getMessage());
+    repondreErreur($is_ajax, 'Erreur base de données.', $redirect);
+    return;
+  }
+
+  repondreOk($is_ajax, $new_id, 'classe', $redirect, 'Classe dupliquée.');
+}
+
+
+// ============================================================
 // OBJET MAGIQUE — Enregistrement
 // ============================================================
 
@@ -2156,6 +2419,8 @@ function enregistrerObjet($db, bool $is_ajax, string $redirect): void
   if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
+  controlerSourceEnregistrement($db, $is_ajax, $redirect, $res_raw, $ruleset_id,
+                                'dd_objets_magiques', 'om_id', 'om_res_id', $om_id);
 
   $com_id = intParam($_POST['om_com_id'] ?? 0);
   if (!$com_id):
@@ -2391,6 +2656,8 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
   if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
+  controlerSourceEnregistrement($db, $is_ajax, $redirect, $res_raw, $ruleset_id,
+                                'dd_monstres', 'mo_id', 'mo_res_id', $mo_id);
 
   $mocat_id = intParam($_POST['mo_mocat_id'] ?? 0);
   if (!$mocat_id):
@@ -2413,7 +2680,7 @@ function enregistrerMonstre($db, bool $is_ajax, string $redirect): void
     // ----------------------------------------------------------
     if ($res_raw === 'supplement'):
       // Premier save d'une entrée de supplément pour cet utilisateur/ruleset :
-      // création à la volée (idempotente) + auto-add dd_joueurs_sources.
+      // création à la volée (idempotente).
       $res_id         = getOrCreateUserSupplement($db, $uid, $ruleset_id);
       $est_supplement = true;
     else:
@@ -2568,9 +2835,9 @@ function supprimerMonstre($db, bool $is_ajax, string $redirect): void
 }
 
 
-// Duplication — même garde per-entry que la suppression (SP-C2/SP-C3) :
-// dupliquer une entrée suppose le même droit que la modifier. Copie
-// intégrale (mêmes stats/catégorie/source/visibilité), nom préfixé.
+// Duplication — copie intégrale (stats, catégorie, visibilité), nom préfixé.
+// Source : celle de l'original si l'utilisateur peut le modifier, sinon son
+// propre supplément (SP-RE, D-RE3).
 function dupliquerMonstre($db, bool $is_ajax, string $redirect): void
 {
   $mo_id = intParam($_POST['ids'][0] ?? $_POST['id'] ?? 0);
@@ -2590,13 +2857,20 @@ function dupliquerMonstre($db, bool $is_ajax, string $redirect): void
     repondreErreur($is_ajax, 'Monstre introuvable.', $redirect);
   endif;
 
-  $res_j_id = $mo['res_j_id'] !== null ? (int)$mo['res_j_id'] : null;
-  if (!canEditCompendiumEntry($db, $res_j_id)):
-    repondreErreur($is_ajax, 'Accès refusé.', $redirect);
-  endif;
+  // La copie reste dans la source de l'original si l'utilisateur peut la
+  // modifier ; sinon (MJ dupliquant un monstre officiel ou d'un autre
+  // supplément), elle va dans son propre supplément (SP-RE, D-RE3).
+  $res_j_id     = $mo['res_j_id'] !== null ? (int)$mo['res_j_id'] : null;
+  $meme_source  = canEditCompendiumEntry($db, $res_j_id);
 
   try {
     $db->beginTransaction();
+    if (!$meme_source):
+      $mo['mo_res_id']  = getOrCreateUserSupplement($db, (int)$_SESSION['j_id'], (int)$mo['mo_ruleset_var_id']);
+      $mo['mo_camp_id'] = null;
+      $mo['mo_public']  = 0;
+      $mo['mo_visible'] = 1;
+    endif;
     $stmt = $db->prepare('
       INSERT INTO dd_monstres
         (mo_nom, mo_mocat_id, mo_mogr_id, mo_stats, mo_fp_id,
@@ -2646,6 +2920,8 @@ function enregistrerHistorique($db, bool $is_ajax, string $redirect): void
   if (!$res_raw):
     repondreErreur($is_ajax, 'La source est obligatoire.', $redirect);
   endif;
+  controlerSourceEnregistrement($db, $is_ajax, $redirect, $res_raw, $ruleset_id,
+                                'dd_historiques', 'hi_id', 'hi_res_id', $hi_id);
 
   $camp_id     = intParam($_POST['hi_camp_id']     ?? 0) ?: null;
   $description = $_POST['hi_description'] ?? '';   // HTML TinyMCE — pas de h()

@@ -40,6 +40,63 @@ function campToggleOutils(btn) {
 }
 
 // ============================================================
+// FICHE DE PERSONNAGE EN POPUP (SP-CP13b)
+// ============================================================
+// Les raccourcis de la colonne d'outils ([data-fiche-popup]) ouvrent la fiche
+// dans une iframe (mode ?popup=1 : sans en-tête ni pied de site), au-dessus de
+// la page courante, qui reste en place. Le lien garde sa vraie adresse : clic
+// milieu ou Ctrl+clic ouvrent toujours la fiche dans un nouvel onglet.
+
+function campFicheOuvrir(url, titre) {
+  let pp = document.getElementById('camp-fiche-pp');
+  if (!pp) {
+    pp = document.createElement('div');
+    pp.id = 'camp-fiche-pp';
+    pp.className = 'camp-fiche-pp';
+    pp.setAttribute('role', 'dialog');
+    pp.setAttribute('aria-modal', 'true');
+    pp.innerHTML =
+      '<div class="camp-fiche-pp__fond" data-fiche-fermer></div>' +
+      '<div class="camp-fiche-pp__cadre">' +
+        '<div class="camp-fiche-pp__barre">' +
+          '<span class="camp-fiche-pp__titre"></span>' +
+          '<a class="btn btn-icon btn-sm camp-fiche-pp__pleine" target="_blank" rel="noopener"' +
+            ' title="Ouvrir dans un nouvel onglet"><i class="fa fa-up-right-from-square"></i></a>' +
+          '<button type="button" class="btn btn-icon btn-sm" data-fiche-fermer title="Fermer (Échap)">' +
+            '<i class="fa fa-times"></i></button>' +
+        '</div>' +
+        '<iframe class="camp-fiche-pp__iframe" title="Fiche de personnage"></iframe>' +
+      '</div>';
+    document.body.appendChild(pp);
+  }
+  pp.querySelector('.camp-fiche-pp__titre').textContent = titre || '';
+  pp.querySelector('.camp-fiche-pp__pleine').href = url;
+  pp.querySelector('iframe').src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'popup=1';
+  pp.classList.add('est-ouvert');
+  document.body.classList.add('camp-fiche-pp-ouvert');
+}
+
+function campFicheFermer() {
+  const pp = document.getElementById('camp-fiche-pp');
+  if (!pp) return;
+  pp.classList.remove('est-ouvert');
+  pp.querySelector('iframe').src = 'about:blank';
+  document.body.classList.remove('camp-fiche-pp-ouvert');
+}
+
+document.addEventListener('click', function (e) {
+  if (e.target.closest('[data-fiche-fermer]')) { campFicheFermer(); return; }
+  const lien = e.target.closest('a[data-fiche-popup]');
+  if (!lien || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  campFicheOuvrir(lien.getAttribute('href'), lien.dataset.fichePopup);
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && document.body.classList.contains('camp-fiche-pp-ouvert')) campFicheFermer();
+});
+
+// ============================================================
 // MENU CONTEXTUEL — miroir de compToggleMenu (compendium.js)
 // compToggleMenu n'est pas chargé sur les pages campagnes.
 // ============================================================

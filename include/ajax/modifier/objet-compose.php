@@ -61,7 +61,7 @@ if (!isset($cats[$cat])):
   exit;
 endif;
 $est_conso = isset($consos[$cat]);
-$res_ids   = getActiveResIds($db, OC_RULESET);
+$res_ids   = getActiveResIds($db, OC_RULESET, ['pe_id' => $pe_id]);
 $bases = $proprietes = $sorts = [];
 
 if (!$est_conso):

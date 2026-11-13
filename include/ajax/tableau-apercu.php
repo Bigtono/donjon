@@ -17,7 +17,7 @@ require_once __DIR__ . '/../tableau-parser.php';
 requireAuth();
 verifyCsrf();
 
-if (!canEditCompendium()):
+if (!canEditCompendiumOfficiel()):
   http_response_code(403);
   echo '<p class="erreur">Accès refusé.</p>';
   exit;

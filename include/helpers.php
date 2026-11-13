@@ -183,95 +183,115 @@ function canAccess(int $entity_j_id): bool {
 }
 
 // ============================================================
-// SÉLECTION DES SOURCES ACTIVES
+// SOURCES ACTIVES (SP-RE, D-RE1 → D-RE6)
 // ============================================================
-
-// Retourne le tableau des res_id actifs selon la chaîne de priorité :
-//   1. Sélection de la campagne EN COURS du personnage en session (si ce
-//      rattachement est actif et que la campagne a sa propre sélection)
-//   2. Sélection personnelle de l'utilisateur (par ruleset)
-//   3. Toutes les sources actives du ruleset (défaut absolu)
 //
-// $ruleset_var_id : ruleset à considérer. Par défaut celui de la session, ce qui
-// convient au compendium (l'utilisateur consulte le ruleset qu'il a sélectionné).
-// Les pages travaillant sur une entité dont le ruleset lui est propre — la fiche
-// et l'overlay Personnage, dont le ruleset est figé à la création — doivent
-// passer explicitement le ruleset de l'entité : sinon, consulter un personnage
-// DD3.5 pendant une session DD2024 croise « compétences DD3.5 » avec « sources
-// DD2024 » et ne remonte rien (cf. DECISIONS_LOG [2026-08-13]).
-function getActiveResIds($db, ?int $ruleset_var_id = null): array {
+// Plus aucune sélection par utilisateur ni par campagne (dd_joueurs_sources et
+// dd_campagnes_sources sont abandonnées). Pour un ruleset, les sources montrées
+// sont l'union de :
+//   1. les ressources officielles ACTIVES (res_j_id IS NULL, res_selection = 1),
+//      liste tenue par l'admin seul ;
+//   2. le supplément de l'utilisateur courant — toujours, qu'il soit public ou privé ;
+//   3. le supplément du MJ de la campagne de contexte, même privé : les joueurs d'une
+//      campagne utilisent le contenu de leur MJ ;
+//   4. si les suppléments de MJ sont demandés : ceux des MJ dont le supplément est
+//      public (j_supplement_public = 1) — pour un admin, TOUS les suppléments.
+//
+// $opts :
+//   'supplements' bool — point 4. Défaut : préférence de profil j_voir_supplements
+//                        (en session). Le filtre « Suppléments de MJ » des listes le force.
+//   'camp_id'     int  — campagne de contexte (point 3), connue de l'appelant.
+//   'pe_id'       int  — personnage de contexte : sa campagne en cours, si la liaison
+//                        est active. Sans 'camp_id' ni 'pe_id', le dernier personnage
+//                        ouvert ($_SESSION['last_pe_id']) sert de contexte.
+//
+// $ruleset_var_id : par défaut celui de la session (compendium). Les pages travaillant
+// sur une entité à ruleset propre (personnage) passent le sien (DECISIONS_LOG [2026-08-13]).
+function getActiveResIds($db, ?int $ruleset_var_id = null, array $opts = []): array {
   $ruleset_var_id = $ruleset_var_id ?? (int)($_SESSION['ruleset_var_id'] ?? 1);
   $j_id           = (int)($_SESSION['j_id'] ?? 0);
+  $avec_supps     = array_key_exists('supplements', $opts)
+                    ? (bool)$opts['supplements']
+                    : !empty($_SESSION['j_voir_supplements']);
 
-  // Priorité 1 : sélection de la campagne via last_pe_id
-  if (!empty($_SESSION['last_pe_id'])) {
-    $pe_id = (int)$_SESSION['last_pe_id'];
-
-    // Cherche si le personnage est dans une campagne ayant sa propre sélection.
-    //
-    // Le périmètre est la **campagne en cours** du personnage (pe_camp_id), et
-    // non l'ensemble de ses campagnes actives : un personnage traverse plusieurs
-    // campagnes au cours de sa vie, et unionner leurs sources ferait apparaître
-    // dans le compendium des ouvrages autorisés par une campagne terminée.
-    // La liaison doit exister ET être active (cp_actif = 1, « participation en
-    // cours ») — la table de liaison reste la source de vérité du rattachement,
-    // pe_camp_id n'en est que le raccourci (cf. METIER_10 et SP-PE5).
-    //
-    // Seules les sources du ruleset DEMANDÉ comptent (D-PO29) : le dernier
-    // personnage ouvert peut être d'un autre ruleset que l'entité affichée
-    // (sélecteur d'un personnage DD3.5 ouvert après un personnage DD2024) ;
-    // ses sources renvoyaient alors des listes vides. Aucune source du bon
-    // ruleset : on passe à la priorité 2.
-    $stmt = $db->prepare('
-      SELECT cs.cs_res_id
-      FROM   dd_personnages pe
-      JOIN   dd_campagnes_personnages cp ON cp.cp_camp_id = pe.pe_camp_id
-                                        AND cp.cp_pe_id   = pe.pe_id
-                                        AND cp.cp_actif   = 1
-      JOIN   dd_campagnes_sources cs ON cs.cs_camp_id = cp.cp_camp_id
-      JOIN   dd_ressources res ON res.res_id = cs.cs_res_id
-                              AND res.res_ruleset_var_id = ?
-      WHERE  pe.pe_id = ?
-    ');
-    $stmt->execute([$ruleset_var_id, $pe_id]);
-    $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-    if (!empty($ids)) {
-      // Le supplément personnel de l'utilisateur courant est systématiquement
-      // ajouté, même s'il n'a jamais été sélectionné explicitement dans les
-      // sources de la campagne — cf. correctif équivalent du 2026-06-22 sur
-      // getActiveResIdsCampagne(), qui n'avait pas été reporté ici (régression
-      // corrigée le 2026-07-02). Cette fonction est scopée personnage/joueur
-      // (pas MJ) : c'est donc le supplément de l'utilisateur courant ($j_id),
-      // et non celui du propriétaire de la campagne, qui doit être ajouté.
-      $supplement_res_id = $j_id > 0 ? getUserSupplementResId($db, $j_id, $ruleset_var_id) : null;
-      if ($supplement_res_id !== null && !in_array($supplement_res_id, $ids, true)) {
-        $ids[] = $supplement_res_id;
-      }
-      return $ids;
-    }
-  }
-
-  // Priorité 2 : sélection personnelle
-  if ($j_id > 0) {
-    $stmt = $db->prepare('
-      SELECT js_res_id
-      FROM   dd_joueurs_sources
-      WHERE  js_j_id = ? AND js_ruleset_var_id = ?
-    ');
-    $stmt->execute([$j_id, $ruleset_var_id]);
-    $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    if (!empty($ids)) return $ids;
-  }
-
-  // Priorité 3 : toutes les sources actives du ruleset
+  // 1. Ressources officielles actives
   $stmt = $db->prepare('
-    SELECT res_id
-    FROM   dd_ressources
-    WHERE  res_ruleset_var_id = ? AND res_selection = 1 AND res_j_id IS NULL
+    SELECT res_id FROM dd_ressources
+     WHERE res_ruleset_var_id = ? AND res_selection = 1 AND res_j_id IS NULL
   ');
   $stmt->execute([$ruleset_var_id]);
-  return $stmt->fetchAll(PDO::FETCH_COLUMN);
+  $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+  // 2. Supplément de l'utilisateur courant
+  $proprietaires = [];
+  if ($j_id > 0) $proprietaires[] = $j_id;
+
+  // 3. Supplément du MJ de la campagne de contexte
+  $mj_id = mjCampagneContexte($db, $opts);
+  if ($mj_id > 0) $proprietaires[] = $mj_id;
+
+  foreach (array_unique($proprietaires) as $owner):
+    $res_id = getUserSupplementResId($db, $owner, $ruleset_var_id);
+    if ($res_id !== null) $ids[] = $res_id;
+  endforeach;
+
+  // 4. Suppléments de MJ (publics ; tous pour un admin)
+  if ($avec_supps):
+    $ids = array_merge($ids, supplementsVisiblesIds($db, $ruleset_var_id));
+  endif;
+
+  return array_values(array_unique($ids));
+}
+
+// res_id des suppléments de MJ visibles par l'utilisateur courant pour ce ruleset :
+// les suppléments publics, ou tous pour un admin (un supplément privé n'est vu que
+// de son MJ et des admins, D-RE2).
+function supplementsVisiblesIds($db, int $ruleset_var_id): array {
+  if (isAdmin()):
+    $stmt = $db->prepare('
+      SELECT res_id FROM dd_ressources
+       WHERE res_ruleset_var_id = ? AND res_j_id IS NOT NULL
+    ');
+  else:
+    $stmt = $db->prepare('
+      SELECT res.res_id
+        FROM dd_ressources res
+        JOIN dd_joueurs j ON j.j_id = res.res_j_id
+       WHERE res.res_ruleset_var_id = ? AND j.j_supplement_public = 1
+    ');
+  endif;
+  $stmt->execute([$ruleset_var_id]);
+  return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+// j_id du MJ (camp_j_id) de la campagne de contexte, 0 sans contexte. Voir les
+// options 'camp_id' / 'pe_id' de getActiveResIds(). La campagne d'un personnage est
+// sa campagne EN COURS (pe_camp_id) et la liaison doit être active (cp_actif = 1) :
+// une campagne terminée n'ouvre plus le supplément de son MJ (cf. SP-PE5).
+function mjCampagneContexte($db, array $opts): int {
+  $camp_id = (int)($opts['camp_id'] ?? 0);
+  if ($camp_id > 0):
+    $stmt = $db->prepare('SELECT camp_j_id FROM dd_campagnes WHERE camp_id = ?');
+    $stmt->execute([$camp_id]);
+    return (int)$stmt->fetchColumn();
+  endif;
+
+  $pe_id = array_key_exists('pe_id', $opts)
+           ? (int)$opts['pe_id']
+           : (int)($_SESSION['last_pe_id'] ?? 0);
+  if ($pe_id <= 0) return 0;
+
+  $stmt = $db->prepare('
+    SELECT camp.camp_j_id
+      FROM dd_personnages pe
+      JOIN dd_campagnes_personnages cp ON cp.cp_camp_id = pe.pe_camp_id
+                                      AND cp.cp_pe_id   = pe.pe_id
+                                      AND cp.cp_actif   = 1
+      JOIN dd_campagnes camp ON camp.camp_id = pe.pe_camp_id
+     WHERE pe.pe_id = ?
+  ');
+  $stmt->execute([$pe_id]);
+  return (int)$stmt->fetchColumn();
 }
 
 // Génère des placeholders SQL pour un tableau d'ids
@@ -280,67 +300,11 @@ function resIdsPlaceholders(array $ids): string {
   return implode(',', array_fill(0, count($ids), '?'));
 }
 
-// Retourne le tableau des res_id actifs pour le contexte MJ d'une campagne
-// (module Campagnes — recherche de monstre pour les oppositions).
-// Distinct de getActiveResIds() qui est scopé personnage/joueur.
-//   1. Sélection propre à la campagne (dd_campagnes_sources)
-//   2. Repli : TOUTES les sources officielles du ruleset (res_j_id IS NULL).
-//      Volontairement plus large que getActiveResIds() priorité 3 :
-//      res_selection ne signifie « cochée par défaut à la création d'un
-//      compte joueur », pas « source valide » — un MJ sans sélection
-//      explicite doit voir l'intégralité du compendium du ruleset, y
-//      compris les suppléments ajoutés après coup avec res_selection=0.
-// Sources actives pour une campagne donnée. Si la campagne a des sources
-// explicitement configurées (dd_campagnes_sources), on les utilise telles
-// quelles ; sinon, repli sur toutes les sources officielles du ruleset.
-//
-// Dans les deux cas, le supplément personnel du PROPRIÉTAIRE de la campagne
-// (camp_j_id) est toujours inclus, même s'il n'a jamais été ajouté
-// explicitement aux sources de la campagne — un MJ doit pouvoir utiliser ses
-// propres monstres homebrew pour construire ses oppositions sans étape
-// manuelle supplémentaire. Avant ce correctif, le repli filtrait
-// explicitement `res_j_id IS NULL` (sources officielles uniquement) et le
-// formulaire de sélection des sources de campagne (modifier/campagne.php)
-// ne propose lui non plus que des sources officielles : le supplément
-// personnel n'avait donc AUCUN moyen d'entrer dans cette liste.
+// Sources pour le contexte MJ d'une campagne (recherche de monstre des oppositions,
+// rencontre, écran du MJ) : la règle commune, avec la campagne pour contexte — son
+// MJ en apporte le supplément même s'il est privé et que l'admin le consulte.
 function getActiveResIdsCampagne(PDO $db, int $camp_id, int $ruleset_var_id): array {
-  $stmt = $db->prepare('SELECT camp_j_id FROM dd_campagnes WHERE camp_id = ?');
-  $stmt->execute([$camp_id]);
-  $camp_j_id = (int)$stmt->fetchColumn();
-
-  $supplement_res_id = $camp_j_id
-    ? getUserSupplementResId($db, $camp_j_id, $ruleset_var_id)
-    : null;
-
-  // Sources du ruleset demandé seulement (même règle que getActiveResIds, D-PO29)
-  $stmt = $db->prepare('
-    SELECT cs.cs_res_id
-      FROM dd_campagnes_sources cs
-      JOIN dd_ressources res ON res.res_id = cs.cs_res_id AND res.res_ruleset_var_id = ?
-     WHERE cs.cs_camp_id = ?
-  ');
-  $stmt->execute([$ruleset_var_id, $camp_id]);
-  $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-  if (!empty($ids)):
-    if ($supplement_res_id !== null && !in_array($supplement_res_id, $ids, true)):
-      $ids[] = $supplement_res_id;
-    endif;
-    return $ids;
-  endif;
-
-  $stmt = $db->prepare('
-    SELECT res_id FROM dd_ressources
-    WHERE res_ruleset_var_id = ? AND res_j_id IS NULL
-  ');
-  $stmt->execute([$ruleset_var_id]);
-  $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-  if ($supplement_res_id !== null):
-    $ids[] = $supplement_res_id;
-  endif;
-
-  return $ids;
+  return getActiveResIds($db, $ruleset_var_id, ['camp_id' => $camp_id]);
 }
 
 // ============================================================
@@ -569,10 +533,19 @@ function rulesetEnregistrement(PDO $db, string $table, string $champ_id,
 // rangé comme dernier consulté de SON ruleset, que la bascule du header
 // retrouvera (SP-RB).
 function setLastPersonnage(int $pe_id, ?int $ruleset_var_id = null) {
+  // Une fiche consultée en popup (SP-CP13b) ne devient pas le contexte du header :
+  // la page d'où elle est ouverte reste la page de travail.
+  if (modePopup()) return;
   $_SESSION['last_pe_id'] = $pe_id;
   if ($ruleset_var_id !== null && $ruleset_var_id !== (int)($_SESSION['ruleset_var_id'] ?? 1)):
     memoriserPersonnageRuleset($pe_id, $ruleset_var_id);
   endif;
+}
+
+// Page affichée dans un popup (iframe) — paramètre GET popup=1 (SP-CP13b).
+// header.php / footer.php omettent alors l'en-tête, le contexte et le pied du site.
+function modePopup(): bool {
+  return !empty($_GET['popup']);
 }
 
 // Retourne le dernier pe_id consulté ou 0
@@ -955,62 +928,34 @@ function getUserSupplementResId($db, int $j_id, int $ruleset_var_id): ?int {
 
 // Crée le supplément de l'utilisateur s'il n'existe pas encore, puis retourne
 // son res_id (création idempotente — un utilisateur n'a qu'un seul supplément
-// par ruleset). Appelée depuis enregistrement.php au premier save d'une entrée
-// de supplément ; ne gère pas sa propre transaction (le caller doit englober
-// l'appel dans la transaction PDO de l'enregistrement).
+// par ruleset). Ne gère pas sa propre transaction : appelée dans celle de
+// l'enregistrement, ou seule (profil). Le supplément n'a pas à être « sélectionné » :
+// getActiveResIds() inclut toujours celui de l'utilisateur courant (SP-RE).
 function getOrCreateUserSupplement($db, int $j_id, int $ruleset_var_id): int {
   $res_id = getUserSupplementResId($db, $j_id, $ruleset_var_id);
-  if ($res_id !== null) {
-    return $res_id;
-  }
+  if ($res_id !== null) return $res_id;
 
-  // Avant de créer le supplément : si l'utilisateur n'a encore aucune
-  // sélection personnelle pour ce ruleset (dd_joueurs_sources vide), il
-  // dépend du défaut absolu (priorité 3 de getActiveResIds() — toutes les
-  // sources officielles res_selection=1). Ajouter le supplément SEUL dans
-  // dd_joueurs_sources transformerait sa sélection personnelle en "supplément
-  // seul" (priorité 2 non vide = court-circuit de la priorité 3), masquant
-  // alors toutes les ressources officielles par défaut. On reproduit donc
-  // ce défaut dans sa sélection personnelle avant d'y ajouter le supplément.
-  $stmt = $db->prepare('
-    SELECT COUNT(*) FROM dd_joueurs_sources
-    WHERE js_j_id = ? AND js_ruleset_var_id = ?
-  ');
-  $stmt->execute([$j_id, $ruleset_var_id]);
-  $a_deja_une_selection = (int)$stmt->fetchColumn() > 0;
-
-  if (!$a_deja_une_selection) {
-    $stmt = $db->prepare('
-      INSERT INTO dd_joueurs_sources (js_j_id, js_res_id, js_ruleset_var_id)
-      SELECT ?, res_id, ?
-      FROM   dd_ressources
-      WHERE  res_ruleset_var_id = ? AND res_selection = 1 AND res_j_id IS NULL
-    ');
-    $stmt->execute([$j_id, $ruleset_var_id, $ruleset_var_id]);
-  }
-
-  // Création de la ressource supplément
   $stmt = $db->prepare('SELECT j_pseudo FROM dd_joueurs WHERE j_id = ?');
   $stmt->execute([$j_id]);
   $pseudo = $stmt->fetchColumn();
   $nom    = 'Supplément de ' . ($pseudo !== false ? $pseudo : 'utilisateur');
 
+  // res_selection = 0 : un supplément n'entre jamais dans la liste des
+  // ressources actives, son affichage est géré par getActiveResIds().
   $stmt = $db->prepare('
     INSERT INTO dd_ressources (res_nom, res_abreviation, res_selection, res_ruleset_var_id, res_j_id)
     VALUES (?, ?, 0, ?, ?)
   ');
   $stmt->execute([$nom, 'Supp.', $ruleset_var_id, $j_id]);
-  $res_id = (int)$db->lastInsertId();
+  return (int)$db->lastInsertId();
+}
 
-  // Auto-ajout du supplément lui-même à la sélection personnelle
-  // (priorité 2 de getActiveResIds() — getActiveResIds() reste inchangée)
-  $stmt = $db->prepare('
-    INSERT INTO dd_joueurs_sources (js_j_id, js_res_id, js_ruleset_var_id)
-    VALUES (?, ?, ?)
-  ');
-  $stmt->execute([$j_id, $res_id, $ruleset_var_id]);
-
-  return $res_id;
+// Crée les suppléments d'un MJ, un par ruleset (DD3.5 et DD2024). Appelée quand
+// l'utilisateur active la gestion de campagne dans son profil (SP-RE4, D-RE2).
+function creerSupplementsMJ($db, int $j_id): void {
+  foreach ([1, 2] as $ruleset_var_id):
+    getOrCreateUserSupplement($db, $j_id, $ruleset_var_id);
+  endforeach;
 }
 
 // Vrai si l'utilisateur courant peut modifier une entrée de compendium liée
@@ -1024,11 +969,12 @@ function canEditCompendiumEntry($db, ?int $res_j_id): bool {
     return true;
   }
   if ($res_j_id !== null) {
-    // Entrée de supplément : seul son propriétaire peut la modifier
-    return (int)($_SESSION['j_id'] ?? 0) === $res_j_id;
+    // Entrée de supplément : seul son propriétaire peut la modifier, tant qu'il
+    // est MJ (gestion de campagne active, D-RE2) ou gestionnaire du compendium
+    return (int)($_SESSION['j_id'] ?? 0) === $res_j_id && canEditCompendium();
   }
   // Entrée officielle : réservée aux gestionnaires du compendium
-  return !empty($_SESSION['j_compendium_manager']);
+  return canEditCompendiumOfficiel();
 }
 
 
@@ -1041,17 +987,21 @@ function canEditCompendiumEntry($db, ?int $res_j_id): bool {
 
 function contenuRessourceTables(): array {
   return [
-    'nb_classes'     => ['table' => 'dd_classes',         'champ' => 'cla_res_id',  'label' => 'Classes',         'singulier' => 'classe',        'pluriel' => 'classes'],
-    'nb_races'       => ['table' => 'dd_races',           'champ' => 'ra_res_id',   'label' => 'Races',           'singulier' => 'race',          'pluriel' => 'races'],
-    'nb_sorts'       => ['table' => 'dd_sorts',           'champ' => 'so_res_id',   'label' => 'Sorts',           'singulier' => 'sort',          'pluriel' => 'sorts'],
-    'nb_dons'        => ['table' => 'dd_dons',            'champ' => 'do_res_id',   'label' => 'Dons',            'singulier' => 'don',           'pluriel' => 'dons'],
-    'nb_comp'        => ['table' => 'dd_competences',     'champ' => 'comp_res_id', 'label' => 'Compétences',     'singulier' => 'compétence',    'pluriel' => 'compétences'],
-    'nb_hist'        => ['table' => 'dd_historiques',     'champ' => 'hi_res_id',   'label' => 'Historiques',     'singulier' => 'historique',    'pluriel' => 'historiques'],
-    'nb_objets'      => ['table' => 'dd_objets_magiques', 'champ' => 'om_res_id',   'label' => 'Objets magiques', 'singulier' => 'objet magique', 'pluriel' => 'objets magiques'],
-    'nb_monstres'    => ['table' => 'dd_monstres',        'champ' => 'mo_res_id',   'label' => 'Monstres',        'singulier' => 'monstre',       'pluriel' => 'monstres'],
-    'nb_equipements' => ['table' => 'dd_equipements',     'champ' => 'eqt_res_id',  'label' => 'Équipements',     'singulier' => 'équipement',    'pluriel' => 'équipements'],
-    'nb_regles'      => ['table' => 'dd_regles',          'champ' => 'reg_res_id',  'label' => 'Règles',          'singulier' => 'règle',         'pluriel' => 'règles'],
-    'nb_tableaux'    => ['table' => 'dd_tableaux',        'champ' => 'tab_res_id',  'label' => 'Tableaux',        'singulier' => 'tableau',       'pluriel' => 'tableaux'],
+    // 'id', 'nom' et 'detail' (SP-AD5) servent à lister les entrées d'une ressource
+    // sur admin/ressource.php ; 'detail' = fiche de lecture sous include/ajax/detail-pp/.
+    'nb_classes'     => ['table' => 'dd_classes',         'champ' => 'cla_res_id',  'label' => 'Classes',         'singulier' => 'classe',        'pluriel' => 'classes',         'id' => 'cla_id',  'nom' => 'cla_nom',  'detail' => 'classe.php'],
+    'nb_races'       => ['table' => 'dd_races',           'champ' => 'ra_res_id',   'label' => 'Races',           'singulier' => 'race',          'pluriel' => 'races',           'id' => 'ra_id',   'nom' => 'ra_nom',   'detail' => 'race.php'],
+    'nb_sorts'       => ['table' => 'dd_sorts',           'champ' => 'so_res_id',   'label' => 'Sorts',           'singulier' => 'sort',          'pluriel' => 'sorts',           'id' => 'so_id',   'nom' => 'so_nom',   'detail' => 'sort.php'],
+    'nb_dons'        => ['table' => 'dd_dons',            'champ' => 'do_res_id',   'label' => 'Dons',            'singulier' => 'don',           'pluriel' => 'dons',            'id' => 'do_id',   'nom' => 'do_nom',   'detail' => 'don.php'],
+    'nb_comp'        => ['table' => 'dd_competences',     'champ' => 'comp_res_id', 'label' => 'Compétences',     'singulier' => 'compétence',    'pluriel' => 'compétences',     'id' => 'comp_id', 'nom' => 'comp_nom', 'detail' => 'competence.php'],
+    'nb_hist'        => ['table' => 'dd_historiques',     'champ' => 'hi_res_id',   'label' => 'Historiques',     'singulier' => 'historique',    'pluriel' => 'historiques',     'id' => 'hi_id',   'nom' => 'hi_nom',   'detail' => 'historique.php'],
+    'nb_objets'      => ['table' => 'dd_objets_magiques', 'champ' => 'om_res_id',   'label' => 'Objets magiques', 'singulier' => 'objet magique', 'pluriel' => 'objets magiques', 'id' => 'om_id',   'nom' => 'om_nom',   'detail' => 'objet.php'],
+    'nb_monstres'    => ['table' => 'dd_monstres',        'champ' => 'mo_res_id',   'label' => 'Monstres',        'singulier' => 'monstre',       'pluriel' => 'monstres',        'id' => 'mo_id',   'nom' => 'mo_nom',   'detail' => 'monstre.php'],
+    'nb_equipements' => ['table' => 'dd_equipements',     'champ' => 'eqt_res_id',  'label' => 'Équipements',     'singulier' => 'équipement',    'pluriel' => 'équipements',     'id' => 'eqt_id',  'nom' => 'eqt_nom',  'detail' => 'equipement.php'],
+    'nb_regles'      => ['table' => 'dd_regles',          'champ' => 'reg_res_id',  'label' => 'Règles',          'singulier' => 'règle',         'pluriel' => 'règles',          'id' => 'reg_id',  'nom' => 'reg_nom',  'detail' => 'regle.php'],
+    'nb_tableaux'    => ['table' => 'dd_tableaux',        'champ' => 'tab_res_id',  'label' => 'Tableaux',        'singulier' => 'tableau',       'pluriel' => 'tableaux',        'id' => 'tab_id',  'nom' => 'tab_nom',  'detail' => 'tableau.php'],
+    // Domaines divins DD3.5 (SP-AD6) : absents jusqu'ici du contrôle de suppression. Pas de fiche de lecture.
+    'nb_domaines'    => ['table' => 'dd_domaines',        'champ' => 'do_res_id',   'label' => 'Domaines',        'singulier' => 'domaine',       'pluriel' => 'domaines',        'id' => 'do_id',   'nom' => 'do_nom',   'detail' => null],
   ];
 }
 

@@ -38,7 +38,9 @@ function getPersonnageContext(PDO $db, int $pe_id): ?array {
   $stmt = $db->prepare('
     SELECT pe.*,
            ra_base.ra_nom    AS race_nom,
+           ra_base.ra_mod_niveau AS race_mod_niveau,
            ra_arc.ra_nom     AS archetype_nom,
+           ra_arc.ra_mod_niveau  AS archetype_mod_niveau,
            hi.hi_nom         AS historique_nom,
            al.al_nom         AS alignement_nom,
            al.al_abreviation AS alignement_abr,
@@ -1103,6 +1105,64 @@ function totalCompetence(array $c, array $mods, string $ruleset_rep, int $bonus_
 }
 
 /**
+ * Bonus de base à l'attaque total d'un personnage DD3.5 (SP-PE22).
+ *
+ * `dd_classe_niveau.cn_bba` est un TEXTE déjà développé par classe et par niveau
+ * (« 11/6/1 », « 5 »). Seul son premier segment compte : c'est le BBA de la
+ * classe à ce niveau, les suivants n'en sont que les attaques itératives. Le
+ * BBA du personnage est la somme de ces premiers segments, un par classe.
+ * Un guerrier 11 (« 11/6/1 ») et un protecteur nain 5 (« 5 ») totalisent 16.
+ *
+ * Comme getBonusMaitrise(), on prend le PALIER le plus élevé qui ne dépasse pas
+ * le niveau : un niveau absent de la table ne doit pas valoir zéro.
+ *
+ * @param  PDO    $db
+ * @param  array  $classes  Retour de getPersonnageClasses()
+ * @return int
+ */
+function bbaTotalPersonnage(PDO $db, array $classes): int {
+  $stmt = $db->prepare('
+    SELECT cn_bba
+      FROM dd_classe_niveau
+     WHERE cn_cla_id = ?
+       AND cn_niveau <= ?
+  ORDER BY cn_niveau DESC
+     LIMIT 1
+  ');
+  $total = 0;
+  foreach ($classes as $c):
+    $stmt->execute([(int)$c['pc_cla_id'], (int)$c['pc_niveau']]);
+    $bba = $stmt->fetchColumn();
+    if ($bba === false):
+      continue;
+    endif;
+    $segments = explode('/', ltrim(trim((string)$bba), '+'));
+    $total += (int)$segments[0];
+  endforeach;
+  return $total;
+}
+
+/**
+ * Met en forme un BBA total en suite d'attaques : +16/+11/+6/+1 (SP-PE22).
+ * Une attaque de plus tous les 5 points tant que le bonus reste positif, et
+ * QUATRE attaques au plus : au-delà de +16, le BBA excédentaire (multiclassage)
+ * n'ajoute plus d'attaque (règle DD3.5). Un BBA nul ou négatif donne « +0 ».
+ *
+ * @param  int  $total  Retour de bbaTotalPersonnage()
+ * @return string
+ */
+function formatBba(int $total): string {
+  if ($total <= 0):
+    return '+0';
+  endif;
+  $attaques = [];
+  for ($bonus = $total; $bonus >= 1 && count($attaques) < 4; $bonus -= 5):
+    $attaques[] = '+' . $bonus;
+  endfor;
+  return implode('/', $attaques);
+}
+
+/**
  * Niveau global du personnage = somme des niveaux de ses classes, SOUS-CLASSES
  * EXCLUES (SP-PE10h). Une sous-classe DD2024 (cla_clt_id = 5) est une ligne de
  * dd_personnages_classes comme une autre, mais elle n'ajoute aucun niveau : le
@@ -1119,6 +1179,52 @@ function niveauGlobalPersonnage(array $classes): int {
     if ((int)$c['cla_clt_id'] !== CLT_SOUS_CLASSE) $niveau += (int)$c['pc_niveau'];
   endforeach;
   return $niveau;
+}
+
+/**
+ * Niveau global d'un personnage DD3.5 et détail de son calcul (SP-PE23).
+ *
+ * Niveau = somme des niveaux de classe (sous-classes exclues, comme
+ * niveauGlobalPersonnage()) + ajustement de niveau de la race de base
+ * (`ra_mod_niveau`) + celui de l'éventuel archétype (une ligne `dd_races`
+ * de type Archétype, elle aussi dotée de `ra_mod_niveau`).
+ *
+ * niveauGlobalPersonnage() reste la SOMME DES CLASSES : c'est elle que lisent
+ * le bonus de maîtrise DD2024 et le calcul des compétences. Cette fonction-ci
+ * n'est qu'un affichage du DD3.5 ; elle ne rend rien d'exploitable par le jeu.
+ *
+ * @param  array  $perso    Retour de getPersonnageContext() (race_nom,
+ *                          race_mod_niveau, archetype_nom, archetype_mod_niveau)
+ * @param  array  $classes  Retour de getPersonnageClasses()
+ * @return array  ['total' => int, 'info' => string (info-bulle, lignes séparées par \n)]
+ */
+function niveauGlobalDetail35(array $perso, array $classes): array {
+  $niveau_classes = niveauGlobalPersonnage($classes);
+
+  $noms_classes = [];
+  foreach ($classes as $c):
+    if ((int)$c['cla_clt_id'] !== CLT_SOUS_CLASSE):
+      $noms_classes[] = $c['cla_nom'] . ' ' . (int)$c['pc_niveau'];
+    endif;
+  endforeach;
+
+  $mod_race = (int)($perso['race_mod_niveau'] ?? 0);
+  $mod_arc  = !empty($perso['pe_arc_id']) ? (int)($perso['archetype_mod_niveau'] ?? 0) : 0;
+
+  $lignes = ['Niveaux de classe : ' . $niveau_classes
+    . ($noms_classes ? ' (' . implode(', ', $noms_classes) . ')' : '')];
+  // Seuls les ajustements non nuls figurent au détail : « +0 » n'apprend rien.
+  if ($mod_race > 0):
+    $lignes[] = 'Ajustement de race (' . ($perso['race_nom'] ?? '—') . ') : +' . $mod_race;
+  endif;
+  if ($mod_arc > 0):
+    $lignes[] = 'Ajustement d\'archétype (' . ($perso['archetype_nom'] ?? '—') . ') : +' . $mod_arc;
+  endif;
+
+  $total = $niveau_classes + $mod_race + $mod_arc;
+  $lignes[] = 'Niveau : ' . $total;
+
+  return ['total' => $total, 'info' => implode("\n", $lignes)];
 }
 
 /**

@@ -25,7 +25,7 @@ requireAuth();
 $page_title = 'Tableaux';
 
 $ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
-$peut_editer = canEditCompendium();
+$peut_editer = canEditCompendiumOfficiel();
 $ecran_seul  = isset($_GET['f_ecran']);
 
 // Usages : comptés en PHP sur le corpus des champs hôtes (cf.

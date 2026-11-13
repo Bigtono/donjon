@@ -24,6 +24,17 @@ function adminReactiver(id) {
   form.submit();
 }
 
+// Activer / désactiver une ressource (res_selection) — menu ligne de admin/ressources.php
+function adminBasculerRessource(id, action) {
+  const form = document.getElementById('comp-bulk-form');
+  if (!form) return;
+
+  document.getElementById('comp-bulk-action-hidden').value = action;
+  document.getElementById('comp-bulk-ids').innerHTML =
+    `<input type="hidden" name="ids[]" value="${id}">`;
+  form.submit();
+}
+
 // Appelé depuis les boutons dans detail-pp/utilisateur.php
 function adminChangerVisibilite(id, action) {
   const form = document.getElementById('comp-bulk-form');
@@ -113,7 +124,13 @@ function soumettreRessource() {
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        apresModification(data);
+        // La ressource a sa propre page (SP-AD5) : on la recharge (onglet conservé)
+        // ou, depuis la liste, on y navigue.
+        if (document.getElementById('res-page')) {
+          window.location.reload();
+        } else {
+          window.location.href = BASE_URL + '/admin/ressource.php?id=' + data.id;
+        }
       } else {
         alert(data.erreur || 'Erreur lors de l\'enregistrement.');
       }

@@ -54,7 +54,7 @@ require_once '../include/header.php';
     <?php // Gestionnaire de tableaux — accessible depuis chaque module
     // (SP-TB10) : un tableau se réutilise partout, il n'appartient plus aux
     // règles. Nouvel onglet, pour ne pas perdre la liste en cours. ?>
-    <?php if (canEditCompendium()): ?>
+    <?php if (canEditCompendiumOfficiel()): ?>
       <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/tableaux/index.php"
          target="_blank" rel="noopener" title="Tableaux de données">
         <i class="fa fa-table"></i> Tableaux

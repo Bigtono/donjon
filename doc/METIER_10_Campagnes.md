@@ -41,9 +41,10 @@ sans univers est autorisée.
 
 ## Sources de la campagne
 
-Une campagne définit ses propres sources de règles actives (livres autorisés). Ces sources
-**priment** sur la sélection personnelle du joueur lorsqu'il joue dans le contexte de la campagne
-(priorité 1 de la chaîne de sélection : campagne > sélection personnelle > défaut du ruleset).
+Depuis le 2026-11-11 (SP-RE), une campagne ne choisit plus ses sources : le compendium montre les
+ressources actives, choisies par l'admin pour tout le site. La campagne apporte en revanche le
+**supplément de son MJ** : ses joueurs en voient le contenu (même si le supplément est privé) dans
+la fiche et les sélecteurs de leur personnage, tant que celui-ci participe à la campagne.
 
 ## Personnages
 

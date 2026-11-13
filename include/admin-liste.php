@@ -17,6 +17,8 @@
 //   where_extra         array    — (opt) fragments WHERE supplémentaires (chaînes SQL)
 //   params_extra        array    — (opt) valeurs pour where_extra
 //   url_detail          string   — URL endpoint AJAX detail-pp
+//   url_page            string   — (opt) page dédiée de l'entrée : le clic sur une cellule y navigue
+//                                  (url_page?id=N) au lieu d'ouvrir #detail-pp (SP-AD5, ressources)
 //   url_modifier        string   — URL endpoint AJAX modifier ('' = pas de modification)
 //   url_enreg           string   — URL enregistrement.php
 //   bulk_actions        array    — [{valeur, label}] — vide = pas de barre bulk
@@ -339,7 +341,9 @@ $row_class_cb     = $adminListConfig['row_class_callback']  ?? '';
                   $val     = $ligne[$col['champ']] ?? '';
                 ?>
                 <td class="<?= $cls_col ?>"
-                    onclick="actualiserPage(compUrlDetail, {id: <?= $id ?>}, 'liste')">
+                    onclick="<?= !empty($adminListConfig['url_page'])
+                      ? 'window.location.href = ' . h(json_encode($adminListConfig['url_page'] . '?id=' . $id))
+                      : 'actualiserPage(compUrlDetail, {id: ' . $id . "}, 'liste')" ?>">
 
                   <?php if (!empty($col['render']) && function_exists($col['render'])): ?>
                     <?= call_user_func($col['render'], $ligne) ?>

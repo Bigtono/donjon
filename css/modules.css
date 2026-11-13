@@ -382,54 +382,6 @@ button.page-nav__item { font: inherit; }
 }
 
 
-/* Sources — liste de sélection (section profil) */
-.sources-liste {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-xs);
-  margin-bottom: var(--sp-lg);
-}
-
-.sources-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm);
-  padding: var(--sp-sm) var(--sp-md);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.sources-item:hover {
-  background: var(--clr-surface-2);
-}
-
-.sources-item input[type="checkbox"] {
-  width: auto;
-  margin: 0;
-  flex-shrink: 0;
-}
-
-.sources-item__nom {
-  flex: 1;
-  font-size: 0.9rem;
-}
-
-.sources-item__abrev {
-  font-size: 0.78rem;
-  color: var(--clr-text-muted);
-  background: var(--clr-surface-2);
-  padding: 2px var(--sp-xs);
-  border-radius: var(--radius-sm);
-}
-
-.sources-item__defaut {
-  color: var(--clr-accent-2);
-  font-size: 0.85rem;
-  title: "Sélection par défaut";
-}
-
 .mb-md {
   margin-bottom: var(--sp-md);
 }
@@ -1936,6 +1888,15 @@ button.page-nav__item { font: inherit; }
   margin-bottom: 0;
 }
 
+/* Règles spéciales de la classe (SP-CR1) : texte sans libellé posé juste après la liste
+   des capacités. Une grande marge et un filet le distinguent de la dernière capacité.
+   Le double sélecteur l'emporte sur la marge de .sort-detail__description. */
+.sort-detail__description.classe-detail__regles {
+  margin: var(--sp-xl) 0 0;
+  padding-top: var(--sp-lg);
+  border-top: 1px solid var(--clr-border);
+}
+
 /* Sous 992px le panneau passe en feuille plein écran (SP-RS4) : la hauteur
    utile devient la ressource rare. On garde une respiration entre capacités,
    mais réduite, et un titre à peine plus grand que le texte pour ne pas
@@ -1952,6 +1913,11 @@ button.page-nav__item { font: inherit; }
   .classe-detail__capacite-nom,
   .race-detail__capacite-nom {
     font-size: 1.1rem;
+  }
+
+  .sort-detail__description.classe-detail__regles {
+    margin-top: var(--sp-lg);
+    padding-top: var(--sp-md);
   }
 
 }
@@ -2720,13 +2686,42 @@ button.page-nav__item { font: inherit; }
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   min-width: 200px;
   max-width: 280px;
+  /* Liste longue (suppléments de MJ, SP-RE3) : jamais plus haute que l'espace
+     disponible. Plafond CSS ici ; toggleSources() (js/compendium.js) le resserre
+     à l'espace réellement libre sous le bouton. */
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
+/* Débordement à droite : toggleSources() ancre alors le menu sur le bord droit */
+.comp-filtre-sources-menu.is-droite {
+  left: auto;
+  right: 0;
+}
+
+/* Intitulé de groupe : Ressources / Suppléments de MJ */
+.comp-filtre-source-groupe {
+  flex-shrink: 0;
+  padding: var(--sp-xs) 6px 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--clr-text-muted);
+}
+
+.comp-filtre-source-groupe:not(:first-child) {
+  margin-top: var(--sp-xs);
+  border-top: 1px solid var(--clr-border);
+  padding-top: var(--sp-sm);
+}
+
 .comp-filtre-source-item {
   display: flex;
+  flex-shrink: 0;           /* menu en colonne à hauteur bornée : défiler, pas écraser */
   align-items: center;
   gap: var(--sp-sm);
   padding: 4px 6px;
@@ -2837,6 +2832,7 @@ button.page-nav__item { font: inherit; }
     box-shadow: none;
     border: 1px solid var(--clr-border);
     max-width: 100%;
+    max-height: 50vh;
   }
 
   .comp-filtre-label-desktop {

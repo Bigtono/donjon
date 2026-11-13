@@ -60,7 +60,7 @@ $listConfig = [
   'champ_public'    => 'eqt.eqt_public',
   'champ_visible'   => 'eqt.eqt_visible',
   'champ_res_owner' => 'res.res_j_id',
-  'extra_where'   => canEditCompendium() ? '' : 'eqt.eqt_visible = 1',
+  'extra_where'   => canEditCompendiumOfficiel() ? '' : 'eqt.eqt_visible = 1',
   'colonnes'      => [
     ['sql' => 'eqt.eqt_nom',         'champ' => 'eqt_nom',         'label' => 'Nom',     'mobile' => true,  'tri' => true],
     ['sql' => 'cae.cae_nom',         'champ' => 'cae_nom',         'label' => 'Famille', 'mobile' => false, 'tri' => true],

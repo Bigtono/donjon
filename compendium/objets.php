@@ -67,7 +67,7 @@ endif;
 
 $extra_where_parts = [];
 
-if (!canEditCompendium()):
+if (!canEditCompendiumOfficiel()):
   $extra_where_parts[] = 'om.om_visible = 1';
 endif;
 

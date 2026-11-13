@@ -83,6 +83,12 @@ switch ($entite):
       case 'supprimer':
         supprimerRessource($db, $is_ajax, $redirect);
         break;
+      case 'activer':
+        changerSelectionRessource($db, $is_ajax, $redirect, 1);
+        break;
+      case 'desactiver':
+        changerSelectionRessource($db, $is_ajax, $redirect, 0);
+        break;
       default:
         adminErreur($is_ajax, 'Action inconnue.', $redirect);
     endswitch;
@@ -299,6 +305,12 @@ function sauvegarderRessource($db, bool $is_ajax, string $redirect): void
   $abreviation   = strParam($_POST['res_abreviation']    ?? '');
   $ruleset_id    = intParam($_POST['res_ruleset_var_id'] ?? 0);
   $selection     = isset($_POST['res_selection'])   ? 1 : 0;
+  // Un supplément de MJ n'entre jamais dans la liste des ressources actives (SP-RE6)
+  if ($res_id > 0):
+    $stmt = $db->prepare('SELECT res_j_id FROM dd_ressources WHERE res_id = ?');
+    $stmt->execute([$res_id]);
+    if ($stmt->fetchColumn() !== null) $selection = 0;
+  endif;
   $editeur       = strParam($_POST['res_editeur']        ?? '');
   $description   = $_POST['res_description'] ?? ''; // HTML TinyMCE
 
@@ -365,61 +377,80 @@ function sauvegarderRessource($db, bool $is_ajax, string $redirect): void
 }
 
 // ============================================================
-// RESSOURCE — Suppression (avec vérification de dépendances)
+// RESSOURCE — Activer / désactiver (res_selection : ressource active, SP-RE)
+// Seules les ressources officielles s'activent ; un supplément de MJ est ignoré.
 // ============================================================
 
-function supprimerRessource($db, bool $is_ajax, string $redirect): void
+function changerSelectionRessource($db, bool $is_ajax, string $redirect, int $valeur): void
 {
   $ids = $_POST['ids'] ?? [];
   if (!empty($_POST['id'])) $ids[] = $_POST['id'];
-  $ids = array_filter(array_map('intval', (array)$ids));
+  $ids = array_values(array_filter(array_map('intval', (array)$ids)));
 
   if (empty($ids)):
     adminErreur($is_ajax, 'Aucune ressource sélectionnée.', $redirect);
   endif;
 
-  // Refus dès qu'une ressource porte du contenu (contenuRessourceTables())
-  foreach ($ids as $res_id):
-    try {
-      $detail_erreur = decrireContenuRessource(compterContenuRessource($db, $res_id));
-    } catch (Exception $e) {
-      error_log('supprimerRessource : ' . $e->getMessage());
-      adminErreur($is_ajax, 'Erreur lors de la vérification du contenu : suppression annulée.', $redirect);
-    }
-    if ($detail_erreur !== ''):
-      adminErreur(
-        $is_ajax,
-        'Impossible de supprimer : cette ressource contient ' . $detail_erreur
-          . '. Supprimez d\'abord le contenu associé.',
-        $redirect
-      );
-    endif;
-  endforeach;
-
-  // Toutes les ressources sont libres — suppression
   try {
-    $db->beginTransaction();
+    $stmt = $db->prepare('UPDATE dd_ressources SET res_selection = ? WHERE res_id = ? AND res_j_id IS NULL');
     foreach ($ids as $res_id):
-      // Nettoyage des sélections utilisateurs et campagnes
-      $db->prepare('DELETE FROM dd_joueurs_sources   WHERE js_res_id  = ?')->execute([$res_id]);
-      $db->prepare('DELETE FROM dd_campagnes_sources WHERE cs_res_id  = ?')->execute([$res_id]);
-      $db->prepare('DELETE FROM dd_ressources        WHERE res_id     = ?')->execute([$res_id]);
+      $stmt->execute([$valeur, $res_id]);
     endforeach;
-    $db->commit();
-
-    if ($is_ajax):
-      header('Content-Type: application/json');
-      echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '']);
-      exit;
-    endif;
-    $_SESSION['flash_message'] = ['type' => 'success', 'text' => 'Ressource(s) supprimée(s).'];
-    header('Location: ' . $redirect);
-    exit;
   } catch (Exception $e) {
-    $db->rollBack();
-    error_log('supprimerRessource : ' . $e->getMessage());
-    adminErreur($is_ajax, 'Erreur lors de la suppression.', $redirect);
+    error_log('changerSelectionRessource : ' . $e->getMessage());
+    adminErreur($is_ajax, 'Erreur base de données.', $redirect);
   }
+
+  adminOk($is_ajax, $ids[0], 'ressource', $redirect);
+}
+
+// ============================================================
+// RESSOURCE — Suppression en cascade (SP-AD6)
+// ============================================================
+// Une ressource à la fois, depuis la page admin/ressource.php?suppr=1. Le moteur
+// include/ressource-suppression.php refait l'analyse : il refuse si des personnages,
+// des notes de campagne ou le contenu d'une autre ressource en dépendent, supprime tout
+// le reste dans une transaction et annule tout s'il resterait la moindre référence.
+
+function supprimerRessource($db, bool $is_ajax, string $redirect): void
+{
+  require_once __DIR__ . '/../include/ressource-suppression.php';
+
+  $res_id = intParam($_POST['id'] ?? 0);
+  $page   = BASE_URL . '/admin/ressource.php?id=' . $res_id . '&suppr=1';
+  if (!$res_id):
+    adminErreur($is_ajax, 'Aucune ressource sélectionnée.', $redirect);
+  endif;
+
+  // Confirmation forte : l'abréviation (à défaut, le nom) de la ressource ressaisie
+  $stmt = $db->prepare('SELECT res_nom, res_abreviation FROM dd_ressources WHERE res_id = ?');
+  $stmt->execute([$res_id]);
+  $res = $stmt->fetch();
+  if (!$res):
+    adminErreur($is_ajax, 'Ressource introuvable.', BASE_URL . '/admin/ressources.php');
+  endif;
+  $attendu = ressourceMotDeConfirmation($res);
+  if (trim((string)($_POST['confirmation'] ?? '')) !== $attendu):
+    adminErreur($is_ajax, 'Confirmation incorrecte : saisissez exactement « ' . $attendu . ' ».', $page);
+  endif;
+
+  $r = ressourceSupprimerCascade($db, $res_id);
+  if (!$r['ok']):
+    adminErreur($is_ajax, $r['erreur'], $page);
+  endif;
+
+  $total = array_sum($r['volumes']) - 1;   // hors la ligne de la ressource elle-même
+  if ($is_ajax):
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => true, 'id' => 0, 'url_detail' => '', 'volumes' => $r['volumes']]);
+    exit;
+  endif;
+  $_SESSION['flash_message'] = [
+    'type' => 'success',
+    'text' => 'Ressource « ' . $res['res_nom'] . ' » supprimée, avec ' . $total . ' ligne(s) rattachée(s).',
+  ];
+  header('Location: ' . BASE_URL . '/admin/ressources.php');
+  exit;
 }
 
 // ============================================================

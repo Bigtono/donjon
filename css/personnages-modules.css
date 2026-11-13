@@ -188,13 +188,12 @@
   min-width: 0;
 }
 
-/* Appoint d'un champ d'identité — le bonus de maîtrise derrière le niveau
-   global (SP-PE11). En retrait : c'est une conséquence du niveau, pas une
-   donnée de même rang. */
-.per-identite__appoint {
-  color: var(--clr-text-muted);
-  font-weight: 400;
-  white-space: nowrap;
+/* Valeur d'identité qui porte une info-bulle de calcul (niveau DD3.5, SP-PE23) :
+   un soulignement pointillé la signale. */
+.per-identite__val--detail {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
 }
 
 /* --- Bloc Identité : les classes --------------------------------
@@ -615,6 +614,76 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* --- Rangée de combat (SP-PE22) -----------------------------------
+   Sous les caractéristiques : PV / Init, vision, déplacement, BBA (DD3.5) ou
+   vision, déplacement, BM (DD2024). Les tuiles en ligne gardent le gabarit
+   `.per-fiche__bloc--stat` ; les tuiles TEXTE portent un libellé au-dessus
+   d'une valeur qui revient à la ligne, car vision et déplacement peuvent être
+   longs (« 15 m (10 cases), vol 45 m (bonne) »). */
+
+.per-fiche__bloc--texte {
+  flex: 2 1 150px;
+  min-width: 0;
+  display: flex;
+}
+
+.per-fiche__bloc--vision {
+  flex: 3 1 220px;
+}
+
+.per-fiche__bloc--texte .per-fiche__bloc-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--sp-sm);
+}
+
+.per-stat-texte {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xs);
+  min-width: 0;
+  text-align: center;
+}
+
+/* Même règle que les autres tuiles : le libellé porte le gras. */
+.per-stat-texte__lbl {
+  font-size: 1.1em;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--clr-text);
+}
+
+.per-stat-texte__val {
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--clr-text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* CA du DD3.5 : « CA 21 » sur une ligne, sa nature en petit dessous. */
+.per-stat--empile {
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xs);
+  text-align: center;
+}
+
+.per-stat__ligne {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+}
+
+.per-stat__sous {
+  font-size: .85rem;
+  line-height: 1.2;
+  color: var(--clr-text-muted);
+}
+
 
 /* --- Bloc Classes (liste simple) --- */
 
@@ -823,6 +892,18 @@
   .per-fiche__bloc--stat {
     flex: 1 1 0;
     min-width: 0;
+  }
+
+  /* Vision, déplacement et BBA : des textes longs, chacun sa ligne. Les
+     tuiles en ligne (PV / Init, CA) restent côte à côte (SP-PE22). */
+  .per-fiche__bloc--texte,
+  .per-fiche__bloc--vision {
+    flex: 0 0 100%;
+  }
+
+  /* Trois CA sur 343px : le sous-libellé se resserre et passe à la ligne. */
+  .per-fiche__bloc--ca .per-stat__sous {
+    font-size: .75rem;
   }
 
   /* Les tuiles se resserrent avec les caractéristiques : une fois celles-ci

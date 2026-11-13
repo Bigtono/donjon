@@ -85,13 +85,18 @@ $titre = $id > 0 ? 'Modifier ' . h($res['res_nom']) : 'Nouvelle ressource';
           </select>
         </div>
 
-        <div class="form-group" style="align-self: center;">
-          <label class="modif-check">
-            <input type="checkbox" name="res_selection" value="1"
-                   <?= (int)$res['res_selection'] ? 'checked' : '' ?>>
-            Actif par défaut dans les sélections
-          </label>
-        </div>
+        <?php // Liste des ressources actives : le compendium montre tout leur
+        // contenu (SP-RE). Un supplément de MJ n'y entre jamais : son affichage
+        // suit le réglage public / privé de son MJ. ?>
+        <?php if (($res['res_j_id'] ?? null) === null): ?>
+          <div class="form-group" style="align-self: center;">
+            <label class="modif-check">
+              <input type="checkbox" name="res_selection" value="1"
+                     <?= (int)$res['res_selection'] ? 'checked' : '' ?>>
+              Active (contenu affiché dans le compendium)
+            </label>
+          </div>
+        <?php endif ?>
 
       </div>
     </div>

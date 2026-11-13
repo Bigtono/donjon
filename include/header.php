@@ -11,6 +11,10 @@ $js_module  = isset($js_module) ? h($js_module) : '';
 $css_module = isset($css_module) ? h($css_module) : '';
 $body_class = isset($body_class) ? h($body_class) : '';
 
+// Popup (SP-CP13b) : la page est chargée dans une iframe — ni en-tête, ni contexte, ni pied.
+$mode_popup = modePopup();
+if ($mode_popup) $body_class = trim($body_class . ' est-popup');
+
 // Thème utilisateur — dark par défaut si non défini
 $theme_valides = ['dark', 'light'];
 $theme_actif   = in_array($_SESSION['j_theme'] ?? '', $theme_valides, true)
@@ -60,6 +64,7 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
          title="Mode debug — cliquer pour déplacer le badge">…</div>
   <?php endif ?>
 
+  <?php if (!$mode_popup): ?>
   <header class="site-header">
     <div class="site-header__brand">
       <a href="<?= BASE_URL ?>/index.php" class="site-header__logo">
@@ -143,6 +148,7 @@ $debug_ui = !empty($_SESSION['debug_ui']) && !empty($_SESSION['j_admin']);
   <div id="site-header-context-zone">
     <?php include __DIR__ . '/header-context.php'; ?>
   </div>
+  <?php endif ?>
 
   <main class="site-main">
     <div id="detail-pp-backdrop" class="overlay-backdrop noDisplay"></div>

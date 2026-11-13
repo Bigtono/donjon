@@ -75,7 +75,7 @@ $niveau_global = niveauGlobalPersonnage($classes);
 // Le ruleset passé est celui du PERSONNAGE, pas celui de la session : les deux
 // peuvent diverger (personnage DD3.5 consulté depuis une session DD2024) et le
 // croisement produirait des listes vides.
-$res_ids    = getActiveResIds($db, $ruleset_id);
+$res_ids    = getActiveResIds($db, $ruleset_id, ['pe_id' => (int)$perso['pe_id']]);
 $filtre_res = !empty($res_ids);
 $ph         = $filtre_res ? resIdsPlaceholders($res_ids) : '';
 $sql_cla    = "
@@ -153,6 +153,12 @@ $choix_restants    = $ctx_caps_classes['restant'];
 $bonus_maitrise = ($ruleset_rep === 'DD2024')
   ? getBonusMaitrise($db, $ruleset_id, $niveau_global)
   : 0;
+
+// BBA total DD3.5 (SP-PE22) : somme des BBA de classe, mis en forme en attaques
+// itératives (+16/+11/+6/+1). Calculé, jamais saisi.
+$bba_affiche = ($ruleset_rep === 'DD3.5')
+  ? formatBba(bbaTotalPersonnage($db, $classes))
+  : '';
 
 // Modificateur de la caractéristique associée, indexé par comp_car_id.
 $mod_par_carac = modsCaracCompetences($perso, $competences);
@@ -376,10 +382,12 @@ require_once '../include/header.php';
       <?php endif ?>
     </div>
 
+    <?php if (!modePopup()): ?>
     <a href="<?= BASE_URL ?>/personnages/" class="btn btn-link btn-sm per-fiche__retour"
        title="Retour à la liste">
       <i class="fa fa-arrow-left"></i>
     </a>
+    <?php endif ?>
 
     <button class="btn btn-secondary btn-sm per-fiche__modifier"
             onclick="ouvrirModifier(perUrlModifier, <?= (int)$perso['pe_id'] ?>)"
@@ -434,13 +442,19 @@ require_once '../include/header.php';
         <?php if ($niveau_global > 0): ?>
           <div class="per-identite__champ">
             <dt>Niveau</dt>
-            <?php // Le bonus de maîtrise suit le niveau : il s'en déduit, et se
-                  // lit donc avec lui plutôt que dans une tuile à part (SP-PE11). ?>
-            <dd>
-              <?= $niveau_global ?><?php if ($ruleset_rep === 'DD2024'): ?>
-                <span class="per-identite__appoint" title="Bonus de maîtrise">(BM <?= formatMod($bonus_maitrise) ?>)</span>
-              <?php endif ?>
-            </dd>
+            <?php // Le bonus de maîtrise (DD2024) n'est plus lu ici : il a sa
+                  // tuile dans la rangée de combat, sous les caractéristiques
+                  // (SP-PE22). ?>
+            <?php // DD3.5 (SP-PE23) : le niveau ajoute les ajustements de niveau
+                  // de la race et de l'archétype à ceux des classes ; l'info-bulle
+                  // détaille le calcul. $niveau_global, lui, reste la somme des
+                  // classes — c'est lui que lit le bonus de maîtrise DD2024. ?>
+            <?php if ($ruleset_rep === 'DD3.5'): ?>
+              <?php $niv35 = niveauGlobalDetail35($perso, $classes); ?>
+              <dd class="per-identite__val--detail" title="<?= h($niv35['info']) ?>"><?= $niv35['total'] ?></dd>
+            <?php else: ?>
+              <dd><?= $niveau_global ?></dd>
+            <?php endif ?>
           </div>
         <?php endif ?>
 
@@ -653,35 +667,129 @@ require_once '../include/header.php';
       </div>
     </section>
 
-    <?php // L'initiative remplace le bonus de maîtrise, parti rejoindre le
-          // niveau global dans le bloc Identité (SP-PE11). Elle vaut pour les
-          // deux rulesets. ?>
-    <section class="per-fiche__bloc per-fiche__bloc--stat">
+    <?php // SP-PE22 — à droite des caractéristiques :
+          //  DD3.5  : les trois CA (optimale, prise au dépourvu, contact) ;
+          //  DD2024 : Init, CA et PV.
+          // Le reste (PV, Init, vision, déplacement, BBA ou BM) passe dans la
+          // rangée suivante. ?>
+    <?php if ($ruleset_rep === 'DD3.5'): ?>
+      <?php
+        $cas_35 = [
+          ['val' => (int)$perso['pe_ca'],                    'sous' => 'Optimale',        'titre' => "Classe d'armure optimale"],
+          ['val' => (int)($perso['pe_ca_depourvu'] ?? 10),   'sous' => 'Pris au dépourvu', 'titre' => "Classe d'armure prise au dépourvu"],
+          ['val' => (int)($perso['pe_ca_contact'] ?? 10),    'sous' => 'Contact',         'titre' => "Classe d'armure de contact"],
+        ];
+      ?>
+      <?php foreach ($cas_35 as $ca_35): ?>
+        <section class="per-fiche__bloc per-fiche__bloc--stat per-fiche__bloc--ca">
+          <div class="per-fiche__bloc-body">
+            <div class="per-stat per-stat--empile" title="<?= h($ca_35['titre']) ?>">
+              <span class="per-stat__ligne">
+                <span class="per-stat__lbl">CA</span>
+                <span class="per-stat__val"><?= $ca_35['val'] ?></span>
+              </span>
+              <span class="per-stat__sous"><?= h($ca_35['sous']) ?></span>
+            </div>
+          </div>
+        </section>
+      <?php endforeach ?>
+    <?php else: ?>
+      <?php // L'initiative remplace le bonus de maîtrise, parti rejoindre le
+            // niveau global (SP-PE11) puis la rangée de combat (SP-PE22). ?>
+      <section class="per-fiche__bloc per-fiche__bloc--stat">
+        <div class="per-fiche__bloc-body">
+          <div class="per-stat" title="Initiative">
+            <span class="per-stat__lbl">Init</span>
+            <span class="per-stat__val"><?= formatMod((int)$perso['pe_init']) ?></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="per-fiche__bloc per-fiche__bloc--stat">
+        <div class="per-fiche__bloc-body">
+          <div class="per-stat" title="Classe d'armure">
+            <span class="per-stat__lbl">CA</span>
+            <span class="per-stat__val"><?= (int)$perso['pe_ca'] ?></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="per-fiche__bloc per-fiche__bloc--stat">
+        <div class="per-fiche__bloc-body">
+          <div class="per-stat" title="Points de vie totaux">
+            <span class="per-stat__lbl">PV</span>
+            <span class="per-stat__val"><?= (int)$perso['pe_pv'] ?></span>
+          </div>
+        </div>
+      </section>
+    <?php endif ?>
+
+  </div>
+
+  <?php // ---- Rangée de combat : PV / Init, vision, déplacement, BBA ou BM
+        // (SP-PE22). Deux familles de tuiles, harmonisées avec la rangée du
+        // dessus : « en ligne » (libellé et valeur côte à côte, courtes) et
+        // « texte » (libellé au-dessus, valeur qui revient à la ligne — vision
+        // et déplacement peuvent être longs). ?>
+  <div class="per-fiche__rangee per-fiche__rangee--combat">
+
+    <?php if ($ruleset_rep === 'DD3.5'): ?>
+      <section class="per-fiche__bloc per-fiche__bloc--stat">
+        <div class="per-fiche__bloc-body">
+          <div class="per-stat" title="Points de vie totaux">
+            <span class="per-stat__lbl">PV</span>
+            <span class="per-stat__val"><?= (int)$perso['pe_pv'] ?></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="per-fiche__bloc per-fiche__bloc--stat">
+        <div class="per-fiche__bloc-body">
+          <div class="per-stat" title="Initiative">
+            <span class="per-stat__lbl">Init</span>
+            <span class="per-stat__val"><?= formatMod((int)$perso['pe_init']) ?></span>
+          </div>
+        </div>
+      </section>
+    <?php endif ?>
+
+    <section class="per-fiche__bloc per-fiche__bloc--texte per-fiche__bloc--vision">
       <div class="per-fiche__bloc-body">
-        <div class="per-stat" title="Initiative">
-          <span class="per-stat__lbl">Init</span>
-          <span class="per-stat__val"><?= formatMod((int)$perso['pe_init']) ?></span>
+        <div class="per-stat-texte" title="Vision">
+          <span class="per-stat-texte__lbl">Vision</span>
+          <span class="per-stat-texte__val"><?= trim((string)$perso['pe_vision']) !== '' ? h($perso['pe_vision']) : '—' ?></span>
         </div>
       </div>
     </section>
 
-    <section class="per-fiche__bloc per-fiche__bloc--stat">
+    <section class="per-fiche__bloc per-fiche__bloc--texte per-fiche__bloc--deplacement">
       <div class="per-fiche__bloc-body">
-        <div class="per-stat" title="Classe d'armure">
-          <span class="per-stat__lbl">CA</span>
-          <span class="per-stat__val"><?= (int)$perso['pe_ca'] ?></span>
+        <div class="per-stat-texte" title="Déplacement">
+          <span class="per-stat-texte__lbl">Déplacement</span>
+          <span class="per-stat-texte__val"><?= trim((string)$perso['pe_deplacement']) !== '' ? h($perso['pe_deplacement']) : '—' ?></span>
         </div>
       </div>
     </section>
 
-    <section class="per-fiche__bloc per-fiche__bloc--stat">
-      <div class="per-fiche__bloc-body">
-        <div class="per-stat" title="Points de vie totaux">
-          <span class="per-stat__lbl">PV</span>
-          <span class="per-stat__val"><?= (int)$perso['pe_pv'] ?></span>
+    <?php if ($ruleset_rep === 'DD3.5'): ?>
+      <section class="per-fiche__bloc per-fiche__bloc--texte per-fiche__bloc--bba">
+        <div class="per-fiche__bloc-body">
+          <div class="per-stat-texte" title="Bonus de base à l'attaque">
+            <span class="per-stat-texte__lbl">BBA</span>
+            <span class="per-stat-texte__val"><?= h($bba_affiche) ?></span>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    <?php else: ?>
+      <section class="per-fiche__bloc per-fiche__bloc--stat">
+        <div class="per-fiche__bloc-body">
+          <div class="per-stat" title="Bonus de maîtrise">
+            <span class="per-stat__lbl">BM</span>
+            <span class="per-stat__val"><?= formatMod($bonus_maitrise) ?></span>
+          </div>
+        </div>
+      </section>
+    <?php endif ?>
 
   </div>
 

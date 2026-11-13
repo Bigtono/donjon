@@ -235,29 +235,8 @@ function enregistrerCampagne($db, bool $is_ajax, string $redirect): void
       ');
       $stmt->execute([$nom, $un_id_final, $resume, $description, $camp_id]);
 
-      $sources = array_filter(array_map('intval', (array)($_POST['sources'] ?? [])));
-      $db->prepare('DELETE FROM dd_campagnes_sources WHERE cs_camp_id = ?')->execute([$camp_id]);
-
-      if (!empty($sources)):
-        $stmt = $db->prepare('SELECT camp_ruleset_var_id FROM dd_campagnes WHERE camp_id = ?');
-        $stmt->execute([$camp_id]);
-        $camp_ruleset = (int)$stmt->fetchColumn();
-
-        $ph   = implode(',', array_fill(0, count($sources), '?'));
-        $stmt = $db->prepare("
-          SELECT res_id FROM dd_ressources
-          WHERE  res_id IN ($ph) AND res_ruleset_var_id = ? AND res_j_id IS NULL
-        ");
-        $stmt->execute(array_merge($sources, [$camp_ruleset]));
-        $valides = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
-
-        if (!empty($valides)):
-          $ins = $db->prepare('INSERT INTO dd_campagnes_sources (cs_camp_id, cs_res_id) VALUES (?,?)');
-          foreach ($valides as $res_id):
-            $ins->execute([$camp_id, $res_id]);
-          endforeach;
-        endif;
-      endif;
+      // Plus de sélection de sources par campagne (SP-RE6) : le compendium montre
+      // les ressources actives et le supplément du MJ.
 
     endif;
 

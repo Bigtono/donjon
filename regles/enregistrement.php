@@ -1,7 +1,7 @@
 <?php
 // regles/enregistrement.php — Écriture du module Règles
 //
-// Accès : canEditCompendium() uniquement (admin + gestionnaire compendium)
+// Accès : canEditCompendiumOfficiel() uniquement (admin + gestionnaire compendium)
 // CSRF  : vérifié systématiquement
 //
 // POST requis :
@@ -20,7 +20,7 @@ require_once '../include/regles-arbre.php';
 requireAuth();
 verifyCsrf();
 
-if (!canEditCompendium()):
+if (!canEditCompendiumOfficiel()):
   _repondreErreur(true, 'Accès refusé.');
 endif;
 

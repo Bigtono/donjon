@@ -12,6 +12,8 @@
 //   reg_texte, descriptions      | lierGlossaireAuto() + resoudreTagsTableaux()
 //   du compendium                |   + resoudreTagsListes()
 //                                |   -> glossaire auto + [[tab:slug]] + [[liste:…]]
+//   om_description (objet magique)| idem + lierMotsClesCompendium() (clé texte-objet-parsers)
+//                                |   -> + [[sort:Nom]] [[don:Nom]] [[objet:Nom]] + liaison auto
 //   tab_contenu (cellules)       | resoudreTagsExplicites()
 //                                |   -> #don# $sort$ &objet& @id@ %id%
 //   mo_stats                     | resoudreTagsExplicites() + lierAuto()
@@ -30,7 +32,33 @@ return [
   // Champs de prose : reg_texte + les 9 descriptions du compendium
   // Parsers : lierGlossaireAuto() puis resoudreTagsTableaux()
   // ==========================================================
-  'texte-parsers' => function (PDO $db, int $ruleset_id): string {
+  // $texte_parsers : même closure pour 'texte-parsers' et 'texte-objet-parsers'
+  // ($objet = true ajoute le bloc des liens vers sorts, dons et objets).
+  'texte-parsers' => $texte_parsers = function (PDO $db, int $ruleset_id, bool $objet = false): string {
+    $liens_objet = '
+      <p><strong>Liens vers sorts, dons et objets magiques</strong></p>
+      <ul>
+        <li><code>[[sort:Boule de feu]]</code>, <code>[[don:Attaque en finesse]]</code>,
+        <code>[[objet:Anneau de protection]]</code> — lien cliquable vers la fiche, par
+        nom (casse et accents indifférents).</li>
+        <li>Libellé affiché différent : <code>[[sort:Boule de feu|boules de feu]]</code>.</li>
+        <li>Nom inconnu (ou hors des sources actives) : le tag s\'affiche en rouge encadré.</li>
+        <li><strong>Liaison automatique</strong> en complément : un nom de sort, de don ou
+        d\'objet est lié s\'il apparaît <strong>avec sa casse exacte</strong>
+        (« Boule de feu » dans une liste de pouvoirs), à sa première occurrence seulement.
+        Les accents sont indifférents (« Éclair » trouve « Eclair »).</li>
+        <li><strong>Listes de noms</strong> : dans un texte formé surtout de noms séparés par
+        <code>,</code> <code>;</code> ou <code>:</code> (« Conditions : boule de feu, cône de
+        froid, … », ou un paragraphe qui commence par <em>Création</em>), chaque élément qui
+        <em>commence</em> par un nom de sort, de don ou d\'objet est lié, <strong>quelle que soit
+        la casse</strong>. Seul le nom est lié : « boule de feu (au 5e niveau) » garde son
+        qualificatif en texte.</li>
+        <li>Dans un <strong>tableau</strong>, une colonne dont l\'en-tête contient « Sort » ou
+        « Sorts » est traitée de la même façon, sans balisage.</li>
+        <li>L\'objet décrit ne se lie jamais à lui-même ; aucun lien dans un titre, un
+        lien existant ou un tableau.</li>
+      </ul>';
+
     // Nombre de termes de glossaire réellement disponibles : sur un ruleset
     // qui n'en a pas encore (DD3.5), autant le dire plutôt que de laisser
     // l'utilisateur attendre des renvois qui ne viendront jamais.
@@ -116,11 +144,20 @@ return [
 
       ' . $glossaire . '
 
+      ' . ($objet ? $liens_objet : '') . '
+
       <p class="aide-note">Les tags <code>#don#</code>, <code>$sort$</code>,
       <code>&amp;objet&amp;</code> ne fonctionnent <strong>pas</strong> ici :
       ils sont réservés au bloc de stats des monstres et aux cellules de
-      tableau.</p>
+      tableau.' . ($objet ? ' Utilisez les tags <code>[[sort:…]]</code>,
+      <code>[[don:…]]</code> et <code>[[objet:…]]</code> décrits ci-dessus.' : '') . '</p>
     ';
+  },
+
+  // Description d'un objet magique : mêmes passes que ci-dessus, plus les liens vers
+  // sorts, dons et objets (SP-GL5, lierMotsClesCompendium()).
+  'texte-objet-parsers' => function (PDO $db, int $ruleset_id) use (&$texte_parsers): string {
+    return $texte_parsers($db, $ruleset_id, true);
   },
 
   // ==========================================================
@@ -189,6 +226,9 @@ Deux groupes : 2-3 et 5-6
         <li><code>&amp;Nom de l\'objet&amp;</code> — objet magique, par nom</li>
         <li><code>@id@</code> — règle, par identifiant</li>
         <li><code>%id%</code> — terme de glossaire, par identifiant</li>
+        <li>Colonne dont l\'en-tête contient « Sort » ou « Sorts » : les noms de sorts de la
+        cellule (séparés par des virgules, casse libre) sont liés <strong>automatiquement</strong>,
+        sans balisage.</li>
       </ul>
 
       <p class="aide-note">Le nombre de colonnes est déduit de la ligne la plus

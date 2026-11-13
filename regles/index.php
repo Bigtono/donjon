@@ -16,7 +16,7 @@ $css_module = 'regles';
 
 $ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
 $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
-$peut_editer = canEditCompendium();
+$peut_editer = canEditCompendiumOfficiel();
 
 // Chargement de l'arbre complet (brouillons visibles pour les éditeurs)
 $arbre       = chargerArbreRegles($db, $ruleset_id, $peut_editer);

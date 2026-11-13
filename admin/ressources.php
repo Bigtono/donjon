@@ -14,26 +14,53 @@ $css_module = 'admin';
 // Fonctions de rendu personnalisées — déclarées avant l'include
 // ============================================================
 
-// Message de confirmation de suppression : affiche les compteurs
-function confirmerRessource(array $ligne): string
-{
-  $details = decrireContenuRessource($ligne);
-
-  if ($details !== ''):
-    return '<span class="text-danger"><i class="fa fa-exclamation-triangle"></i> '
-      . 'Cette ressource contient ' . h($details)
-      . ' — la suppression sera refusée.</span>';
-  endif;
-
-  return 'Supprimer cette ressource ?';
-}
-
 // Rendu du nombre avec mise en évidence si > 0
 function renderNbAvecBadge(array $ligne, string $champ): string
 {
   $nb = (int)($ligne[$champ] ?? 0);
   if ($nb === 0) return '<span class="text-muted">0</span>';
   return '<span class="badge badge--count">' . $nb . '</span>';
+}
+
+// Nom de la ressource, suivi d'une étoile quand elle est active (res_selection = 1,
+// contenu affiché dans le compendium). Un supplément de MJ n'est jamais actif : il
+// porte à la place son statut public / privé, réglé par le MJ dans son profil (SP-RE).
+function renderNomRessource(array $ligne): string
+{
+  $html = h((string)($ligne['res_nom'] ?? ''));
+  if ($ligne['res_j_id'] !== null):
+    $html .= (int)$ligne['j_supplement_public'] === 1
+      ? ' <span class="badge" title="Supplément de MJ visible de tous">Supplément public</span>'
+      : ' <span class="badge" title="Supplément de MJ visible de son MJ, des admins et des joueurs de ses campagnes">Supplément privé</span>';
+  elseif ((int)($ligne['res_selection'] ?? 0) === 1):
+    $html .= ' <i class="fa fa-star res-etoile" title="Active"></i>';
+  endif;
+  return $html;
+}
+
+// Actions du menu ⋮ de la ligne : Activer / Désactiver (ressources officielles
+// seulement), puis Supprimer, qui mène à l'analyse de suppression en cascade de
+// la page de la ressource (SP-AD6)
+function menuExtraRessource(array $ligne, int $id): string
+{
+  if ($ligne['res_j_id'] !== null):
+    $html = '';
+  elseif ((int)($ligne['res_selection'] ?? 0) === 1):
+    $html = '<button class="comp-menu-item"
+      onclick="compToggleMenu(' . $id . '); adminBasculerRessource(' . $id . ', \'desactiver\')">
+      <i class="fa fa-ban"></i> Désactiver
+    </button>';
+  else:
+    $html = '<button class="comp-menu-item comp-menu-item--success"
+      onclick="compToggleMenu(' . $id . '); adminBasculerRessource(' . $id . ', \'activer\')">
+      <i class="fa fa-star"></i> Activer
+    </button>';
+  endif;
+  $url = BASE_URL . '/admin/ressource.php?id=' . $id . '&suppr=1';
+  return $html . '<button class="comp-menu-item comp-menu-item--danger"
+    onclick="window.location.href = ' . h(json_encode($url)) . '">
+    <i class="fa fa-trash"></i> Supprimer…
+  </button>';
 }
 
 function renderNbClasses(array $ligne): string  { return renderNbAvecBadge($ligne, 'nb_classes'); }
@@ -49,7 +76,8 @@ function renderNbObjets(array $ligne): string   { return renderNbAvecBadge($lign
 $adminListConfig = [
   'entite'   => 'ressource',
   'from'     => 'dd_ressources res
-                 JOIN dd_variables var ON var.var_id = res.res_ruleset_var_id',
+                 JOIN dd_variables var ON var.var_id = res.res_ruleset_var_id
+                 LEFT JOIN dd_joueurs jo ON jo.j_id = res.res_j_id',
   'champ_id' => 'res.res_id',
   'colonnes' => [
     [
@@ -58,6 +86,7 @@ $adminListConfig = [
       'label'  => 'Nom',
       'mobile' => true,
       'tri'    => true,
+      'render' => 'renderNomRessource',
     ],
     [
       'sql'    => 'res.res_abreviation',
@@ -114,11 +143,9 @@ $adminListConfig = [
       'render' => 'renderNbObjets',
     ],
   ],
-  // Compteurs sans colonne, lus par confirmerRessource()
-  'select_extra' => array_map(
-    fn($cle) => contenuRessourceSql($cle) . ' AS ' . $cle,
-    ['nb_comp', 'nb_hist', 'nb_monstres', 'nb_equipements', 'nb_regles', 'nb_tableaux']
-  ),
+  // État d'activation, lu par renderNomRessource() et menuExtraRessource()
+  'select_extra' => ['res.res_selection AS res_selection', 'res.res_j_id AS res_j_id',
+                     'jo.j_supplement_public AS j_supplement_public'],
   'filtres'  => [
     [
       'type'        => 'select_static',
@@ -137,14 +164,15 @@ $adminListConfig = [
       ),
     ],
   ],
-  'url_detail'          => BASE_URL . '/include/ajax/detail-pp/ressource.php',
+  'url_detail'          => '', // plus de panneau : la ressource a sa propre page (SP-AD5)
+  'url_page'            => BASE_URL . '/admin/ressource.php',
   'url_modifier'        => BASE_URL . '/include/ajax/modifier/ressource.php',
   'url_enreg'           => BASE_URL . '/admin/enregistrement.php',
   'bulk_actions'        => [], // pas de suppression groupée pour les ressources
-  'avec_supprimer'      => true,
-  'label_supprimer'     => 'Supprimer',
-  'action_supprimer'    => 'supprimer',
-  'confirm_callback'    => 'confirmerRessource',
+  // Suppression en cascade : analyse et confirmation sur la page de la ressource (SP-AD6),
+  // via l'entrée « Supprimer… » de menuExtraRessource() — plus de confirmation inline
+  'avec_supprimer'      => false,
+  'menu_extra_callback' => 'menuExtraRessource',
 ];
 
 require_once '../include/header.php';

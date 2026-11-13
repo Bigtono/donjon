@@ -48,7 +48,9 @@ define('GL_BALISES_EXCLUES', [
 // Tags opaques : [[tab:slug]] (tableaux, SP-TB) et [[liste:entite|param=valeur…]]
 // (listes dynamiques, SP-PO1). Les paramètres d'un tag liste contiennent des mots
 // du glossaire (« famille=armes », « source=DRS 3.5 ») : il ne faut pas les lier.
-define('GL_TAB_MOTIF', '\[\[(?:tab:[a-z0-9\-]{1,120}|liste:[a-z]+(?:\|[^\[\]|]*)*)\]\]');
+// Tags de liens du compendium [[sort:Nom]], [[don:Nom]], [[objet:Nom]] (SP-GL5) : le nom
+// peut contenir un terme du glossaire, qui ne doit pas couper le tag avec une ancre.
+define('GL_TAB_MOTIF', '\[\[(?:tab:[a-z0-9\-]{1,120}|liste:[a-z]+(?:\|[^\[\]|]*)*|(?:sort|don|objet):[^\[\]]{1,160})\]\]');
 
 // ============================================================
 // 1. INDEX DES TERMES
@@ -214,7 +216,7 @@ function _glMajProfondeur(string $token, int $profondeur): int
 // tableaux / listes juste après, et ne doivent surtout pas se retrouver coupés par une ancre.
 function _glLierTexte(string $seg, string $motif, array $parNom, array &$fait): string
 {
-  if (stripos($seg, '[[tab:') === false && stripos($seg, '[[liste:') === false):
+  if (strpos($seg, '[[') === false):
     return _glLierSegment($seg, $motif, $parNom, $fait);
   endif;
 

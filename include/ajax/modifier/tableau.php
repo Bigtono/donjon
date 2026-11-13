@@ -17,7 +17,7 @@ require_once __DIR__ . '/../../helpers.php';
 require_once __DIR__ . '/../../tableau-parser.php';
 
 requireAuth();
-if (!canEditCompendium()):
+if (!canEditCompendiumOfficiel()):
   http_response_code(403);
   echo '<p class="erreur">Accès refusé.</p>';
   exit;
@@ -50,10 +50,11 @@ if ($id > 0):
   $tab = array_merge($tab, array_map(fn($v) => $v ?? '', $row));
 endif;
 
-// Ressources du ruleset (attribution de la source)
+// Ressources officielles du ruleset (attribution de la source). Les tableaux
+// sont du contenu officiel : pas de supplément de MJ ici (SP-RE5).
 $stmt = $db->prepare('
   SELECT res_id, res_nom FROM dd_ressources
-  WHERE  res_ruleset_var_id = ?
+  WHERE  res_ruleset_var_id = ? AND res_j_id IS NULL
   ORDER  BY res_nom
 ');
 $stmt->execute([$ruleset_id]);

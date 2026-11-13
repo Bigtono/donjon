@@ -16,7 +16,7 @@ requireAuth();
 
 $id          = intParam($_GET['id'] ?? 0);
 $ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
-$peut_editer = canEditCompendium();
+$peut_editer = canEditCompendiumOfficiel();
 
 if (!$id):
   http_response_code(400);

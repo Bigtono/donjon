@@ -74,6 +74,11 @@ require_once '../include/header.php';
     <span>Migrations SQL</span>
   </a>
 
+  <a href="<?= BASE_URL ?>/admin/orphelins.php" class="dashboard-card dashboard-card--admin">
+    <i class="fa fa-link-slash"></i>
+    <span>Données orphelines</span>
+  </a>
+
   <a href="<?= BASE_URL ?>/admin/test-email.php" class="dashboard-card dashboard-card--admin">
     <i class="fa fa-envelope"></i>
     <span>Test d'envoi de mail</span>

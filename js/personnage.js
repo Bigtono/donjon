@@ -2144,7 +2144,7 @@ async function perDefinirPorteeNotes(scope) {
   try {
     const data = await postAjax(perUrlEnreg, { action: 'definirPorteeNotes', pe_id: perPeId, scope: scope });
     if (!data.ok) { notifier(data.erreur || 'Échec', 'erreur'); return; }
-    window.location.href = '?id=' + perPeId;
+    window.location.href = '?id=' + perPeId + (/[?&]popup=1/.test(location.search) ? '&popup=1' : '');
   } catch (e) {
     notifier('Erreur réseau', 'erreur');
   }

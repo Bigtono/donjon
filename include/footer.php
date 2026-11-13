@@ -3,9 +3,11 @@
 ?>
 </main>
 
+<?php if (!modePopup()): ?>
 <footer class="site-footer">
   <p>Codex DD v2 — <?= date('Y') ?></p>
 </footer>
+<?php endif ?>
 
 <script>
   var BASE_URL = <?= json_encode(BASE_URL) ?>;

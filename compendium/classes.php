@@ -160,6 +160,8 @@ $listConfig = [
   'bulk_actions' => [
     ['valeur' => 'supprimer', 'label' => 'Supprimer la sélection'],
   ],
+  // SP-DU : duplication d'une classe, DD3.5 pour l'instant (DD2024 = SP-DU5)
+  'action_dupliquer' => ($ruleset_id === 1),
 ];
 
 require_once '../include/header.php';

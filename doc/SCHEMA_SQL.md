@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-09 19:40 -->
+<!-- Mis à jour : 2026-11-12 12:00 -->
 
 # Codex DD v2 — Schéma de base de données
 
@@ -42,6 +42,8 @@
 | 1.28 | 2026-11-07 | JM | **SP-CP11** — suivi des PV des oppositions : `dd_oppositions.opp_nombre` (effectif, défaut 1) et `opp_pv_max` (PV max d'une créature, pré-rempli d'après la ligne « PV » du bloc de stats : 121 / 128 en local) AJOUTÉES ; `dd_oppositions_pv` CRÉÉE (PV courants des créatures entamées, FK en cascade). SQL : `sql/2026-11-07_sp-cp11_oppositions_pv.sql` (**NON IDEMPOTENT**, appliqué en dev le 2026-11-07 ; **reste à appliquer en prod OVH**) |
 | 1.29 | 2026-11-07 | JM | **SP-CP11c** — données seulement, aucune colonne : `dd_oppositions.opp_nombre` renseigné d'après la composition des rencontres de la campagne v1 (55 oppositions), `opp_pv_max` repris là où il était vide. SQL : `sql/2026-11-08_sp-cv1b_effectifs_oppositions.sql` (appliqué en dev le 2026-11-07 ; **reste à appliquer en prod OVH**, après `sp-cv1`) |
 | 1.30 | 2026-11-09 | JM | **SP-DRS10** — données seulement, aucune colonne : 15 classes de prestige DD3.5 mises en conformité avec le DRS (`dd_classes`, `dd_classe_niveau`, `dd_classe_capacite`, `dd_classe_competence`, `dd_sortclasse`), 5 classes de PNJ créées (`cla_clt_id` 3) ; capacités réécrites ou créées dans `dd_capacites_speciales`, `cap_classe_initiale` désormais renseignée pour les capacités propres à une classe (variantes, D-DRS11) ; 5 tableaux `classe-*` (catégorie Classe) ; racine de règles « Les classes » et 4 termes de glossaire dans `dd_regles`. SQL : `sql/2026-11-09_sp-drs10_classes_prestige_pnj_dd35.sql` (appliqué en dev le 2026-11-09 ; **reste à appliquer en prod OVH**) |
+| 1.32 | 2026-11-12 | JM | **SP-PE22** — `dd_personnages.pe_ca_depourvu` et `pe_ca_contact` (SMALLINT, défaut 10, DD3.5 seulement), `pe_vision` et `pe_deplacement` (VARCHAR 100, défaut vide) AJOUTÉES. `pe_ca` devient la CA optimale. SQL : `sql/2026-11-12_sp-pe22_ca_vision_deplacement.sql` (appliqué en dev le 2026-11-12 ; **reste à appliquer en prod OVH**) |
+| 1.31 | 2026-11-09 | JM | **SP-JF** — import du Manuel des Joueurs de Faerûn (source 63). Une colonne : `dd_domaines.do_res_id` (INT UNSIGNED NULL, source du domaine). Le reste est de la donnée : 46 sorts, 70 dons, 28 classes de prestige (progression, capacités, compétences de classe), 10 objets, 19 domaines, 247 liens de sorts de domaine, 18 tableaux ; 14 sorts, 9 objets et 7 dons corrigés, 8 réimpressions de dons et 7 de sorts rattachées au MdJF. SQL : `sql/2026-11-09_sp-jf1_…` → `…_sp-jf9_…` (10 fichiers, appliqués en dev le 2026-11-09 ; **restent à appliquer en prod OVH**) |
 | 1.5 | 2026-07-01 | JM | Audit `SHOW CREATE TABLE` sur les 7 tables restantes du Supplément (SP-C5/C6, débloquant) : `_public`/`_visible` **existent déjà en base réelle** sur `dd_dons`, `dd_sorts`, `dd_competences`, `dd_races`, `dd_classes`, `dd_historiques` (+ `om_public` sur `dd_objets_magiques`, `om_visible` déjà documenté). Colonnes ajoutées à la doc ci-dessous. `sql/patch_004_supplements.sql` reste introuvable dans le dépôt (appliqué directement en base, jamais committé — même écart que l'incident `mo_j_id`). Écart noté au passage : `dd_dons.do_page_source` (int NOT NULL) présent en base, non documenté, sans rapport avec SP-C — non traité ici |
 
 ---
@@ -117,7 +119,7 @@ Livres et suppléments de règles. Utilisés pour filtrer le contenu du compendi
 | res_id | int unsigned | PK | |
 | res_nom | varchar(150) | nn | Titre complet du livre |
 | res_abreviation | varchar(20) | nn | Abréviation affichée dans les listes |
-| res_selection | tinyint(1) | nn, défaut 0 | 1 = actif par défaut dans les sélections |
+| res_selection | tinyint(1) | nn, défaut 0 | 1 = ressource ACTIVE : son contenu est affiché dans le compendium (liste tenue par l'admin, SP-RE). Toujours 0 pour un supplément de MJ |
 | res_ruleset_var_id | int unsigned | nn | -> dd_variables |
 | res_j_id | int unsigned | null | null = ressource officielle ; sinon propriétaire d'un recueil homebrew -> dd_joueurs |
 | res_editeur | varchar(255) | null | Nom de l'éditeur |
@@ -222,7 +224,9 @@ Utilisateurs du site.
 | j_items_par_page | tinyint unsigned | nn, défaut 20 | Taille des listes paginées |
 | j_visible | tinyint(1) | nn, défaut 1 | 0 = compte désactivé |
 | j_notes | text | null | Notes admin sur cet utilisateur |
-| j_mode_campagne | tinyint(1) | nn, défaut 0 | 1 = menu Campagnes visible et actif |
+| j_mode_campagne | tinyint(1) | nn, défaut 0 | 1 = menu Campagnes visible et actif ; fait de l'utilisateur un MJ du compendium (supplément, SP-RE) |
+| j_supplement_public | tinyint(1) | nn, défaut 0 | Supplément du MJ : 1 = public (vu de tous), 0 = privé (son MJ, les admins, les joueurs de ses campagnes) — SP-RE1 |
+| j_voir_supplements | tinyint(1) | nn, défaut 0 | 1 = les listes du compendium affichent par défaut les suppléments de MJ publics — SP-RE1 |
 | j_affichage_ruleset | tinyint(1) | nn, défaut 1 | 1 = ruleset actif affiché dans le header |
 | j_dd_onglet_sort | tinyint(1) | nn, défaut 0 | Préférence d'onglet sorts (usage futur) |
 | j_dd_onglet_don | tinyint(1) | nn, défaut 0 | Préférence d'onglet dons (usage futur) |
@@ -231,6 +235,8 @@ Utilisateurs du site.
 ---
 
 ### dd_joueurs_sources
+> ⚠️ **Abandonnée** (SP-RE, 2026-11-11) : plus lue par le code, suppression prévue en SP-RE7.
+
 Sélection personnelle de sources par utilisateur et par ruleset.
 
 | Champ | Type | Null | Commentaire |
@@ -274,7 +280,7 @@ Sorts du compendium.
 | so_resume | text | null | Résumé en quelques mots du sort |
 | so_res_id | int unsigned | nn | Source -> dd_ressources |
 | so_camp_id | int unsigned | null | null = compendium global ; sinon homebrew -> dd_campagnes |
-| so_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| so_public | tinyint(1) | nn, défaut 0 | **Ignoré depuis SP-RE** (statut public / privé porté par `dd_joueurs.j_supplement_public`) — ancien drapeau par entrée : 0 = privé, 1 = partagé |
 | so_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | so_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
@@ -313,8 +319,9 @@ Niveaux d'un sort pour chaque classe capable de le lancer.
 | do_nom | varchar(255) | nn | |
 | do_pouvoir | text | null | Description du pouvoir de domaine |
 | do_dieux | text | null | Divinités accordant ce domaine |
+| do_res_id | int unsigned | null | Source -> dd_ressources (SP-JF5) ; NULL = non renseignée. Aucun écran ne l'affiche encore |
 
-> ⚠️ Table héritée de la v1 — moteur MyISAM, charset utf8. À convertir en InnoDB utf8mb4 lors d'une prochaine migration.
+> Table héritée de la v1 — charset utf8. Passée en **InnoDB** le 2026-11-11 (SP-AD6a, avec `dd_races`, `dd_race_capacite`, `dd_classe_niveau`, `dd_classe_competence`) ; reste à convertir en utf8mb4.
 
 ---
 
@@ -385,6 +392,7 @@ Classes de personnage (base et prestige).
 | cla_competences | text | null | Compétences de classe |
 | cla_sorts | text | null | Description de la liste de sorts |
 | cla_description | text | null | Description générale de la classe |
+| cla_regles_speciales | text | null | Règles spéciales de la classe, texte enrichi affiché sans libellé juste après la liste des capacités spéciales (SP-CR1) |
 | cla_traits | text | null | Traits raciaux ou de classe |
 | cla_caracteristiques | text | null | Caractéristiques importantes |
 | cla_critere_rec | text | null | Critères recommandés |
@@ -392,7 +400,7 @@ Classes de personnage (base et prestige).
 | cla_cla_id | int unsigned | null | *[DD2024]* Classe parente d'une sous-classe (cla_clt_id=5) -> dd_classes ; null pour Base/Prestige |
 | cla_res_id | int unsigned | nn | Source -> dd_ressources |
 | cla_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
-| cla_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| cla_public | tinyint(1) | nn, défaut 0 | **Ignoré depuis SP-RE** (statut public / privé porté par `dd_joueurs.j_supplement_public`) — ancien drapeau par entrée : 0 = privé, 1 = partagé |
 | cla_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | cla_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
@@ -505,7 +513,7 @@ Capacités spéciales attribuables aux classes.
 | do_resume | text | null | Résumé court |
 | do_res_id | int unsigned | nn | Source -> dd_ressources |
 | do_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
-| do_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| do_public | tinyint(1) | nn, défaut 0 | **Ignoré depuis SP-RE** (statut public / privé porté par `dd_joueurs.j_supplement_public`) — ancien drapeau par entrée : 0 = privé, 1 = partagé |
 | do_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | do_ruleset_var_id | int unsigned | nn | -> dd_variables |
 | do_page_source | int(11) | nn | ⚠️ Colonne présente en base, non documentée avant l'audit du 2026-07-01, usage à clarifier — sans rapport avec le mécanisme Supplément |
@@ -542,7 +550,7 @@ Catégories de dons (Combat, Métamagie, Création d'objets...).
 | comp_formation | int | nn | |
 | comp_description | text | nn | |
 | comp_res_id | int unsigned | nn | Source -> dd_ressources |
-| comp_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| comp_public | tinyint(1) | nn, défaut 0 | **Ignoré depuis SP-RE** (statut public / privé porté par `dd_joueurs.j_supplement_public`) — ancien drapeau par entrée : 0 = privé, 1 = partagé |
 | comp_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | comp_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
@@ -576,11 +584,11 @@ Synergies entre compétences, DD3.5 (SP-PE21, D-PE21a → c). Une compétence so
 | ra_mod_niveau | int | nn, défaut 0 | *[DD3.5]* Modificateur de niveau global |
 | ra_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | ra_res_id | int unsigned | nn | Source -> dd_ressources |
-| ra_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| ra_public | tinyint(1) | nn, défaut 0 | **Ignoré depuis SP-RE** (statut public / privé porté par `dd_joueurs.j_supplement_public`) — ancien drapeau par entrée : 0 = privé, 1 = partagé |
 | ra_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | ra_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
-> `ra_public`/`ra_visible` confirmées en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5). Table héritée v1 : MyISAM/utf8 (cf. écart déjà documenté ailleurs dans ce fichier pour `dd_domaines`/`dd_sortdomaine`), `ra_res_id` nullable en base réelle (documenté `nn` ici par cohérence applicative — l'appli exige toujours une valeur).
+> `ra_public`/`ra_visible` confirmées en base le 2026-07-01 (audit `SHOW CREATE TABLE`, cf. versioning v1.5). Table héritée v1 : utf8, InnoDB depuis SP-AD6a (2026-11-11) (cf. écart déjà documenté ailleurs dans ce fichier pour `dd_domaines`/`dd_sortdomaine`), `ra_res_id` nullable en base réelle (documenté `nn` ici par cohérence applicative — l'appli exige toujours une valeur).
 
 ---
 
@@ -621,7 +629,7 @@ historiques de personnages (*[DD2024]*).
 | hi_description | text | nn | |
 | hi_res_id | int unsigned | nn | Source -> dd_ressources |
 | hi_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
-| hi_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| hi_public | tinyint(1) | nn, défaut 0 | **Ignoré depuis SP-RE** (statut public / privé porté par `dd_joueurs.j_supplement_public`) — ancien drapeau par entrée : 0 = privé, 1 = partagé |
 | hi_visible | tinyint(1) | nn, défaut 1 | Supplément : 0 = brouillon masqué, 1 = visible |
 | hi_ruleset_var_id | int unsigned | nn | -> dd_variables |
 
@@ -680,7 +688,7 @@ Objets magiques du compendium.
 | om_harmonisation | tinyint(4) | nn, défaut 0 | *[DD2024]*, 1 : harmonisation requise |
 | om_rarete | int(10) | null | *[DD2024]*, -> dd_objets_magiques_rarete |
 | om_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs (sémantique propre, conservée) |
-| om_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| om_public | tinyint(1) | nn, défaut 0 | **Ignoré depuis SP-RE** (statut public / privé porté par `dd_joueurs.j_supplement_public`) — ancien drapeau par entrée : 0 = privé, 1 = partagé |
 | om_res_id | int unsigned | nn | Source -> dd_ressources |
 | om_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | om_ruleset_var_id | int unsigned | nn | -> dd_variables |
@@ -734,7 +742,7 @@ pilote la liste (tag `[[liste:equipement|…]]`, fiche détail) ET le formulaire
 | eqt_ordre | smallint unsigned | nn, défaut 0 | Ordre dans la famille (celui du livre) ; à égalité, nom |
 | eqt_description | text | null | Description HTML TinyMCE (règles propres à l'article ; format libre) |
 | eqt_visible | tinyint(1) | nn, défaut 1 | 0 = masqué aux joueurs non-éditeurs (sémantique propre, conservée) |
-| eqt_public | tinyint(1) | nn, défaut 0 | Supplément : 0 = privé, 1 = partagé |
+| eqt_public | tinyint(1) | nn, défaut 0 | **Ignoré depuis SP-RE** (statut public / privé porté par `dd_joueurs.j_supplement_public`) — ancien drapeau par entrée : 0 = privé, 1 = partagé |
 | eqt_res_id | int unsigned | nn | Source -> dd_ressources (officielle ou supplément de l'utilisateur) |
 | eqt_camp_id | int unsigned | null | null = global ; sinon homebrew -> dd_campagnes |
 | eqt_ruleset_var_id | int unsigned | nn | -> dd_variables |
@@ -837,8 +845,12 @@ Ids figés : 1 Classe, 2 Race, 3 Don, 4 Sort, 5 Monstre, 6 Objet magique, 7 Règ
 | pe_int | tinyint unsigned | nn, défaut 10 | Intelligence |
 | pe_sag | tinyint unsigned | nn, défaut 10 | Sagesse |
 | pe_cha | tinyint unsigned | nn, défaut 10 | Charisme |
-| pe_ca | smallint | nn, défaut 10 | Classe d'armure totale |
+| pe_ca | smallint | nn, défaut 10 | Classe d'armure totale (DD3.5 : CA **optimale**) |
+| pe_ca_depourvu | smallint | nn, défaut 10 | *[DD3.5, SP-PE22]* CA prise au dépourvu. Non saisie ni affichée en DD2024 |
+| pe_ca_contact | smallint | nn, défaut 10 | *[DD3.5, SP-PE22]* CA de contact. Non saisie ni affichée en DD2024 |
 | pe_pv | smallint | nn, défaut 0 | Points de vie totaux |
+| pe_vision | varchar(100) | nn, défaut '' | *[SP-PE22]* Vision, texte libre (ex. « Vision dans le noir (18 m), vision nocturne ») |
+| pe_deplacement | varchar(100) | nn, défaut '' | *[SP-PE22]* Déplacement, texte libre (ex. « 15 m (10 cases), vol 45 m (bonne) »). Le BBA n'a pas de colonne : calculé depuis `dd_classe_niveau.cn_bba` |
 | pe_background | text | null | Historique du personnage |
 | pe_notes | text | null | Notes privées du joueur (non visibles par le MJ) |
 | pe_notes_scope | tinyint unsigned | nn, défaut 0 | Affichage notes : 0 = campagne en cours, 1 = toutes les campagnes — *patch 2026-06-12* |
@@ -1068,7 +1080,9 @@ Personnages rattachés à une campagne. **Source de vérité du lien personnage�
 ---
 
 ### dd_campagnes_sources
-Sources actives spécifiques à une campagne (priorité 1 de `getActiveResIds()`, surcharge la sélection personnelle).
+> ⚠️ **Abandonnée** (SP-RE, 2026-11-11) : plus lue par le code, suppression prévue en SP-RE7.
+
+Sources actives spécifiques à une campagne (ancienne priorité 1 de `getActiveResIds()`).
 
 | Champ | Type | Null | Commentaire |
 |---|---|---|---|

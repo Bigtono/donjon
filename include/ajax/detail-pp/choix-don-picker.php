@@ -31,7 +31,7 @@ endif;
 
 // Ruleset du PERSONNAGE (figé à la création), jamais celui de la session
 $ruleset_id = (int)$perso['pe_ruleset_var_id'];
-$res_ids    = getActiveResIds($db, $ruleset_id);
+$res_ids    = getActiveResIds($db, $ruleset_id, ['pe_id' => $pe_id]);
 $filtre_res = !empty($res_ids);
 $ph         = $filtre_res ? resIdsPlaceholders($res_ids) : '';
 

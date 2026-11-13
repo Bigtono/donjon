@@ -43,6 +43,8 @@ require_once __DIR__ . '/monstre-parser.php';
 require_once __DIR__ . '/glossaire-parser.php';
 // Tag [[liste:equipement|…]] / [[liste:objet|…]] — listes dynamiques (SP-PO1)
 require_once __DIR__ . '/liste-parser.php';
+// Liens [[sort:…]] / [[don:…]] / [[objet:…]] + liaison auto (SP-GL5)
+require_once __DIR__ . '/liens-compendium-parser.php';
 
 // ============================================================
 // 1. PARSING — convention texte → structure
@@ -224,14 +226,27 @@ function tableauAlignements(?string $align, int $nb_cols): array
 // dérive l'URL des endpoints detail-pp. Sans cet attribut, les liens produits
 // dans les cellules seraient inertes.
 
+// En-tête de colonne qui désigne une liste de sorts (« Sort », « Sorts (charges) »)
+define('TAB_COLONNE_SORTS', '\bsorts?\b');
+
 function rendreTableau(array $tab, array $index = [], int $ruleset_id = 0, ?PDO $db = null): string
 {
   $struct = tableauParser((string)($tab['tab_contenu'] ?? ''));
   $aligns = tableauAlignements($tab['tab_align'] ?? null, $struct['nb_cols']);
   $slug   = (string)($tab['tab_slug'] ?? '');
 
+  // Colonnes « Sort(s) » (SP-GL5) : leurs cellules sont des listes de noms de sorts,
+  // liés automatiquement (lcLierCelluleSorts()). Détectées à l'en-tête, sans balisage.
+  $cols_sorts = [];
+  foreach ($struct['entetes'] as $ligne_entete):
+    foreach ($ligne_entete as $c_entete):
+      if (!preg_match('/' . TAB_COLONNE_SORTS . '/iu', (string)$c_entete['texte'])) continue;
+      for ($j = 0; $j < $c_entete['colspan']; $j++) $cols_sorts[$c_entete['col'] + $j] = true;
+    endforeach;
+  endforeach;
+
   $rapport = ['liens' => 0, 'par_type' => []];
-  $cel = function (array $c, string $balise) use ($aligns, $index, $ruleset_id, $db, &$rapport): string {
+  $cel = function (array $c, string $balise) use ($aligns, $index, $ruleset_id, $db, &$rapport, $cols_sorts): string {
     $attrs = '';
     if ($c['colspan'] > 1) $attrs .= ' colspan="' . (int)$c['colspan'] . '"';
     if ($c['rowspan'] > 1) $attrs .= ' rowspan="' . (int)$c['rowspan'] . '"';
@@ -240,7 +255,10 @@ function rendreTableau(array $tab, array $index = [], int $ruleset_id = 0, ?PDO 
     $align = $c['colspan'] > 1 ? 'left' : ($aligns[$c['col']] ?? 'left');
     if ($align !== 'left') $attrs .= ' class="reg-tab__c--' . $align . '"';
     return '<' . $balise . $attrs . '>'
-      . tableauCellule((string)$c['texte'], $index, $ruleset_id, $db, $rapport)
+      . tableauCellule(
+          (string)$c['texte'], $index, $ruleset_id, $db, $rapport,
+          $balise === 'td' && $c['colspan'] === 1 && isset($cols_sorts[$c['col']])
+        )
       . '</' . $balise . '>';
   };
 
@@ -292,9 +310,15 @@ function rendreTableau(array $tab, array $index = [], int $ruleset_id = 0, ?PDO 
 // déjà produits transitent tels quels, tout le reste est h()-échappé, et aucune
 // liaison automatique n'est tentée (cf. lierSegmentBrut(), retour immédiat).
 function tableauCellule(
-  string $texte, array $index, int $ruleset_id, ?PDO $db, array &$rapport
+  string $texte, array $index, int $ruleset_id, ?PDO $db, array &$rapport,
+  bool $liste_sorts = false
 ): string {
   if ($texte === '') return '';
+
+  // Colonne « Sorts » sans tag explicite : liste de noms, liée automatiquement (SP-GL5)
+  if ($liste_sorts && !preg_match('/[@%#$&]/', $texte) && !empty($index['sort'])):
+    return lcLierCelluleSorts($texte, $index['sort']);
+  endif;
 
   // Pas de tag → échappement simple, aucun coût
   if ($db === null || !preg_match('/[@%#$&]/', $texte)):
@@ -339,7 +363,10 @@ function resoudreTagsTableaux(
 
     // Index de liaison chargé une seule fois, et seulement si au moins un
     // tableau de la page contient un tag explicite dans ses cellules.
-    if (!$index_charge && preg_match('/[@%#$&]/', (string)$tab['tab_contenu'])):
+    if (!$index_charge && (
+      preg_match('/[@%#$&]/', (string)$tab['tab_contenu'])
+      || preg_match('/^\s*!.*' . TAB_COLONNE_SORTS . '/imu', (string)$tab['tab_contenu'])
+    )):
       $index        = chargerIndexMonstre($db, $ruleset_id, getActiveResIds($db));
       $index_charge = true;
     endif;
@@ -376,6 +403,12 @@ function resoudreTagsTableaux(
 //   2. resoudreTagsTableaux() — tags [[tab:slug]] -> tableaux dd_tableaux
 //   3. resoudreTagsListes()   — tags [[liste:…]] -> listes d'équipements / d'objets (SP-PO1)
 //
+// Étape optionnelle, insérée entre 1 et 2 quand l'appelant passe
+// $opts['liens_compendium'] = ['exclure' => ['objet' => id]] (SP-GL5, descriptions
+// d'objets magiques) : lierMotsClesCompendium() — tags [[sort|don|objet:…]] et liaison
+// auto par nom -> <span class="mo-lien">. Le conteneur du texte doit porter
+// data-detail-base, dont le handler .mo-lien de js/main.js a besoin.
+//
 // L'ORDRE EST IMPÉRATIF (cf. §9d). Glossaire d'abord : le HTML des tableaux et des
 // listes est alors injecté après coup et ne traverse jamais le parser glossaire, ce qui
 // met l'intérieur des tableaux rendus hors de portée sans code dédié.
@@ -392,10 +425,15 @@ function resoudreTagsTableaux(
 // À n'utiliser que sur un champ déjà rendu SANS h() : appliqué à une sortie
 // échappée, le tag resterait littéral ; appliqué pour contourner un
 // échappement, il ouvrirait une injection HTML.
-function rendreTexteEnrichi(PDO $db, ?string $html, ?int $ruleset_id = null): string
-{
-  $rs = $ruleset_id ?? (int)($_SESSION['ruleset_var_id'] ?? 1);
-  return resoudreTagsListes($db, resoudreTagsTableaux($db, lierGlossaireAuto($db, $html, $rs), $rs), $rs);
+function rendreTexteEnrichi(
+  PDO $db, ?string $html, ?int $ruleset_id = null, array $opts = []
+): string {
+  $rs   = $ruleset_id ?? (int)($_SESSION['ruleset_var_id'] ?? 1);
+  $html = lierGlossaireAuto($db, $html, $rs);
+  if (isset($opts['liens_compendium'])):
+    $html = lierMotsClesCompendium($db, $html, $rs, $opts['liens_compendium']['exclure'] ?? []);
+  endif;
+  return resoudreTagsListes($db, resoudreTagsTableaux($db, $html, $rs), $rs);
 }
 
 // ============================================================
@@ -476,6 +514,7 @@ function tableauChampsHotes(): array
     ['table' => 'dd_monstres',            'champ' => 'mo_stats',        'ruleset' => 'mo_ruleset_var_id',   'date_modif' => null],
     ['table' => 'dd_sorts',               'champ' => 'so_description',  'ruleset' => 'so_ruleset_var_id',   'date_modif' => null],
     ['table' => 'dd_classes',             'champ' => 'cla_description', 'ruleset' => 'cla_ruleset_var_id',  'date_modif' => null],
+    ['table' => 'dd_classes',             'champ' => 'cla_regles_speciales', 'ruleset' => 'cla_ruleset_var_id', 'date_modif' => null],
     ['table' => 'dd_races',               'champ' => 'ra_description',  'ruleset' => 'ra_ruleset_var_id',   'date_modif' => null],
     ['table' => 'dd_dons',                'champ' => 'do_texte',        'ruleset' => 'do_ruleset_var_id',   'date_modif' => null],
     ['table' => 'dd_competences',         'champ' => 'comp_description','ruleset' => 'comp_ruleset_var_id', 'date_modif' => null],

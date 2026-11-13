@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-09 21:00 -->
+<!-- Mis à jour : 2026-11-12 15:40 -->
 
 # Codex DD v2 — Journal des décisions
 
@@ -297,6 +297,20 @@ Filtrer sur "Sans formation" (= 0) n'est pas possible sans modifier le moteur.
 ---
 
 ## Phase Admin — Zone d'administration
+
+**[2026-11-11] SP-AD6 — Suppression en cascade d'une ressource (D-AD6)**
+Une ressource peut désormais être supprimée avec tout son contenu, après analyse et ressaisie de son abréviation (à défaut, son nom).
+Arbitrages : (1) un **personnage** qui utilise du contenu de la ressource **bloque** la suppression ; (2) un **contenu d'une autre ressource** qui dépend d'une entrée supprimée (sous-classe, règle enfant, compétence enfant) **bloque** — on ne supprime jamais hors de la ressource ; les conditions de notes de campagne sur une compétence bloquent aussi ; (3) les **liens faibles** sont **coupés** : `dd_oppositions.opp_mo_id` et `dd_objets_magiques.om_so_id`/`om_so_niveau` passent à NULL, l'élément reste ; (4) les **orphelins préexistants** sont traités à part (rapport `admin/orphelins.php`, nettoyage SP-AD6e). Les tableaux de l'écran du MJ (`dd_campagnes_ecran`) partent avec leur tableau (cascade déjà portée par la clé étrangère).
+Garantie : une carte unique `ressourceRelations()` sert à l'analyse, à la cascade, à la vérification avant `COMMIT` et au rapport ; un test de couverture a confronté la carte à toutes les colonnes de référence du schéma (aucune manquante hors tables héritées). Prérequis : passage en InnoDB des 5 tables MyISAM (SP-AD6a), sans quoi une panne laissait des orphelins. Les routines unitaires de `compendium/enregistrement.php` ne sont pas réutilisées : elles lisent `$_POST`, terminent par `exit` et laissent elles-mêmes des références pendantes. Validé sur une copie de la base : refus (MdJ 2024, MdJ3.5), panne injectée annulée sur toutes les tables, 7 suppressions réelles (dont DRS 3.5 : 198 règles, 142 tableaux, 435 monstres) sans aucun nouvel orphelin, capacités partagées conservées.
+
+**[2026-11-11] SP-AD5 — Ressource : une page dédiée remplace le panneau de détail**
+Un clic sur une ressource de `admin/ressources.php` ouvre `admin/ressource.php?id=N` (clé `url_page` ajoutée à `admin-liste.php`) ; `include/ajax/detail-pp/ressource.php` est supprimé. La page porte la fiche, des onglets-compteurs (un par entrée de `contenuRessourceTables()`, enrichie de `id`, `nom`, `detail`) et la liste paginée de l'onglet actif, avec recherche. Choix d'une page plutôt que d'un onglet dans le panneau : certaines listes sont longues (567 sorts au Manuel des joueurs v3.5). La lecture d'une entrée reste dans `#detail-pp`, via les fiches `detail-pp/*.php` existantes, qui s'ouvrent quel que soit le ruleset de la session. `soumettreRessource()` recharge la page (ou navigue vers elle depuis la liste) au lieu de rouvrir un panneau.
+
+**[2026-11-11] SP-AD4 — Ressources : Activer/Désactiver et étoile**
+« Activée » = `dd_ressources.res_selection = 1` (actif par défaut dans les sélections), colonne déjà existante : aucune migration.
+Menu ⋮ de la liste (`menu_extra_callback`) → actions `activer` / `desactiver` de `admin/enregistrement.php` (`changerSelectionRessource()`),
+même circuit que « Réactiver » des utilisateurs. Étoile `.res-etoile` (`--clr-warning`) à côté du nom, en liste et dans le titre de la fiche détail.
+Effet de bord voulu : `res_selection` alimente le repli de `getActiveResIds()` / `getActiveResIdsCampagne()` — activer une ressource modifie les sources par défaut des utilisateurs sans sélection propre.
 
 **[2025] Architecture admin — moteur distinct de compendium-liste.php**
 La zone admin utilise son propre moteur include/admin-liste.php, distinct de compendium-liste.php.
@@ -8481,3 +8495,292 @@ Arbitrages de l'utilisateur :
   **Contrôle visuel non fait** (SP-DRS10f).
 → Laissé en l'état, signalé : en DD2024 la table de progression n'a pas de champ `cn_bba`, et un enregistrement le
   vide (colonne affichée en DD3.5 seulement, donc sans effet visible).
+
+**[2026-11-09] D-JF1 — Import du Manuel des Joueurs de Faerûn : périmètre et méthode (SP-JF)**
+→ Source : l'index gemmaline `element-MJF.htm` (248 éléments) et ses fiches. Les liens de l'index sont relatifs à
+  `LivreDD3/` mais pointent à la racine du site (`/sorts/…`, `/dons/…`, `/prestige/…`, `/domaine-….htm`).
+→ Collecte par `curl` (240 pages, 0,3 s entre deux), analyse par `tools/jf-parse.php`, un générateur CLI par rubrique,
+  chacun produisant une migration `sql/2026-11-09_sp-jf*.sql` **posée par nom** (aucun id codé en dur) et gardée par
+  `NOT EXISTS` : rejouable, et sûre pour la production dont les ids diffèrent.
+→ Écartés (décision de l'utilisateur) : les 7 sorts épiques et la race Githzeraï. Les 6 sorts MdJF en base mais absents
+  de l'index ne sont pas touchés (l'index gemmaline est incomplet).
+
+**[2026-11-09] D-JF2 — Dons déjà présents sous un autre supplément : on corrige, on rattache, on le dit**
+→ Décision de l'utilisateur : la fiche est réécrite d'après gemmaline, sa source passe au MdJF et une mention finale
+  `Ce don figurait déjà dans le supplément « … ».` est ajoutée. Appliqué à 8 dons des Royaumes Oubliés.
+→ Exceptions : « Sang magique » (id 239, Guide de l'Orient) est un autre don de même nom, le MdJF est importé en plus ;
+  « Sort jumeau », « Sort persistant » et « Retardement de sorts » sont donnés par gemmaline comme issus du Codex Profane,
+  non du MdJF : non modifiés. « Dévotion épique » (Codex Divin) et « Sort inné » (Codex Profane) sont importés sous leur
+  source gemmaline. Les catégories (`do_dado_id`) des dons importés sont **déduites** (condition régionale entre crochets →
+  Régional, « Initié de… » → Divin, noms épiques → Épique, quelques cas à la main) : gemmaline ne donne pas le type.
+→ Confirmé le 2026-11-09 : les 7 sorts « autre source » (Magie de Faerûn, Guide des Personnages Monstrueux), tous donnés par gemmaline comme issus du MdJF, reçoivent le même traitement (SP-JF9) : fiche corrigée, source MdJF, mention `Ce sort figurait déjà dans le supplément « … ».`. Si la fiche gemmaline est nettement plus courte (Nuage de confusion, Vision aveugle), la description de la base est conservée et seule la mention est ajoutée.
+
+**[2026-11-09] D-JF3 — Sorts réservés aux initiés d'une divinité**
+→ Précédent de la base (Bouclier de Lathandre) : le sort est posé sur la liste du Prêtre au niveau le plus bas et la
+  description se termine par « Seul un initié de … peut lancer ce sort. » (ou « Seuls les initiés de X (niveau n) et de Y … »).
+  Les niveaux d'initié ne sont pas modélisés autrement ; les niveaux « Autre » de gemmaline (Féticheur, Kleptomage, Façonneur,
+  Leg du dragon de sable), classes absentes de la base, sont ignorés.
+
+**[2026-11-09] D-JF4 — Classes de prestige : conventions de l'import**
+→ Niveau effectif de lanceur : « +1 niveau de lanceur de sorts profanes » → `cn_niveauSortArcane`, « divins » → `cn_niveauSortDivin`,
+  sans précision → `cn_niveauSortEffectif` (comme l'Adepte de l'ombre existant). Capacités : une ligne de `dd_capacites_speciales`
+  par classe (`cap_classe_initiale`), rattachée à chaque niveau cité par le tableau, précision (`+1`, `1 fois/jour`) dans
+  `cc_precision`. « Armes et armures » → `cla_armes`, « Sorts » → `cla_sorts`. Les deux classes épiques (Arcaniste nétherisse,
+  Hiérophante magefeu) n'ont ni BBA ni jets de sauvegarde sur la fiche : mis à 0.
+→ Coquilles de la source rapprochées à la main (« Feu créatif » / « Feu créateur », « Tir de loin » / « Tir lointain »,
+  « Faveur do dieu manchot » corrigé en « du »). Virgules oubliées dans le tableau (« Combat à mains nues (1d6) dur à cuire »)
+  rattrapées en cherchant les capacités décrites dans les entrées du tableau.
+
+**[2026-11-09] D-JF5 — Domaines : colonne de source et sorts de domaine**
+→ `dd_domaines.do_res_id` ajoutée (NULL = inconnue) ; les 17 domaines déjà présents sont rattachés à la source donnée par
+  gemmaline, leurs dieux renseignés s'ils étaient vides, leur pouvoir remplacé s'il était nettement plus court
+  (Drows, Obscurité). Les 9 sorts de chaque domaine sont liés par rapprochement de noms normalisés (accents, pluriels,
+  coquilles de la base : « Coursier Famtôme », « Araignée de pierre », « énergies destructrices ») ; 26 sorts de domaine ne
+  sont pas liés car absents du compendium (SP-JF10). La mention « (… uniquement) » des sorts n'est pas conservée.
+
+**[2026-11-09] D-JF6 — Objets magiques : texte complet**
+→ Prix en po → `om_prix` ; « bonus de +n » → `om_bonus_equiv` ; niveau de lanceur de l'aura → `om_nls` ; catégorie lue sur la
+  première ligne de la fiche. Emplacement, poids, aura et conditions de création, sans colonne dédiée, terminent la
+  description. Le NLS du Foulard de Symxustar est illisible à la source (« niveau 1, ») : laissé vide.
+
+**[2026-11-09] D-JF7 — Corrections de l'existant : on ne remplace que ce que la source renseigne**
+→ Sorts MdJF déjà présents : champs remplacés seulement quand la fiche gemmaline les donne, description remplacée sauf si
+  elle est plus courte de plus de 20 % (aucun cas). Doublon de la cape de Najjar (840 / 980) : les deux fiches sont mises à
+  jour, la suppression est laissée à l'utilisateur.
+
+**[2026-11-09] D-JF8 — Ordre des migrations**
+→ L'ordre alphabétique place `sp-jf3_` avant `sp-jf3b_` et `sp-jf5_` avant `sp-jf5b_` (« _ » précède « b »), ce qui respecte les
+  dépendances : les classes avant leurs niveaux de sorts, les domaines avant les leurs. Vérifié en jouant les 9 fichiers dans
+  cet ordre sur la base locale, puis chacun une seconde fois (aucune ligne ajoutée).
+
+
+**[2026-11-10] D-GL5 — Liens vers sorts, dons et objets dans les descriptions d'objets magiques (SP-GL5)**
+→ Réutilisation du moteur de liens du monstre-parser (`.mo-lien`, `chargerIndexMonstre()`, `lierSegmentBrut()`), mais **pas de sa
+  syntaxe** : `#don#`, `$sort$`, `&objet&`, `@id@`, `%id%` entrent en conflit avec le HTML (entités, prix, pourcentages).
+  Tags dédiés `[[sort:Nom]]`, `[[don:Nom]]`, `[[objet:Nom]]` (libellé `|texte`), dans l'esprit de `[[tab:]]` / `[[liste:]]`.
+→ Liaison auto en complément, à **casse exacte** (les noms de sorts sont des mots courants), première occurrence par cible.
+  Exception : un paragraphe commençant par « Création » (ligne « Conditions : … » des objets DD3.5 importés) ne contient que
+  des dons et des sorts, souvent en minuscules : la casse n'y est plus exigée. Le glossaire reste géré par son parser (pas dans
+  l'index : doublons).
+→ Étape insérée dans `rendreTexteEnrichi()` après le glossaire et avant tableaux / listes, sur option (`liens_compendium`) ; seul
+  `objet.php` l'utilise. Le texte généré des potions / baguettes / parchemins n'est pas relié. Le ruleset de l'objet est passé
+  explicitement (il venait de la session). `data-detail-base` posé sur le conteneur de la description, sans quoi le clic est inerte.
+→ Vérifié en CLI sur la base locale (tags, casse, 1re occurrence, zones exclues, tags `[[tab:]]` / `[[liste:]]` intacts, objet
+  858 rendu). Clic dans le navigateur non contrôlé (SP-GL5b).
+
+**[2026-11-10] D-GL6 — Sorts : accents indifférents, listes de noms, colonnes « Sort(s) » des tableaux (SP-GL5c)**
+→ Cas d'école : bâton de surpuissance DD3.5 (#492) et DD2024 (#1304), anneau de maîtrise élémentaire (#1188-1191). Trois lacunes
+  de D-GL5 : « Éclair » du texte contre « Eclair » en base (casse exacte comparée avec accents) ; ligne de conditions de création
+  sans préfixe « Création » (« Multiples puissantes ; NLS 15 ; … ») ; sorts DD2024 écrits dans des **tableaux** (`dd_tableaux`),
+  donc hors du parser de description.
+→ Comparaison de casse sans accents (`lcMemeNom()`). Mode liste détecté par densité (≥ 2 éléments commençant par un nom connu, ≥ 50 %
+  des éléments) plutôt que par un préfixe de texte : le préfixe « Création » reste un déclencheur, plus le seul. En mode liste, seul le
+  nom en tête de chaque élément est lié (plus long nom connu, après un « et » / « ou » éventuel), le qualificatif reste en texte, et
+  le bloc a sa propre règle de première occurrence (la ligne de conditions re-lie des sorts déjà liés dans la liste de pouvoirs).
+→ Tableaux : détection par l'**en-tête** (« Sort », « Sorts (charges) ») plutôt que par un balisage `$sort$` cellule par cellule ou un
+  champ de configuration : aucun changement de schéma, les tableaux existants en profitent. Une cellule avec tag explicite garde le
+  chemin historique. Sorts seulement (pas de dons / objets) dans ces colonnes.
+→ Non traité : doublons de sorts entre sources (MdJ 3.0 / 3.5) — l'index retient le premier lu ; marge de 3 mots dans `lierSegmentBrut()`
+  pour les noms à apostrophe typographique (« d’armes » compte pour deux mots).
+
+**[2026-11-11] D-DU1 → D-DU3 — Duplication d'une classe DD3.5 (SP-DU0 → SP-DU3)**
+→ Besoin : décliner une classe proche sans tout ressaisir (fiche, 20 niveaux, capacités, compétences, liste de sorts). Action simple
+  « Dupliquer » du menu ⋮, réservée aux gestionnaires du compendium comme Modifier ; sera portée aux races DD3.5 puis aux classes et
+  races DD2024. Code projet SP-DU. Aucun changement de schéma, donc aucune migration.
+→ **D-DU1 — Nom et contenu** : `Copie de <nom>`. Les éléments copiés ne sont pas retouchés, même s'ils citent l'ancien nom : à corriger
+  par l'utilisateur. Sous-classes, personnages et tableaux `[[tab:…]]` ne sont pas copiés.
+→ **D-DU2 — Capacités copiées, pas reliées** (choix de l'utilisateur, conforme à la recommandation) : le formulaire de classe fait un
+  `UPDATE` par `cap_id` ; des capacités partagées modifiées dans la copie réécriraient l'original. `cap_classe_initiale` = la copie.
+→ **D-DU3 — La copie atterrit dans le supplément personnel** de l'utilisateur (choix contre la recommandation « même source », comme
+  les monstres) : privée, visible (`cla_public = 0`, `cla_visible = 1`). Le droit reste celui de Modifier sur la source.
+→ Mise en œuvre : `dupliquerClasse()` et trois assistants génériques (`colonnesCopiables()`, `copierLignesLiees()`, `copierLigne()`) dans
+  `compendium/enregistrement.php`. Actif en DD3.5 seulement (le menu et un garde serveur). `repondreOk()` reçoit un message optionnel.
+→ Piège relevé : `dd_classe_niveau` et `dd_classe_competence` sont en **MyISAM** (le schéma documenté ne le dit pas) — écrites en dernier,
+  avec compensation manuelle en cas d'exception. `dd_classe_competence` n'a pas non plus la clé unique annoncée par SCHEMA_SQL.md.
+→ Vérifié en CLI sur la base locale : Guerrier, Magicien (1074 lignes `dd_sortclasse`), Assassin et Chevalier noir copiés puis supprimés ;
+  nombres de lignes identiques table par table, aucune capacité partagée, accès refusé à un compte sans droit. Menu ⋮ contrôlé dans
+  le navigateur. Fiche et formulaire d'une copie non ouverts.
+→ Reste : SP-DU4 (races DD3.5), SP-DU5 (DD2024), SP-DU6 (`supprimerClasse()` laisse des orphelins dans les tables liées).
+
+**[2026-11-11] D-DU4 — Suppression d'une classe : nettoyage des tables liées (SP-DU6)**
+→ Constat : `supprimerClasse()` ne retirait que `dd_classe_capacite`, `dd_classe_niveau` et `dd_classes`. Supprimer une copie (SP-DU)
+  aurait laissé en base sa liste de sorts, ses compétences et ses capacités copiées. Même défaut, plus ancien, pour toute classe.
+→ Ajout dans la même transaction : `dd_sortclasse`, `dd_classe_sort`, `dd_classe_competence`, et les capacités de la classe **seulement si
+  plus rien ne les référence** (autre classe, `dd_race_capacite`, `dd_personnages_choix`). Les capacités partagées sont donc préservées.
+→ Garde-fous inchangés (personnages rattachés, sous-classes). Les tables MyISAM (`dd_classe_niveau`, `dd_classe_competence`) ne sont
+  toujours pas annulées par un rollback : la suppression les traite avant `dd_classes`.
+→ Vérifié en CLI : Assassin (capacités partagées) et Magicien copiés puis supprimés par le vrai gestionnaire ; les sept tables de classe
+  retrouvent exactement leurs totaux d'avant. 17 capacités sans aucune liaison existaient déjà avant ce travail : non touchées.
+
+**[2026-11-11] D-DU5 — Une copie rangée dans le supplément n'apparaissait pas dans la liste (correctif SP-DU)**
+→ Constat de l'utilisateur : la copie de la classe Rôdeur existe en base mais n'est pas dans le compendium. Cause : la liste ne montre que les
+  sources de la **sélection personnelle** (`dd_joueurs_sources`) ; le supplément de l'utilisateur (res 99) n'y figurait pas — probablement
+  une base locale rechargée depuis la production sans cette ligne. L'invariant « le supplément est auto-sélectionné par design » était rompu,
+  et `getOrCreateUserSupplement()` ne le vérifiait qu'à la création du supplément.
+→ Correctif dans le helper : `assurerSupplementDansSelection()` (idempotente, `INSERT IGNORE`), appelée aussi quand le supplément existe déjà.
+  Elle recopie d'abord le défaut officiel si la sélection est vide. Bénéficie à toute entité qui écrit dans le supplément, pas seulement aux
+  classes. Le profil « Mes sources » réimpose déjà le supplément à chaque enregistrement : aucune désélection volontaire n'est contournée.
+→ Réparation des données locales par l'appel du helper (ligne `js_res_id = 99` ajoutée pour le compte 1) ; la copie du Rôdeur (cla_id 126)
+  est désormais visible. Vérifié en CLI : une nouvelle copie apparaît dans la liste, puis est supprimée.
+→ Non vérifié : la production (le même défaut peut s'y trouver si un supplément y a été créé avant l'auto-ajout) — se corrige au prochain
+  enregistrement dans le supplément.
+
+**[2026-11-11] D-CR1 — Règles spéciales d'une classe (SP-CR1)**
+Certaines classes, dans les deux rulesets, portent des règles complexes qui ne tiennent pas dans une capacité spéciale isolée.
+→ Nouvelle colonne `dd_classes.cla_regles_speciales` (TEXT, `sql/2026-11-11_sp-cr1_classes_regles_speciales.sql`), saisie dans la Section 3 du formulaire
+  de classe (TinyMCE, sous le tableau des capacités, saisissable dès la création). Une seule colonne pour les deux rulesets, sans condition de ruleset.
+→ Affichage dans l'unique rendu de la fiche, `include/ajax/detail-pp/classe.php` (donc compendium, fiche de personnage, campagnes, règles) : **sans libellé**,
+  juste après `.classe-detail__capacites`, hors du `if` des capacités, par `rendreTexteEnrichi()`. Marge `var(--sp-xl)` + filet + `var(--sp-lg)` (24 px entre deux
+  capacités), réduits sous 992 px. Rien n'est rendu si le champ est vide (ou ne contient que des balises vides).
+→ Les sous-classes DD2024 ne sont PAS neutralisées à l'enregistrement : leur Section 3 reste visible, le champ y est conservé.
+→ Ajouté à `tableauChampsHotes()` pour que le comptage des usages et la propagation d'un renommage de slug couvrent aussi ce champ.
+→ Duplication (SP-DU) et export SP-XC prennent la colonne sans modification (`SHOW COLUMNS`). Le récapitulatif « Capacités de classe » de la fiche de personnage
+  n'affiche que des noms de capacités : inchangé.
+→ Vérifié en CLI sur Barbare (DD3.5) et Guerrier (DD2024) dans une transaction annulée : bloc présent après les capacités, absent sans texte ; mesuré dans le
+  navigateur : 40 px entre la dernière capacité et le bloc (24 px entre capacités). Migration jouée en local et déclarée appliquée ; **à jouer en production**.
+→ Enregistrement exercé par le vrai gestionnaire (`enregistrerClasse()`, POST en CLI sur Barbare) : la valeur est écrite puis relue ; la ligne a ensuite été restaurée à
+  l'identique. Non vérifié : la saisie dans TinyMCE à l'écran et la fiche d'un personnage ouverte dans le navigateur.
+
+**[2026-11-11] D-CR2 — Les tableaux HTML des capacités spéciales passent dans `dd_tableaux` (SP-CR4)**
+Contrôle de `dd_capacites_speciales.cap_description` : 7 capacités DD3.5 portaient encore un `<table>` (9 blocs).
+→ Chaque bloc devient `<p>[[tab:slug]]</p>` ; 8 tableaux saisis ou rejoués (convention texte), catégorie **Classe**, source de la classe concernée
+  (`sql/2026-11-11_sp-cr4_tableaux_capacites_classes.sql`, généré par `tools/generer-sp-cr4-tableaux-capacites.php`). Détail et retouches de texte :
+  `doc/LOG_CORRECTIONS_CAPACITES_TABLEAUX.md`.
+→ Exception à « catégorie Classe » : « Particularités célestes » est une capacité de la **race** Céleste — le tableau est en catégorie **Race**, selon la
+  règle de classement du §9c (le texte qui insère le tableau prime). À rebasculer en Classe depuis le gestionnaire si ce n'est pas voulu.
+→ Le tableau `pistage` (tab_id 496), créé dans l'appli en local pendant le chantier, est rejoué par la migration pour exister en production ; les modificateurs
+  au DD du pistage forment un seul tableau, appelé par le Rôdeur et le Rôdeur bédouin. Grille du pistage ramenée à deux colonnes (la convention texte
+  n'a pas de fusion en ligne de données).
+→ Réécriture des descriptions gardée par le MD5 du texte local : en production, un texte différent n'est pas modifié (le tableau existe alors sans être appelé).
+→ Vérifié en CLI : 0 capacité avec `<table>` après la migration, les six classes et la race Céleste rendent leurs figures `.reg-tab` sans `.reg-tab__manquant`.
+  Non vérifié : mise en page à l'écran des nouveaux tableaux.
+
+**[2026-11-11] D-RE1 — Plus de sélection de sources par utilisateur ni par campagne (SP-RE)**
+La chaîne « campagne du dernier personnage → sélection personnelle → défaut » donnait des résultats incompréhensibles : une
+sélection vide pouvait masquer tout l'officiel, les deux replis divergeaient (`getActiveResIds()` vs `getActiveResIdsCampagne()`),
+le contexte dépendait du dernier personnage ouvert, et le drapeau `_public` par entrée ne servait jamais (aucun écran ne proposait
+le supplément d'un tiers comme source).
+→ Pour un ruleset, le compendium montre **toutes les ressources actives** (`res_selection = 1`, officielles) ; seul l'admin tient
+  cette liste. `res_selection` change de sens : « active », et non plus « cochée par défaut ». Un supplément n'y entre jamais.
+→ `getActiveResIds()` garde son nom et sa signature (≈30 appelants), avec un troisième paramètre `$opts` : union des actives, du
+  supplément de l'utilisateur, du supplément du MJ de la campagne de contexte et, sur demande, des suppléments publics.
+→ Section « Mes sources » du profil et sources du formulaire de campagne retirées. `dd_joueurs_sources` et `dd_campagnes_sources`
+  ne sont plus lues ; leur suppression attend le contrôle en production (SP-RE7). SP-C6 est abandonnée.
+→ Conséquence à surveiller : en local, 19 ressources DD3.5 sont inactives (dont Reliques et Rituels, MdJ 3.0, Les gardiens de la Foi)
+  alors que des sélections personnelles ou de campagne en contenaient : leur contenu disparaît des listes tant que l'admin ne les
+  active pas.
+
+**[2026-11-11] D-RE2 — Le MJ et son supplément public ou privé (SP-RE)**
+→ Est MJ, côté compendium, l'utilisateur qui active la gestion de campagne (`j_mode_campagne = 1`). L'activation crée son supplément,
+  un par ruleset (`creerSupplementsMJ()`). La désactiver ne supprime rien : le supplément reste visible selon son statut, mais
+  n'est plus éditable (`canEditCompendiumEntry()` exige `canEditCompendium()`).
+→ Statut public / privé **du supplément entier**, réglé dans le profil : `dd_joueurs.j_supplement_public` (et non une colonne de
+  `dd_ressources` : un seul réglage pour les deux suppléments du MJ). Public : vu de tous. Privé : son MJ, les admins et les joueurs
+  de ses campagnes.
+→ Les drapeaux `_public` par entrée sont abandonnés (arbitrage utilisateur) : case « Partagé » retirée des 9 formulaires, colonnes
+  laissées en base et ignorées (`champ_public` n'est plus lu par le moteur de liste, `listeClauseVisibilite()` ignore `$pub`).
+  `_visible` (brouillon) est conservé.
+→ Migration `sql/2026-11-11_sp-re1_sources_simplifiees.sql` : `j_supplement_public = 1` pour tout propriétaire qui avait au moins une
+  entrée `_public = 1` ; `j_mode_campagne = 1` pour tout propriétaire d'un supplément, pour qu'il garde ses droits d'édition.
+
+**[2026-11-11] D-RE3 — Droits du MJ sur le compendium (SP-RE)**
+→ `canEditCompendium()` = admin ∨ gestionnaire ∨ MJ : un MJ ouvre les formulaires et voit « Ajouter ». Nouvelle
+  `canEditCompendiumOfficiel()` (admin ∨ gestionnaire) pour le contenu officiel : sources officielles du formulaire, règles,
+  tableaux, listes, aperçus, bouton Tableaux.
+→ Faille corrigée : l'enregistrement ne contrôlait que la propriété d'un supplément cible. Un MJ (ou tout éditeur) pouvait forger
+  une requête qui réécrivait une entrée officielle ou la basculait dans son supplément. `controlerSourceEnregistrement()` vérifie
+  désormais l'entrée existante, la source officielle (droit + ruleset) et le supplément cible. Vérifié en CLI : cinq requêtes
+  forgées refusées, aucune écriture.
+→ Dupliquer (classes, monstres) est ouvert à tout MJ sur toute ligne visible : la copie va dans son supplément. Un monstre que
+  l'utilisateur peut modifier reste dupliqué dans sa source d'origine, comme avant.
+
+**[2026-11-11] D-RE4 — Filtre « Suppléments de MJ » des listes (SP-RE3)**
+→ Défaut : contenu officiel seul (+ son propre supplément, toujours visible). Préférence de profil `j_voir_supplements` pour
+  afficher par défaut les suppléments publics ; la case de chaque liste (`f_supp`) la force dans un sens ou dans l'autre. Pour
+  pouvoir décocher quand la préférence coche, le formulaire poste un champ caché `f_supp=0` suivi de la case `f_supp=1`.
+→ Un admin, filtre coché, voit tous les suppléments, privés compris.
+
+**[2026-11-11] D-RE5 — Supplément du MJ pour les joueurs de ses campagnes (SP-RE)**
+→ Arbitrage utilisateur : les joueurs d'une campagne voient le supplément de son MJ, même privé. Contexte : campagne EN COURS du
+  personnage (`pe_camp_id`, liaison `cp_actif = 1`), passée explicitement (`['pe_id' => …]`) par la fiche, le formulaire et les
+  sélecteurs d'un personnage ; à défaut, le dernier personnage ouvert. Les outils du MJ (rencontre, recherche de monstre, écran du
+  MJ) passent la campagne (`getActiveResIdsCampagne()`).
+→ Le tag `[[liste:…|source=…]]` ne retient un supplément nommé que s'il est visible de l'utilisateur.
+
+**[2026-11-11] D-RE6 — Menu Sources borné à l'écran (bug UI, SP-RE3)**
+La liste déroulante des sources (`.comp-filtre-sources-menu`, en position absolue) n'avait ni hauteur maximale ni défilement :
+avec beaucoup de ressources, elle sortait de l'écran.
+→ CSS : `max-height: 60vh`, `overflow-y: auto`, items en `flex-shrink: 0` (sans quoi le conteneur flex les écrase au lieu de
+  défiler) ; 50vh sous 992 px, où le menu est dans le flux. JS : `ajusterMenuSources()` ramène la hauteur à l'espace libre sous
+  le bouton et ancre le menu à droite s'il déborde (`.is-droite`).
+→ Mesuré dans le navigateur (page rendue en CLI, 35 sources) : à 1280×600 le menu s'arrête à 584 px et défile (1451 px de contenu) ;
+  à 375 px, 404 px de haut, pas de débordement horizontal.
+
+**[2026-11-12] D-PE22a — SP-PE22 : trois CA en DD3.5, vision et déplacement dans les deux rulesets**
+→ `pe_ca` reste la CA optimale ; `pe_ca_depourvu` et `pe_ca_contact` (SMALLINT, défaut 10) n'existent que pour le DD3.5 : formulaire
+  et fiche ne les montrent pas en DD2024, et l'UPDATE les protège (`COALESCE(?, colonne)` avec NULL en DD2024). `pe_vision` et
+  `pe_deplacement` (VARCHAR 100, défaut vide) valent pour les deux rulesets. Pas de rattrapage des fiches existantes : une CA de contact
+  ne se déduit pas de la CA optimale (migration `sql/2026-11-12_sp-pe22_ca_vision_deplacement.sql`, jouée en local).
+→ Formulaire DD3.5 : les cases SAUV de FOR, INT et CHA sont occultées mais postées en champ caché, pour que l'enregistrement
+  (qui lit les six) ne les remette pas à zéro.
+
+**[2026-11-12] D-PE22b — SP-PE22 : le BBA se calcule à l'affichage, 4 attaques au plus**
+→ Aucune règle de calcul n'était documentée : `dd_classe_niveau.cn_bba` est un texte déjà développé par classe et par niveau
+  (« 11/6/1 », « 5 »), saisi à la main. Règle retenue : **premier segment** du palier de niveau de chaque classe, sommé ; puis une
+  attaque de plus tous les 5 points tant que le bonus reste ≥ 1, **plafonnée à 4** (règle DD3.5 — un BBA excédentaire en
+  multiclassage n'ajoute pas d'attaque). Guerrier 11 / protecteur nain 5 : 11 + 5 = 16 → `+16/+11/+6/+1` (la demande écrivait
+  `+16/+11/+16/+1`, coquille). Aucune colonne : le BBA suit les niveaux sans resaisie (`bbaTotalPersonnage()`, `formatBba()`).
+→ Contrôle sur les 8 personnages DD3.5 locaux, ex. magicien 20 / archimage 5 / mage exalté 5 = +14/+9/+4. Le palier ≤ niveau
+  (comme `getBonusMaitrise()`) évite qu'un niveau absent de la table compte zéro.
+
+**[2026-11-12] D-PE22c — SP-PE22 : rangée de combat, bonus de maîtrise déplacé, deux familles de tuiles**
+→ Maquettes de l'utilisateur. DD3.5 : trois CA à droite des caractéristiques ; rangée suivante PV · Init · Vision · Déplacement · BBA
+  (ordre de la maquette, PV avant Init). DD2024 : Init, CA, PV inchangés à droite des caractéristiques ; rangée suivante
+  Vision · Déplacement · BM. Le BM quitte l'en-tête (« Niveau 6 (BM +3) » devient « Niveau 6 ») et la règle CSS
+  `.per-identite__appoint` est supprimée.
+→ Harmonisation : tuiles *en ligne* (`.per-stat`, valeurs courtes) et tuiles *texte* (`.per-fiche__bloc--texte`, libellé au-dessus,
+  valeur à la ligne — vision et déplacement sont longs). Sous 992 px : les premières restent côte à côte, les secondes prennent
+  chacune leur ligne. Champ vide affiché « — » pour garder la grille.
+→ Mesuré dans le navigateur (page rendue en CLI) : 1280 px, DD3.5 — caractéristiques + 3 CA de 173 px sur une ligne, PV / Init /
+  Vision / Déplacement / BBA sur la suivante ; DD2024 — Vision, Déplacement, BM. 375 px : aucun débordement horizontal, CA sur trois
+  colonnes de 114 px. Écriture testée par le vrai gestionnaire (DD3.5 et DD2024), lignes restaurées en SQL ensuite.
+
+**[2026-11-12] D-PE23 — SP-PE23 : niveau global DD3.5 = niveaux de classe + ajustements de race et d'archétype**
+→ Le niveau de la fiche DD3.5 ajoute `ra_mod_niveau` de la race de base et celui de l'archétype (`pe_arc_id`, une ligne `dd_races`) à la
+  somme des niveaux de classe. `niveauGlobalDetail35()` (helpers) calcule le total et le texte de l'info-bulle ; `getPersonnageContext()`
+  expose `race_mod_niveau` et `archetype_mod_niveau`. Info-bulle native (`title`, une ligne par terme) : « Niveaux de classe : 14 (Prêtre 7,
+  Parangon ménestrel 7) / Ajustement de race (Aasimar) : +1 / Niveau : 15 » ; ajustements nuls omis.
+→ `niveauGlobalPersonnage()` n'est PAS modifié : il reste la somme des classes, que lisent le bonus de maîtrise DD2024 et le calcul
+  des compétences (`bonusCompetencesPersonnage()`). Aucun consommateur DD3.5 de ce nombre n'existe aujourd'hui ; l'ajustement est donc
+  un affichage (niveau effectif), pas une donnée du moteur. DD2024 inchangé. Aucune migration.
+→ Contrôle sur les personnages locaux : Aasimar (+1) prêtre 7 / parangon ménestrel 7 = 15 ; humain demi-dragon (+3) guerrier 1 = 4 ;
+  humain céleste (+2) roublard 10 / tueur de Domiel 5 = 17.
+
+**[2026-11-12] D-CP17 — SP-CP13 : raccourcis vers les fiches de personnage dans la colonne d'outils**
+Demande de l'utilisateur : un bouton par personnage de la campagne, sous Notes et Écran du MJ, avec le look
+des outils et un fond de couleur différent. Le libellé est le nom du personnage.
+→ Le fragment `include/campagne-outils.php` est commun aux quatre niveaux. Les raccourcis apparaissent donc
+  aussi sur les pages scénario, chapitre et rencontre, où le MJ en a besoin en partie.
+→ Seules les participations en cours sont listées (`cp_actif = 1`). Une participation terminée reste visible
+  dans l'onglet Personnages de la campagne. Tri par nom.
+→ Fond : `color-mix()` de `--clr-accent-2` (or / brun selon le thème) sur `--clr-surface`, sans valeur en dur.
+  L'icône `fa-user` prend la même couleur. Un nom trop long est coupé avec une ellipse.
+→ Aucune migration.
+
+**[2026-11-12] D-CP18 — SP-CP13b : la fiche de personnage s'ouvre en popup**
+Retour de l'utilisateur : le raccourci quittait la page de campagne. La fiche doit s'afficher dans un popup pour
+ne pas perdre la page d'origine.
+→ **iframe plutôt que panneau `#detail-pp`.** La fiche est répartie sur six pages (Fiche, Magie, Possessions,
+  Notes, Background, Campagnes) avec leur JS. Le panneau synthétique `detail-pp/personnage.php` n'en montre
+  qu'une partie. L'iframe affiche la vraie fiche, éditable, sans rien dupliquer.
+→ **Mode popup générique** : `modePopup()` (GET `popup=1`). `header.php` / `footer.php` omettent alors en-tête,
+  contexte et pied (`body.est-popup`). Le sous-menu de la fiche propage le paramètre, ainsi que les rechargements
+  de `personnage.js`.
+→ Une fiche vue en popup **ne devient pas** le personnage du header : `setLastPersonnage()` s'arrête en mode popup
+  (sinon le simple fait de consulter un joueur aurait déplacé le contexte, ou même le ruleset, du MJ).
+→ Le lien garde sa vraie adresse : Ctrl+clic ou clic milieu ouvrent toujours la fiche dans un nouvel onglet, et un
+  bouton de la barre du popup le permet aussi. Échap ferme le popup, y compris quand le focus est dans la fiche,
+  sauf si un panneau y est ouvert. Sur téléphone, le popup occupe tout l'écran.
+→ **Vérifié** : ouverture depuis la page campagne et depuis une rencontre, la page d'origine reste en place, ni
+  en-tête ni pied dans l'iframe, navigation Fiche → Possessions en restant en mode popup, Échap depuis la page et
+  depuis l'iframe, contexte du header inchangé.

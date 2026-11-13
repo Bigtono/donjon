@@ -302,6 +302,15 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
   $ca   = max(0, min(99,   intParam($_POST['pe_ca'] ?? 10)));
   $pv   = max(0, min(9999, intParam($_POST['pe_pv'] ?? 0)));
 
+  // CA prise au dépourvu et CA de contact (SP-PE22) : propres au DD3.5. Elles
+  // ne sont écrites que pour ce ruleset — voir `$est_dd35` plus bas.
+  $ca_depourvu = max(0, min(99, intParam($_POST['pe_ca_depourvu'] ?? 10)));
+  $ca_contact  = max(0, min(99, intParam($_POST['pe_ca_contact'] ?? 10)));
+
+  // Vision et déplacement : textes courts des deux rulesets (VARCHAR(100)).
+  $vision      = mb_substr(strParam($_POST['pe_vision'] ?? ''), 0, 100);
+  $deplacement = mb_substr(strParam($_POST['pe_deplacement'] ?? ''), 0, 100);
+
   $background = $_POST['pe_background'] ?? '';
 
   // Ruleset : jamais saisi ni posté — session à la création, valeur en base
@@ -346,6 +355,10 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
     $ruleset_id = (int)$row['pe_ruleset_var_id'];
   endif;
 
+  // DD3.5 = tout ruleset autre que DD2024 (id 2), comme dans la fiche.
+  // En DD2024 les deux CA supplémentaires ne sont ni saisies ni modifiées.
+  $est_dd35 = ($ruleset_id !== 2);
+
   // ----- Transaction ---------------------------------------
   try {
     $db->beginTransaction();
@@ -357,14 +370,16 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
            pe_for, pe_con, pe_dex, pe_int, pe_sag, pe_cha,
            pe_for_save, pe_con_save, pe_dex_save,
            pe_int_save, pe_sag_save, pe_cha_save,
-           pe_init, pe_ca, pe_pv, pe_background,
+           pe_init, pe_ca, pe_ca_depourvu, pe_ca_contact, pe_pv,
+           pe_vision, pe_deplacement, pe_background,
            pe_ruleset_var_id, pe_date_creation, pe_date_modif)
         VALUES
           (?, ?, ?, ?, ?, ?, ?,
            ?, ?, ?, ?, ?, ?,
            ?, ?, ?,
            ?, ?, ?,
-           ?, ?, ?, ?,
+           ?, ?, ?, ?, ?,
+           ?, ?, ?,
            ?, NOW(), NOW())
       ';
       $params = [
@@ -373,7 +388,10 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
         $caracs['pe_int'], $caracs['pe_sag'], $caracs['pe_cha'],
         $saves['pe_for_save'], $saves['pe_con_save'], $saves['pe_dex_save'],
         $saves['pe_int_save'], $saves['pe_sag_save'], $saves['pe_cha_save'],
-        $init, $ca, $pv, $background,
+        $init, $ca,
+        $est_dd35 ? $ca_depourvu : 10, $est_dd35 ? $ca_contact : 10,
+        $pv,
+        $vision, $deplacement, $background,
         $ruleset_id,
       ];
       $db->prepare($sql)->execute($params);
@@ -410,18 +428,26 @@ function enregistrerPersonnage(PDO $db, bool $is_ajax, int $j_id): void {
                pe_cha_save   = ?,
                pe_init       = ?,
                pe_ca         = ?,
+               pe_ca_depourvu = COALESCE(?, pe_ca_depourvu),
+               pe_ca_contact  = COALESCE(?, pe_ca_contact),
                pe_pv         = ?,
+               pe_vision     = ?,
+               pe_deplacement = ?,
                pe_background = ?,
                pe_date_modif = NOW()
          WHERE pe_id = ?
       ';
+      // NULL en DD2024 : COALESCE garde alors la valeur en base.
       $params = [
         $nom, $sexe, $ra_id, $arc_id, $hi_id_db, $al_id_db,
         $caracs['pe_for'], $caracs['pe_con'], $caracs['pe_dex'],
         $caracs['pe_int'], $caracs['pe_sag'], $caracs['pe_cha'],
         $saves['pe_for_save'], $saves['pe_con_save'], $saves['pe_dex_save'],
         $saves['pe_int_save'], $saves['pe_sag_save'], $saves['pe_cha_save'],
-        $init, $ca, $pv, $background,
+        $init, $ca,
+        $est_dd35 ? $ca_depourvu : null, $est_dd35 ? $ca_contact : null,
+        $pv,
+        $vision, $deplacement, $background,
         $pe_id,
       ];
       $db->prepare($sql)->execute($params);

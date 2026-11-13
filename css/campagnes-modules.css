@@ -259,48 +259,10 @@ blockquote {
   margin: 0;
 }
 
-.camp-detail__sources {
-  list-style: none;
-  margin: var(--sp-sm) 0 0;
-  padding: 0;
-}
-
-.camp-detail__sources li {
-  padding: var(--sp-xs) 0;
-}
-
-.camp-detail__sources i {
-  color: var(--clr-accent);
-  margin-right: var(--sp-xs);
-}
-
 .camp-detail__actions {
   margin-top: var(--sp-lg);
   padding-top: var(--sp-md);
   border-top: 1px solid var(--clr-border);
-}
-
-/* ============================================================
-   FORMULAIRE — Sélection des sources (cases à cocher)
-   ============================================================ */
-
-.camp-sources-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--sp-xs) var(--sp-md);
-  margin-top: var(--sp-sm);
-}
-
-.camp-source-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-xs);
-  cursor: pointer;
-  font-size: .92em;
-}
-
-.camp-source-item input {
-  flex: 0 0 auto;
 }
 
 /* ============================================================
@@ -610,6 +572,97 @@ body.camp-plein .site-main {
   width: 18px;
   text-align: center;
   color: var(--clr-accent);
+}
+
+/* Raccourcis vers les fiches de personnage (SP-CP13) : même bouton, fond teinté
+   de la seconde couleur d'accent pour les distinguer des outils. */
+.camp-outil--personnage {
+  background: color-mix(in srgb, var(--clr-accent-2) 16%, var(--clr-surface));
+  border-color: color-mix(in srgb, var(--clr-accent-2) 40%, var(--clr-border));
+}
+
+.camp-outil--personnage:hover {
+  background: color-mix(in srgb, var(--clr-accent-2) 26%, var(--clr-surface));
+  border-color: var(--clr-accent-2);
+}
+
+.camp-outil--personnage i {
+  color: var(--clr-accent-2);
+}
+
+/* Fiche de personnage en popup (SP-CP13b) — iframe au-dessus de la page,
+   au niveau du panneau de détail (#detail-pp, 199 / 200). */
+.camp-fiche-pp {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.camp-fiche-pp.est-ouvert {
+  display: block;
+}
+
+.camp-fiche-pp__fond {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+}
+
+.camp-fiche-pp__cadre {
+  position: absolute;
+  inset: 3vh 3vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--clr-bg);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .45);
+}
+
+.camp-fiche-pp__barre {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-xs) var(--sp-sm) var(--sp-xs) var(--sp-md);
+  background: var(--clr-surface);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.camp-fiche-pp__titre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--clr-accent-2);
+}
+
+.camp-fiche-pp__iframe {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: var(--clr-bg);
+}
+
+body.camp-fiche-pp-ouvert {
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .camp-fiche-pp__cadre {
+    inset: 0;
+    border-radius: 0;
+  }
+}
+
+.camp-outil__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .camp-outils__titre {

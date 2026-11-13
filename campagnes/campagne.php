@@ -22,15 +22,6 @@ if (!isset($_GET['o'])):
   endif;
 endif;
 
-// Sources
-$stmt_src = $db->prepare('
-  SELECT res.res_nom FROM dd_campagnes_sources cs
-  JOIN   dd_ressources res ON res.res_id = cs.cs_res_id
-  WHERE  cs.cs_camp_id = ? ORDER BY res.res_nom ASC
-');
-$stmt_src->execute([$id]);
-$sources = $stmt_src->fetchAll(PDO::FETCH_COLUMN);
-
 require_once '../include/header.php';
 
 $nav_courante = 'description';
@@ -48,20 +39,6 @@ require __DIR__ . '/../include/campagne-entete.php';
     <?php if (empty($camp['camp_resume']) && empty($camp['camp_description'])): ?>
       <p class="text-muted">Aucune description pour le moment.</p>
     <?php endif ?>
-
-    <!-- Sources -->
-    <div class="camp-detail__section">
-      <h2 class="camp-detail__section-title">Sources</h2>
-      <?php if (empty($sources)): ?>
-        <p class="text-muted">Aucune source spécifique — la sélection personnelle s'applique.</p>
-      <?php else: ?>
-        <ul class="camp-detail__sources">
-          <?php foreach ($sources as $src_nom): ?>
-            <li><i class="fa fa-book"></i> <?= h($src_nom) ?></li>
-          <?php endforeach ?>
-        </ul>
-      <?php endif ?>
-    </div>
 
     <!-- Suppression de la campagne -->
     <div class="camp-detail__actions">

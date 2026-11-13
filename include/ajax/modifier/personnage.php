@@ -48,7 +48,11 @@ $perso = [
   'pe_sag_save'       => 0,
   'pe_cha_save'       => 0,
   'pe_ca'             => 10,
+  'pe_ca_depourvu'    => 10,
+  'pe_ca_contact'     => 10,
   'pe_pv'             => 0,
+  'pe_vision'         => '',
+  'pe_deplacement'    => '',
   'pe_background'     => '',
   'pe_ruleset_var_id' => (int)($_SESSION['ruleset_var_id'] ?? 1),
 ];
@@ -83,7 +87,7 @@ $mode        = $id > 0 ? 'edition' : 'creation';
 
 // Ruleset du personnage (figé à la création), pas celui de la session — voir
 // le commentaire de getActiveResIds() : les deux peuvent diverger.
-$res_ids      = getActiveResIds($db, $ruleset_id);
+$res_ids      = getActiveResIds($db, $ruleset_id, ['pe_id' => $id]);
 $filtre_res   = !empty($res_ids);
 $placeholders = $filtre_res ? resIdsPlaceholders($res_ids) : '';
 
@@ -312,22 +316,28 @@ $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['p
         <?php // Le modificateur de SAUVEGARDE se saisit sous sa caractéristique
               // (SP-PE11) : les deux se lisent ensemble, comme dans le bloc de
               // stats d'un monstre. Les six colonnes existent dans les deux
-              // rulesets ; en DD3.5 seules trois sont exposées en lecture —
-              // Réflexes, Vigueur, Volonté — mais les saisir toutes coûte moins
-              // cher qu'un formulaire qui change de forme selon le ruleset. ?>
+              // rulesets. En DD3.5, seules trois ont un sens — Réflexes, Vigueur,
+              // Volonté : celles de FOR, INT et CHA sont occultées (SP-PE22),
+              // mais leur valeur repart en champ caché pour que l'enregistrement
+              // ne les remette pas à zéro. ?>
         <?php foreach ($caracs as $champ => $meta): ?>
           <div class="form-group form-group--carac">
             <label for="<?= $champ ?>" title="<?= h($meta['lbl']) ?>"><?= $meta['abr'] ?></label>
             <input type="number" id="<?= $champ ?>" name="<?= $champ ?>"
                    value="<?= (int)$perso[$champ] ?>" min="0" max="99" required
                    inputmode="numeric">
-            <label for="<?= $champ ?>_save" class="form-group--carac__sous-label"
-                   title="Modificateur de sauvegarde — <?= h($meta['save'] ?? $meta['lbl']) ?>">
-              <?= h($meta['save_abr'] ?? 'SAUV') ?>
-            </label>
-            <input type="number" id="<?= $champ ?>_save" name="<?= $champ ?>_save"
-                   value="<?= (int)$perso[$champ . '_save'] ?>" min="-20" max="40"
-                   inputmode="numeric">
+            <?php if ($est2024 || isset($meta['save'])): ?>
+              <label for="<?= $champ ?>_save" class="form-group--carac__sous-label"
+                     title="Modificateur de sauvegarde — <?= h($meta['save'] ?? $meta['lbl']) ?>">
+                <?= h($meta['save_abr'] ?? 'SAUV') ?>
+              </label>
+              <input type="number" id="<?= $champ ?>_save" name="<?= $champ ?>_save"
+                     value="<?= (int)$perso[$champ . '_save'] ?>" min="-20" max="40"
+                     inputmode="numeric">
+            <?php else: ?>
+              <input type="hidden" name="<?= $champ ?>_save"
+                     value="<?= (int)$perso[$champ . '_save'] ?>">
+            <?php endif ?>
           </div>
         <?php endforeach ?>
 
@@ -352,18 +362,51 @@ $titre = $mode === 'creation' ? 'Nouveau personnage' : 'Modifier ' . h($perso['p
                  inputmode="numeric">
         </div>
 
+        <?php // DD3.5 : trois CA (SP-PE22). `pe_ca` est la CA optimale ; la CA
+              // prise au dépourvu et la CA de contact n'existent pas en DD2024. ?>
         <div class="form-group">
-          <label for="pe_ca">Classe d'armure (CA)</label>
+          <label for="pe_ca"><?= $est2024 ? 'Classe d\'armure (CA)' : 'CA optimale' ?></label>
           <input type="number" id="pe_ca" name="pe_ca"
                  value="<?= (int)$perso['pe_ca'] ?>" min="0" max="99" required
                  inputmode="numeric">
         </div>
+
+        <?php if (!$est2024): ?>
+          <div class="form-group">
+            <label for="pe_ca_depourvu">CA prise au dépourvu</label>
+            <input type="number" id="pe_ca_depourvu" name="pe_ca_depourvu"
+                   value="<?= (int)$perso['pe_ca_depourvu'] ?>" min="0" max="99" required
+                   inputmode="numeric">
+          </div>
+
+          <div class="form-group">
+            <label for="pe_ca_contact">CA de contact</label>
+            <input type="number" id="pe_ca_contact" name="pe_ca_contact"
+                   value="<?= (int)$perso['pe_ca_contact'] ?>" min="0" max="99" required
+                   inputmode="numeric">
+          </div>
+        <?php endif ?>
 
         <div class="form-group">
           <label for="pe_pv">Points de vie (PV)</label>
           <input type="number" id="pe_pv" name="pe_pv"
                  value="<?= (int)$perso['pe_pv'] ?>" min="0" max="9999" required
                  inputmode="numeric">
+        </div>
+
+        <?php // Textes courts, valables dans les deux rulesets : pleine largeur,
+              // car ils peuvent être longs (« Vision dans le noir (18 m), vision
+              // nocturne »). ?>
+        <div class="form-group modif-grid__full">
+          <label for="pe_vision">Vision</label>
+          <input type="text" id="pe_vision" name="pe_vision"
+                 value="<?= h($perso['pe_vision']) ?>" maxlength="100">
+        </div>
+
+        <div class="form-group modif-grid__full">
+          <label for="pe_deplacement">Déplacement</label>
+          <input type="text" id="pe_deplacement" name="pe_deplacement"
+                 value="<?= h($perso['pe_deplacement']) ?>" maxlength="100">
         </div>
 
       </div>

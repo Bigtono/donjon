@@ -38,6 +38,26 @@
     Écran du MJ
   </button>
 
+  <?php // Raccourcis vers les fiches des personnages de la campagne (SP-CP13) :
+        // participation en cours seulement (cp_actif = 1, 0 = participation terminée).
+  $stmt_outils_pe = $db->prepare('
+    SELECT pe.pe_id, pe.pe_nom
+    FROM   dd_campagnes_personnages cp
+    JOIN   dd_personnages pe ON pe.pe_id = cp.cp_pe_id
+    WHERE  cp.cp_camp_id = ? AND cp.cp_actif = 1
+    ORDER  BY pe.pe_nom ASC
+  ');
+  $stmt_outils_pe->execute([(int)($outils_camp_id ?? 0)]);
+  foreach ($stmt_outils_pe->fetchAll() as $outil_pe): ?>
+    <a class="camp-outil camp-outil--personnage"
+       href="<?= BASE_URL ?>/personnages/fiche.php?id=<?= (int)$outil_pe['pe_id'] ?>"
+       data-fiche-popup="<?= h($outil_pe['pe_nom']) ?>"
+       title="Fiche de <?= h($outil_pe['pe_nom']) ?>">
+      <i class="fa fa-user" aria-hidden="true"></i>
+      <span class="camp-outil__label"><?= h($outil_pe['pe_nom']) ?></span>
+    </a>
+  <?php endforeach ?>
+
 </div>
 <?php // defer : exécuté après main.js (chargé sans defer en pied de page) ?>
 <script src="<?= assetUrl('js/ecran-mj.js') ?>" defer></script>

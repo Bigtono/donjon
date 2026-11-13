@@ -62,25 +62,6 @@ $stmt_un = $db->prepare('
 $stmt_un->execute([$j_id]);
 $univers = $stmt_un->fetchAll();
 
-// Sources : ressources du ruleset de la campagne (globales).
-// Cochées si déjà rattachées (édition uniquement).
-$sources = [];
-$sources_actives = [];
-if ($id > 0):
-  $stmt_src = $db->prepare('
-    SELECT res_id, res_nom, res_abreviation
-    FROM   dd_ressources
-    WHERE  res_ruleset_var_id = ? AND res_j_id IS NULL
-    ORDER  BY res_nom ASC
-  ');
-  $stmt_src->execute([$ruleset_id]);
-  $sources = $stmt_src->fetchAll();
-
-  $stmt_act = $db->prepare('SELECT cs_res_id FROM dd_campagnes_sources WHERE cs_camp_id = ?');
-  $stmt_act->execute([$id]);
-  $sources_actives = array_map('intval', $stmt_act->fetchAll(PDO::FETCH_COLUMN));
-endif;
-
 $titre = $id > 0 ? 'Modifier ' . h($camp['camp_nom']) : 'Nouvelle campagne';
 ?>
 
@@ -152,44 +133,6 @@ $titre = $id > 0 ? 'Modifier ' . h($camp['camp_nom']) : 'Nouvelle campagne';
       </div>
 
     </div><!-- .modif-section -->
-
-    <!-- ====================================================
-         SECTION 2 — Sources (édition uniquement)
-         ==================================================== -->
-    <?php if ($id === 0): ?>
-      <div class="modif-section">
-        <div class="modif-section__header">
-          <span class="modif-section__label">Section 2 — Sources</span>
-        </div>
-        <p class="form-hint" style="margin:.5rem 0;">
-          Enregistrez d'abord la campagne, puis revenez ici pour sélectionner ses sources.
-        </p>
-      </div>
-    <?php else: ?>
-      <div class="modif-section">
-        <div class="modif-section__header">
-          <span class="modif-section__label">Section 2 — Sources</span>
-        </div>
-        <?php if (empty($sources)): ?>
-          <p class="form-hint" style="margin:.5rem 0;">
-            Aucune ressource disponible pour ce ruleset.
-          </p>
-        <?php else: ?>
-          <p class="form-hint" style="margin:.5rem 0;">
-            Les sources cochées priment sur la sélection personnelle dans cette campagne.
-          </p>
-          <div class="camp-sources-grid">
-            <?php foreach ($sources as $src): ?>
-              <label class="camp-source-item">
-                <input type="checkbox" name="sources[]" value="<?= (int)$src['res_id'] ?>"
-                  <?= in_array((int)$src['res_id'], $sources_actives, true) ? 'checked' : '' ?>>
-                <span><?= h($src['res_nom']) ?></span>
-              </label>
-            <?php endforeach ?>
-          </div>
-        <?php endif ?>
-      </div>
-    <?php endif ?>
 
     <!-- ====================================================
          BOUTONS

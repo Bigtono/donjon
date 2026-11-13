@@ -28,7 +28,8 @@ function checkRememberMe($db)
   $token = $_COOKIE['remember_token'];
   $stmt  = $db->prepare('
     SELECT j_id, j_pseudo, j_admin, j_compendium_manager, j_default_ruleset_var_id,
-           j_mode_campagne, j_affichage_ruleset, j_affichage_mode_jeu, j_theme
+           j_mode_campagne, j_affichage_ruleset, j_affichage_mode_jeu, j_theme,
+           j_voir_supplements
     FROM   dd_joueurs
     WHERE  j_remember_token = ?
       AND  j_remember_token_expires > NOW()
@@ -53,6 +54,8 @@ function startUserSession(array $row)
   $_SESSION['ruleset_var_id']        = (int)($row['j_default_ruleset_var_id'] ?? 1);
   $_SESSION['rulesetRep']            = getRulesetRep($_SESSION['ruleset_var_id']);
   $_SESSION['j_mode_campagne']       = (bool)($row['j_mode_campagne'] ?? false);
+  // Préférence de profil (SP-RE4) : listes du compendium avec les suppléments de MJ publics
+  $_SESSION['j_voir_supplements']    = (bool)($row['j_voir_supplements'] ?? false);
   $_SESSION['j_affichage_ruleset']   = (bool)($row['j_affichage_ruleset'] ?? false);
   $_SESSION['j_affichage_mode_jeu']  = (bool)($row['j_affichage_mode_jeu'] ?? false);
   $_SESSION['j_theme']               = in_array($row['j_theme'] ?? '', ['dark', 'light'], true)
@@ -99,10 +102,26 @@ function isAdmin(): bool
   return !empty($_SESSION['j_admin']);
 }
 
-// Vrai si l'utilisateur peut éditer le compendium global
-function canEditCompendium(): bool
+// Vrai si l'utilisateur peut éditer le contenu OFFICIEL du compendium
+// (sources res_j_id IS NULL) : admin ou gestionnaire du compendium.
+function canEditCompendiumOfficiel(): bool
 {
   return isAdmin() || !empty($_SESSION['j_compendium_manager']);
+}
+
+// Vrai si l'utilisateur est MJ au sens du compendium (SP-RE, D-RE2) : il a activé
+// la gestion de campagne dans son profil et dispose donc d'un supplément.
+function isMJCompendium(): bool
+{
+  return !empty($_SESSION['j_mode_campagne']);
+}
+
+// Vrai si l'utilisateur peut ajouter au compendium (bouton Ajouter, formulaires) :
+// contenu officiel (admin, gestionnaire) ou son propre supplément (MJ). Le contrôle
+// entrée par entrée reste canEditCompendiumEntry() (helpers.php).
+function canEditCompendium(): bool
+{
+  return canEditCompendiumOfficiel() || isMJCompendium();
 }
 
 // Vrai si l'utilisateur est propriétaire d'une ressource ($owner_j_id)

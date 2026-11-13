@@ -3,7 +3,7 @@
 // Déplacé depuis regles/tableaux-enregistrement.php en SP-TB10, les tableaux
 // n'étant plus une spécificité du module Règles.
 //
-// Accès : canEditCompendium() uniquement (admin + gestionnaire compendium)
+// Accès : canEditCompendiumOfficiel() uniquement (admin + gestionnaire compendium)
 // CSRF  : vérifié systématiquement
 //
 // POST requis :
@@ -24,7 +24,7 @@ require_once '../include/tableau-parser.php';
 requireAuth();
 verifyCsrf();
 
-if (!canEditCompendium()):
+if (!canEditCompendiumOfficiel()):
   _tabRepondreErreur(true, 'Accès refusé.');
 endif;
 

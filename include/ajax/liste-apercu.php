@@ -23,7 +23,7 @@ require_once __DIR__ . '/../liste-parser.php';
 header('Content-Type: application/json; charset=utf-8');
 
 requireAuth();
-if (!canEditCompendium()):
+if (!canEditCompendiumOfficiel()):
   http_response_code(403);
   echo json_encode(['erreur' => 'Accès refusé.']);
   exit;

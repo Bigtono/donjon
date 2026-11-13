@@ -36,13 +36,15 @@
 //                            require_edit=false → item visible pour tous dans le menu ⋮
 //                                                 (le menu ⋮ s'affiche même pour les non-éditeurs)
 //                            require_edit=true  → item réservé aux éditeurs dans le menu ⋮
-//   action_dupliquer bool  — (optionnel) affiche "Dupliquer" dans le menu ⋮ (réservé aux éditeurs,
-//                            même garde que Modifier). Nécessite un case 'dupliquer' dans le
+//   action_dupliquer bool  — (optionnel) affiche "Dupliquer" dans le menu ⋮ (ouvert à qui peut
+//                            modifier la ligne, et à tout MJ : la copie va dans son
+//                            supplément — SP-RE). Nécessite un case 'dupliquer' dans le
 //                            dispatch de compendium/enregistrement.php pour l'entité concernée.
 //
-//   --- Supplément utilisateur (SP-C2) — les 3 clés suivantes sont optionnelles,
-//       et doivent être déclarées ENSEMBLE pour activer le mécanisme :
-//   champ_public     string — champ _public avec alias table ('mo.mo_public')
+//   --- Supplément de MJ (SP-C2, SP-RE) — champ_visible et champ_res_owner sont
+//       optionnels et doivent être déclarés ENSEMBLE pour activer le mécanisme
+//       (filtre « Suppléments de MJ », brouillons, menu ⋮ par entrée) :
+//   champ_public     string — IGNORÉ depuis SP-RE (drapeaux _public par entrée abandonnés)
 //   champ_visible    string — champ _visible avec alias table ('mo.mo_visible')
 //   champ_res_owner  string — champ res_j_id de la ressource liée ('res.res_j_id'),
 //                             nécessite que 'from' joigne déjà dd_ressources sous cet alias.
@@ -113,8 +115,16 @@ $q = strParam($_GET['q'] ?? '');
 // absent (SP-RS6b — entités sans ressource, ex. dd_personnages).
 $gere_sources = !empty($listConfig['champ_res']);
 
-// Filtres sources : intersection sélection active ∩ sélection GET
-$res_actifs = $gere_sources ? getActiveResIds($db) : [];
+// Filtre « Suppléments de MJ » (SP-RE3) : ajoute aux ressources actives les
+// suppléments de MJ publics (tous pour un admin). Valeur par défaut : préférence
+// de profil j_voir_supplements. Le formulaire poste toujours f_supp (champ caché
+// à 0 + case à 1) : l'absence du paramètre signifie « pas encore filtré ».
+$voir_supplements = isset($_GET['f_supp'])
+  ? in_array('1', (array)$_GET['f_supp'], true)
+  : !empty($_SESSION['j_voir_supplements']);
+
+// Filtres sources : intersection sources actives ∩ sélection GET
+$res_actifs = $gere_sources ? getActiveResIds($db, null, ['supplements' => $voir_supplements]) : [];
 $res_get    = [];
 if ($gere_sources && !empty($_GET['f_res']) && is_array($_GET['f_res'])):
   foreach ($_GET['f_res'] as $r):
@@ -128,8 +138,9 @@ $res_ids = !empty($res_get) ? $res_get : $res_actifs;
 // 1bis. SUPPLÉMENT UTILISATEUR — détection + toggle "brouillons" (SP-C2)
 // ============================================================
 
-$gere_supplement = !empty($listConfig['champ_public'])
-                 && !empty($listConfig['champ_visible'])
+// champ_public n'est plus lu (drapeaux _public par entrée abandonnés, D-RE1) :
+// la règle public / privé d'un supplément est portée par $res_actifs.
+$gere_supplement = !empty($listConfig['champ_visible'])
                  && !empty($listConfig['champ_res_owner']);
 
 $uid_courant          = (int)($_SESSION['j_id'] ?? 0);
@@ -221,24 +232,21 @@ if ($gere_sources):
   endif;
 endif;
 
-// Filtre visibilité supplément (SP-C2) — vient EN PLUS du filtre sources
-// ci-dessus (une source de supplément peut être active sans que toutes ses
-// entrées soient visibles à tous) :
-//   - entrée officielle (res_owner IS NULL)            → toujours
-//   - entrée du supplément du propriétaire courant      → toujours, sauf
-//     brouillon (_visible=0) qui nécessite le toggle "Afficher mes brouillons"
-//   - entrée d'un supplément tiers                      → seulement si
-//     _public=1 ET _visible=1
+// Filtre visibilité supplément — vient EN PLUS du filtre sources ci-dessus, qui
+// porte déjà la règle public / privé de chaque supplément (SP-RE) :
+//   - entrée officielle (res_owner IS NULL)       → toujours
+//   - entrée d'un supplément                       → si _visible=1 ; les
+//     brouillons du propriétaire courant s'affichent avec le toggle
+//     "Afficher mes brouillons"
 if ($gere_supplement):
   $owner = $listConfig['champ_res_owner'];
-  $pub   = $listConfig['champ_public'];
   $vis   = $listConfig['champ_visible'];
   if ($afficher_brouillons):
-    $where_parts[] = "($owner IS NULL OR $owner = ? OR ($pub = 1 AND $vis = 1))";
+    $where_parts[] = "($owner IS NULL OR $owner = ? OR $vis = 1)";
+    $params[]      = $uid_courant;
   else:
-    $where_parts[] = "($owner IS NULL OR ($owner = ? AND $vis = 1) OR ($pub = 1 AND $vis = 1))";
+    $where_parts[] = "($owner IS NULL OR $vis = 1)";
   endif;
-  $params[] = $uid_courant;
 endif;
 
 // Filtre texte libre — première colonne par défaut, ou les colonnes déclarées
@@ -336,10 +344,16 @@ $lignes        = $stmt_data->fetchAll();
 // 4. SOURCES DISPONIBLES pour le SELECT filtre
 // ============================================================
 
+// Deux groupes : ressources officielles actives, puis suppléments de MJ.
 $sources_dispo = [];
 if (!empty($res_actifs)):
   $ph   = resIdsPlaceholders($res_actifs);
-  $stmt = $db->prepare("SELECT res_id, res_nom, res_abreviation FROM dd_ressources WHERE res_id IN ($ph) ORDER BY res_nom");
+  $stmt = $db->prepare("
+    SELECT res_id, res_nom, res_abreviation, res_j_id
+      FROM dd_ressources
+     WHERE res_id IN ($ph)
+     ORDER BY (res_j_id IS NOT NULL), res_nom
+  ");
   $stmt->execute($res_actifs);
   $sources_dispo = $stmt->fetchAll();
 endif;
@@ -517,7 +531,26 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
           </div>
         <?php endif ?>
 
-        <?php // ── Sources : bouton + menu déroulant avec checkboxes 
+        <?php // ── Suppléments de MJ (SP-RE3) : champ caché à 0 suivi de la
+        // case à 1 — PHP retient la dernière valeur, l'état décoché est donc
+        // transmis même quand la préférence de profil coche par défaut.
+        ?>
+        <?php if ($gere_sources && $gere_supplement): ?>
+          <div class="comp-filtre-item">
+            <input type="hidden" name="f_supp" value="0">
+            <label class="comp-filtre-checkbox-label"
+              title="Afficher le contenu ajouté par les MJ (suppléments publics)">
+              <input type="checkbox"
+                     name="f_supp"
+                     value="1"
+                     <?= $voir_supplements ? 'checked' : '' ?>
+                     onchange="document.getElementById('form-filtre-<?= h($entite) ?>').submit()">
+              Suppléments de MJ
+            </label>
+          </div>
+        <?php endif ?>
+
+        <?php // ── Sources : bouton + menu déroulant avec checkboxes
         ?>
         <?php if (!empty($sources_dispo)): ?>
           <div class="comp-filtre-item comp-filtre-item--sources">
@@ -541,7 +574,13 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
 
             <div class="comp-filtre-sources-menu noDisplay"
               id="sources-menu-<?= h($entite) ?>">
+              <?php $groupe_src = null ?>
               <?php foreach ($sources_dispo as $src): ?>
+                <?php $groupe = $src['res_j_id'] === null ? 'Ressources' : 'Suppléments de MJ' ?>
+                <?php if ($groupe !== $groupe_src): ?>
+                  <?php $groupe_src = $groupe ?>
+                  <span class="comp-filtre-source-groupe"><?= h($groupe) ?></span>
+                <?php endif ?>
                 <?php $chk = in_array((int)$src['res_id'], $res_get) ? 'checked' : '' ?>
                 <label class="comp-filtre-source-item">
                   <input type="checkbox" name="f_res[]"
@@ -567,12 +606,17 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
           </a>
           <?php // avec_ajout=false : la page porte son propre bouton d'ajout
           // et n'expose pas le gestionnaire de tableaux (SP-RS6b). ?>
-          <?php if (canEditCompendium() && ($listConfig['avec_ajout'] ?? true)): ?>
+          <?php // Ajouter : un MJ ajoute à son supplément, pour les entités qui en
+          // gèrent un ; les autres (tableaux…) restent au contenu officiel. ?>
+          <?php if (($gere_supplement ? canEditCompendium() : canEditCompendiumOfficiel())
+                    && ($listConfig['avec_ajout'] ?? true)): ?>
             <button type="button" class="btn btn-primary btn-sm"
               onclick="ouvrirModifier(compUrlModifier, 0)"
               title="Ajouter">
               <i class="fa fa-plus"></i>
             </button>
+          <?php endif ?>
+          <?php if (canEditCompendiumOfficiel() && ($listConfig['avec_ajout'] ?? true)): ?>
 
             <?php // Accès au gestionnaire de tableaux (SP-TB7, déplacé hors du
             // module Règles en SP-TB10).
@@ -610,7 +654,8 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
   <?php // ---- TABLEAU ---- 
   // Cases à cocher et barre groupée vont ensemble : sans action groupée, une
   // case n'aurait aucun effet (SP-PE19).
-  $avec_bulk = (canEditCompendium() || !empty($listConfig['edition_libre'])) && !empty($listConfig['bulk_actions']);
+  $avec_bulk = (($gere_supplement ? canEditCompendium() : canEditCompendiumOfficiel())
+                || !empty($listConfig['edition_libre'])) && !empty($listConfig['bulk_actions']);
   ?>
   <div class="comp-liste-wrapper">
     <table class="table-std comp-liste" id="table-<?= h($entite) ?>">
@@ -683,7 +728,11 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
               ? true
               : ($gere_supplement
                   ? canEditCompendiumEntry($db, $res_j_id_ligne)
-                  : canEditCompendium());
+                  : canEditCompendiumOfficiel());
+            // Dupliquer ne modifie pas l'original : la copie va dans le supplément
+            // de l'utilisateur, ouvert à tout MJ (SP-RE, D-RE3).
+            $peut_dupliquer_ligne = !empty($listConfig['action_dupliquer'])
+              && ($peut_modifier_ligne || ($gere_supplement && canEditCompendium()));
             ?>
             <tr id="row-<?= $id ?>" class="comp-ligne<?= $est_homebrew ? ' comp-ligne--homebrew' : '' ?>">
 
@@ -702,7 +751,7 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
               // OU s'il y a des row_actions visibles pour tous (require_edit=false).
               $_row_actions    = $listConfig['row_actions'] ?? [];
               $_has_open_actions = !empty(array_filter($_row_actions, fn($a) => empty($a['require_edit'])));
-              $_afficher_menu  = $peut_modifier_ligne || $_has_open_actions;
+              $_afficher_menu  = $peut_modifier_ligne || $peut_dupliquer_ligne || $_has_open_actions;
               ?>
               <td class="col-action">
                 <?php if ($_afficher_menu): ?>
@@ -717,7 +766,7 @@ function compListeUrlTri(string $champ, string $dir_actuelle, string $col_actuel
                           <i class="fa fa-edit"></i> Modifier
                         </button>
                       <?php endif ?>
-                      <?php if ($peut_modifier_ligne && !empty($listConfig['action_dupliquer'])): ?>
+                      <?php if ($peut_dupliquer_ligne): ?>
                         <button class="comp-menu-item"
                           onclick="compToggleMenu(<?= $id ?>); compDupliquer(<?= $id ?>)">
                           <i class="fa fa-copy"></i> Dupliquer

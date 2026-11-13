@@ -81,15 +81,18 @@ $types_race = $stmt_rat->fetchAll();
 // sources officielles (res_j_id IS NULL) vs supplément personnel de
 // l'utilisateur courant (le seul supplément qu'il a le droit d'alimenter).
 $sources_officielles = [];
-if (!empty($res_ids)):
-  $ph   = resIdsPlaceholders($res_ids);
-  $stmt = $db->prepare("
+// Sources officielles : réservées aux éditeurs du contenu officiel (admin,
+// gestionnaire) ; un MJ n'alimente que son supplément (SP-RE5). Ressources
+// actives, plus la source actuelle de l'entrée si elle a été désactivée.
+if (canEditCompendiumOfficiel()):
+  $stmt = $db->prepare('
     SELECT res_id, res_nom
     FROM   dd_ressources
-    WHERE  res_id IN ($ph) AND res_j_id IS NULL
+    WHERE  res_j_id IS NULL AND res_ruleset_var_id = ?
+      AND  (res_selection = 1 OR res_id = ?)
     ORDER  BY res_nom
-  ");
-  $stmt->execute($res_ids);
+  ');
+  $stmt->execute([$ruleset_id, (int)$ra['ra_res_id']]);
   $sources_officielles = $stmt->fetchAll();
 endif;
 
@@ -182,6 +185,7 @@ endforeach;
           <label for="ra_res_id">Source <span class="required">*</span></label>
           <select id="ra_res_id" name="ra_res_id" required>
             <option value="">— Choisir —</option>
+            <?php if (!empty($sources_officielles)): ?>
             <optgroup label="Sources officielles">
               <?php foreach ($sources_officielles as $src): ?>
                 <option value="<?= (int)$src['res_id'] ?>" data-supplement="0"
@@ -190,9 +194,10 @@ endforeach;
                 </option>
               <?php endforeach ?>
             </optgroup>
+            <?php endif ?>
             <optgroup label="Mon supplément">
               <option value="supplement" data-supplement="1"
-                <?= $ra_res_id_select === 'supplement' ? 'selected' : '' ?>>
+                <?= ($ra_res_id_select === 'supplement' || empty($sources_officielles)) ? 'selected' : '' ?>>
                 <?= h($ra_supplement_nom) ?>
               </option>
             </optgroup>
@@ -202,16 +207,10 @@ endforeach;
         <!-- Visibilité (supplément uniquement) -->
         <div class="form-group" id="ra-supplement-visibilite" hidden>
           <label class="form-label--checkbox">
-            <input type="checkbox" id="ra_public" name="ra_public" value="1"
-              <?= (int)$ra['ra_public'] === 1 ? 'checked' : '' ?>>
-            Partagé (visible des autres utilisateurs ayant ce supplément comme source)
-          </label>
-          <label class="form-label--checkbox">
             <input type="checkbox" id="ra_visible" name="ra_visible" value="1"
               <?= (int)$ra['ra_visible'] === 1 ? 'checked' : '' ?>>
             Visible (décoché = brouillon masqué, accessible via « Afficher mes brouillons »)
           </label>
-          <span class="form-hint">Une entrée partagée est forcément visible.</span>
         </div>
 
         <?php if (!empty($campagnes)): ?>
@@ -321,7 +320,7 @@ endforeach;
   if (!selectRes || !blocVisib) return;
 
   function appliquerContrainte() {
-    if (chkPublic.checked) {
+    if (chkPublic && chkPublic.checked) {
       chkVisible.checked = true;
       chkVisible.disabled = true;
     } else {

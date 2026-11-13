@@ -200,28 +200,38 @@ function listeSourcesIds(PDO $db, array $noms, int $ruleset_id): ?array
     return empty($actifs) ? null : $actifs;   // jamais d'IN () vide
   endif;
 
+  // Un supplément nommé n'est retenu que s'il est visible de l'utilisateur
+  // (le sien, celui du MJ de sa campagne, un supplément public ; tous pour un
+  // admin) : un supplément privé ne s'ouvre pas en le nommant (SP-RE).
+  $supps_visibles = getActiveResIds($db, $ruleset_id, ['supplements' => true]);
+
   $ids = [];
   $stmt = $db->prepare('
-    SELECT res_id FROM dd_ressources
+    SELECT res_id, res_j_id FROM dd_ressources
     WHERE  res_ruleset_var_id = ?
       AND (LOWER(res_abreviation) = LOWER(?) OR LOWER(res_nom) = LOWER(?))
   ');
   foreach ($noms as $nom):
     $stmt->execute([$ruleset_id, $nom, $nom]);
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) $ids[] = (int)$id;
+    foreach ($stmt->fetchAll() as $r):
+      if ($r['res_j_id'] === null || in_array((int)$r['res_id'], $supps_visibles, true)):
+        $ids[] = (int)$r['res_id'];
+      endif;
+    endforeach;
   endforeach;
   return $ids;   // peut être vide : source inconnue → aucune ligne
 }
 
-// Même règle que compendium-liste.php (supplément utilisateur, SP-C2), sans « brouillons ».
-// $owner = res.res_j_id, $pub / $vis = champs _public / _visible de l'entité.
+// Même règle que compendium-liste.php, sans « brouillons ». La règle public / privé
+// d'un supplément est portée par le filtre des sources (getActiveResIds(), SP-RE) :
+// ici ne reste que la visibilité de l'entrée. $pub n'est plus lu (drapeaux _public
+// par entrée abandonnés, D-RE1) ; conservé dans la signature des appelants.
+// $owner = res.res_j_id, $vis = champ _visible de l'entité.
 function listeClauseVisibilite(string $owner, string $pub, string $vis, array &$params): string
 {
-  $uid     = (int)($_SESSION['j_id'] ?? 0);
-  $editeur = function_exists('canEditCompendium') && canEditCompendium();
+  $editeur = function_exists('canEditCompendiumOfficiel') && canEditCompendiumOfficiel();
   $globaux = $editeur ? '1 = 1' : "$vis = 1";
-  $params[] = $uid;
-  return "(($owner IS NULL AND $globaux) OR ($owner = ? AND $vis = 1) OR ($pub = 1 AND $vis = 1))";
+  return "(($owner IS NULL AND $globaux) OR ($owner IS NOT NULL AND $vis = 1))";
 }
 
 // ============================================================

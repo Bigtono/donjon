@@ -35,7 +35,7 @@ if (!$perso):
 endif;
 
 $ruleset_id = (int)$perso['pe_ruleset_var_id'];
-$res_ids    = getActiveResIds($db, $ruleset_id);
+$res_ids    = getActiveResIds($db, $ruleset_id, ['pe_id' => $pe_id]);
 $filtre_res = !empty($res_ids);   // jamais d'IN () vide
 $type       = ($_GET['type'] ?? '') === 'objet' ? 'objet' : 'equipement';
 $equipements = $objets = $options_familles = $categories = [];

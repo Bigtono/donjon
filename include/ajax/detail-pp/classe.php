@@ -161,27 +161,24 @@ $capacites = $stmt_cap->fetchAll();
 // ============================================================
 // Même modèle d'affichage que "Classe parente" côté sous-classe : une liste
 // de renvois cliquables. Périmètre identique à la liste du compendium :
-// sources actives, et pour les entrées de supplément la règle de visibilité
-// (officielle | mienne et visible | publique et visible).
+// sources actives (qui portent la règle public / privé des suppléments, SP-RE),
+// brouillons de supplément exclus.
 
 $sousClasses = [];
 if (!$isSousClasse):
   $res_ids_sc = getActiveResIds($db, $ruleset_id);
   if (!empty($res_ids_sc)):
     $ph_sc   = resIdsPlaceholders($res_ids_sc);
-    $uid_sc  = (int)($_SESSION['j_id'] ?? 0);
     $stmt_sc = $db->prepare("
       SELECT sc.cla_id, sc.cla_nom
       FROM   dd_classes sc
       LEFT JOIN dd_ressources res ON res.res_id = sc.cla_res_id
       WHERE  sc.cla_cla_id = ?
         AND  sc.cla_res_id IN ($ph_sc)
-        AND  (res.res_j_id IS NULL
-              OR (res.res_j_id = ? AND sc.cla_visible = 1)
-              OR (sc.cla_public = 1 AND sc.cla_visible = 1))
+        AND  (res.res_j_id IS NULL OR sc.cla_visible = 1)
       ORDER  BY sc.cla_nom
     ");
-    $stmt_sc->execute(array_merge([$id], $res_ids_sc, [$uid_sc]));
+    $stmt_sc->execute(array_merge([$id], $res_ids_sc));
     $sousClasses = $stmt_sc->fetchAll();
   endif;
 endif;
@@ -651,13 +648,13 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
   <?php if ($ruleset === 'DD3.5' && $cla['cla_sorts']): ?>
     <div class="classe-detail__section" style="margin-top:.75rem;">
       <div class="sort-detail__label">Sorts</div>
-      <div><?= $cla['cla_sorts'] ?></div>
+      <div><?= rendreTexteEnrichi($db, $cla['cla_sorts']) ?></div>
     </div>
   <?php endif ?>
 
   <?php // ---- Descriptions des capacités spéciales ?>
   <?php // Pas de libellé de section : chaque titre "Niveau X : Nom" se suffit
-        // et sert de séparation visuelle. Mise en forme dans compendium-modules.css. ?>
+        // et sert de séparation visuelle. Mise en forme dans modules.css. ?>
   <?php if (!empty($capacites)): ?>
     <div class="classe-detail__capacites">
       <?php foreach ($capacites as $cap): ?>
@@ -678,6 +675,15 @@ $url_sub_comp = BASE_URL . '/include/ajax/detail-pp/competence.php';
           <?php endif ?>
         </div>
       <?php endforeach ?>
+    </div>
+  <?php endif ?>
+
+  <?php // ---- Règles spéciales de la classe (SP-CR1) : sans libellé, juste après la liste
+        // des capacités, détachées par la marge de .classe-detail__regles. Hors du if des
+        // capacités : une classe peut n'avoir que ce texte. ?>
+  <?php if (trim(strip_tags((string)($cla['cla_regles_speciales'] ?? ''), '<img><table>')) !== ''): ?>
+    <div class="classe-detail__regles sort-detail__description">
+      <?= rendreTexteEnrichi($db, $cla['cla_regles_speciales']) ?>
     </div>
   <?php endif ?>
 

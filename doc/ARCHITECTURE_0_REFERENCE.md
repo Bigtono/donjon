@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-11-09 21:00 -->
+<!-- Mis à jour : 2026-11-12 15:40 -->
 
 # Codex DD v2 — Document de référence architecture
 
@@ -281,7 +281,6 @@
 - [x] SP-C3 — `detail-pp/*.php` × 8 : bouton Modifier per-entry
 - [x] SP-C4 — `modifier/*.php` × 8 : source dropdown 2 groupes + `_public`/`_visible`
 - [x] SP-C5 — `enregistrement.php` : ownership + sauvegarde `_public`/`_visible` + auto-création du supplément
-- [ ] SP-C6 — `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers *(partiel — sélection propre robuste, affichage des suppléments tiers non implémenté)*
 - [x] SP-C7 — Nettoyage monstres post-migration
 
 ### SP-E — Module Équipements
@@ -369,6 +368,9 @@
 - [x] SP-GL1 — Branchement sur `reg_texte` (vue règle, `detail-pp/regle.php`) et sur les définitions de glossaire (`detail-pp-sub/glossaire.php`)
 - [x] SP-GL2 — Handler `.glossaire-lien` déplacé de `js/regles.js` vers `js/main.js` ; style porté dans `css/modules.css`
 - [x] SP-GL3 — Portée étendue aux champs texte du compendium (via rendreTexteEnrichi(), même liste de champs que SP-TB7)
+- [x] SP-GL5 — Liens vers sorts, dons et objets dans les descriptions d'objets magiques : `include/liens-compendium-parser.php`, tags `[[sort:…]]` / `[[don:…]]` / `[[objet:…]]` + liaison auto par nom (§9d)
+- [x] SP-GL5c — Sorts traités finement : accents indifférents, listes de noms en casse libre, colonnes « Sort(s) » des tableaux
+- [ ] SP-GL5b — Contrôle visuel dans le navigateur (clic sur un lien de la fiche objet) ; étendre à d'autres descriptions si besoin
 - [ ] SP-GL4 — Saisie du glossaire du ruleset **DD3.5** (id 1) *(en cours au fil des lots SP-DRS — 109 termes DD3.5 en base le 2026-11-09)*
 
 ### SP-DRS — Import des règles DD3.5 (fichiers DRS)
@@ -508,6 +510,14 @@
   - [x] SP-PE21a — Table `dd_competences_synergies` chargée de 28 synergies (MdJ 3.5 + descriptions du compendium, `sql/2026-11-01_sp-pe21_synergies_competences.sql`), `synergiesCompetences()` : synergies sans condition dans le total, conditionnelles affichées hors total ; recalcul en direct dans l'éditeur
   - [x] SP-PE21b — Compendium : « Synergies accordées » dans le formulaire de compétence (remplacées en bloc, nettoyées à la suppression) et lignes « Synergie accordée / reçue » sur la fiche détail
   - [ ] SP-PE21c — Migration à jouer en production (après `2026-10-31_sp-cd0_competences_domaines.sql`) et contrôle du nombre de synergies chargées (28 attendues)
+- [ ] SP-PE22 — **Fiche : CA à trois valeurs (DD3.5), BBA, vision, déplacement** (D-PE22a → c, §7.1)
+  - [x] SP-PE22a — Migration `sql/2026-11-12_sp-pe22_ca_vision_deplacement.sql` : `pe_ca_depourvu`, `pe_ca_contact`, `pe_vision`, `pe_deplacement` (jouée en local)
+  - [x] SP-PE22b — Calcul du BBA : `bbaTotalPersonnage()` (somme des premiers segments de `cn_bba`) et `formatBba()` (4 attaques au plus) dans `personnage_helpers.php`
+  - [x] SP-PE22c — Formulaire (sauvegardes FOR / INT / CHA occultées en DD3.5, trois CA, vision, déplacement) et `enregistrerPersonnage()` (CA supplémentaires écrites en DD3.5 seulement)
+  - [x] SP-PE22d — Fiche : trois CA à droite des caractéristiques (DD3.5), rangée de combat (PV, Init, vision, déplacement, BBA / vision, déplacement, BM) ; BM retiré de l'en-tête ; CSS `.per-fiche__bloc--texte`, `.per-stat-texte`, `.per-stat--empile`
+  - [x] SP-PE22e — Contrôle : rendu CLI + mesures dans le navigateur (1280 px et 375 px, DD3.5 et DD2024, aucun débordement), écriture par le vrai gestionnaire, BBA contre les personnages locaux
+  - [ ] SP-PE22f — Migration à jouer en production (déploiement) ; contrôle visuel du formulaire de modification (ouvert depuis la fiche)
+- [x] SP-PE23 — **Niveau global DD3.5 = classes + ajustements de race et d'archétype** (D-PE23, §7.1) : `niveauGlobalDetail35()`, `getPersonnageContext()` expose `race_mod_niveau` / `archetype_mod_niveau`, info-bulle du calcul sur le niveau de la fiche. Aucune migration
 
 > Hors périmètre SP-PE : les **objets magiques du personnage** (`personnages/objets.php` reste un
 > placeholder, aucune table) — analyse métier non fiabilisée, cf. `DECISIONS_LOG.md` [2026-06-12] [D].
@@ -593,6 +603,8 @@
 - [ ] SP-CP11d — Jouer `sql/2026-11-08_sp-cv1b_effectifs_oppositions.sql` en production, après `sp-cv1` (SP-CV3) et `sp-cp11` (SP-CP11b)
 - [x] SP-CP12 — Images dans les descriptions : bouton image ajouté au chapitre, limite d'envoi portée à 15 Mo, clic sur une image pour l'ouvrir en grand (D-CP15)
 - [ ] SP-CP12b — Vérifier `upload_max_filesize` / `post_max_size` sur OVH (≥ 15 Mo), sinon les plans lourds échouent en production
+- [x] SP-CP13 — Colonne d'outils : un raccourci par personnage de la campagne (participation en cours) vers sa fiche, sous Notes et Écran du MJ, fond teinté de la seconde couleur d'accent (D-CP17)
+- [x] SP-CP13b — Raccourcis de personnage ouverts en popup (iframe, mode `?popup=1` sans en-tête ni pied de site, conservé par le sous-menu de la fiche ; Échap ferme) : la page de campagne reste en place (D-CP18)
 
 ### SP-AD — Ajustements de la zone d'administration
 
@@ -604,6 +616,15 @@
 - [x] SP-AD1 — Liste admin Ressources : colonnes Dons et Objets magiques, et message de confirmation de suppression complété
 - [x] SP-AD2 — Fiche et formulaire de ressource : retrait de `res_pages`, colonne absente de la base, qui faisait échouer tout enregistrement
 - [x] SP-AD3 — Suppression d'une ressource : refus dès qu'un contenu est rattaché (monstres, équipements, règles, tableaux et contenu de campagne ajoutés au contrôle), liste de tables unique `contenuRessourceTables()`
+- [x] SP-AD4 — Liste admin Ressources : action Activer/Désactiver dans le menu ⋮ (`res_selection`, actions `activer`/`desactiver` de `admin/enregistrement.php`) et étoile à côté du nom d'une ressource activée (liste et page de la ressource)
+- [x] SP-AD5 — Page de ressource `admin/ressource.php` (remplace le panneau `#detail-pp`, supprimé) : onglets-compteurs par catégorie de contenu, liste paginée avec recherche, lecture d'une entrée dans `#detail-pp` ; clé `url_page` du moteur `admin-liste.php` ; `contenuRessourceTables()` enrichie (`id`, `nom`, `detail`)
+- [x] SP-AD6a — Passage en InnoDB des 5 dernières tables MyISAM du compendium (`dd_races`, `dd_race_capacite`, `dd_classe_niveau`, `dd_classe_competence`, `dd_domaines`) : `sql/2026-11-11_sp-ad6a_innodb_tables_myisam.sql`, jouée en local
+- [ ] SP-AD6a-prod — Jouer `sql/2026-11-11_sp-ad6a_innodb_tables_myisam.sql` en production (prérequis de la suppression en cascade)
+- [x] SP-AD6b — Moteur de suppression en cascade d'une ressource `include/ressource-suppression.php` : carte unique des dépendances `ressourceRelations()`, analyse, refus (personnages, notes de campagne, contenu d'une autre ressource), liens faibles coupés, transaction unique avec vérification « zéro orphelin » avant `COMMIT` ; Domaines ajoutés à `contenuRessourceTables()`
+- [x] SP-AD6c — Interface : analyse et confirmation par ressaisie de l'abréviation sur `admin/ressource.php?suppr=1`, entrée « Supprimer… » du menu ⋮ de la liste
+- [x] SP-AD6d — Rapport des données orphelines `admin/orphelins.php` (lecture seule, carte du tableau de bord admin)
+- [ ] SP-AD6e — Nettoyer les orphelins existants (253 lignes en local le 2026-11-11 : niveaux de classe, listes de sorts, capacités sans lien, sorts sans ressource…) par une migration dédiée, à préparer depuis `admin/orphelins.php` et à valider à part
+- [ ] SP-AD6f — Contrôle visuel dans le navigateur de la page de confirmation et du rapport d'orphelins
 
 ### SP-RB — Bascule de ruleset depuis le header
 
@@ -712,6 +733,72 @@ périmètre. Oppositions recopiées des fiches SP-MO3 (D-CV0 → D-CV3).
 - [x] SP-ML5 — Réponses du serveur SMTP affichées par `admin/test-email.php`, sans les échanges d'authentification
 - [x] SP-ML6 — Test admin : destinataire choisi parmi les comptes actifs, imitation du mail de réinitialisation avec jeton factice
 - [ ] SP-ML4 — Production : obtenir une réception réelle sur une adresse non alias, puis une vraie réinitialisation. Au 2026-11-08, SMTP est accepté par OVH (`250 … queued`) et les mails manuels du webmail arrivent sur l'adresse principale, mais pas sur l'alias ; le mot de passe oublié n'arrive pas non plus. Reste à tester avec SP-ML6, puis à saisir le support OVH si un envoi accepté se perd
+
+### SP-JF — Import du Manuel des Joueurs de Faerûn (DD3.5, source `res_id` 63)
+
+Source : index gemmaline `element-MJF.htm` (248 éléments) et leurs fiches. Périmètre arbitré le 2026-11-09 (D-JF1 → D-JF8) :
+**sorts épiques (7) et race Githzeraï écartés**, sorts MdJF non cités par l'index laissés intacts. Outils locaux (hors git et
+déploiement) : `tools/jf-parse.php` (analyse des fiches), `tools/generer-sp-jf1-sorts.php` (modes `sorts`, `classes`,
+`domaines`, `corrections`), `generer-sp-jf2-dons.php`, `generer-sp-jf3-classes.php`, `generer-sp-jf4-objets.php`,
+`generer-sp-jf5-domaines.php`. Chaque migration pose ses lignes **par nom** (aucun id codé en dur) et est rejouable.
+
+- [x] SP-JF0 — Audit : comparaison des 248 noms à la base (46 sorts, 70 dons, 28 classes de prestige, 10 objets et 19 domaines absents)
+- [x] SP-JF1 — 46 sorts, 64 niveaux de classe, 2 tableaux (`sort-arc-lunaire-de-presper`, `sort-orbite-de-crane`) — `sql/2026-11-09_sp-jf1_sorts_mdjf.sql`
+- [x] SP-JF2 — 70 dons importés, 7 dons MdJF réécrits, 8 réimpressions rattachées au MdJF avec mention de l'ancien supplément, 13 tableaux — `sql/2026-11-09_sp-jf2_dons_mdjf.sql`
+- [x] SP-JF3 — 28 classes de prestige (progression, 213 capacités, compétences de classe, 3 tableaux) — `sql/2026-11-09_sp-jf3_classes_prestige_mdjf.sql`
+- [x] SP-JF3b — second passage : niveaux de sorts des classes de prestige créées — `sql/2026-11-09_sp-jf3b_niveaux_sorts_classes_mdjf.sql`
+- [x] SP-JF4 — 10 objets importés, 9 objets MdJF corrigés (prix, NLS, catégorie, texte complet) — `sql/2026-11-09_sp-jf4_objets_mdjf.sql`
+- [x] SP-JF5 — `dd_domaines.do_res_id` (source), 19 domaines créés, 17 rattachés au MdJF, 247 sorts de domaine liés — `sql/2026-11-09_sp-jf5_domaines_mdjf.sql`
+- [x] SP-JF5b — second passage : niveaux de domaine des sorts MdJF — `sql/2026-11-09_sp-jf5b_niveaux_sorts_domaines_mdjf.sql`
+- [x] SP-JF6a — 14 sorts MdJF déjà présents corrigés (champs de la fiche, texte, niveaux) — `sql/2026-11-09_sp-jf6a_sorts_mdjf_corriges.sql`
+- [x] SP-JF6b — compétences de classe de l'Adepte de l'ombre et du Parangon ménestrel — `sql/2026-11-09_sp-jf6b_classes_competences_mdjf.sql`
+- [ ] SP-JF7 — Contrôle visuel (fiches de sort, don, classe, domaine, objet) et relecture des textes importés
+- [ ] SP-JF8 — Production : jouer les 10 migrations `2026-11-09_sp-jf*` (déploiement). Jouées en local par le moteur, enregistrées
+- [x] SP-JF9 — 7 sorts « autre source » (Boucle électrique de Gedlee, Bouclier magique, Compréhension d'objet, Doux rappel de Nybor, Étoile bénie, Nuage de confusion, Vision aveugle) rattachés au MdJF avec mention de l'ancien supplément (Magie de Faerûn, Guide des Personnages Monstrueux), comme les dons — `sql/2026-11-09_sp-jf9_sorts_reimpressions_mdjf.sql` ; Nuage de confusion et Vision aveugle gardent leur description (plus longue en base)
+- [ ] SP-JF10 — À arbitrer : 26 sorts de domaine non liés car absents du compendium (Projection astrale, Sphère prismatique, Tempête vengeresse, Réincarnation, Prévoyance, Refuge, Rouille…) — import des sorts du MdJ qui manquent
+- [ ] SP-JF11 — Doublon « Cape de l'arsenal de Najjar » (`om_id` 840 et 980) à supprimer ; domaines Neige, Glace, Acide absents (niveaux de 3 sorts non posés) ; Façonneur, Féticheur, Kleptomage, Leg du dragon de sable absents (niveaux de 6 sorts non posés)
+
+### SP-CR — Règles spéciales d'une classe
+
+Champ texte enrichi `dd_classes.cla_regles_speciales`, affiché sans libellé juste après la liste des capacités spéciales de la fiche d'une classe (D-CR1).
+Saisie : Section 3 du formulaire de classe. Rendu : `include/ajax/detail-pp/classe.php` (`.classe-detail__regles`, style dans `css/modules.css`).
+
+- [x] SP-CR1 — Colonne `cla_regles_speciales` (`sql/2026-11-11_sp-cr1_classes_regles_speciales.sql`), formulaire, enregistrement, rendu, `tableauChampsHotes()`
+- [ ] SP-CR2 — Migrations `2026-11-11_sp-cr1_classes_regles_speciales.sql` et `2026-11-11_sp-cr4_tableaux_capacites_classes.sql` à jouer en production
+- [ ] SP-CR3 — Saisie des règles spéciales des classes concernées (DD3.5 et DD2024)
+- [x] SP-CR4 — Tableaux HTML des capacités spéciales (7 capacités, 8 tableaux `[[tab:…]]`, catégorie Classe ; journal `doc/LOG_CORRECTIONS_CAPACITES_TABLEAUX.md`)
+- [ ] SP-CR5 — Même conversion pour les `<table>` restés dans les races (Demi-dragon), dons (Pistage, Compagnon exalté), sorts et objets magiques
+
+### SP-DU — Duplication d'une entrée du compendium (classes d'abord)
+
+Action simple « Dupliquer » du menu ⋮, ouverte depuis SP-RE à tout MJ (D-RE3 ; auparavant réservée aux gestionnaires du compendium). Nom `Copie de <nom>`, tous les éléments
+constitutifs copiés sans toucher à leur contenu, copie rangée dans le supplément personnel de l'utilisateur. Arbitrage du
+2026-11-11 (D-DU1 → D-DU3).
+
+- [x] SP-DU0 — Arbitrage et ouverture du code SP-DU
+- [x] SP-DU1 — `dupliquerClasse()` : fiche, progression, capacités (copiées), compétences de classe, liste de sorts (DD3.5)
+- [x] SP-DU2 — Branchement : `action_dupliquer` dans `compendium/classes.php`, `case 'dupliquer'` du dispatch, message « Classe dupliquée. »
+- [x] SP-DU3 — Contrôle : copies de Guerrier, Magicien, Assassin et Chevalier noir comparées table par table (lignes identiques, aucune capacité partagée, copies supprimées ensuite) ; menu ⋮ vérifié dans le navigateur (DD3.5 seulement, éditeurs seulement). Reste à l'utilisateur : ouvrir la fiche et le formulaire d'une copie
+- [ ] SP-DU4 — Port aux races DD3.5 (réutiliser `copierLignesLiees()`)
+- [ ] SP-DU5 — Port aux classes et races DD2024 (sort des sous-classes à arbitrer)
+- [x] SP-DU6 — `supprimerClasse()` nettoie les tables liées (`dd_sortclasse`, `dd_classe_sort`, `dd_classe_competence`) et les capacités devenues sans aucune référence (autre classe, race, choix de personnage)
+
+### SP-RE — Refonte de la sélection des ressources
+
+Plus de sélection de sources par utilisateur ni par campagne : le compendium montre les ressources **actives** (liste de l'admin)
+et les suppléments de MJ selon leur statut public / privé. MJ = gestion de campagne activée dans le profil. Arbitrage du
+2026-11-11 (D-RE1 → D-RE6) ; détail en §5 « Sources actives ». Remplace SP-C6, abandonnée.
+
+- [x] SP-RE0 — Arbitrage et ouverture du code SP-RE
+- [x] SP-RE1 — Migration `sql/2026-11-11_sp-re1_sources_simplifiees.sql` : `j_supplement_public`, `j_voir_supplements`, reprise des drapeaux `_public` et du mode campagne des propriétaires de supplément (jouée en local)
+- [x] SP-RE2 — Helpers : `getActiveResIds()` réécrite (actives + son supplément + MJ de la campagne de contexte + suppléments publics), `supplementsVisiblesIds()`, `mjCampagneContexte()`, `creerSupplementsMJ()`, `canEditCompendiumOfficiel()`, `isMJCompendium()` ; `assurerSupplementDansSelection()` supprimée
+- [x] SP-RE3 — Moteur de liste : case « Suppléments de MJ » (`f_supp`), menu Sources en deux groupes, borné à l'écran avec ascenseur (bug UI), Dupliquer ouvert aux MJ
+- [x] SP-RE4 — Profil : section « Mes sources » retirée ; « Mon supplément est public », « Toujours afficher les suppléments de MJ » ; activer le mode campagne crée les suppléments
+- [x] SP-RE5 — Formulaires et enregistrement : sources officielles réservées aux éditeurs officiels, case « Partagé » retirée, contrôle serveur `controlerSourceEnregistrement()` ; règles, tableaux et listes réservés au contenu officiel
+- [x] SP-RE6 — Campagnes (sources retirées du formulaire et de la fiche) et admin (ressource « Active », suppléments jamais activables, badge public / privé)
+- [ ] SP-RE2b — `sql/2026-11-11_sp-re1_sources_simplifiees.sql` **à jouer en production** ; vérifier ensuite la liste des ressources actives (19 ressources DD3.5 inactives en local, dont Reliques et Rituels, MdJ 3.0, Les gardiens de la Foi : leur contenu n'est plus affiché)
+- [ ] SP-RE7 — Après contrôle en production : migration `DROP TABLE dd_joueurs_sources, dd_campagnes_sources` et retrait de leurs dernières références (`include/ressource-suppression.php`, suppression d'une campagne dans `campagnes/enregistrement.php`)
+- [ ] SP-RE9 — Contrôle visuel par l'utilisateur : profil d'un MJ et d'un joueur, filtre « Suppléments de MJ », formulaire d'un MJ (seule source : son supplément)
 
 ---
 
@@ -896,9 +983,12 @@ dernier personnage du ruleset quitté au moment de la bascule.
 | Admin | j_admin = 1 | Tout le site, bypass filtres propriétaire |
 | Gestionnaire compendium | j_compendium_manager = 1 | Édition compendium global + propre supplément |
 | Utilisateur standard | par défaut | Ses propres données uniquement |
-| MJ | contextuel : camp_j_id = session j_id | Données de sa campagne ; fiches des personnages qui y sont rattachés ou qu'il a affectés (hors suppression et notes privées) ; ajout / retrait des personnages de ses campagnes ; affectation de ses personnages à un joueur (SP-PE18, §7.5e) |
+| MJ (compendium) | j_mode_campagne = 1 (SP-RE, D-RE2) | Son supplément : ajout, modification, suppression, duplication d'une entrée vers son supplément ; jamais le contenu officiel ni les suppléments des autres MJ |
+| MJ (campagne) | contextuel : camp_j_id = session j_id | Données de sa campagne ; fiches des personnages qui y sont rattachés ou qu'il a affectés (hors suppression et notes privées) ; ajout / retrait des personnages de ses campagnes ; affectation de ses personnages à un joueur (SP-PE18, §7.5e) |
 
-Le rôle MJ est contextuel — tout utilisateur devient MJ dès qu'il crée une campagne ou un univers.
+Le rôle MJ de campagne est contextuel — tout utilisateur devient MJ dès qu'il crée une campagne ou un univers.
+Côté compendium, est MJ l'utilisateur qui a activé la gestion de campagne dans son profil : l'activation crée son
+supplément (un par ruleset, `creerSupplementsMJ()`).
 
 ### Règle de filtrage propriétaire
 
@@ -907,24 +997,36 @@ Encapsulé dans ownerFilter() dans include/helpers.php.
 
 ### Fonctions d'autorisation compendium
 
-**`canEditCompendium()`** (auth.php) — contrôle global :
+**`canEditCompendiumOfficiel()`** (auth.php, SP-RE) — contenu officiel :
 - Retourne true si admin ou j_compendium_manager
-- Conditionne l'affichage du bouton "Ajouter" et de la barre bulk
-- Inchangée par la feature supplément
+- Garde les écrans de contenu officiel par nature : règles, tableaux, listes, aperçus, bouton Tableaux
+  de la barre de filtre, et l'Ajouter des entités sans supplément
+
+**`isMJCompendium()`** (auth.php, SP-RE) — `j_mode_campagne` en session.
+
+**`canEditCompendium()`** (auth.php) — contrôle global d'ajout au compendium :
+- Retourne `canEditCompendiumOfficiel() || isMJCompendium()` depuis SP-RE (un MJ ajoute à son supplément)
+- Conditionne le bouton "Ajouter" et la barre bulk des entités à supplément, l'ouverture des 9 formulaires
+  et la garde globale de `compendium/enregistrement.php`
 
 **`canEditCompendiumEntry($db, ?int $res_j_id)`** (helpers.php) — contrôle per-entry :
 - Retourne true si admin
-- Retourne true si `res_j_id IS NULL` (ressource officielle) + `j_compendium_manager`
-- Retourne true si `res_j_id === j_id` courant (propre supplément)
+- Retourne true si `res_j_id IS NULL` (ressource officielle) + `canEditCompendiumOfficiel()`
+- Retourne true si `res_j_id === j_id` courant (propre supplément) **et** `canEditCompendium()` : un MJ qui
+  désactive la gestion de campagne garde son supplément mais ne l'édite plus
 - Retourne false si `res_j_id` est celui d'un autre utilisateur (même admin du compendium)
 - Utilisée dans : menu ⋮ per-row dans `compendium-liste.php`, bouton Modifier dans `detail-pp/*.php`, garde de save dans `enregistrement.php`
+
+**`controlerSourceEnregistrement()`** (compendium/enregistrement.php, SP-RE5) — appelée par les 9 fonctions
+`enregistrer*()` avant la transaction : entrée existante modifiable (`canEditCompendiumEntry`), source officielle
+réservée à `canEditCompendiumOfficiel()` et du ruleset de l'entrée, supplément = le sien (tous pour un admin).
 
 ### Visibilité des données par module
 
 | Module | Règle |
 |---|---|
 | Compendium officiel | Visible par tous les utilisateurs connectés |
-| Compendium — Supplément utilisateur | Propriétaire : voit tout (public + privé + brouillons). Autres avec supplément sélectionné : uniquement les entrées `_public=1 AND _visible=1`. |
+| Compendium — Supplément de MJ | Son MJ : toujours (brouillons via le toggle). Supplément public (`j_supplement_public = 1`) : tous, avec le filtre « Suppléments de MJ ». Privé : son MJ, les admins (filtre coché) et les joueurs de ses campagnes. Brouillons (`_visible = 0`) : son MJ seul. |
 | Personnages | Propriétaire + MJs des campagnes auxquelles le personnage est rattaché |
 | Campagnes | Propriétaire uniquement |
 | Notes MJ (cp_notes_mj) | MJ de la campagne uniquement |
@@ -941,7 +1043,7 @@ Encapsulé dans ownerFilter() dans include/helpers.php.
 
 1. **Compendium global** : admin + gestionnaires délégués (j_compendium_manager = 1). Visible par tous.
 2. **Contenu homebrew campagne** : créé par le MJ via _camp_id. Mêmes formulaires + champ caché _camp_id. Visible MJ + joueurs de la campagne.
-3. **Supplément utilisateur** : tout j_compendium_manager peut créer ses propres entrées rattachées à sa source "Supplément de {pseudo}". Voir § Supplément utilisateur ci-dessous.
+3. **Supplément de MJ** : tout MJ (gestion de campagne activée) et tout j_compendium_manager peut créer ses propres entrées rattachées à sa source "Supplément de {pseudo}". Voir § Supplément utilisateur ci-dessous.
 
 ### Périmètre des entités du compendium
 
@@ -961,15 +1063,30 @@ Les entités suivantes font partie du compendium et sont filtrées par ressource
 
 Cette liste est la référence pour toute vérification de dépendances (ex : suppression d'une ressource).
 
-### Sélection des sources — chaîne de priorité
+### Sources actives (SP-RE, remplace la chaîne de priorité)
+
+> La chaîne « campagne → sélection personnelle → défaut » (`dd_campagnes_sources`, `dd_joueurs_sources`)
+> est **abandonnée** le 2026-11-11 (D-RE1). Les deux tables restent en base jusqu'à SP-RE7, sans lecture.
+
+`getActiveResIds($db, ?int $ruleset_var_id = null, array $opts = [])` (helpers.php) retourne l'union de :
 
 ```
-1. Sélection de la campagne (dd_campagnes_sources)
-   actif si : personnage en session (last_pe_id) + campagne avec sélection propre
-2. Sélection personnelle (dd_joueurs_sources, par ruleset)
-   inclut désormais le supplément de l'utilisateur (auto-ajouté à la création)
-3. Toutes les sources actives du ruleset (défaut absolu — res_j_id IS NULL uniquement)
+1. Ressources officielles ACTIVES du ruleset   res_j_id IS NULL AND res_selection = 1  (liste tenue par l'admin)
+2. Supplément de l'utilisateur courant          toujours, public ou privé
+3. Supplément du MJ de la campagne de contexte  même privé — opts 'camp_id', ou 'pe_id' (campagne EN COURS
+                                                du personnage, liaison cp_actif = 1), à défaut last_pe_id
+4. Suppléments de MJ (si opts 'supplements')    publics (j_supplement_public = 1) ; tous pour un admin
+                                                défaut : préférence de profil j_voir_supplements (session)
 ```
+
+- `getActiveResIdsCampagne($db, $camp_id, $ruleset)` = `getActiveResIds()` avec la campagne pour contexte.
+- Les pages d'un personnage (fiche, formulaire, sélecteurs de sorts, dons, choix de don, possessions,
+  objet composé) passent `['pe_id' => …]` : les joueurs d'une campagne choisissent dans le supplément du MJ.
+- Moteur de liste : case « Suppléments de MJ » (`f_supp`, champ caché `0` + case `1`, valeur par défaut
+  = préférence de profil) ; menu Sources en deux groupes (Ressources / Suppléments de MJ), hauteur bornée
+  à l'espace libre sous le bouton par `ajusterMenuSources()` (`js/compendium.js`), ascenseur au-delà.
+- Tag `[[liste:…|source=…]]` : un supplément nommé n'est retenu que s'il est visible de l'utilisateur.
+- `res_selection` signifie désormais « ressource active » ; un supplément n'y entre jamais (forcé à 0).
 
 ### Architecture des pages du compendium — moteur de liste commun
 
@@ -1133,6 +1250,16 @@ Mode normal (bulk) : redirect + flash message SESSION.
 
 ### Supplément utilisateur
 
+> ⚠️ **Refondu par SP-RE (2026-11-11, D-RE1 → D-RE6).** Les points suivants de cette section sont caducs :
+> la sélection du supplément comme source (`dd_joueurs_sources`, `assurerSupplementDansSelection()`, supprimée),
+> les drapeaux `_public` par entrée (abandonnés : la case « Partagé » a disparu, les colonnes sont ignorées) et
+> la règle « seul un j_compendium_manager crée un supplément ». Règle en vigueur : le supplément appartient à un
+> MJ (`j_mode_campagne = 1`), il est public ou privé en bloc (`dd_joueurs.j_supplement_public`), et son affichage
+> passe par `getActiveResIds()` (§5 « Sources actives »). La clause de visibilité par entrée se réduit à
+> `owner IS NULL OR _visible = 1` (+ brouillons du propriétaire avec le toggle). `champ_public` n'est plus lu
+> par le moteur de liste. Le reste (un supplément par utilisateur et par ruleset, brouillons, droits per-entry)
+> est inchangé.
+
 #### Principe général
 
 Tout `j_compendium_manager` peut créer ses propres entrées dans n'importe quelle section du compendium,
@@ -1225,9 +1352,16 @@ générique `filtres[]` à checkbox — gérée directement par le moteur, pas p
 // Retourne le res_id du supplément (null si non créé)
 getUserSupplementResId($db, int $j_id, int $ruleset_var_id): ?int
 
-// Crée le supplément si absent + auto-add dd_joueurs_sources, retourne res_id
+// Crée le supplément si absent (res_selection = 0), retourne res_id. Idempotente. Depuis SP-RE,
+// plus aucune sélection à tenir : getActiveResIds() inclut toujours le supplément de l'utilisateur.
 getOrCreateUserSupplement($db, int $j_id, int $ruleset_var_id): int
+
+// Crée les suppléments d'un MJ, un par ruleset (1 et 2) — appelée par le profil à l'activation
+// de la gestion de campagne (SP-RE4)
+creerSupplementsMJ($db, int $j_id): void
 ```
+
+`assurerSupplementDansSelection()` (2026-11-11) est **supprimée** par SP-RE2 : il n'y a plus de sélection.
 
 ---
 
@@ -1797,6 +1931,9 @@ panneau est une feuille plein écran (SP-RS4), l'espacement retombe à `var(--sp
 `1.1rem` : la hauteur utile y est la ressource rare et un titre trop grand pousse les noms longs
 sur trois lignes.
 
+Les **règles spéciales de la classe** (`cla_regles_speciales`, SP-CR1) sont rendues dans `.classe-detail__regles.sort-detail__description`, sans libellé, juste après
+`.classe-detail__capacites` (marge haute `var(--sp-xl)`, filet `var(--clr-border)`, `padding-top: var(--sp-lg)` ; `var(--sp-lg)` / `var(--sp-md)` sous 992px).
+
 Les **capacités raciales** (`include/ajax/detail-pp/race.php`) partagent ce jeu de règles : les
 sélecteurs `.race-detail__capacites`, `.race-detail__capacite`, `.race-detail__capacite-nom` et
 `.race-detail__capacite-nom .cap-type` sont groupés avec leurs homologues `.classe-detail__*` dans
@@ -1865,6 +2002,39 @@ compendium/enregistrement.php      # enregistrerClasse() : validation + neutrali
                                     #   purge dd_classe_niveau ; supprimerClasse() : dépendance sous-classes
 ```
 
+### Duplication d'une classe — SP-DU
+
+Action « Dupliquer » du menu ⋮ (clé `action_dupliquer` du moteur de liste, `compDupliquer()` de `main.js`, POST
+`entite=classe&action=dupliquer&ids[]=…` vers `compendium/enregistrement.php`). Activée par `compendium/classes.php`
+**en DD3.5 seulement** (`'action_dupliquer' => ($ruleset_id === 1)`) ; `dupliquerClasse()` refuse tout autre ruleset
+jusqu'à SP-DU5. Droit : garde globale `canEditCompendium()` du dispatch + `canEditCompendiumEntry()` sur la classe source.
+
+Règles (D-DU1 → D-DU3) :
+- Nom `Copie de <nom>` (tronqué à 100 caractères). Le contenu copié n'est jamais retouché, même s'il cite l'ancien nom.
+- La copie est rangée dans le **supplément personnel** de l'utilisateur (`getOrCreateUserSupplement()`), privée mais
+  visible (`cla_public = 0`, `cla_visible = 1`). Les autres colonnes de `dd_classes` sont recopiées telles quelles.
+  Elle n'apparaît dans la liste que si le supplément est dans la sélection personnelle de l'utilisateur : le helper
+  le garantit (voir §Supplément utilisateur) — sans cela une copie « disparaissait » (cas constaté le 2026-11-11).
+- Tables copiées : `dd_classes`, `dd_classe_niveau`, `dd_classe_capacite`, `dd_capacites_speciales`,
+  `dd_classe_competence`, `dd_sortclasse`, `dd_classe_sort`. **Chaque capacité liée est copiée en nouvelle ligne**
+  (`cap_classe_initiale` = la copie) : le formulaire de classe met à jour une capacité par son `cap_id`, une capacité
+  partagée modifiée dans la copie réécrirait l'original.
+- Non copiés : personnages et tables de personnages, sous-classes de l'original, tableaux `[[tab:…]]` cités dans les
+  textes (la copie pointe encore vers ceux de l'original).
+- `dd_classe_niveau` et `dd_classe_competence` sont en **MyISAM** (relevé du 2026-11-11) : un rollback ne les annule pas.
+  Elles sont écrites en dernier, avec compensation manuelle (`DELETE` sur la copie) si une exception survient.
+
+Assistants génériques (même fichier), faits pour être réutilisés par les races (SP-DU4) : `colonnesCopiables()`
+(colonnes lues par `SHOW COLUMNS`, hors clé auto-incrémentée : une colonne ajoutée plus tard est copiée sans retoucher
+le code), `copierLignesLiees()` (copie des lignes d'une table liées à un parent, avec surcharges et filtre) et
+`copierLigne()` (une ligne par sa clé primaire). `repondreOk()` accepte un message optionnel (« Classe dupliquée. »).
+
+Suppression (SP-DU6) : `supprimerClasse()` supprime aussi `dd_sortclasse`, `dd_classe_sort`, `dd_classe_competence` et les
+capacités de la classe **qui ne sont plus référencées nulle part** (`dd_classe_capacite`, `dd_race_capacite`,
+`dd_personnages_choix.pech_cap_id`) : une capacité partagée avec une autre classe ou une race reste. Les garde-fous existants
+(personnages rattachés, sous-classes) sont inchangés. Relevé du 2026-11-11 : 17 capacités sans aucune liaison existaient déjà
+avant SP-DU, non touchées (nettoyage éventuel hors périmètre).
+
 ---
 
 ## 6. Zone d'administration
@@ -1897,8 +2067,18 @@ La zone admin comporte **2 blocs** accessibles depuis `admin/index.php` (dashboa
 | Bloc | Page | Entité |
 |---|---|---|
 | A — Gestion des utilisateurs | admin/utilisateurs.php | dd_joueurs |
-| B — Gestion des ressources | admin/ressources.php | dd_ressources |
+| B — Gestion des ressources | admin/ressources.php (liste), admin/ressource.php (page d'une ressource, SP-AD5) | dd_ressources |
 
+> **Suppression d'une ressource (SP-AD6)** — la ressource part avec tout son contenu et tout ce qui en dépend.
+> La base n'ayant presque aucune clé étrangère, chaque dépendance est déclarée une seule fois dans
+> `ressourceRelations()` (`include/ressource-suppression.php`), avec un mode : `cascade` (lignes supprimées),
+> `perso` / `campagne` / `enfant` (refus : personnage, note de campagne, contenu d'une autre ressource) ou
+> `null` (lien coupé : `opp_mo_id`, `om_so_id`). La même carte sert à l'analyse affichée, à la cascade, à la
+> vérification « zéro orphelin » faite avant le `COMMIT` (tout reste → `ROLLBACK`) et au rapport
+> `admin/orphelins.php`. Une capacité spéciale n'est supprimée que si plus rien ne la référence. Les règles sont
+> supprimées des feuilles vers la racine (`fk_reg_parent` RESTRICT). **Toute nouvelle colonne qui référence du
+> contenu de ressource doit être ajoutée à `ressourceRelations()`.**
+>
 > Les variables (`dd_variables`) sont gérées directement via phpMyAdmin —
 > aucune interface d'administration n'est prévue pour cette table.
 
@@ -1972,7 +2152,10 @@ Si des données existent, la suppression est refusée avec un message explicite.
 admin/
   index.php              ← dashboard (2 cartes)
   utilisateurs.php       ← liste utilisateurs ($adminListConfig → admin-liste.php)
-  ressources.php         ← liste ressources ($adminListConfig → admin-liste.php)
+  ressources.php         ← liste ressources ($adminListConfig → admin-liste.php, url_page → ressource.php)
+  ressource.php          ← page d'une ressource : fiche, onglets-compteurs de contenu, liste paginée (SP-AD5),
+                           analyse et confirmation de la suppression en cascade (?suppr=1, SP-AD6)
+  orphelins.php          ← rapport des données orphelines, lecture seule (SP-AD6d)
   enregistrement.php     ← POST commun admin (insert/update/désactivation)
 
 include/
@@ -1980,7 +2163,9 @@ include/
   ajax/
     detail-pp/
       utilisateur.php
-      ressource.php
+  ressource-suppression.php ← suppression en cascade d'une ressource (SP-AD6) : ressourceRelations(),
+                              ressourceSuppressionAnalyse(), ressourceSupprimerCascade(), ressourceOrphelins(),
+                              ressourceRapportOrphelins()
     modifier/
       utilisateur.php
       ressource.php
@@ -2306,7 +2491,8 @@ en blocs repliables (`togglePlus`). La **Magie** reste une **vue dédiée** (`pe
 |---|---|---|---|
 | 1 | Mode jeu *(emplacement réservé)* | Suivi PV et autres variables selon ruleset — **contenu différé**. **Masqué** sauf si `j_affichage_mode_jeu` est actif (profil) | — |
 | 2 | Identité *(sans titre)* | Rangée : **Niveau**, Race (+ archétype DD3.5), Sexe, Alignement, Historique (DD2024) — puis les **classes**, une par ligne | Race, Historique, Classe |
-| 3 | Caractéristiques + Init + CA + PV | Une rangée de blocs, sans titres. En DD2024 les caractéristiques portent une 4e colonne, le **jet de sauvegarde** (SP-PE11) | — |
+| 3 | Caractéristiques + CA (DD3.5 : trois CA ; DD2024 : Init + CA + PV) | Une rangée de blocs, sans titres. En DD2024 les caractéristiques portent une 4e colonne, le **jet de sauvegarde** (SP-PE11) | — |
+| 3a | Rangée de combat (SP-PE22) | DD3.5 : PV, Init, Vision, Déplacement, **BBA** ; DD2024 : Vision, Déplacement, **BM** | — |
 | 3b | Jets de sauvegarde *(DD3.5)* | Réflexes, Vigueur, Volonté — bloc à part, le ruleset n'en a que trois et sous d'autres noms | — |
 | 4 | Compétences + Dons | Une **rangée de deux blocs** au-dessus de 992px, empilés en dessous (SP-PE10m) | Compétence, Don |
 | 5 | Capacités de race + de classe | Une rangée de deux blocs, déduite des tables de liaison — aucune saisie (SP-PE11) | Capacité |
@@ -2332,6 +2518,34 @@ Une **sous-classe DD2024** rejoint sa classe parente (`cla_cla_id`) entre parent
 **Rangée caractéristiques / (maîtrise) / CA / PV** — trois blocs sans titre sur une rangée,
 **quatre en DD2024** : le **bonus de maîtrise** y prend une tuile « Maît. », avant CA (SP-PE10l).
 Il n'existe pas en DD3.5. Tuiles à base 96px pour que les trois tiennent jusqu'à 342px.
+*(Remaniée par SP-PE22 : le bonus de maîtrise a quitté cette rangée, voir ci-dessous.)*
+
+**Rangée de combat (SP-PE22, D-PE22a → c)** — sous les caractéristiques, une seconde
+`.per-fiche__rangee--combat`. **DD3.5** : à droite des caractéristiques, **trois tuiles de CA**
+(`pe_ca` optimale, `pe_ca_depourvu`, `pe_ca_contact`, sous-libellé en petit : `.per-stat--empile`) ;
+puis, sur la rangée de combat, PV · Init · Vision · Déplacement · **BBA**. **DD2024** : Init, CA, PV
+restent à droite des caractéristiques ; la rangée de combat porte Vision · Déplacement · **BM**
+(le « (BM +x) » n'est plus accolé au niveau global). Deux familles de tuiles : *en ligne*
+(`.per-stat`, courtes : PV, Init, CA, BM) et *texte* (`.per-fiche__bloc--texte` + `.per-stat-texte`,
+libellé au-dessus, valeur qui revient à la ligne : Vision, Déplacement, BBA). Sous 992 px les tuiles
+en ligne restent côte à côte et les tuiles texte prennent chacune leur ligne.
+`pe_vision` et `pe_deplacement` (VARCHAR 100, les deux rulesets) sont saisis ; un champ vide s'affiche « — ».
+
+**Niveau (DD3.5, SP-PE23)** — le niveau affiché dans l'Identité vaut la somme des niveaux de classe
+(sous-classes exclues) **+ `ra_mod_niveau` de la race de base + celui de l'archétype** (`dd_races`,
+type Archétype). `niveauGlobalDetail35($perso, $classes)` rend le total et le texte de l'info-bulle
+(attribut `title`, une ligne par terme ; seuls les ajustements non nuls y figurent) ; la valeur est
+soulignée en pointillé (`.per-identite__val--detail`). `niveauGlobalPersonnage()` reste la somme des
+classes seule : c'est elle que lisent le bonus de maîtrise DD2024 et le calcul des compétences. DD2024
+inchangé.
+
+**BBA (DD3.5, SP-PE22b)** — calculé, jamais saisi. `dd_classe_niveau.cn_bba` est un texte déjà
+développé par classe et par niveau (« 11/6/1 ») : `bbaTotalPersonnage()` ne retient son **premier
+segment** pour le palier de niveau de chaque classe du personnage et additionne ; `formatBba()` rend
+la suite d'attaques (total, puis −5 tant que ≥ 1), **4 attaques au plus**. Guerrier 11 / protecteur nain 5 :
+11 + 5 = 16 → `+16/+11/+6/+1`. Le formulaire de modification occulte les cases SAUV de FOR, INT et CHA en
+DD3.5 (champs cachés : leur valeur n'est pas remise à zéro) ; les deux CA supplémentaires ne sont écrites
+qu'en DD3.5 (`COALESCE` à l'UPDATE).
 
 **Rangée caractéristiques / CA / PV** — trois blocs sans titre sur une rangée
 (`.per-fiche__rangee`). Les six caractéristiques tiennent en **2 lignes de 3**, comme le bloc de
@@ -2346,8 +2560,8 @@ enveloppés dans un conteneur unique, que le chevron replie.
 
 **Initiative, bonus de maîtrise, sauvegardes (SP-PE11)** — `pe_init` et `pe_for_save` …
 `pe_cha_save` sont **saisis**, jamais calculés (§7.1). L'initiative occupe une tuile de la rangée
-de stats, dans les deux rulesets ; le **bonus de maîtrise** DD2024 se lit derrière le niveau
-global du bloc Identité, « Niveau 6 (BM +3) ». Les **sauvegardes** s'affichent en 4e colonne des
+de stats, dans les deux rulesets ; le **bonus de maîtrise** DD2024 se lisait derrière le niveau
+global du bloc Identité (« Niveau 6 (BM +3) ») — il a rejoint la rangée de combat en SP-PE22. Les **sauvegardes** s'affichent en 4e colonne des
 caractéristiques en DD2024 (grille à deux caractéristiques de front sous 992px) et dans un bloc
 `Réflexes / Vigueur / Volonté` en DD3.5, qui n'en connaît que trois.
 
@@ -3093,6 +3307,15 @@ pas d'URL partageable, pas de retour navigateur, pas de place pour des outils de
 **Colonne d'outils** — `include/campagne-outils.php`, fragment commun aux quatre pages. Elle ne
 contient les **notes du MJ** (SP-NO3) et l'**écran du MJ** (SP-TB8, surcouche plein écran — voir
 §9c). Le reste des aides de jeu est à arbitrer (SP-CP8).
+Sous ces deux outils, **un raccourci par personnage** de la campagne (SP-CP13) : lien vers
+`personnages/fiche.php`, libellé = nom du personnage, liaisons `cp_actif = 1` seulement, triées par nom.
+Même bouton `.camp-outil`, modificateur `.camp-outil--personnage` (fond `color-mix` de `--clr-accent-2`).
+**Popup (SP-CP13b)** : un clic (sans Ctrl / Maj) ouvre la fiche dans `#camp-fiche-pp`, créé à la volée par
+`campFicheOuvrir()` (`js/campagne.js`) : iframe sur `fiche.php?id=…&popup=1`, barre avec le nom, « nouvel onglet » et
+fermer. **Mode popup** = `modePopup()` (`include/helpers.php`, GET `popup=1`) : `header.php` ajoute `body.est-popup` et
+omet en-tête et contexte, `footer.php` omet le pied, `personnage-nav.php` propage `popup=1`, `fiche.php` masque le
+retour à la liste, `setLastPersonnage()` ne touche pas au contexte du header. Échap ferme le popup, même depuis
+l'iframe (`js/main.js`, sauf panneau ouvert dans la fiche).
 
 **Écritures** — les formulaires restent des overlays `#modification` (les cinq `modifier/*.php`
 sont réutilisés tels quels). Une seule règle après commit : **recharger la page courante**, on
@@ -3506,6 +3729,39 @@ portée, sans code dédié.
 > ⚠ **`mo_stats` est délibérément exclu.** `monstre-parser.php` a sa propre liaison glossaire
 > (`lierAuto()` + tag `%id%`) ; y ajouter SP-GL produirait des liens en double. C'est la raison
 > pour laquelle `rendreTexteEnrichi()` ne doit jamais être appelé sur un bloc de stats.
+
+### Liens vers sorts, dons et objets — SP-GL5
+
+`rendreTexteEnrichi($db, $html, $ruleset_id, $opts)` accepte une étape optionnelle,
+`$opts['liens_compendium'] = ['exclure' => ['objet' => $id]]`, insérée **entre le glossaire et
+les tableaux** : `lierMotsClesCompendium()` (`include/liens-compendium-parser.php`). Elle réutilise
+le moteur du bloc de stats des monstres (`chargerIndexMonstre()`, `lierSegmentBrut()`,
+`normaliserNomMonstre()`) et produit le même lien `<span class="mo-lien" data-type data-id>`.
+Branchée aujourd'hui sur `om_description` seulement (`include/ajax/detail-pp/objet.php`) ; le bloc
+généré des potions / baguettes / parchemins n'est pas relié.
+
+- **Tags explicites** `[[sort:Nom]]`, `[[don:Nom]]`, `[[objet:Nom]]`, libellé facultatif
+  `[[sort:Nom|texte]]` — nom insensible à la casse et aux accents. Les tags `#don#`, `$sort$`,
+  `&objet&`, `@id@`, `%id%` du monstre-parser supposent du texte brut et **ne s'emploient pas**
+  dans du HTML (`&`, `#` et `$` y ont un autre sens). Nom inconnu : tag restitué dans
+  `.reg-tab__manquant`. Ces tags sont opaques pour le glossaire (`GL_TAB_MOTIF`).
+- **Liaison auto** (objet > sort > don) : casse exacte du nom en base (accents indifférents :
+  `lcMemeNom()`, car la base stocke « Eclair »), première occurrence par cible, longueur ≥
+  `MO_LONGUEUR_MIN`. L'objet affiché ne se lie pas à lui-même ; zones exclues = celles du glossaire.
+- **Listes de noms** (SP-GL5c) : un texte dont au moins 2 éléments (séparés par `,` `;` `:`) — et la
+  moitié au moins des éléments non vides — **commencent** par un nom connu (`lcEstListe()`), ou un
+  paragraphe qui commence par « Création », passe en mode liste (`lcLierListe()`) : le plus long nom
+  en tête de chaque élément est lié, **casse libre**, seul le nom (le qualificatif « (au 5e niveau) »
+  reste en texte), une fois par bloc, indépendamment des liens posés plus haut.
+- **Tableaux** : une colonne dont l'en-tête contient « Sort(s) » (`TAB_COLONNE_SORTS`) lie ses
+  cellules par le même mécanisme (`lcLierCelluleSorts()`, sorts seulement, une fois par cellule), sans
+  balisage ; l'index de liaison est alors chargé même sans tag explicite. Anneau de maîtrise
+  élémentaire et bâton de surpuissance (DD2024) en sont les cas d'école.
+- Le conteneur du texte doit porter `data-detail-base` : le handler `.mo-lien` de `js/main.js`
+  en dépend (il n'ouvre rien sans).
+- Aide à la saisie : clé `texte-objet-parsers` (`include/aide-contextuelle.php`).
+- `lierSegmentBrut()` passe désormais le texte brut en 2ᵉ argument du résolveur (casse
+  d'origine) ; les résolveurs existants l'ignorent.
 
 ### Handler de clic et style — portée globale
 
@@ -4511,7 +4767,9 @@ réinitialisation muni d'un jeton factice. Il affiche le mode d'envoi, l'erreur 
 |---|---|---|
 | Ruleset par défaut | j_default_ruleset_var_id | Ruleset chargé à chaque connexion |
 | Apparence | j_theme | Thème visuel : dark (sombre) ou light (Parchemin) |
-| Mode campagne | j_mode_campagne | Active/désactive le menu Campagnes |
+| Mode campagne | j_mode_campagne | Active/désactive le menu Campagnes ; fait de l'utilisateur un MJ et crée son supplément (SP-RE) |
+| Supplément public | j_supplement_public | MJ seulement : supplément vu de tous (1) ou privé (0) |
+| Suppléments de MJ | j_voir_supplements | Les listes du compendium affichent par défaut les suppléments publics |
 | Affichage ruleset | j_affichage_ruleset | Affiche le ruleset dans le header |
 | Éléments par page | j_items_par_page | Taille des listes (10/20/50/100) |
 
@@ -4529,10 +4787,16 @@ immédiatement, sans reconnexion.
 > trois calculés avant le traitement du POST, pour que la section "Mes sources" ci-dessous ne reste
 > pas sur les ressources du ruleset précédent. Détail en §12 et `DECISIONS_LOG.md` [2026-08-13].
 
-### Section "Mes sources" — sélection personnelle des ressources
+### Section "Mes sources" — SUPPRIMÉE (SP-RE4, 2026-11-11)
 
-L'utilisateur peut choisir, pour le ruleset actif, quelles ressources alimentent son compendium.
-Cette sélection correspond à la priorité 2 de getActiveResIds().
+La sélection personnelle des ressources n'existe plus : le compendium montre les ressources actives
+choisies par l'admin, plus les suppléments de MJ (§5 « Sources actives »). La section et son handler
+POST ont été retirés de `profil/index.php` ; `j_voir_supplements` et `j_supplement_public` (section
+Paramètres) les remplacent, et `j_voir_supplements` est répercuté en session. Le texte ci-dessous
+décrit l'ancien mécanisme, conservé pour l'historique.
+
+L'utilisateur pouvait choisir, pour le ruleset actif, quelles ressources alimentaient son compendium.
+Cette sélection correspondait à la priorité 2 de l'ancienne getActiveResIds().
 
 **Périmètre affiché (cible SP-C6, partiellement implémenté) :**
 - Ressources globales officielles du ruleset actif (`res_j_id IS NULL`) — �
@@ -5086,6 +5350,7 @@ donjon/
     index.php
     utilisateurs.php
     ressources.php
+    ressource.php
     enregistrement.php
     migrations.php        état et application des migrations SQL (SP-DP5, §6b)
     migrations-auto.php   point d'entrée du déployeur, jeton à usage unique (SP-DP6)
@@ -5184,7 +5449,7 @@ rattachées à une source "Supplément de {pseudo}" (1 par ruleset par utilisate
 | **SP-C3** | `detail-pp/*.php` × 8 : bouton Modifier per-entry (`canEditCompendiumEntry`) | Modérée |
 | **SP-C4** | `modifier/*.php` × 8 : source dropdown 2 groupes + `_public`/`_visible` | Modérée |
 | **SP-C5** | `enregistrement.php` : ownership + save `_public`/`_visible` + auto-create supplément | Modérée |
-| **SP-C6** | `profil/index.php` : "Mes sources" étendu aux suppléments publics tiers | Faible |
+| ~~**SP-C6**~~ | Abandonnée : remplacée par SP-RE (suppléments de MJ publics ajoutés dynamiquement, D-RE1) | — |
 
 > �
  **Blocage levé le 2026-07-01.** `SHOW CREATE TABLE` exécuté sur les 7 tables restantes (base de
@@ -5251,8 +5516,8 @@ SP-C2 à SP-C7 s'implémentent entité par entité. État au 2026-07-01 :
 > dupliquée — celle-ci reste affichée en permanence comme avant SP-C.
 >
 > Toutes les entités sont désormais traitées C0 à C5 (+ C7 pour Monstres uniquement, nettoyage
-> spécifique à sa migration `mo_j_id`). Seul **SP-C6** (profil "Mes sources" — suppléments publics
-> d'autres utilisateurs) reste en pause, cf. `DECISIONS_LOG.md` [2026-06-20] et [2026-07-01].
+> spécifique à sa migration `mo_j_id`). **SP-C6** (profil "Mes sources" — suppléments publics
+> d'autres utilisateurs) est abandonnée le 2026-11-11 au profit de SP-RE (D-RE1).
 
 ### Phase Admin — Zone d'administration TERMINE
 

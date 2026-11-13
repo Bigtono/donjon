@@ -15,7 +15,8 @@ $stmt = $db->prepare('
   SELECT j_id, j_prenom, j_nom, j_pseudo, j_email,
          j_default_ruleset_var_id, j_mode_campagne,
          j_affichage_ruleset, j_affichage_mode_jeu,
-         j_items_par_page, j_theme
+         j_items_par_page, j_theme,
+         j_supplement_public, j_voir_supplements
   FROM   dd_joueurs
   WHERE  j_id = ?
 ');
@@ -30,34 +31,9 @@ $rulesets = $db->query('
   ORDER  BY var_ordre
 ')->fetchAll();
 
-// Ruleset actif en session
+// Ruleset actif en session. La section « Mes sources » a disparu (SP-RE4) :
+// le compendium montre les ressources actives, choisies par l'admin.
 $ruleset_var_id_actif = (int)($_SESSION['ruleset_var_id'] ?? 1);
-$ruleset_nom_actif    = '';
-foreach ($rulesets as $r):
-  if ((int)$r['var_id'] === $ruleset_var_id_actif):
-    $ruleset_nom_actif = $r['var_valeur'];
-  endif;
-endforeach;
-
-// Chargement des ressources globales du ruleset actif
-$stmt_res = $db->prepare('
-  SELECT res_id, res_nom, res_abreviation, res_selection
-  FROM   dd_ressources
-  WHERE  res_ruleset_var_id = ?
-    AND  res_j_id IS NULL
-  ORDER  BY res_nom
-');
-$stmt_res->execute([$ruleset_var_id_actif]);
-$ressources_dispo = $stmt_res->fetchAll();
-
-// Chargement de la sélection personnelle actuelle (pour ce ruleset)
-$stmt_sel = $db->prepare('
-  SELECT js_res_id
-  FROM   dd_joueurs_sources
-  WHERE  js_j_id = ? AND js_ruleset_var_id = ?
-');
-$stmt_sel->execute([$j_id, $ruleset_var_id_actif]);
-$res_selectionnes = $stmt_sel->fetchAll(PDO::FETCH_COLUMN);
 
 // Traitement du formulaire
 if ($_SERVER['REQUEST_METHOD'] === 'POST'):
@@ -123,6 +99,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
     $mode_campagne     = isset($_POST['j_mode_campagne'])     ? 1 : 0;
     $affichage_ruleset = isset($_POST['j_affichage_ruleset']) ? 1 : 0;
     $affichage_mode_jeu = isset($_POST['j_affichage_mode_jeu']) ? 1 : 0;
+    // Suppléments de MJ (SP-RE4) : préférence d'affichage pour tous ; statut
+    // public / privé de son propre supplément pour un MJ. Hors mode campagne, la
+    // case n'est pas rendue : on conserve la valeur en base.
+    $voir_supplements  = isset($_POST['j_voir_supplements']) ? 1 : 0;
+    $supplement_public = $mode_campagne
+                         ? (isset($_POST['j_supplement_public']) ? 1 : 0)
+                         : (int)$joueur['j_supplement_public'];
     $items_par_page    = max(5, min(100, intParam($_POST['j_items_par_page'] ?? 20)));
     $theme_post        = $_POST['j_theme'] ?? 'dark';
     $theme             = in_array($theme_post, ['dark', 'light'], true) ? $theme_post : 'dark';
@@ -139,13 +122,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
                j_affichage_ruleset      = ?,
                j_affichage_mode_jeu     = ?,
                j_items_par_page         = ?,
-               j_theme                  = ?
+               j_theme                  = ?,
+               j_voir_supplements       = ?,
+               j_supplement_public      = ?
         WHERE  j_id = ?
       ');
       $upd->execute([$ruleset_var_id, $mode_campagne, $affichage_ruleset,
-                     $affichage_mode_jeu, $items_par_page, $theme, $j_id]);
+                     $affichage_mode_jeu, $items_par_page, $theme,
+                     $voir_supplements, $supplement_public, $j_id]);
 
-      $ruleset_change = $ruleset_var_id !== $ruleset_var_id_actif;
+      // Devenir MJ crée le supplément qui recevra ses ajouts au compendium,
+      // un par ruleset (D-RE2). Le quitter ne supprime rien.
+      if ($mode_campagne):
+        creerSupplementsMJ($db, $j_id);
+      endif;
 
       // Le contexte de navigation mémorisé (personnage, campagne, scénario,
       // chapitre, rencontre) appartient au ruleset quitté : basculerRuleset()
@@ -157,84 +147,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'):
       $_SESSION['j_affichage_ruleset'] = $affichage_ruleset;
       $_SESSION['j_affichage_mode_jeu'] = $affichage_mode_jeu;
       $_SESSION['j_theme']             = $theme;
-
-      if ($ruleset_change):
-        // Recharger l'affichage sur le nouveau ruleset (section « Mes sources »)
-        $ruleset_var_id_actif = $ruleset_var_id;
-        $ruleset_nom_actif    = '';
-        foreach ($rulesets as $r):
-          if ((int)$r['var_id'] === $ruleset_var_id_actif):
-            $ruleset_nom_actif = $r['var_valeur'];
-          endif;
-        endforeach;
-
-        $stmt_res->execute([$ruleset_var_id_actif]);
-        $ressources_dispo = $stmt_res->fetchAll();
-
-        $stmt_sel->execute([$j_id, $ruleset_var_id_actif]);
-        $res_selectionnes = $stmt_sel->fetchAll(PDO::FETCH_COLUMN);
-      endif;
+      $_SESSION['j_voir_supplements']  = (bool)$voir_supplements;
+      $ruleset_var_id_actif            = $ruleset_var_id;
 
       $ok = true;
       $stmt->execute([$j_id]);
       $joueur = $stmt->fetch();
     endif;
-
-  // --- Section sources ---
-  elseif ($section === 'sources'):
-    // Recharger la liste autorisée côté serveur (ruleset actif, global uniquement)
-    $stmt_autorises = $db->prepare('
-      SELECT res_id
-      FROM   dd_ressources
-      WHERE  res_ruleset_var_id = ? AND res_j_id IS NULL
-    ');
-    $stmt_autorises->execute([$ruleset_var_id_actif]);
-    $ids_autorises = $stmt_autorises->fetchAll(PDO::FETCH_COLUMN);
-
-    // Validation : ne conserver que les res_id appartenant à la liste autorisée
-    $ids_post    = isset($_POST['res_ids']) && is_array($_POST['res_ids'])
-                   ? $_POST['res_ids']
-                   : [];
-    $ids_valides = [];
-    foreach ($ids_post as $rid):
-      $rid = (int)$rid;
-      if (in_array($rid, $ids_autorises)) $ids_valides[] = $rid;
-    endforeach;
-
-    // Le supplément personnel de l'utilisateur n'est pas proposé comme case à
-    // cocher dans cette section (auto-sélectionné par design, cf. § Supplément
-    // utilisateur / ARCHITECTURE_0_REFERENCE.md). Sans ce réajout, le DELETE +
-    // INSERT ci-dessous l'effacerait de dd_joueurs_sources à chaque sauvegarde
-    // de "Mes sources" — régression constatée le 2026-07-02 (contenu homebrew
-    // de l'utilisateur disparaissant des listes du compendium après un simple
-    // enregistrement de profil).
-    $supplement_res_id = getUserSupplementResId($db, $j_id, $ruleset_var_id_actif);
-    if ($supplement_res_id !== null && !in_array($supplement_res_id, $ids_valides, true)):
-      $ids_valides[] = $supplement_res_id;
-    endif;
-
-    // DELETE + INSERT en bloc
-    $del = $db->prepare('
-      DELETE FROM dd_joueurs_sources
-      WHERE  js_j_id = ? AND js_ruleset_var_id = ?
-    ');
-    $del->execute([$j_id, $ruleset_var_id_actif]);
-
-    if (!empty($ids_valides)):
-      $ins = $db->prepare('
-        INSERT INTO dd_joueurs_sources (js_j_id, js_res_id, js_ruleset_var_id)
-        VALUES (?, ?, ?)
-      ');
-      foreach ($ids_valides as $rid):
-        $ins->execute([$j_id, $rid, $ruleset_var_id_actif]);
-      endforeach;
-    endif;
-
-    // Recharger la sélection pour l'affichage
-    $stmt_sel->execute([$j_id, $ruleset_var_id_actif]);
-    $res_selectionnes = $stmt_sel->fetchAll(PDO::FETCH_COLUMN);
-
-    $ok = true;
 
   endif;
 endif;
@@ -265,9 +184,6 @@ require_once '../include/header.php';
     </button>
     <button class="profil-nav__btn" onclick="showSection('parametres', this)">
       <i class="fa fa-sliders-h"></i> Paramètres
-    </button>
-    <button class="profil-nav__btn" onclick="showSection('sources', this)">
-      <i class="fa fa-book"></i> Mes sources
     </button>
   </nav>
 
@@ -392,7 +308,39 @@ require_once '../include/header.php';
                    <?= $joueur['j_mode_campagne'] ? 'checked' : '' ?>>
             <span class="toggle-switch"></span>
           </label>
-          <p class="form-hint">Active le menu Campagnes et les outils de gestion de parties.</p>
+          <p class="form-hint">
+            Active le menu Campagnes et les outils de gestion de parties. Vous devenez MJ :
+            un supplément est créé pour recevoir vos ajouts au compendium.
+          </p>
+        </div>
+
+        <?php if ($joueur['j_mode_campagne']): ?>
+          <div class="form-group">
+            <label class="toggle-label">
+              <span>Mon supplément est public</span>
+              <input type="checkbox" name="j_supplement_public" value="1"
+                     <?= $joueur['j_supplement_public'] ? 'checked' : '' ?>>
+              <span class="toggle-switch"></span>
+            </label>
+            <p class="form-hint">
+              Public : vos ajouts au compendium sont visibles de tous les utilisateurs.
+              Privé : vous seul, les administrateurs et les joueurs de vos campagnes les voyez.
+            </p>
+          </div>
+        <?php endif ?>
+
+        <div class="form-group">
+          <label class="toggle-label">
+            <span>Toujours afficher les suppléments de MJ</span>
+            <input type="checkbox" name="j_voir_supplements" value="1"
+                   <?= $joueur['j_voir_supplements'] ? 'checked' : '' ?>>
+            <span class="toggle-switch"></span>
+          </label>
+          <p class="form-hint">
+            Les listes du compendium montrent par défaut le seul contenu officiel. Activé, elles
+            ajoutent les suppléments publics des MJ ; le filtre « Suppléments de MJ » de chaque
+            liste reste disponible.
+          </p>
         </div>
 
         <div class="form-group">
@@ -436,58 +384,6 @@ require_once '../include/header.php';
         </button>
       </div>
     </form>
-  </section>
-
-  <!-- Section Sources -->
-  <section class="profil-section noDisplay" id="section-sources">
-    <h2>Mes sources — <?= h($ruleset_nom_actif) ?></h2>
-
-    <?php if (empty($ressources_dispo)): ?>
-      <p class="text-muted">Aucune ressource disponible pour ce ruleset.</p>
-    <?php else: ?>
-
-      <p class="form-hint mb-md">
-        Sélectionnez les ressources à utiliser dans le compendium pour le ruleset
-        <strong><?= h($ruleset_nom_actif) ?></strong>.
-        Si aucune ressource n'est sélectionnée, le compendium affichera les sources actives par défaut.
-      </p>
-
-      <form method="POST" action="<?= BASE_URL ?>/profil/index.php">
-        <?= csrfField() ?>
-        <input type="hidden" name="section" value="sources">
-
-        <div class="sources-liste">
-          <?php foreach ($ressources_dispo as $res): ?>
-            <label class="sources-item">
-              <input type="checkbox"
-                     name="res_ids[]"
-                     value="<?= (int)$res['res_id'] ?>"
-                     <?= in_array((int)$res['res_id'], array_map('intval', $res_selectionnes)) ? 'checked' : '' ?>>
-              <span class="sources-item__nom"><?= h($res['res_nom']) ?></span>
-              <?php if ($res['res_abreviation']): ?>
-                <span class="sources-item__abrev"><?= h($res['res_abreviation']) ?></span>
-              <?php endif ?>
-              <?php if ($res['res_selection']): ?>
-                <span class="sources-item__defaut" title="Sélection par défaut">★</span>
-              <?php endif ?>
-            </label>
-          <?php endforeach ?>
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">
-            <i class="fa fa-save"></i> Enregistrer mes sources
-          </button>
-          <button type="button" class="btn btn-secondary" onclick="sourcesSelectAll(true)">
-            Tout sélectionner
-          </button>
-          <button type="button" class="btn btn-secondary" onclick="sourcesSelectAll(false)">
-            Tout désélectionner
-          </button>
-        </div>
-      </form>
-
-    <?php endif ?>
   </section>
 
 </div>

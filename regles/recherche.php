@@ -19,7 +19,7 @@ requireAuth();
 $q           = strParam($_GET['q'] ?? '');
 $ruleset_id  = (int)($_SESSION['ruleset_var_id'] ?? 1);
 $ruleset_rep = $_SESSION['rulesetRep'] ?? 'DD3.5';
-$peut_editer = canEditCompendium();
+$peut_editer = canEditCompendiumOfficiel();
 
 $page_title = 'Recherche — Règles de jeu';
 $js_module  = 'regles';

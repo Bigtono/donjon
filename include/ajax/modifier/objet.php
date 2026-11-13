@@ -80,15 +80,18 @@ $formats = $db->query('SELECT fom_id, fom_nom FROM dd_format_objet_magique ORDER
 // sources officielles (res_j_id IS NULL) vs supplément personnel de
 // l'utilisateur courant (le seul supplément qu'il a le droit d'alimenter).
 $sources_officielles = [];
-if (!empty($res_ids)):
-  $ph   = resIdsPlaceholders($res_ids);
-  $stmt = $db->prepare("
+// Sources officielles : réservées aux éditeurs du contenu officiel (admin,
+// gestionnaire) ; un MJ n'alimente que son supplément (SP-RE5). Ressources
+// actives, plus la source actuelle de l'entrée si elle a été désactivée.
+if (canEditCompendiumOfficiel()):
+  $stmt = $db->prepare('
     SELECT res_id, res_nom
     FROM   dd_ressources
-    WHERE  res_id IN ($ph) AND res_j_id IS NULL
+    WHERE  res_j_id IS NULL AND res_ruleset_var_id = ?
+      AND  (res_selection = 1 OR res_id = ?)
     ORDER  BY res_nom
-  ");
-  $stmt->execute($res_ids);
+  ');
+  $stmt->execute([$ruleset_id, (int)$om['om_res_id']]);
   $sources_officielles = $stmt->fetchAll();
 endif;
 
@@ -208,6 +211,7 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
           <label for="om_res_id">Source <span class="required">*</span></label>
           <select id="om_res_id" name="om_res_id" required>
             <option value="">— Choisir —</option>
+            <?php if (!empty($sources_officielles)): ?>
             <optgroup label="Sources officielles">
               <?php foreach ($sources_officielles as $src): ?>
                 <option value="<?= (int)$src['res_id'] ?>" data-supplement="0"
@@ -216,9 +220,10 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
                 </option>
               <?php endforeach ?>
             </optgroup>
+            <?php endif ?>
             <optgroup label="Mon supplément">
               <option value="supplement" data-supplement="1"
-                <?= $om_res_id_select === 'supplement' ? 'selected' : '' ?>>
+                <?= ($om_res_id_select === 'supplement' || empty($sources_officielles)) ? 'selected' : '' ?>>
                 <?= h($om_supplement_nom) ?>
               </option>
             </optgroup>
@@ -243,15 +248,6 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
           </label>
         </div>
 
-        <!-- Partagé (supplément uniquement) -->
-        <div class="form-group" id="om-supplement-visibilite" hidden>
-          <label class="form-label--checkbox">
-            <input type="checkbox" id="om_public" name="om_public" value="1"
-              <?= (int)$om['om_public'] === 1 ? 'checked' : '' ?>>
-            Partagé (visible des autres utilisateurs ayant ce supplément comme source)
-          </label>
-          <span class="form-hint">Une entrée partagée est forcément visible.</span>
-        </div>
 
       </div><!-- .modif-grid -->
     </div><!-- .modif-section -->
@@ -448,7 +444,7 @@ $titre = $id > 0 ? 'Modifier ' . h($om['om_nom']) : 'Nouvel objet magique';
     <!-- ===== Description TinyMCE ===== -->
     <div class="modif-section" id="section-description">
       <div class="form-group">
-        <label for="om_description">Description<?= aideIcone('texte-parsers') ?></label>
+        <label for="om_description">Description<?= aideIcone('texte-objet-parsers') ?></label>
         <textarea id="om_description" name="om_description"
                   class="tinymce-basic"><?= $om['om_description'] ?? '' ?></textarea>
       </div>
@@ -520,7 +516,7 @@ initSortAutocomplete();
   if (!selectRes || !blocPublic) return;
 
   function appliquerContrainte() {
-    if (chkPublic.checked) {
+    if (chkPublic && chkPublic.checked) {
       chkVisible.checked = true;
       chkVisible.disabled = true;
     } else {

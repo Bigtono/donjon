@@ -1,4 +1,4 @@
-<!-- Mis à jour : 2026-08-28 15:40 -->
+<!-- Mis à jour : 2026-11-11 14:30 -->
 
 # Règles métiers générales sur les classes
 
@@ -44,6 +44,8 @@ B - les données liées aux niveaux de classe stockées dans dd_classe_niveau. C
   2. les données liées aux pouvoirs spécifiques de la classe (champs cn_pouvoir1 à cn_pouvoir4).
 
 C - selon la classe et le niveau, une ou plusieurs capacités spéciales. Chaque capacité spéciale est décrite dans la table dd_capacites_speciales. L'attribution d'une capacité à un niveau de classe spécifique est faite via la table dd_classe_capacite selon la relation entre l'id de la classe (cc_cla_id) et l'id de la capacité spéciale (cc_cap_id) pour un niveau donné (cc_niveau). Le champ cc_precision contient des indications complémentaires spécifique à l'attribution de la capacité spéciales à ce niveau précis (nombre d'utilisation de la capacité spéciales, restriction d'emploi etc...). Le contenu de cc_precision est alors affiché entre parenthèses immédiatement après le nom de la capacité spéciale dans la table
+
+C bis - les règles spéciales de la classe, champ cla_regles_speciales de dd_classes (DD3.5 et DD2024, sous-classes comprises). Certaines classes ont des règles complexes qui ne se rangent pas dans une capacité isolée : elles sont saisies dans ce champ de texte enrichi (glossaire, [[tab:slug]] et [[liste:…]] y fonctionnent comme dans la description). Dans la fiche de la classe, le texte est affiché sans libellé, immédiatement après la liste des capacités spéciales, séparé d'elle par une marge nettement plus grande que celle qui sépare deux capacités et par un filet. Champ vide : rien n'est affiché.
 
 
 ## Conception de la page

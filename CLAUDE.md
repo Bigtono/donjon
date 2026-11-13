@@ -58,11 +58,13 @@ Deux rulesets : **DD3.5** (id 1) et **DD2024** (id 2).
 | `csrfField()` / `verifyCsrf()` | Token CSRF — obligatoire sur tout formulaire POST (auth.php) |
 | `isMJ($db, $camp_id)` | Vérifie si l'utilisateur courant est MJ de la campagne (auth.php) |
 | `ownerFilter()` | WHERE `_j_id = :user_id` sauf admin |
-| `canEditCompendium()` | Droit global édition compendium (auth.php) |
+| `canEditCompendium()` | Droit d'ajout au compendium : admin, gestionnaire ou MJ (`j_mode_campagne`) (auth.php) |
+| `canEditCompendiumOfficiel()` | Droit sur le contenu officiel (règles, tableaux, sources officielles) : admin ou gestionnaire (auth.php) |
 | `canEditCompendiumEntry($db, ?int $res_j_id)` | Droit per-entry (helpers.php) |
-| `getActiveResIds($db, $ruleset_id)` | Sources actives : campagne > perso > défaut |
-| `getActiveResIdsCampagne($db, $camp_id, $ruleset_id)` | Sources actives d'une campagne (inclut le supplément perso du MJ) |
+| `getActiveResIds($db, $ruleset_id, $opts)` | Sources montrées : ressources actives (admin) + son supplément + supplément du MJ de la campagne de contexte (`pe_id` / `camp_id`) + suppléments publics si `supplements` (SP-RE) |
+| `getActiveResIdsCampagne($db, $camp_id, $ruleset_id)` | Même règle, la campagne pour contexte |
 | `getOrCreateUserSupplement($db, $j_id, $ruleset_id)` | Crée le supplément utilisateur si absent |
+| `creerSupplementsMJ($db, $j_id)` | Crée les deux suppléments d'un MJ (activation du mode campagne) |
 
 ---
 
@@ -159,7 +161,7 @@ bord unique de l'avancement du projet. Sa tenue à jour est **non négociable** 
    compendium), `SP-MA` (référentiel de la magie), `SP-PE` (module Personnages), `SP-SC`
    (sous-classes DD2024), `SP-RS` (UI smartphone), `SP-CP` (refonte du module Campagnes), `SP-AD`
    (administration), `SP-RB` (bascule de ruleset depuis le header), `SP-DP` (déploiement en
-   production), `SP-XC` (export de classes vers la production), `SP-CH` (choix liés aux capacités de classe), `SP-DO` (dons DD3.5 : dons de guerrier, données techniques), `SP-NO` (module Notes : diffusion d'informations aux joueurs), `SP-MO` (import des monstres DD3.5 de l'ancienne application), `SP-CV` (import des scénarios, chapitres et rencontres de l'ancienne application), `SP-ML` (envoi de mails du site), `SP-SY` (synchronisation du contenu
+   production), `SP-XC` (export de classes vers la production), `SP-CH` (choix liés aux capacités de classe), `SP-DO` (dons DD3.5 : dons de guerrier, données techniques), `SP-NO` (module Notes : diffusion d'informations aux joueurs), `SP-MO` (import des monstres DD3.5 de l'ancienne application), `SP-CV` (import des scénarios, chapitres et rencontres de l'ancienne application), `SP-ML` (envoi de mails du site), `SP-JF` (import du Manuel des Joueurs de Faerûn : sorts, dons, classes de prestige, objets, domaines), `SP-DU` (duplication d'une entrée du compendium : classes, puis races), `SP-CR` (règles spéciales d'une classe, affichées après ses capacités), `SP-RE` (refonte de la sélection des ressources : ressources actives + suppléments de MJ), `SP-SY` (synchronisation du contenu
    local → production, en attente d'arbitrage).
 2. **À chaque livraison**, cocher les phases terminées et ajouter les phases restantes
    dans §0, au format checklist markdown :
@@ -183,7 +185,12 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 
 ### Implémenté
 - Compendium complet : sorts, classes (+ sous-classes DD2024), races, dons, compétences, objets magiques, historiques (DD2024), monstres
-- Supplément utilisateur SP-C0→SP-C5 et SP-C7 : **fait sur les 8 entités** du compendium (`_public`/`_visible`, menu ⋮ per-entry, source à 2 groupes). Reste SP-C6 (profil « Mes sources » : suppléments publics tiers, partiel)
+- Supplément utilisateur SP-C0→SP-C5 et SP-C7 : **fait sur les 8 entités** du compendium (`_visible`, menu ⋮ per-entry, source à 2 groupes)
+- Sources simplifiées SP-RE0→RE6 (2026-11-11) : plus de sélection par utilisateur ni par campagne ; le compendium montre les ressources
+  actives (`res_selection`, admin seul) + son supplément + celui du MJ de sa campagne + les suppléments de MJ publics (filtre « Suppléments
+  de MJ », préférence `j_voir_supplements`). MJ = `j_mode_campagne`, supplément public / privé en bloc (`j_supplement_public`), drapeaux
+  `_public` par entrée abandonnés (D-RE1 → D-RE6). Restent SP-RE2b (`sql/2026-11-11_sp-re1_*` **à jouer en production**, puis revoir les
+  ressources actives), SP-RE7 (suppression de `dd_joueurs_sources` / `dd_campagnes_sources`) et SP-RE9 (contrôle visuel)
 - Campagnes : campagnes → scénarios → chapitres → rencontres → oppositions
 - Transfert/Duplication opposition SP-T0 (même campagne) : fait
 - Équipements SP-E0→E3 : table `dd_equipements` (`sql/2026-06-20_equipements_sp-e0.sql`), liste, formulaire, fiche détail
@@ -249,6 +256,11 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
 - SP-ML4 : mail de mot de passe oublié toujours non reçu en production (2026-11-08), malgré un envoi signalé comme réussi.
   Envoi SMTP livré (`envoyerMail()`, PHPMailer dans `include/phpmailer/`). `admin/test-email.php` choisit un compte actif et peut
   imiter le mail de réinitialisation (SP-ML5, ML6). Reste à tester vers une adresse non alias, puis à saisir le support OVH si nécessaire
+- Règles spéciales de classe SP-CR1 (2026-11-11) : champ `cla_regles_speciales`, affiché sans libellé après les capacités de la fiche de classe
+  (D-CR1). SP-CR4 livré (tableaux HTML des capacités → `dd_tableaux`, D-CR2). Restent SP-CR2 (`sql/2026-11-11_sp-cr1_*` et `sql/2026-11-11_sp-cr4_*` **à jouer en production**), SP-CR3 (saisir les règles des classes concernées) et SP-CR5 (tableaux HTML restants : races, dons, sorts, objets)
+- Fiche de personnage SP-PE22 (2026-11-12) : trois CA en DD3.5 (`pe_ca_depourvu`, `pe_ca_contact`), BBA calculé (`bbaTotalPersonnage()` / `formatBba()`, 4 attaques au plus),
+  vision et déplacement dans les deux rulesets, rangée de combat sous les caractéristiques, bonus de maîtrise DD2024 déplacé de l'en-tête (D-PE22a → c).
+  Reste SP-PE22f : `sql/2026-11-12_sp-pe22_ca_vision_deplacement.sql` **à jouer en production**, contrôle visuel du formulaire de modification
 - SP-SY0 : arbitrage de la synchronisation du contenu local → prod (non prioritaire, voir §6c) —
   ajouter en prod le contenu local absent, sans jamais rien écraser
 - SP-TB8g : contrôle visuel de l'écran du MJ, migration `2026-11-07_sp-tb8b_ecran_mj.sql` à jouer en production
@@ -256,7 +268,7 @@ Ne jamais clôturer une tâche sans avoir mis §0 à jour.
   des PV (`dd_oppositions_pv`, `opp_nombre`, `opp_pv_max`), images jusqu'à 15 Mo. Restent SP-CP11b (`sql/2026-11-07_sp-cp11_oppositions_pv.sql`
   **à jouer en production**), SP-CP11d (`sql/2026-11-08_sp-cv1b_effectifs_oppositions.sql`, effectifs lus dans la composition, à jouer après `sp-cv1`) et SP-CP12b (limite d'envoi PHP d'OVH à vérifier)
 - SP-TB9 : saisie des tableaux du ruleset DD3.5 (id 1)
-- SP-C6 : profil "Mes sources" — suppléments publics tiers
+- SP-RE2b / RE7 / RE9 : migration des sources simplifiées à jouer en production, puis suppression des anciennes tables de sélection
 - SP-E4 : `monstre-parser.php`, type liable `equipement` (SP-E5 soldée par SP-PO0)
 - SP-T1 : Transférer/Dupliquer vers une autre campagne
 - Compétences DD3.5 SP-DRS4b (2026-11-07) : texte intégral du DRS 04 pour les 36 fiches mères et 40 tableaux

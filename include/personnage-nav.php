@@ -33,7 +33,7 @@ $nav_items = [
   <?php foreach ($nav_items as $cle => [$page, $icone, $libelle]): ?>
     <?php if ($cle === 'magie' && !$nav_lanceur) continue; ?>
     <?php $actif = ($cle === ($nav_courante ?? 'fiche')); ?>
-    <a href="<?= BASE_URL ?>/personnages/<?= $page ?>?id=<?= $nav_pe_id ?>"
+    <a href="<?= BASE_URL ?>/personnages/<?= $page ?>?id=<?= $nav_pe_id ?><?= modePopup() ? '&amp;popup=1' : '' ?>"
        class="page-nav__item<?= $actif ? ' est-actif' : '' ?>"
        <?= $actif ? 'aria-current="page"' : '' ?>
        title="<?= h($libelle) ?>">

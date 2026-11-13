@@ -35,6 +35,25 @@ function toggleSources(entite) {
     menu.classList.remove('noDisplay');
     if (btn) btn.classList.add('is-open');
     if (chevron) chevron.style.transform = 'rotate(180deg)';
+    ajusterMenuSources(menu);
+  }
+}
+
+// Borne le menu à l'écran (SP-RE3) : hauteur limitée à l'espace libre sous le
+// bouton (ascenseur au-delà), ancrage à droite s'il déborde. Sans effet en
+// mobile, où le menu est dans le flux (position static, plafond CSS 50vh).
+function ajusterMenuSources(menu) {
+  menu.style.maxHeight = '';
+  menu.classList.remove('is-droite');
+  if (getComputedStyle(menu).position !== 'absolute') return;
+
+  const marge = 16;
+  const rect  = menu.getBoundingClientRect();
+  const libre = window.innerHeight - rect.top - marge;
+  menu.style.maxHeight = Math.max(120, libre) + 'px';
+
+  if (rect.right > document.documentElement.clientWidth - marge) {
+    menu.classList.add('is-droite');
   }
 }
 
